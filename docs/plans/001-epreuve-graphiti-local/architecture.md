@@ -78,8 +78,17 @@ maltraite le trafic parallèle.
 ## 3. Embedder local
 
 `sentence-transformers==3.0.0` et `torch==2.9.1` sont déjà dans le venv
-(dépendance de `camel-ai`). Un embedder local évite les appels API, la
+(dépendance de `camel-oasis`). Un embedder local évite les appels API, la
 collision de dimensions et le chunking.
+
+> ⚠️ **Correction du 3 octobre 2026 (story 001-1).** La phrase ci-dessus était
+> vraie mais trompeuse : « déjà dans le venv » ne veut pas dire « installable ».
+> `camel-oasis` **épingle** `sentence-transformers==3.0.0`, et l'extra
+> `graphiti-core[sentence-transformers]` exige `>=3.2.1` — même forme de conflit
+> de pins exacts que `neo4j` (`5.23.0` vs `>=5.26.0`). L'extra est donc
+> **ininstallable** sans arbitrage. La story 001-4 devra trancher, avec le même
+> `override-dependencies` que pour le driver, ou en acceptant un embedder moins
+> récent. Mesuré et consigné dans [`story-001-1.md`](story-001-1.md).
 
 ```python
 from graphiti_core.embedder.sentence_transformer import (
@@ -112,6 +121,10 @@ survit pas au redémarrage n'est pas une preuve.
 
 1. `uv lock && uv sync` après ajout de `graphiti-core` → puis `uv run pytest`
    pour vérifier que `camel-oasis` n'a pas cassé (story 001-1)
+   → ⚠️ **fait, et ça ne passe pas tel quel** : `camel-oasis==0.2.5` épingle
+   `neo4j==5.23.0`, `graphiti-core` exige `>=5.26.0`. Il faut l'`override`
+   décrit dans [`story-001-1.md`](story-001-1.md), **à acter dans un ADR** avant
+   d'être appliqué.
 2. Neo4j up, healthcheck vert (001-2)
 3. Script de mesure sur 1 chunk → vérifier l'auth **avant** d'aller plus loin
    (001-3)

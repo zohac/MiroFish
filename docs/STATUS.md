@@ -66,11 +66,15 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Story 001-1** — le conflit `graphiti-core` vs `camel-oasis`. C'est le
-   prochain vrai risque : chez `tt-a1i`, ce point avait imposé un second venv
-   *et* un sous-processus. Fichier prêt : [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
-2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risks
-   de l'épreuve.
+1. **Acter la décision de la story 001-1 dans un ADR.** Le conflit
+   `graphiti-core` vs `camel-oasis` est **réel et structurel** : `camel-oasis`
+   épingle `neo4j==5.23.0`, Graphiti exige `>=5.26.0`. La parade mesurée —
+   `override-dependencies` côté `uv` — tient un seul environnement, 183 tests
+   verts, mais elle contourne une contrainte déclarée par l'amont : ça mérite
+   un ADR, pas une ligne oubliée dans `pyproject.toml`.
+2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risques
+   de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver :
+   personne n'a encore ouvert de connexion sous l'override.
 3. L'épreuve elle-même, et son verdict.
 
 ## Questions ouvertes
@@ -78,7 +82,9 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Question | Effet si la réponse change |
 |---|---|
 | Le graphe Zep actuel contient-il quelque chose à garder ? | Epic 006 : migration possible ou non |
-| `camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ? | venv séparé, ou changement d'architecture |
+| ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée : override du driver, à acter dans un ADR |
+| Le driver `neo4j` forcé à 5.28 tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, on bascule sur un venv séparé |
+| `sentence-transformers` : même conflit que `neo4j` ? | **oui, mesuré** — bloque la story 001-4, même arbitrage à faire |
 | La politique d'usage de l'endpoint gratuit tient-elle à ce volume ? | extraction sur un modèle payant |
 | Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF, comme Zep le fait déjà |
 

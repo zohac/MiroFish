@@ -450,13 +450,17 @@ mappent presque 1:1.
 3. **Migration des données existantes** — le graphe Zep actuel contient-il
    quelque chose à conserver ? Si oui, il faut prévoir une migration, ce qui
    change le périmètre.
-4. **Conflit de driver Neo4j** — chez `tt-a1i`, `camel-oasis` et
-   `graphiti-core` étaient incompatibles dans un même venv, ce qui a imposé un
-   second venv **et** un sous-processus pour les simulations
-   (`simulation_runner._get_simulation_python`). Notre venv est plus récent et
-   n'a pas cette contrainte, mais ça doit être **vérifié** avant l'étape 1 : si
-   le conflit réapparaît, le périmètre change (venv séparé ou service
-   Graphiti isolé).
+4. ~~**Conflit de driver Neo4j**~~ → **tranché par la story 001-1, 3 octobre
+   2026 : le conflit est réel et structurel.** `camel-oasis==0.2.5` épingle
+   `neo4j==5.23.0` (exact, sur ses 9 versions publiées) ; `graphiti-core`
+   exige `neo4j>=5.26.0` (depuis la 0.12.0). Aucune combinaison ne résout —
+   ce n'est donc pas notre lock, c'est une contrainte de l'amont. Un second
+   conflit de la même forme attend la story 001-4 :
+   `sentence-transformers==3.0.0` vs `>=3.2.1`. Contre-mesure mesurée et
+   fonctionnelle : `override-dependencies` côté `uv` — un seul environnement,
+   183 tests verts, imports dans l'ordre. Pas de second venv, pas de
+   sous-processus. La décision reste à acter dans un ADR ; le détail est dans
+   [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
 
 ---
 

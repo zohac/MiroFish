@@ -33,9 +33,15 @@ reproductible.**
 
 ### La tâche du moment
 
-**[`docs/plans/001-epreuve-graphiti-local/story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md)**
-— vérifier si `graphiti-core` peut cohabiter avec `camel-oasis` dans le même
-venv. C'est le seul obstacle qui pourrait changer le périmètre de l'épreuve.
+**La story 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés
+(critères dans [`epic-001.md`](docs/plans/001-epreuve-graphiti-local/epic-001.md)).
+Son fichier `story-001-2.md` sera créé quand elle démarre, pas avant (ADR 0007).
+C'est aussi le **premier test comportemental** du driver `neo4j` forcé à 5.28
+(story 001-1) : personne n'a encore ouvert de connexion sous cet override.
+
+> La story 001-1 est en `review` : son conflit est **réel et structurel**, la
+> parade est mesurée, mais la décision reste à acter dans un ADR avant de
+> l'appliquer.
 
 ---
 
@@ -320,7 +326,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | `.env` copié dans l'image | secret dans l'historique Docker | `env_file`, jamais `COPY` |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
-| `camel-oasis` vs `graphiti-core` | conflit de version du driver Neo4j | story 001-1 : le vérifier **avant** d'ajouter la dépendance |
+| `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` vs `neo4j>=5.26.0` — **conflit structurel, vérifié** | story 001-1 : pins exacts des deux côtés, aucune combinaison published ne résout. Parade mesurée : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
 
 ---
 
@@ -391,6 +397,8 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
 | Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
+| **`camel-oasis` et `graphiti-core` ne coexistent pas** : pins exacts incompatibles, ni dans un venv ni dans un lock | story 001-1 · `LOCAL-FIRST.md` §11.4 |
+| **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
 | Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |
 

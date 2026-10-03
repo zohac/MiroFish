@@ -45,7 +45,7 @@ script.
 | NFR-2 | Aucun secret dans le rapport, le script ou l'image | `.env` n'est jamais versionné, le rapport est versionné |
 | NFR-3 | Script **rejouable à l'identique** : pas d'état caché, sortie capturée dans un fichier | une mesure non rejouable ne vaut pas une mesure |
 | NFR-4 | Le rapport se lit en **2 minutes** : verdict en tête, chiffres ensuite | c'est l'UX de cet epic (voir plus bas) |
-| NFR-5 | Les 154 tests existants restent verts | le filet de sécurité ne doit pas bouger |
+| NFR-5 | Les tests existants restent verts — **183** (le plan en annonçait 154 : le filet a grandi entre-temps) | le filet de sécurité ne doit pas bouger |
 | NFR-6 | L'épreuve tourne sous Docker dès que l'epic 005 est fait ; **en attendant, en local** — et c'est dit | ADR 0006 n'est pas encore exécutable |
 
 ## UX requirements
@@ -59,7 +59,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `backlog` | [`story-001-1.md`](story-001-1.md) |
+| 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `review` | [`story-001-1.md`](story-001-1.md) |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés | `backlog` | — |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
@@ -75,8 +75,9 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
-| 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then aucune erreur de résolution · les 154 tests passent · `camel-oasis` et `neo4j` coexistent dans le même interpréteur |
-| 001-2 | Given le compose local, when il démarre, then le healthcheck Neo4j passe au vert · un nœud écrit survit à la recréation du conteneur |
+| 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then aucune erreur de résolution · les 154 tests passent · `camel-oasis` et `neo4j` coexistent dans le même interpréteur — **⚠️ le conflit est réel** (`neo4j==5.23.0` vs `>=5.26.0`) ; décision à acter dans un ADR avant d'aller plus loin |
+| 001-2 | Given le compose local, when il démarre, then le healthcheck Neo4j passe au vert · un nœud écrit survit à la recréation du conteneur — **premier test comportemental du driver forcé à 5.28** (story 001-1) |
+| 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`, story 001-1), même arbitrage à faire |
 | 001-3 | Given un appel d'extraction, when l'hôte est `opencode.ai`, then aucun `MissingSessionID` · given un autre endpoint, then aucun en-tête ajouté |
 | 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings |
 | 001-5 | Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités · le rapport contient appels, latences, retries, erreurs exactes · il est commité |
