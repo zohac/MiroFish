@@ -26,6 +26,7 @@ quatre jours de migration.
 | Audit des 6 forks communautaires | `docs/LOCAL-FIRST.md` §12 |
 | 5 ADR — Graphiti, forks, ontologie, LLM, licence | `docs/decisions/` |
 | 7 ADR — + Docker-first, structure par story | `docs/decisions/0006`, `0007` |
+| 8 ADR — + pnpm (Node), version figée dans `packageManager` | `docs/decisions/0008` |
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `sprint-status.yaml`, `.github/workflows/ci.yml` |
 
 ## En cours
@@ -87,6 +88,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Tests | 154, tous verts, **sans `.env`** |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 7 acceptés, 0 supersédé |
+| ADR | 8 acceptés, 0 supersédé |
+| Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker dès que l'epic 005 est fait (ADR 0006) — en attendant, on travaille en local, et c'est dit |
 | Fork audités | 6 — 0 adopté |

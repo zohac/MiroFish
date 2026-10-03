@@ -96,11 +96,17 @@ Sous Docker, les secrets passent par `env_file: .env`, jamais par `COPY`.
 
 ### 2.5 Dépendances
 
-`backend/pyproject.toml` est la **source unique** (`requirements.txt` est un
-artefact amont, ne pas y ajouter de dépendance). Toute nouvelle dépendance
-doit être justifiée, déclarée dans le groupe `dev` si c'est un outillage, et
-le lock régénéré : l'image utilise `uv sync --frozen` et échoue si le lock est
-désynchronisé.
+**Python** — `backend/pyproject.toml` est la source unique (`requirements.txt`
+est un artefact amont, ne pas y ajouter de dépendance). Toute nouvelle
+dépendance doit être justifiée, déclarée dans le groupe `dev` si c'est un
+outillage, et le lock régénéré : l'image utilise `uv sync --frozen` et échoue
+si le lock est désynchronisé.
+
+**Node** — **pnpm uniquement** (ADR 0008). La version est écrite **une seule
+fois**, dans le champ `packageManager` de `package.json`. Installations et
+builds en `--frozen-lockfile`. Il ne doit plus rester un seul appel à `npm`
+dans le dépôt, et un `package-lock.json` qui réapparaît se **supprime** : c'est
+une dérive, pas un conflit à réconcilier.
 
 Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 
@@ -191,8 +197,9 @@ docker compose run --rm backend bash                     # shell dans le contene
 ### Sans Docker — secours explicite
 
 ```bash
-npm run setup:all
-npm run dev                  # backend : 5001, frontend : 3000
+pnpm setup:all                   # Node (racine + frontend) puis backend
+pnpm dev                         # backend : 5001, frontend : 3000
+pnpm build                       # build frontend
 cd backend && uv run pytest tests/ -q
 cd backend && uv run ruff check .
 cd backend && uv lock && uv sync          # lock DANS le backend
@@ -232,6 +239,7 @@ Variables d'environnement utiles :
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
+| Locks | `pnpm-lock.yaml`, `frontend/pnpm-lock.yaml`, `backend/uv.lock` | versions figées — ne jamais en réécrire un à la main |
 | Planification | `docs/plans/`, `sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
 | Docker | `Dockerfile`, `docker-compose.yml` | image unique amont, 1 service — **à étendre** |
 
@@ -268,9 +276,11 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | Python système hors plage (`>=3.11,<3.13`) | `uv` refuse de synchroniser | utiliser `backend/.venv`, ou Docker (3.11) |
 | `uv sync --frozen` échoue au build | lock désynchronisé | `uv lock` puis `uv sync`, **avant** de construire l'image |
 | **Dérive Docker / local** | les tests passent en local, pas dans le conteneur | un seul environnement de référence (§2.9) |
+| **npm et pnpm mélangés** | un `package-lock.json` réapparaît, `node_modules` divergent | pnpm uniquement ; le lock npm se supprime (ADR 0008) |
+| `pnpm install` sans `--frozen-lockfile` | le lock est réécrit sans bruit | `--frozen-lockfile` par défaut, partout |
 | `docker compose down -v` | le graphe Neo4j disparaît | ne l'utiliser que pour repartir de zéro, sciemment |
 | Ports 3000/3001 occupés | le frontend démarre sur 3002 | exposer des ports explicites dans le compose |
-| `CMD npm run dev` | image en mode dev, pas de build front | à corriger pour une image de production |
+| `CMD pnpm run dev` | image en mode dev, pas de build front | à corriger pour une image de production |
 | `.env` copié dans l'image | secret dans l'historique Docker | `env_file`, jamais `COPY` |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
@@ -326,6 +336,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0005 | Licence : rester local ; si exposition réseau, publier les sources |
 | 0006 | **Docker d'abord** : un seul environnement de référence |
 | 0007 | **Une story = un fichier**, l'état vit avec la story |
+| 0008 | **pnpm** pour Node : version figée dans `packageManager`, lock strict |
 
 ---
 

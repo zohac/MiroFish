@@ -39,6 +39,7 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0005](0005-licence-agpl.md) | Rester local ; exposer en réseau ⇒ sources publiées | accepté — 2026-10-03 |
 | [0006](0006-docker-first.md) | Docker d'abord : un seul environnement de référence | accepté — 2026-10-03 |
 | [0007](0007-une-story-un-fichier.md) | Une story = un fichier, l'état vit avec la story | accepté — 2026-10-03 |
+| [0008](0008-pnpm.md) | pnpm comme gestionnaire de paquets Node | accepté — 2026-10-03 |
 
 ## Règles
 
