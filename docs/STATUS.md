@@ -68,7 +68,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 1. **Story 001-1** — le conflit `graphiti-core` vs `camel-oasis`. C'est le
    prochain vrai risque : chez `tt-a1i`, ce point avait imposé un second venv
-   *et* un sous-processus. Fichier prêt : [`story-001-1.yaml`](plans/001-epreuve-graphiti-local/story-001-1.yaml).
+   *et* un sous-processus. Fichier prêt : [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
 2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risks
    de l'épreuve.
 3. L'épreuve elle-même, et son verdict.
@@ -89,7 +89,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Tests | 154, tous verts, **sans `.env`** |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 8 acceptés, 0 supersédé |
+| ADR | 9 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker dès que l'epic 005 est fait (ADR 0006) — en attendant, on travaille en local, et c'est dit |
 | Fork audités | 6 — 0 adopté |

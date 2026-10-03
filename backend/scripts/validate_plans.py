@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Valide la structure de planification du dépôt.
 
-Le constitution (AGENTS.md §2.8) exige des artefacts de plan par epic et un
-fichier par story démarrée. Cette règle ne vaut que si quelqu'un la vérifie :
-ce script est cette vérification, et il tourne en CI.
+La constitution (AGENTS.md §2.8) exige des artefacts de plan par epic et un
+fichier markdown par story démarrée. Cette règle ne vaut que si quelqu'un la
+vérifie : ce script est cette vérification, et il tourne en CI.
 
 Trois invariants :
   1. un epic `in-progress` ou au-delà a un dossier de plan complet ;
@@ -11,8 +11,12 @@ Trois invariants :
      `epic-<NNN>.md` — le résumé des critères d'une story encore en backlog
      peut, lui, vivre uniquement dans le hub ;
   3. les états sont parmi les cinq autorisés, les `id` sont uniques, les
-     champs obligatoires sont présents, une story en `review` ou `done` a
-     toutes ses tâches cochées.
+     sections obligatoires sont présentes, et une story en `review` ou `done`
+     n'a plus aucune tâche ouverte.
+
+Les stories sont du markdown (ADR 0009) : un petit en-tête machine-readable
+puis de la prose. C'est ce qui permet au script de lire l'état sans qu'il
+fasse drowned dans du YAML échappé.
 
 Usage :
     cd backend && uv run python scripts/validate_plans.py
@@ -24,6 +28,7 @@ Code de sortie : 0 si tout va bien, 1 sinon.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -31,22 +36,23 @@ import yaml
 
 STATES = {"backlog", "in-progress", "review", "done", "blocked"}
 ACTIVE_STATES = {"in-progress", "review", "done"}
+CLOSED_STATES = {"review", "done"}
 
 EPIC_REQUIRED = ("id", "slug", "titre", "statut")
-STORY_REQUIRED = (
-    "id",
-    "titre",
-    "epic",
-    "statut",
-    "definition_of_ready",
-    "definition_of_done",
-    "tasks",
-    "notes_dev",
-    "review",
-    "completion_notes",
+STORY_META_REQUIRED = ("id", "epic", "titre", "statut", "auteur")
+STORY_SECTIONS = (
+    "Definition of Ready",
+    "Definition of Done",
+    "Tasks",
+    "Notes de développement",
+    "Revue",
+    "Completion notes",
 )
-TASK_REQUIRED = ("titre", "fait")
 PLAN_ARTEFACTS = ("prd.md", "architecture.md")
+
+FRONT_MATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+CHECKBOX_RE = re.compile(r"^\s*-\s*\[( |x|X)\]\s*(\S.*)$", re.MULTILINE)
+PLACEHOLDER_MARKERS = ("à remplir", "aucun pour l'instant")
 
 
 def repo_root() -> Path:
@@ -64,6 +70,44 @@ def _load_yaml(path: Path) -> tuple[object | None, str | None]:
         return None, f"YAML invalide ({exc.__class__.__name__})"
 
 
+def _split_story(path: Path) -> tuple[dict | None, str, list[str]]:
+    """Sépare l'en-tête machine-readable du corps en prose.
+
+    Retourne (métadonnées, corps, problèmes). Métadonnées à None si l'en-tête
+    est absent ou illisible — le corps est tout de même renvoyé, pour que les
+    vérifications de sections donnent un diagnostic complet.
+    """
+    problems: list[str] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None, "", ["fichier introuvable"]
+
+    match = FRONT_MATTER_RE.match(text)
+    if not match:
+        return None, text, ["en-tête manquant (attendu : bloc --- ... --- en tête de fichier)"]
+
+    try:
+        meta = yaml.safe_load(match.group(1))
+    except yaml.YAMLError as exc:
+        return None, text[match.end():], [f"en-tête YAML invalide ({exc.__class__.__name__})"]
+
+    if not isinstance(meta, dict):
+        return None, text[match.end():], ["en-tête : mapping attendu"]
+
+    return meta, text[match.end():], problems
+
+
+def _section(body: str, title: str) -> str | None:
+    """Contenu d'une section de niveau 2, ou None si elle est absente."""
+    pattern = re.compile(
+        rf"^##\s+{re.escape(title)}\s*$(.*?)(?=^##\s|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    found = pattern.search(body)
+    return found.group(1) if found else None
+
+
 def validate_sprint_status(root: Path) -> list[str]:
     """Contrôle l'agrégat d'epics."""
     path = root / "sprint-status.yaml"
@@ -73,11 +117,11 @@ def validate_sprint_status(root: Path) -> list[str]:
     if not isinstance(data, dict):
         return ["sprint-status.yaml : racine attendue en mapping"]
 
-    problems: list[str] = []
     epics = data.get("epics")
     if not isinstance(epics, list) or not epics:
         return ["sprint-status.yaml : champ `epics` attendu, non vide"]
 
+    problems: list[str] = []
     seen: set[str] = set()
     for index, epic in enumerate(epics):
         where = f"sprint-status.yaml : epics[{index}]"
@@ -107,6 +151,54 @@ def validate_sprint_status(root: Path) -> list[str]:
     return problems
 
 
+def _validate_story(path: Path, epic_id: str, hub_text: str) -> list[str]:
+    """Contrôle un fichier de story markdown."""
+    where = path.name
+    meta, body, problems = _split_story(path)
+
+    if meta is None:
+        return [f"{where} : {p}" for p in problems]
+
+    for key in STORY_META_REQUIRED:
+        if not meta.get(key):
+            problems.append(f"{where} : en-tête sans `{key}`")
+
+    story_id = str(meta.get("id", "?"))
+    if path.stem != f"story-{story_id}":
+        problems.append(f"{where} : l'id `{story_id}` ne correspond pas au nom de fichier")
+    if str(meta.get("epic", "")) != epic_id:
+        problems.append(f"{where} : `epic` vaut `{meta.get('epic')}`, dossier du plan `{epic_id}`")
+
+    statut = meta.get("statut")
+    if statut not in STATES:
+        problems.append(f"{where} : état inconnu `{statut}` (attendu : {sorted(STATES)})")
+
+    for section in STORY_SECTIONS:
+        if _section(body, section) is None:
+            problems.append(f"{where} : section obligatoire absente « {section} »")
+
+    tasks_section = _section(body, "Tasks") or ""
+    tasks = CHECKBOX_RE.findall(tasks_section)
+    if not tasks:
+        problems.append(f"{where} : « Tasks » vide — au moins une case à cocher attendue")
+    elif statut in CLOSED_STATES:
+        ouvertes = [label.strip() for done, label in tasks if done != "x"]
+        if ouvertes:
+            problems.append(
+                f"{where} : statut `{statut}` mais tâches ouvertes : {' / '.join(ouvertes)}"
+            )
+
+    if statut == "done":
+        notes = (_section(body, "Completion notes") or "").strip().lower()
+        if any(marker in notes for marker in PLACEHOLDER_MARKERS):
+            problems.append(f"{where} : statut `done` mais completion notes encore en remplissage")
+
+    if statut in ACTIVE_STATES and hub_text and story_id not in hub_text:
+        problems.append(f"{where} : statut `{statut}` mais la story n'est pas citée dans epic-{epic_id}.md")
+
+    return problems
+
+
 def _validate_plan_folder(folder: Path, epic_id: str) -> list[str]:
     """Contrôle les artefacts d'un dossier de plan."""
     problems: list[str] = []
@@ -123,62 +215,13 @@ def _validate_plan_folder(folder: Path, epic_id: str) -> list[str]:
     hub_text = hub.read_text(encoding="utf-8") if hub.is_file() else ""
 
     seen: set[str] = set()
-    for path in sorted(folder.glob("story-*.yaml")):
-        data, err = _load_yaml(path)
-        where = str(path.relative_to(folder))
-        if err:
-            problems.append(f"{where} : {err}")
-            continue
-        if not isinstance(data, dict):
-            problems.append(f"{where} : racine attendue en mapping")
-            continue
-
-        for key in STORY_REQUIRED:
-            if key not in data:
-                problems.append(f"{where} : champ obligatoire manquant `{key}`")
-
-        story_id = str(data.get("id", "?"))
+    for path in sorted(folder.glob("story-*.md")):
+        meta, _body, _ = _split_story(path)
+        story_id = str((meta or {}).get("id", path.stem.removeprefix("story-")))
         if story_id in seen:
-            problems.append(f"{where} : id de story dupliqué `{story_id}`")
+            problems.append(f"{path.name} : id de story dupliqué `{story_id}`")
         seen.add(story_id)
-
-        if path.stem != f"story-{story_id}":
-            problems.append(f"{where} : l'id `{story_id}` ne correspond pas au nom de fichier")
-
-        if str(data.get("epic", "")) != epic_id:
-            problems.append(f"{where} : `epic` vaut `{data.get('epic')}`, dossier du plan `{epic_id}`")
-
-        statut = data.get("statut")
-        if statut not in STATES:
-            problems.append(f"{where} : état inconnu `{statut}` (attendu : {sorted(STATES)})")
-
-        tasks = data.get("tasks")
-        if not isinstance(tasks, list) or not tasks:
-            problems.append(f"{where} : `tasks` attendu, non vide")
-        else:
-            for task_index, task in enumerate(tasks):
-                if not isinstance(task, dict):
-                    problems.append(f"{where} : tasks[{task_index}] n'est pas un mapping")
-                    continue
-                for key in TASK_REQUIRED:
-                    if key not in task:
-                        problems.append(f"{where} : tasks[{task_index}] sans `{key}`")
-                if not isinstance(task.get("fait"), bool):
-                    problems.append(f"{where} : tasks[{task_index}] — `fait` doit être un booléen")
-
-            if statut in {"review", "done"}:
-                restants = [t.get("titre", "?") for t in tasks
-                            if isinstance(t, dict) and t.get("fait") is not True]
-                if restants:
-                    problems.append(
-                        f"{where} : statut `{statut}` mais tâches non cochées : {', '.join(map(str, restants))}"
-                    )
-
-        if not isinstance(data.get("definition_of_ready"), list) or not data["definition_of_ready"]:
-            problems.append(f"{where} : `definition_of_ready` attendu, non vide")
-
-        if statut in ACTIVE_STATES and hub_text and story_id not in hub_text:
-            problems.append(f"{where} : statut `{statut}` mais la story n'est pas citée dans epic-{epic_id}.md")
+        problems.extend(_validate_story(path, epic_id, hub_text))
 
     return problems
 
@@ -205,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.quiet:
         epics = (yaml.safe_load((root / "sprint-status.yaml").read_text(encoding="utf-8")) or {}).get("epics", [])
-        stories = sum(len(list(p.glob("story-*.yaml")))
+        stories = sum(len(list(p.glob("story-*.md")))
                       for p in (root / "docs" / "plans").glob("*") if p.is_dir())
         print(f"✓ structure de planification valide — {len(epics)} epics, {stories} fichier(s) de story")
     return 0

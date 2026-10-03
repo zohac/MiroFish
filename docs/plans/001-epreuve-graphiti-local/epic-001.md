@@ -8,7 +8,8 @@
 
 **Artefacts de ce dossier** — [`prd.md`](prd.md) (quoi, pourquoi, critères
 chiffrés) · [`architecture.md`](architecture.md) (comment) · ce fichier (le
-contrat d'ingénierie) · `story-001-<n>.yaml` (une story démarrée = un fichier).
+contrat d'ingénierie) · `story-001-<n>.md` (une story démarrée = un fichier
+markdown).
 
 ---
 
@@ -58,7 +59,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `backlog` | [`story-001-1.yaml`](story-001-1.yaml) |
+| 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `backlog` | [`story-001-1.md`](story-001-1.md) |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés | `backlog` | — |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
@@ -67,7 +68,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 > **Pourquoi 001-3 et 001-4 n'ont pas de contenu détaillé ici** : leurs
 > critères Given/When/Then sont dans le tableau ci-dessous. Le fichier
-> `story-<n>.yaml` sera créé au moment où la story démarre — c'est la règle :
+> `story-<n>.md` sera créé au moment où la story démarre — c'est la règle :
 > un fichier par story **réellement démarrée**, pas imaginée. Le script de
 > validation impose l'inverse, lui : une story `in-progress` ou au-delà **doit**
 > avoir un fichier et être citée dans ce document.

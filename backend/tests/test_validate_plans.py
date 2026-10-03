@@ -32,22 +32,32 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _valid_story(story_id: str, epic: str, statut: str) -> str:
-    return yaml.safe_dump(
-        {
-            "id": story_id,
-            "titre": "Une story de test",
-            "epic": epic,
-            "statut": statut,
-            "definition_of_ready": [{"ok": "critères écrits", "vrai": True}],
-            "definition_of_done": ["tests verts"],
-            "tasks": [{"id": 1, "titre": "faire un truc", "fait": statut in {"review", "done"}}],
-            "notes_dev": {"architecture": "rien", "strategie_test": "rien"},
-            "review": {"follow_ups": []},
-            "completion_notes": [],
-        },
+def _valid_story(story_id: str, epic: str, statut: str, *, tasks_checked: bool | None = None) -> str:
+    """Un fichier de story conforme. `tasks_checked` force l'état des cases."""
+    checked = (statut in {"review", "done"}) if tasks_checked is None else tasks_checked
+    mark = "x" if checked else " "
+    meta = yaml.safe_dump(
+        {"id": story_id, "epic": epic, "titre": "Une story de test", "statut": statut, "auteur": "test"},
         allow_unicode=True,
         sort_keys=False,
+    ).strip()
+    return (
+        f"---\n{meta}\n---\n\n"
+        f"# Story {story_id} — Une story de test\n\n"
+        "## Pourquoi cette story\n\n"
+        "Parce que.\n\n"
+        "## Definition of Ready\n\n"
+        "- [x] Critères écrits\n- [x] Stratégie de test identifiée\n\n"
+        "## Definition of Done\n\n"
+        "- tests verts\n\n"
+        "## Tasks\n\n"
+        f"- [{mark}] 1. faire un truc\n\n"
+        "## Notes de développement\n\n"
+        "Rien.\n\n"
+        "## Revue\n\n"
+        "Aucun.\n\n"
+        "## Completion notes\n\n"
+        "_Rien à signaler._\n"
     )
 
 
@@ -57,8 +67,8 @@ def repo(tmp_path: Path) -> Path:
     plan = tmp_path / "docs" / "plans" / "001-truc"
     _write(plan / "prd.md", "# PRD")
     _write(plan / "architecture.md", "# Architecture")
-    _write(plan / "epic-001.md", "# Epic 001\n\n| 001-1 | story | `backlog` | story-001-1.yaml |")
-    _write(plan / "story-001-1.yaml", _valid_story("001-1", "001", "backlog"))
+    _write(plan / "epic-001.md", "# Epic 001\n\n| 001-1 | story | `backlog` | story-001-1.md |")
+    _write(plan / "story-001-1.md", _valid_story("001-1", "001", "backlog"))
     _write(
         tmp_path / "sprint-status.yaml",
         yaml.safe_dump(
@@ -81,6 +91,12 @@ def repo(tmp_path: Path) -> Path:
         ),
     )
     return tmp_path
+
+
+def _break_story(repo: Path, old: str, new: str) -> None:
+    """Remplace un fragment dans le fichier de story du dépôt de test."""
+    path = repo / "docs/plans/001-truc/story-001-1.md"
+    path.write_text(path.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
 
 
 # --------------------------------------------------------------------------
@@ -160,64 +176,72 @@ def test_unknown_state_is_reported(repo: Path):
 
 def test_duplicate_epic_id_is_reported(repo: Path):
     data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
-    twin = dict(data["epics"][0])
-    data["epics"].append(twin)
+    data["epics"].append(dict(data["epics"][0]))
     _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
     problems = validate_plans.validate(repo)
     assert any("id dupliqué" in p for p in problems)
 
 
 def test_story_id_must_match_filename(repo: Path):
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml", _valid_story("001-9", "001", "backlog"))
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-9", "001", "backlog"))
     problems = validate_plans.validate(repo)
     assert any("ne correspond pas au nom de fichier" in p for p in problems)
 
 
 def test_story_epic_must_match_folder(repo: Path):
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml", _valid_story("001-1", "999", "backlog"))
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "999", "backlog"))
     problems = validate_plans.validate(repo)
     assert any("dossier du plan" in p for p in problems)
 
 
-def test_missing_required_field_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "docs/plans/001-truc/story-001-1.yaml").read_text())
-    del data["notes_dev"]
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml",
-           yaml.safe_dump(data, allow_unicode=True, sort_keys=False))
+def test_missing_meta_field_is_reported(repo: Path):
+    _break_story(repo, "auteur: test", "# auteur déplacé")
     problems = validate_plans.validate(repo)
-    assert any("`notes_dev`" in p for p in problems)
+    assert any("`auteur`" in p for p in problems)
+
+
+def test_missing_front_matter_is_reported(repo: Path):
+    _break_story(repo, "---\n", "")
+    problems = validate_plans.validate(repo)
+    assert any("en-tête" in p for p in problems)
 
 
 # --------------------------------------------------------------------------
-# Tâches
+# Sections et tâches
 # --------------------------------------------------------------------------
 
-def test_done_story_with_unchecked_task_is_reported(repo: Path):
-    data = yaml.safe_load(_valid_story("001-1", "001", "done"))
-    data["tasks"][0]["fait"] = False
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml",
-           yaml.safe_dump(data, allow_unicode=True, sort_keys=False))
+def test_missing_section_is_reported(repo: Path):
+    _break_story(repo, "## Revue", "## Autre chose")
+    problems = validate_plans.validate(repo)
+    assert any("section obligatoire absente « Revue »" in p for p in problems)
+
+
+def test_done_story_with_open_task_is_reported(repo: Path):
+    _write(repo / "docs/plans/001-truc/story-001-1.md",
+           _valid_story("001-1", "001", "done", tasks_checked=False))
     _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n001-1")
     problems = validate_plans.validate(repo)
-    assert any("tâches non cochées" in p for p in problems)
+    assert any("tâches ouvertes" in p for p in problems)
 
 
-def test_non_boolean_task_flag_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "docs/plans/001-truc/story-001-1.yaml").read_text())
-    data["tasks"][0]["fait"] = "oui"
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml",
-           yaml.safe_dump(data, allow_unicode=True, sort_keys=False))
-    problems = validate_plans.validate(repo)
-    assert any("doit être un booléen" in p for p in problems)
+def test_review_story_with_checked_tasks_passes(repo: Path):
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "review"))
+    _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n001-1")
+    assert validate_plans.validate(repo) == []
 
 
 def test_empty_tasks_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "docs/plans/001-truc/story-001-1.yaml").read_text())
-    data["tasks"] = []
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml",
-           yaml.safe_dump(data, allow_unicode=True, sort_keys=False))
+    _break_story(repo, "- [ ] 1. faire un truc", "- 1. faire un truc")
     problems = validate_plans.validate(repo)
-    assert any("`tasks` attendu, non vide" in p for p in problems)
+    assert any("« Tasks » vide" in p for p in problems)
+
+
+def test_done_story_with_placeholder_notes_is_reported(repo: Path):
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "done"))
+    _break_story(repo, "_Rien à signaler._", "_À remplir à la fin : ce qui a divergé._")
+    _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n001-1")
+    problems = validate_plans.validate(repo)
+    assert any("completion notes encore en remplissage" in p for p in problems)
 
 
 # --------------------------------------------------------------------------
@@ -225,7 +249,7 @@ def test_empty_tasks_is_reported(repo: Path):
 # --------------------------------------------------------------------------
 
 def test_started_story_must_be_cited_in_hub(repo: Path):
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml", _valid_story("001-1", "001", "in-progress"))
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "in-progress"))
     _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\nrien à voir")
     problems = validate_plans.validate(repo)
     assert any("n'est pas citée dans" in p for p in problems)
@@ -236,23 +260,33 @@ def test_backlog_story_need_not_be_cited(repo: Path):
     assert validate_plans.validate(repo) == []
 
 
-def test_story_without_file_is_allowed_while_backlog(repo: Path):
+def test_story_without_file_is_allowed_while_epic_is_backlog(repo: Path):
     data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
     data["epics"][0]["statut"] = "backlog"
     del data["epics"][0]["plan"]
     _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
-    (repo / "docs/plans/001-truc/story-001-1.yaml").unlink()
+    (repo / "docs/plans/001-truc/story-001-1.md").unlink()
     assert validate_plans.validate(repo) == []
+
+
+def test_duplicate_story_id_is_reported(repo: Path):
+    _write(repo / "docs/plans/001-truc/story-001-1-b.md", _valid_story("001-1", "001", "backlog"))
+    problems = validate_plans.validate(repo)
+    assert any("id de story dupliqué" in p for p in problems)
 
 
 # --------------------------------------------------------------------------
 # Robustesse
 # --------------------------------------------------------------------------
 
-def test_broken_yaml_is_reported_not_raised(repo: Path):
-    _write(repo / "docs/plans/001-truc/story-001-1.yaml", "id: [non fermé")
+def test_unclosed_quote_in_front_matter_is_reported(repo: Path):
+    # PyYAML n'écrit `id: 001-1` sans guillemets (scalaire simple) : c'est la
+    # chaîne à viser. Un guillemet double laissé ouvert fait passer le scalaire
+    # à la ligne et finit en "unexpected end of stream" : PyYAML lève, et le
+    # script doit le rapporter au lieu de laisser remonter l'exception à la CI.
+    _break_story(repo, "id: 001-1", 'id: "001-1')
     problems = validate_plans.validate(repo)
-    assert any("YAML invalide" in p for p in problems)
+    assert any("en-tête YAML invalide" in p for p in problems)
 
 
 def test_missing_sprint_status_is_reported(tmp_path: Path):

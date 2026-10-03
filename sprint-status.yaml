@@ -33,7 +33,7 @@ epics:
       - "graphe non vide, et relisible après redémarrage de Neo4j"
       - "verdict go / no-go écrit dans docs/STATUS.md"
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
-    # epic-001.md pour l'index, story-001-<n>.yaml pour une story démarrée.
+    # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).
 
   - id: "002"

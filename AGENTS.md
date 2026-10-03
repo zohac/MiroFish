@@ -24,7 +24,7 @@ reproductible.**
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ❌ à faire |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
-| Planification migrée vers `epic-XXX.md` + `story-XXX.yaml` | ❌ à faire |
+| Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -134,16 +134,18 @@ mesurer un effort, pas à décider quoi construire.
 | PRD | `docs/plans/<NNN>-<slug>/prd.md` | quoi, pourquoi, **critères de sortie chiffrés** |
 | Architecture | `docs/plans/<NNN>-<slug>/architecture.md` | comment, avec schémas Mermaid |
 | Epic | `docs/plans/<NNN>-<slug>/epic-<NNN>.md` | le contrat d'ingénierie : FR, NFR, UX, index des stories, **documents à consulter** |
-| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>.yaml` | une story = un fichier : DoR, DoD, tasks, notes de dev, revue, completion notes |
+| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>.md` | une story = un fichier markdown : en-tête minimal, puis DoR, DoD, tasks, notes, revue, completion notes |
 | Suivi | `sprint-status.yaml` (racine) | **l'agrégat par epic** |
 
 Règles :
 
 - Un PRD sans critère chiffré est une liste de courses : on ne sait pas quand
   c'est fini.
-- **Une story = un fichier** (ADR 0007). L'état d'une story vit dans son
-  fichier ; `sprint-status.yaml` ne porte que l'agrégat d'epic. Deux endroits
-  pour le même état, et l'état ment.
+- **Une story = un fichier markdown** (ADR 0007, forme précisée par l'ADR
+  0009). Un petit en-tête `---` machine-readable (`id`, `epic`, `titre`,
+  `statut`, `auteur`), puis de la prose : c'est une note, pas une donnée.
+  L'état d'une story vit dans son fichier ; `sprint-status.yaml` ne porte que
+  l'agrégat d'epic. Deux endroits pour le même état, et l'état ment.
 - Une story passe `backlog → in-progress → review → done`, jamais de saut.
   `blocked` quand une dépendance externe nous arrête.
 - **Un fichier par story réellement démarrée**, pas imaginée — sinon la
@@ -158,8 +160,8 @@ Règles :
   CI. Il impose trois invariants : un epic `in-progress` ou au-delà a un
   dossier de plan complet (`prd.md`, `architecture.md`, `epic-<NNN>.md`) ; une
   story `in-progress` ou au-delà a un fichier **et** est citée dans le hub ;
-  états et `id` sont valides, et une story en `review` ou `done` a toutes ses
-  tâches cochées.
+  états et `id` sont valides, les six sections obligatoires sont présentes, et
+  une story en `review` ou `done` n'a plus aucune case de tâche ouverte.
 - `docs/STATUS.md` est la vue humaine, alimentée du YAML. Pas de second
   saisie.
 
@@ -341,6 +343,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0006 | **Docker d'abord** : un seul environnement de référence |
 | 0007 | **Une story = un fichier**, l'état vit avec la story |
 | 0008 | **pnpm** pour Node : version figée dans `packageManager`, lock strict |
+| 0009 | **Fichiers de story en markdown**, pas en YAML |
 
 ---
 
