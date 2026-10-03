@@ -26,7 +26,8 @@ def client_for(recorder):
     return SimpleNamespace(chat=SimpleNamespace(completions=recorder))
 
 
-def test_gpt5_uses_completion_token_limit_without_temperature():
+def test_gpt5_uses_completion_token_limit_without_temperature(monkeypatch):
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
     recorder = CompletionRecorder()
     messages = [{"role": "user", "content": "hello"}]
 
@@ -50,7 +51,8 @@ def test_gpt5_uses_completion_token_limit_without_temperature():
     ]
 
 
-def test_legacy_model_preserves_original_request_shape():
+def test_legacy_model_preserves_original_request_shape(monkeypatch):
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
     recorder = CompletionRecorder()
     messages = [{"role": "user", "content": "hello"}]
 
@@ -72,6 +74,33 @@ def test_legacy_model_preserves_original_request_shape():
             "response_format": {"type": "json_object"},
         }
     ]
+
+
+def test_configured_reasoning_effort_is_forwarded(monkeypatch):
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "high")
+    recorder = CompletionRecorder()
+    messages = [{"role": "user", "content": "hello"}]
+
+    create_chat_completion(
+        client_for(recorder),
+        model="third-party-chat-model",
+        messages=messages,
+    )
+
+    assert recorder.calls[0]["reasoning_effort"] == "high"
+
+
+def test_blank_reasoning_effort_is_not_forwarded(monkeypatch):
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "   ")
+    recorder = CompletionRecorder()
+
+    create_chat_completion(
+        client_for(recorder),
+        model="third-party-chat-model",
+        messages=[{"role": "user", "content": "hello"}],
+    )
+
+    assert "reasoning_effort" not in recorder.calls[0]
 
 
 def test_provider_error_is_propagated_without_guessing_or_retrying():

@@ -46,6 +46,8 @@ else:
     if os.path.exists(_backend_env):
         load_dotenv(_backend_env)
 
+from app.utils.llm_compat import llm_completion_kwargs, llm_request_headers
+
 
 import re
 
@@ -464,6 +466,8 @@ class RedditSimulationRunner:
         return ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
+            model_config_dict=llm_completion_kwargs() or None,
+            default_headers=llm_request_headers(llm_base_url),
         )
     
     def _get_active_agents_for_round(

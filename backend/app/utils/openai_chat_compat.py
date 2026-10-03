@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from .llm_compat import llm_completion_kwargs
+
 
 def is_gpt5_family(model: Optional[str]) -> bool:
     """Return True when model belongs to GPT-5 family aliases/snapshots."""
@@ -53,6 +55,9 @@ def create_chat_completion(
             kwargs["max_completion_tokens"] = max_tokens
         else:
             kwargs["max_tokens"] = max_tokens
+
+    # Optional reasoning effort, forwarded only when LLM_REASONING_EFFORT is set.
+    kwargs.update(llm_completion_kwargs())
 
     return client.chat.completions.create(**kwargs)
 

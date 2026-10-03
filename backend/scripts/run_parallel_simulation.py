@@ -102,6 +102,8 @@ else:
         load_dotenv(_backend_env)
         print(f"已加载环境配置: {_backend_env}")
 
+from app.utils.llm_compat import llm_completion_kwargs, llm_request_headers
+
 
 class MaxTokensWarningFilter(logging.Filter):
     """过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）"""
@@ -1034,6 +1036,8 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
     return ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
         model_type=llm_model,
+        model_config_dict=llm_completion_kwargs() or None,
+        default_headers=llm_request_headers(llm_base_url),
     )
 
 

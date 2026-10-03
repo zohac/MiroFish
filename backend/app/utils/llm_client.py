@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List
 from openai import OpenAI
 
 from ..config import Config
+from .llm_compat import llm_request_headers
 from .openai_chat_compat import create_chat_completion, extract_chat_completion_text
 
 
@@ -106,7 +107,8 @@ class LLMClient:
         
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            default_headers=llm_request_headers(self.base_url)
         )
 
     def _create_completion(
