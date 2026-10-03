@@ -15,7 +15,7 @@ elles changent entre versions. Ce qui suit est le **squelette**, avec les points
 
 ```mermaid
 flowchart TD
-  DOC["Document réel<br/>(10 chunks de 500 mots)"] --> SCRIPT["backend/scripts/measure_graphiti_extraction.py<br/>existant"]
+  DOC["Rapport AN n° 2506<br/>(30 premiers chunks)"] --> SCRIPT["backend/scripts/measure_graphiti_extraction.py<br/>à créer"]
   SCRIPT --> G["Graphiti<br/>graphiti-core 0.30.x"]
 
   G -->|add_episode| LLM["Endpoint OpenCode Go<br/>space-bunny-free"]
@@ -116,7 +116,7 @@ survit pas au redémarrage n'est pas une preuve.
 3. Script de mesure sur 1 chunk → vérifier l'auth **avant** d'aller plus loin
    (001-3)
 4. Embedder local branché (001-4)
-5. Mesure complète 10 chunks, rapport versionné (001-5)
+5. Mesure sur 30 chunks, rapport versionné (001-5)
 6. Verdict go / no-go (001-6)
 
 ## 6. Journal de mesure

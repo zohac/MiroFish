@@ -51,11 +51,14 @@ Plan : [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-loc
 
 | # | Critère | Seuil |
 |---|---|---|
-| C1 | Épisodes extraits sans erreur | **≥ 9 sur 10** chunks |
+| C1 | Épisodes extraits sans erreur | **≥ 27 sur 30** chunks (90 %) |
 | C2 | Échecs d'authentification (`MissingSessionID`) | **0** |
 | C3 | Graphe non vide **et relisible après redémarrage de Neo4j** | ≥ 1 entité, ≥ 1 relation persistées |
-| C4 | Temporality : `valid_at` renseigné | ≥ 1 arête |
+| C4 | Temporalité : `valid_at` renseigné | ≥ 1 arête |
 | C5 | Rapport de mesure versionné dans le dépôt | 1 fichier |
+
+Échantillon : les 30 premiers chunks du rapport n° 2506 de l'Assemblée
+nationale (URL et sha256 dans le PRD de l'epic 001).
 
 **Règle de décision** : si C1 ou C2 échoue, on s'arrête là. Pas de migration
 partielle sur une extraction qui ne fonctionne pas. Le repli est alors
@@ -69,8 +72,14 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
    en CI. Le constitution l'exige, l'epic ne peut pas démarrer avant.
 2. Vérifier le conflit `graphiti-core` vs `camel-oasis` (story 001-1) — s'il
    existe, il change le périmètre (venv séparé ou service isolé).
-3. Document de test : **à fournir**. Un PDF ou un texte réel d'au moins 10
-   chunks de 500 mots. C'est le seul élément bloquant côté entrée.
+3. Document de test : ✅ **trouvé et mesuré**. Rapport d'information n° 2506
+   de l'Assemblée nationale (transition énergétique et aménagement du
+   territoire, février 2026) — 80 pages, 26 168 mots. Téléchargé dans
+   `backend/uploads/documents/`.
+
+> Au passage, la préparation a révélé une erreur de mon PRD : `chunk_size`
+> compte des **caractères** (500), pas des mots. 5 000 mots donneraient ~1 400
+> chunks, pas 10. L'épreuve est rebornée sur 30 chunks.
 
 ## Questions ouvertes
 

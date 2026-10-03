@@ -52,7 +52,7 @@ stories:
     statut: backlog
     depend_de: ["001-2", "001-3", "001-4"]
     criteres:
-      - "Given un document de 5 000 mots ou plus, when le script est lancé, then 10 chunks sont traités"
+      - "Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités"
       - "Given le rapport produit, then il contient appels LLM, latences, retries, erreurs exactes"
       - "Given le rapport, then il est commité dans docs/plans/001-epreuve-graphiti-local/rapport.md"
     note: >-

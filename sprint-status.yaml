@@ -28,7 +28,7 @@ epics:
       space-bunny-free. Tant que ce n'est pas mesuré, tout le reste est
       spéculatif.
     criteres_de_sortie:
-      - "10 chunks de 500 mots ou plus extraits sans erreur sur un document réel"
+      - "27 chunks sur 30 extraits sans erreur (90 %), sur le rapport AN n° 2506"
       - "0 échec d'authentification (MissingSessionID) sur les appels LLM"
       - "graphe non vide, et relisible après redémarrage de Neo4j"
       - "verdict go / no-go écrit dans docs/STATUS.md"
