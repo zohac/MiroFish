@@ -24,7 +24,8 @@ quatre jours de migration.
 | Travail sécurisé : branche `local-first`, tag de sauvegarde, fork `zohac/MiroFish` | commits `28c61d0`, `50e9826` |
 | Analyse Zep : rôle, rayon d'impact, obstacles | `docs/LOCAL-FIRST.md` §3–§6 |
 | Audit des 6 forks communautaires | `docs/LOCAL-FIRST.md` §12 |
-| 5 ADR (graphite, forks, ontologie, LLM, licence) | `docs/decisions/` |
+| 5 ADR — Graphiti, forks, ontologie, LLM, licence | `docs/decisions/` |
+| 7 ADR — + Docker-first, structure par story | `docs/decisions/0006`, `0007` |
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `sprint-status.yaml`, `.github/workflows/ci.yml` |
 
 ## En cours
@@ -61,9 +62,13 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. Vérifier le conflit `graphiti-core` vs `camel-oasis` (story 001-1) — s'il
+1. **Migrer l'epic 001 vers la nouvelle structure** (ADR 0007) : `epic-001.md`
+   (FR / NFR / UX, index des stories, documents à consulter), un
+   `story-001-<n>.yaml` par story démarrée, et le script de validation branché
+   en CI. Le constitution l'exige, l'epic ne peut pas démarrer avant.
+2. Vérifier le conflit `graphiti-core` vs `camel-oasis` (story 001-1) — s'il
    existe, il change le périmètre (venv séparé ou service isolé).
-2. Document de test : **à fournir**. Un PDF ou un texte réel d'au moins 10
+3. Document de test : **à fournir**. Un PDF ou un texte réel d'au moins 10
    chunks de 500 mots. C'est le seul élément bloquant côté entrée.
 
 ## Questions ouvertes
@@ -82,5 +87,6 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Tests | 154, tous verts, **sans `.env`** |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 5 acceptés, 0 supersédé |
+| ADR | 7 acceptés, 0 supersédé |
+| Environnement de référence | Docker dès que l'epic 005 est fait (ADR 0006) — en attendant, on travaille en local, et c'est dit |
 | Fork audités | 6 — 0 adopté |

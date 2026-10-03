@@ -37,6 +37,8 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0003](0003-ontologie-differee-en-v2.md) | Ontologie dynamique reportée en v2 | accepté — 2026-10-03 |
 | [0004](0004-llm-opencode-go.md) | LLM sur endpoint gratuit OpenCode Go | accepté — 2026-10-03 |
 | [0005](0005-licence-agpl.md) | Rester local ; exposer en réseau ⇒ sources publiées | accepté — 2026-10-03 |
+| [0006](0006-docker-first.md) | Docker d'abord : un seul environnement de référence | accepté — 2026-10-03 |
+| [0007](0007-une-story-un-fichier.md) | Une story = un fichier, l'état vit avec la story | accepté — 2026-10-03 |
 
 ## Règles
 
