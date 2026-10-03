@@ -66,15 +66,15 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Acter la décision de la story 001-1 dans un ADR.** Le conflit
-   `graphiti-core` vs `camel-oasis` est **réel et structurel** : `camel-oasis`
-   épingle `neo4j==5.23.0`, Graphiti exige `>=5.26.0`. La parade mesurée —
-   `override-dependencies` côté `uv` — tient un seul environnement, 183 tests
-   verts, mais elle contourne une contrainte déclarée par l'amont : ça mérite
-   un ADR, pas une ligne oubliée dans `pyproject.toml`.
+1. **Appliquer l'override décidé par l'ADR 0010** — l'ADR tranche
+   l'architecture, il n'applique rien. Le geste
+   (`[tool.uv] override-dependencies = ["neo4j>=5.26,<6"]`) est mesuré et
+   disponible ; il sera posé par une story dédiée, après revalidation.
 2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risques
-   de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver :
-   personne n'a encore ouvert de connexion sous l'override.
+   de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver
+   forcé : l'override est vérifié au niveau de l'API, pas à l'exécution, et
+   c'est 001-2 qui tranche l'ADR 0010 (il sera supersédé, pas réécrit, s'il
+   casse).
 3. L'épreuve elle-même, et son verdict.
 
 ## Questions ouvertes

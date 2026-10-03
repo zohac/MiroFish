@@ -10,10 +10,10 @@
 ## Contexte
 
 La première version des fichiers de story était en YAML. En rédigeant la
-story 001-1, le coût est apparu immédiatement : une Definition of Ready, une
-stratégie de test, des notes d'architecture, des risks, des completion notes —
-tout ça est de la prose. En YAML, chaque paragraphe devenait un bloc `>-` à
-échapper, chaque task une liste de deux clés, et le diff d'une phrase
+story 001-1, le coût est apparu immédiatement : une définition de prêt, une
+stratégie de test, des notes d'architecture, des risques, des notes de
+complétion — tout ça est de la prose. En YAML, chaque paragraphe devenait un bloc `>-` à
+échapper, chaque tâche une liste de deux clés, et le diff d'une phrase
 réécrite était illisible.
 
 Le pire : le fichier n'était plus lisible dans l'interface de GitHub sans une
@@ -35,15 +35,19 @@ auteur: agent
 
 # Story 001-1 — …
 
-## Definition of Ready
+## Définition de prêt
 - [x] …
 
-## Tasks
+## Tâches
 - [ ] 1. …
 
-## Completion notes
+## Notes de complétion
 _…_
 ```
+
+> Les noms de sections ci-dessus sont ceux de la décision d'origine. Ils ont
+> été francisés par la suite — voir `AGENTS.md` §2.10. L'illustration est
+> conservée telle quelle, cet ADR étant immuable ; ne pas la recopier.
 
 L'en-tête ne contient que ce qui doit être **lu par une machine** :
 l'identité, l'epic, l'état, l'auteur. Tout le reste est de la prose, des cases
@@ -70,8 +74,8 @@ l'identité, l'epic, l'état, l'auteur. Tout le reste est de la prose, des cases
   courant. Acceptable : les six sections sont vérifiées à chaque run.
 
 **Note d'implémentation.** Le contrôle des tâches se fait sur les cases à
-cocher de la section `Tasks` : une story en `review` ou `done` ne doit plus
-avoir de case ouverte. Et une story `done` dont les completion notes
+cocher de la section `Tâches` : une story en `review` ou `done` ne doit plus
+avoir de case ouverte. Et une story `done` dont les notes de complétion
 contiennent encore « à remplir » est refusée — c'est le moyen le plus simple
 d'empêcher un `done` qui n'a rien documenté.
 

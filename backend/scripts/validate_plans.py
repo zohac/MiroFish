@@ -41,12 +41,12 @@ CLOSED_STATES = {"review", "done"}
 EPIC_REQUIRED = ("id", "slug", "titre", "statut")
 STORY_META_REQUIRED = ("id", "epic", "titre", "statut", "auteur")
 STORY_SECTIONS = (
-    "Definition of Ready",
-    "Definition of Done",
-    "Tasks",
+    "Définition de prêt",
+    "Définition de fini",
+    "Tâches",
     "Notes de développement",
     "Revue",
-    "Completion notes",
+    "Notes de complétion",
 )
 PLAN_ARTEFACTS = ("prd.md", "architecture.md")
 
@@ -177,10 +177,10 @@ def _validate_story(path: Path, epic_id: str, hub_text: str) -> list[str]:
         if _section(body, section) is None:
             problems.append(f"{where} : section obligatoire absente « {section} »")
 
-    tasks_section = _section(body, "Tasks") or ""
+    tasks_section = _section(body, "Tâches") or ""
     tasks = CHECKBOX_RE.findall(tasks_section)
     if not tasks:
-        problems.append(f"{where} : « Tasks » vide — au moins une case à cocher attendue")
+        problems.append(f"{where} : « Tâches » vide — au moins une case à cocher attendue")
     elif statut in CLOSED_STATES:
         ouvertes = [label.strip() for done, label in tasks if done != "x"]
         if ouvertes:
@@ -189,9 +189,9 @@ def _validate_story(path: Path, epic_id: str, hub_text: str) -> list[str]:
             )
 
     if statut == "done":
-        notes = (_section(body, "Completion notes") or "").strip().lower()
+        notes = (_section(body, "Notes de complétion") or "").strip().lower()
         if any(marker in notes for marker in PLACEHOLDER_MARKERS):
-            problems.append(f"{where} : statut `done` mais completion notes encore en remplissage")
+            problems.append(f"{where} : statut `done` mais notes de complétion encore en remplissage")
 
     if statut in ACTIVE_STATES and hub_text and story_id not in hub_text:
         problems.append(f"{where} : statut `{statut}` mais la story n'est pas citée dans epic-{epic_id}.md")

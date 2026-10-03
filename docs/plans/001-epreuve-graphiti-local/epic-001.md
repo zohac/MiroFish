@@ -60,6 +60,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `review` | [`story-001-1.md`](story-001-1.md) |
+| 001-1b | Appliquer l'`override-dependencies` décidé par l'ADR 0010 | `backlog` | — |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés | `backlog` | — |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
@@ -75,11 +76,11 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
-| 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then aucune erreur de résolution · les 154 tests passent · `camel-oasis` et `neo4j` coexistent dans le même interpréteur — **⚠️ le conflit est réel** (`neo4j==5.23.0` vs `>=5.26.0`) ; décision à acter dans un ADR avant d'aller plus loin |
-| 001-2 | Given le compose local, when il démarre, then le healthcheck Neo4j passe au vert · un nœud écrit survit à la recréation du conteneur — **premier test comportemental du driver forcé à 5.28** (story 001-1) |
-| 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`, story 001-1), même arbitrage à faire |
+| 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then aucune erreur de résolution · les tests passent · `camel-oasis` et `neo4j` coexistent dans le même interpréteur — **⚠️ le conflit est réel et structurel** (`neo4j==5.23.0` vs `>=5.26.0`), **arbitré par l'ADR 0010** |
+| 001-1b | Given l'ADR 0010, when on ajoute `override-dependencies`, then `uv lock` résout · le lock reste reproductible en `--frozen` · les tests passent · **le geste est réversible** (retirer l'override restaure le lock d'origine) |
+| 001-2 | Given le compose local, when il démarre, then le healthcheck Neo4j passe au vert · un nœud écrit survit à la recréation du conteneur — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé |
 | 001-3 | Given un appel d'extraction, when l'hôte est `opencode.ai`, then aucun `MissingSessionID` · given un autre endpoint, then aucun en-tête ajouté |
-| 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings |
+| 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`) : arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
 | 001-5 | Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités · le rapport contient appels, latences, retries, erreurs exactes · il est commité |
 | 001-6 | Given C1 à C5, when le verdict est écrit, then il est dans `docs/STATUS.md` · un no-go déclenche un ADR · un go fait passer 002 en `in-progress` |
 

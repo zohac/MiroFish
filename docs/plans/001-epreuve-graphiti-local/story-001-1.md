@@ -18,26 +18,26 @@ Notre venv est plus récent : c'est à vérifier, pas à supposer.
 Si le conflit existe, il change le périmètre de l'épreuve (venv séparé, ou
 service Graphiti isolé). C'est le seul obstacle de cette story.
 
-## Definition of Ready
+## Définition de prêt
 
 - [x] Critères Given/When/Then écrits et mesurables
 - [x] Aucune dépendance externe non résolue
 - [x] Stratégie de test identifiée
-- [x] Documents à consulte lus — [`epic-001.md`](../epic-001.md), [ADR 0006](../../../decisions/0006-docker-first.md), `backend/pyproject.toml`
+- [x] Documents à consulter lus — [`epic-001.md`](../epic-001.md), [ADR 0006](../../../decisions/0006-docker-first.md), `backend/pyproject.toml`
 
-## Definition of Done
+## Définition de fini
 
 - [x] Le conflit est établi par le résolveur, pas supposé — **il existe**, et il est structurel
 - [x] `camel-oasis` puis `neo4j` importables dans le même interpréteur, **dans cet ordre** (sous override)
 - [x] Les tests sont toujours verts — 183 (le plan en annonçait 154 : le filet a grandi)
-- [x] Le résultat est consigné dans les completion notes ci-dessous — **y compris le second conflit** (`sentence-transformers`, qui bloque la 001-4)
-- [x] Options documentées et décision proposée — sans l'appliquer
+- [x] Le résultat est consigné dans les notes de complétion ci-dessous — **y compris le second conflit** (`sentence-transformers`, qui bloque la 001-4)
+- [x] Options documentées et décision proposée — sans l'appliquer — **arbitrée depuis par l'ADR 0010**
 - [x] Aucune trace laissée dans l'arbre : lock au sha256 d'origine, venv restauré
 
-## Tasks
+## Tâches
 
 - [x] 1. Ajouter `graphiti-core` aux dépendances produit de `backend/pyproject.toml`
-- [x] 2. Régénérer le lock (`uv lock`) — **échec, voir completion notes**
+- [x] 2. Régénérer le lock (`uv lock`) — **échec, voir les notes de complétion**
 - [x] 3. `uv sync`, puis vérifier qu'aucun conflit de version n'apparaît — **conflit confirmé**
 - [x] 4. Importer `camel-oasis` puis `neo4j` dans le même interpréteur — fait sous override
 - [x] 5. Lancer `pytest tests/ -q` — 183 passed (et non 154 : le filet a grandi depuis l'écriture)
@@ -62,7 +62,7 @@ contrôle d'import, pas un test fonctionnel.
 
 Suivis éventuels : _aucun pour l'instant._
 
-## Completion notes
+## Notes de complétion
 
 ### Verdict : le conflit existe, et il est réel — pas une rumeur de fork
 
@@ -86,15 +86,15 @@ Ce n'est pas un accident de version : **camel-oasis n'a jamais piné autre chose
 que `neo4j==5.23.0`**, sur ses 9 versions publiées (0.0.1 → 0.2.5, la dernière
 datant de décembre 2025). De son côté, `graphiti-core` exige `neo4j>=5.26.0`
 **depuis la 0.12.0** (juin 2025) — soit plus de 90 % de son historique. Les
-deUX côtés sont des épinglages exacts, sur des versions qui ne se recouvrent
-pas. Il n'existe donc **aucune combinaison des deux paquets published qui
+Les deux côtés sont des épinglages exacts, sur des versions qui ne se recouvrent
+pas. Il n'existe donc **aucune combinaison des deux paquets publiés qui
 résout** : ce n'est pas notre lock qu'il faut défaire, c'est une contrainte
 structurelle de l'amont.
 
 Le pin `==5.23.0` de camel-oasis est d'ailleurs un choix délibéré, pas un
-hasard : le projet camels l'utilise pour son stockage graphe
+hasard : c'est `oasis` qui utilise le driver pour son stockage graphe
 (`camel-ai[rag]` exige `neo4j>=5.18,<6`, une borne large que 5.26 respecte —
-c'est oasis qui resserre à l'exact).
+c'est `oasis` qui resserre à l'exact).
 
 ### Deuxième conflit, trouvé en chemin : l'embedder de la story 001-4
 
@@ -109,7 +109,7 @@ Même forme, même cause. `architecture.md` §3 affirme que
 `sentence-transformers==3.0.0` est « déjà dans le venv » et en déduit que
 l'embedder local est gratuit — c'est vrai, mais cet extra de Graphiti est
 **ininstallable** sans arbitrage. **La story 001-4 est donc bloquée par le même
-mécanisme**, et devra être arbitrée avec le même gesture.
+mécanisme**, et devra être arbitrée avec le même geste.
 
 ### Ce qui a été tenté, et ce que ça donne
 
@@ -117,7 +117,7 @@ Le plan disait « si le lock casse, on revert ». Reverté, oui — mais **aprè
 avoir mesuré l'échec**, parce que « ça ne marche pas » ne dit pas *quoi* faire.
 
 **Option A — forcer le driver (`uv` `override-dependencies`).** Forcer
-`neo4j>=5.26,<6` pour satisfy les deux : le lock résout, `camel-oasis`,
+`neo4j>=5.26,<6` pour satisfaire les deux : le lock résout, `camel-oasis`,
 `neo4j` et `graphiti_core` s'importent **dans cet ordre** sans erreur, et les
 **183 tests restent verts**. C'est l'override qui rend les deux pins exacts
 satisfiables en même temps.
@@ -135,6 +135,8 @@ vient de l'amont et il n'existe aucune version plus récente qui le desserre.
 respecté), le lock reste reproductible, et les tests le confirment. Son coût :
 on contourne délibérément une contrainte déclarée par l'amont — il faut donc que
 ce soit **acté dans un ADR**, pas un `override` oublié dans un `pyproject.toml`.
+→ **Arbitré par l'ADR 0010**, qui décide sans encore l'appliquer : le geste
+sera posé par une story dédiée, après revalidation.
 
 ### Limite de la mesure — à lire avant de foncer
 
@@ -151,12 +153,13 @@ annoncé.
 `pyproject.toml`, `uv.lock` et le venv sont revenus à l'état initial — le lock
 a le même sha256 qu'avant l'expérience (`1b41b865…`), et `uv sync` +
 `pytest` confirment 183 passed / ruff propre. L'override n'est **pas** dans
-l'arbre : cette story mesure, elle ne décide pas.
+l'arbre : cette story mesure, elle ne décide pas. L'ADR 0010 l'a tranché le
+3 octobre 2026 — il sera appliqué par une story dédiée.
 
 ## Risques
 
 | Risque | Parade |
 |---|---|
-| Le conflit réapparaît et impose une autre architecture | ~~documenter les options et proposer une décision, sans l'appliquer dans cette story~~ → **il réapparaît** ; options mesurées en completion notes, décision proposée (override), à acter dans un ADR |
+| Le conflit réapparaît et impose une autre architecture | ~~documenter les options et proposer une décision, sans l'appliquer dans cette story~~ → **il réapparaît** ; options mesurées dans les notes de complétion, décision arbitrée par l'ADR 0010 |
 | L'override passerait l'import mais casser à l'exécution | aucun test ici n'ouvre de connexion ; le premier test comportemental est la story 001-2, avec un vrai Neo4j |
 | Le conflit `sentence-transformers` de la 001-4 est découvert trop tard | déjà mesuré et consigné ici ; la 001-4 est bloquée par le même mécanisme |

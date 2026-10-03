@@ -153,7 +153,7 @@ mesurer un effort, pas à décider quoi construire.
 | PRD | `docs/plans/<NNN>-<slug>/prd.md` | quoi, pourquoi, **critères de sortie chiffrés** |
 | Architecture | `docs/plans/<NNN>-<slug>/architecture.md` | comment, avec schémas Mermaid |
 | Epic | `docs/plans/<NNN>-<slug>/epic-<NNN>.md` | le contrat d'ingénierie : FR, NFR, UX, index des stories, **documents à consulter** |
-| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>.md` | une story = un fichier markdown : en-tête minimal, puis DoR, DoD, tasks, notes, revue, completion notes |
+| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>.md` | une story = un fichier markdown : en-tête minimal, puis les six sections en français (voir §2.10) |
 | Suivi | `sprint-status.yaml` (racine) | **l'agrégat par epic** |
 
 Règles :
@@ -172,9 +172,10 @@ Règles :
 - **Un fichier par story réellement démarrée**, pas imaginée — sinon la
   formalisation devient du bruit. Une story en `backlog` peut n'exister que
   dans l'index de `epic-<NNN>.md`, avec ses critères résumés.
-- **Definition of Ready** satisfaite avant de commencer : critères mesurables,
-  dépendances résolues, stratégie de test identifiée, documents lus.
-- **Definition of Done** cochée avant de finir, et **completion notes**
+- **Définition de prêt** satisfaite avant de commencer : critères
+  mesurables, dépendances résolues, stratégie de test identifiée, documents
+  lus.
+- **Définition de fini** cochée avant de finir, et **notes de complétion**
   écrites : ce qui a divergé du plan, et pourquoi.
 - La structure est **validée par un script**
   (`backend/scripts/validate_plans.py`, PyYAML dans le groupe `dev`) lancé en
@@ -215,6 +216,32 @@ Ce qui restera vrai quand Docker sera prêt :
   les fichiers du dépôt.
 - Les ports sont exposés **explicitement** dans le compose. Sur cette machine,
   3000 et 3001 sont déjà pris par les conteneurs d'un autre projet.
+
+### 2.10 Langue
+
+**Français, partout, sans exception.** Cette constitution, les ADR, les PRD,
+les epics, les stories, le `STATUS.md`, les messages de commit, les
+commentaires de pull request, et les échanges avec l'utilisateur comme entre
+agents.
+
+Restent en anglais, et uniquement là :
+
+- le code et les identifiants — `chunk_size`, `GraphStore`, `zep_entity_reader` ;
+- les valeurs de statut et les clés d'en-tête des stories — `backlog`,
+  `in-progress`, `review`, `done`, `blocked`, `definition_of_ready` : ce sont
+  des identifiants lus par `validate_plans.py` ;
+- un terme technique établi où la traduction serait moins claire — `pipeline`,
+  `commit`, `endpoint`, `healthcheck`.
+
+Les six sections d'une story sont donc en français : **Définition de prêt**,
+**Définition de fini**, **Tâches**, **Notes de développement**, **Revue**,
+**Notes de complétion**. L'illustration donnée dans l'ADR 0009 montre les
+noms anglais d'origine : elle est **caduque** sur ce point, l'ADR étant
+immuable. Ne pas la recopier.
+
+> Cette règle n'est outillée par aucun contrôle : c'est une règle de
+> constitution, pas une vérification automatique. Un document en anglais
+> n'est pas détecté, il est en faute.
 
 ---
 
@@ -326,11 +353,11 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | `.env` copié dans l'image | secret dans l'historique Docker | `env_file`, jamais `COPY` |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
-| `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` vs `neo4j>=5.26.0` — **conflit structurel, vérifié** | story 001-1 : pins exacts des deux côtés, aucune combinaison published ne résout. Parade mesurée : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
+| `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` vs `neo4j>=5.26.0` — **conflit structurel, vérifié** | story 001-1 : pins exacts des deux côtés, aucune combinaison publiée ne résout. Parade mesurée : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
 
 ---
 
-## 7. Définition de « Done »
+## 7. Définition de « fini »
 
 - [ ] Tests verts — en local aujourd'hui, sous Docker après l'epic 005
 - [ ] `ruff check` → rien
@@ -380,6 +407,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0007 | **Une story = un fichier**, l'état vit avec la story |
 | 0008 | **pnpm** pour Node : version figée dans `packageManager`, lock strict |
 | 0009 | **Fichiers de story en markdown**, pas en YAML |
+| 0010 | Forcer `neo4j` par `override-dependencies` : un seul environnement, on contourne le pin de l'amont |
 
 ---
 
@@ -397,7 +425,8 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
 | Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
-| **`camel-oasis` et `graphiti-core` ne coexistent pas** : pins exacts incompatibles, ni dans un venv ni dans un lock | story 001-1 · `LOCAL-FIRST.md` §11.4 |
+| **`camel-oasis` et `graphiti-core` ne coexistent pas** : pins exacts incompatibles, ni dans un venv ni dans un lock | ADR 0010, story 001-1 · `LOCAL-FIRST.md` §11.4 |
+| **Un `override-dependencies` est un pari sur le comportement, pas sur le lock** : l'API est vérifiée, l'exécution ne l'est pas — la 001-2 tranche | ADR 0010 |
 | **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
 | Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |

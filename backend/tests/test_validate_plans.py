@@ -46,17 +46,17 @@ def _valid_story(story_id: str, epic: str, statut: str, *, tasks_checked: bool |
         f"# Story {story_id} — Une story de test\n\n"
         "## Pourquoi cette story\n\n"
         "Parce que.\n\n"
-        "## Definition of Ready\n\n"
+        "## Définition de prêt\n\n"
         "- [x] Critères écrits\n- [x] Stratégie de test identifiée\n\n"
-        "## Definition of Done\n\n"
+        "## Définition de fini\n\n"
         "- tests verts\n\n"
-        "## Tasks\n\n"
+        "## Tâches\n\n"
         f"- [{mark}] 1. faire un truc\n\n"
         "## Notes de développement\n\n"
         "Rien.\n\n"
         "## Revue\n\n"
         "Aucun.\n\n"
-        "## Completion notes\n\n"
+        "## Notes de complétion\n\n"
         "_Rien à signaler._\n"
     )
 
@@ -233,7 +233,7 @@ def test_review_story_with_checked_tasks_passes(repo: Path):
 def test_empty_tasks_is_reported(repo: Path):
     _break_story(repo, "- [ ] 1. faire un truc", "- 1. faire un truc")
     problems = validate_plans.validate(repo)
-    assert any("« Tasks » vide" in p for p in problems)
+    assert any("« Tâches » vide" in p for p in problems)
 
 
 def test_done_story_with_placeholder_notes_is_reported(repo: Path):
@@ -241,7 +241,7 @@ def test_done_story_with_placeholder_notes_is_reported(repo: Path):
     _break_story(repo, "_Rien à signaler._", "_À remplir à la fin : ce qui a divergé._")
     _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n001-1")
     problems = validate_plans.validate(repo)
-    assert any("completion notes encore en remplissage" in p for p in problems)
+    assert any("notes de complétion encore en remplissage" in p for p in problems)
 
 
 # --------------------------------------------------------------------------
