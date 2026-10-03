@@ -22,14 +22,20 @@ reproductible.**
 |---|---|
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
+| Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ❌ à faire |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
-| Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
 - État du projet : [`docs/STATUS.md`](docs/STATUS.md)
 - Contexte technique détaillé : [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md)
+
+### La tâche du moment
+
+**[`docs/plans/001-epreuve-graphiti-local/story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md)**
+— vérifier si `graphiti-core` peut cohabiter avec `camel-oasis` dans le même
+venv. C'est le seul obstacle qui pourrait changer le périmètre de l'épreuve.
 
 ---
 
@@ -57,7 +63,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**154 tests** — il doit grossir, jamais rétrécir.
+**183 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -68,6 +74,10 @@ Règles de qualité des tests :
   appelle l'API ne teste pas notre code.
 - **Un test = une intention.** Si le nom du test contient un « et », il faut
   deux tests.
+- **Vérifier qu'un test teste vraiment.** Une fixture dont la mutation ne
+  correspond pas au fichier réel fait passer un test sans rien vérifier — pire
+  que pas de test. Quand un test échoue, vérifier d'abord qu'il reproduit le
+  défaut qu'il prétend couvrir.
 - Les tests qui touchent un contrat Zep existant sont notre filet de sécurité
   pendant la migration : ils doivent rester verts **avant et après** chaque
   refactor.
@@ -83,7 +93,7 @@ Règles de qualité des tests :
   cadre change.
 
 Un ADR est **immuable** une fois accepté. Pour le changer, on écrit un nouvel
-ADR qui le supersède — on ne réécrit pas l'histoire.
+ADR qui le précise ou le supersède — on ne réécrit pas l'histoire.
 
 ### 2.4 Secrets
 
@@ -117,6 +127,9 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - **Ne jamais pousser sur `upstream`.**
 - Message de commit = *ce qui* + *le pourquoi*. Pas de « fix » nu.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
+- L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
+  `git fetch upstream && git rebase upstream/main`, **puis** relancer les
+  183 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -147,7 +160,9 @@ Règles :
   L'état d'une story vit dans son fichier ; `sprint-status.yaml` ne porte que
   l'agrégat d'epic. Deux endroits pour le même état, et l'état ment.
 - Une story passe `backlog → in-progress → review → done`, jamais de saut.
-  `blocked` quand une dépendance externe nous arrête.
+  `blocked` quand une dépendance externe nous arrête. **Ne pas passer
+  directement à `done`** : un `done` sans passer par `review` n'a pas été
+  relu.
 - **Un fichier par story réellement démarrée**, pas imaginée — sinon la
   formalisation devient du bruit. Une story en `backlog` peut n'exister que
   dans l'index de `epic-<NNN>.md`, avec ses critères résumés.
@@ -165,15 +180,25 @@ Règles :
 - `docs/STATUS.md` est la vue humaine, alimentée du YAML. Pas de second
   saisie.
 
-### 2.9 Docker d'abord
+### 2.9 Docker d'abord — mais pas encore exécutable
 
-**Si Docker est disponible, c'est l'environnement de référence** (ADR 0006).
-Un seul environnement reproductible, pas deux qui divergent.
+**Docker est l'environnement de référence cible** (ADR 0006). Un seul
+environnement reproductible, pas deux qui divergent.
 
-- Toute commande passe par `docker compose`. Un `uv run` ou un `npm run` en
+> ⚠️ **L'epic 005 n'est pas fait.** Aujourd'hui, le `docker-compose.yml`
+> pointe l'image **amont** `ghcr.io/666ghj/mirofish:latest` — sans aucune de
+> nos modifications — ne contient pas Neo4j, et son service s'appelle
+> `mirofish`, pas `backend`. Les commandes Docker de la §3 sont écrites pour
+> après l'epic 005 : lancées maintenant, elles échouent ou font tourner le
+> code amont. **Tant que l'epic 005 n'est pas fait, on travaille en local,
+> et c'est un choix assumé.**
+
+Ce qui restera vrai quand Docker sera prêt :
+
+- Toute commande passe par `docker compose`. Un `uv run` ou un `pnpm run` en
   local crée un **second** environnement, qui divergera.
-- Le mode sans Docker existe — dépannage, boucle rapide — mais il est
-  **explicite**. On ne mélange pas les deux dans une même session.
+- Le mode sans Docker reste un **secours explicite**. On ne mélange pas les
+  deux dans une même session.
 - Le code est **monté en volume** en développement ; l'image reste la
   référence des dépendances.
 - Les données persistantes vivent dans des **volumes nommés** (Neo4j), jamais
@@ -189,32 +214,35 @@ Un seul environnement reproductible, pas deux qui divergent.
 
 ## 3. Commandes
 
-### Sous Docker — le mode par défaut
+### Aujourd'hui — local (l'epic 005 n'est pas fait)
 
 ```bash
-docker compose up -d                      # tout : backend, frontend, Neo4j
+# Bootstrap, une fois par poste
+cd backend && uv sync && cd ..
+pnpm install && pnpm --dir frontend install
+
+# Avant chaque commit
+cd backend && uv run pytest tests/ -q                  # 183 tests
+cd backend && uv run ruff check .                     # lint
+cd backend && uv run python scripts/validate_plans.py # structure de plan
+
+# Application
+pnpm dev                                              # backend :5001, frontend :3000
+pnpm build                                            # build frontend
+```
+
+Le document de test de l'épreuve est dans `backend/uploads/documents/`, qui est
+**gitignoré** : sur un autre poste il est absent. Le retélécharger depuis
+l'URL et le vérifier au sha256 donnés dans le PRD de l'epic 001.
+
+### Après l'epic 005 — Docker
+
+```bash
+docker compose up -d                      # backend, frontend, Neo4j
 docker compose ps                         # état + healthchecks
 docker compose logs -f backend            # logs
-docker compose run --rm backend uv run pytest tests/ -q    # tests
-docker compose run --rm backend uv run ruff check .       # lint
-docker compose run --rm backend bash                     # shell dans le conteneur
-```
-
-### Sans Docker — secours explicite
-
-```bash
-pnpm setup:all                   # Node (racine + frontend) puis backend
-pnpm dev                         # backend : 5001, frontend : 3000
-pnpm build                       # build frontend
-cd backend && uv run pytest tests/ -q
-cd backend && uv run ruff check .
-cd backend && uv lock && uv sync          # lock DANS le backend
-```
-
-### Outillage
-
-```bash
-cd backend && uv run python scripts/validate_plans.py    # structure de planification
+docker compose run --rm backend uv run pytest tests/ -q
+docker compose run --rm backend bash
 ```
 
 Ports : backend `5001` · frontend `3000` (3001, 3002 si occupés) · Neo4j
@@ -241,13 +269,14 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 154 tests |
+| Tests | `backend/tests/` | pytest — 183 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
 | Locks | `pnpm-lock.yaml`, `frontend/pnpm-lock.yaml`, `backend/uv.lock` | versions figées — ne jamais en réécrire un à la main |
 | Planification | `docs/plans/`, `sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
-| Docker | `Dockerfile`, `docker-compose.yml` | image unique amont, 1 service — **à étendre** |
+| Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
+| Docker | `Dockerfile`, `docker-compose.yml` | image amont, 1 service — **à étendre** (epic 005) |
 
 ---
 
@@ -279,9 +308,10 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 
 | Piège | Symptôme | Réflexe |
 |---|---|---|
+| **Commandes Docker lancées trop tôt** | le conteneur tourne le code amont, ou `no such service: backend` | epic 005 (§2.9) : travailler en local d'ici là |
 | Python système hors plage (`>=3.11,<3.13`) | `uv` refuse de synchroniser | utiliser `backend/.venv`, ou Docker (3.11) |
 | `uv sync --frozen` échoue au build | lock désynchronisé | `uv lock` puis `uv sync`, **avant** de construire l'image |
-| **Dérive Docker / local** | les tests passent en local, pas dans le conteneur | un seul environnement de référence (§2.9) |
+| **Dérive Docker / local** | les tests passent en local, pas dans le conteneur | un seul environnement de référence |
 | **npm et pnpm mélangés** | un `package-lock.json` réapparaît, `node_modules` divergent | pnpm uniquement ; le lock npm se supprime (ADR 0008) |
 | `pnpm install` sans `--frozen-lockfile` | le lock est réécrit sans bruit | `--frozen-lockfile` par défaut, partout |
 | `docker compose down -v` | le graphe Neo4j disparaît | ne l'utiliser que pour repartir de zéro, sciemment |
@@ -290,17 +320,17 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | `.env` copié dans l'image | secret dans l'historique Docker | `env_file`, jamais `COPY` |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
-| `camel-oasis` vs `graphiti-core` | conflit de version du driver Neo4j | vérifier **avant** d'ajouter la dépendance |
+| `camel-oasis` vs `graphiti-core` | conflit de version du driver Neo4j | story 001-1 : le vérifier **avant** d'ajouter la dépendance |
 
 ---
 
 ## 7. Définition de « Done »
 
-- [ ] Tests verts — sous Docker si Docker est disponible
+- [ ] Tests verts — en local aujourd'hui, sous Docker après l'epic 005
 - [ ] `ruff check` → rien
+- [ ] `validate_plans.py` → rien à signaler
 - [ ] Aucun secret dans le diff ni dans l'image
 - [ ] Artefacts de plan à jour (PRD, architecture, epic, story, `sprint-status.yaml`)
-- [ ] `validate_plans.py` → rien à signaler
 - [ ] Doc mise à jour si le comportement a changé
 - [ ] ADR écrit si une décision d'architecture a été prise
 - [ ] Message de commit qui explique le **pourquoi**
@@ -325,9 +355,9 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 |---|---|
 | [`docs/STATUS.md`](docs/STATUS.md) | fait / en cours / à faire / prochain pas |
 | [`sprint-status.yaml`](sprint-status.yaml) | agrégat machine-readable par epic |
+| [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | l'epic en cours : PRD, architecture, epic, stories |
 | [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
 | [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
-| [`docs/plans/`](docs/plans/) | un dossier par epic : PRD, architecture, epic, stories |
 | [`docs/architecture/cible-graphstore.md`](docs/architecture/cible-graphstore.md) | schémas de l'architecture cible |
 | [`docs/decisions/`](docs/decisions/) | ADR — décisions d'architecture, figées |
 
@@ -347,14 +377,43 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 
 ---
 
-## 10. Contrat de session
+## 10. Ce qui est déjà réglé — ne pas re-dériver
 
-**Au début** — lire ce fichier, puis `docs/STATUS.md`, puis l'epic en cours
-(`epic-<NNN>.md`), puis l'ADR concerné. Vérifier quel environnement est actif :
-Docker ou local, jamais les deux.
+Ces faits ont été vérifiés et coûtent du temps à retrouver. Les redériver, c'est
+du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 
-**À la fin** — tests verts, lint vert, commit explicatif, doc et ADR à jour,
-`sprint-status.yaml` à jour, `AGENTS.md` régénéré si le cadre a bougé, tag si
+| Fait vérifié | Où c'est écrit |
+|---|---|
+| Zep Community Edition est déprécié ; Graphiti est la voie OSS | ADR 0001 |
+| Aucun fork communautaire n'est adoptable : bugs silencieux, zéro test, gelés depuis mars | ADR 0002, `LOCAL-FIRST.md` §12 |
+| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003 |
+| `zep_entity_reader.py:262` filtre les nœuds sans label d'ontologie → **le graphe revient vide en silence** | ADR 0003 |
+| L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
+| `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
+| Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
+| Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
+| Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |
+
+---
+
+## 11. Contrat de session
+
+**Au début, dans cet ordre** — c'est ce qu'il faut lire pour reprendre le
+travail sans mémoire :
+
+1. ce fichier,
+2. [`docs/STATUS.md`](docs/STATUS.md) — où on en est, questions ouvertes,
+3. [`docs/plans/001-epreuve-graphiti-local/epic-001.md`](docs/plans/001-epreuve-graphiti-local/epic-001.md) — le contrat de l'epic en cours, et ses 11 documents de référence,
+4. le fichier de story de la tâche du moment,
+5. l'ADR concerné (§9).
+
+**Environnement** — avant de modifier quoi que ce soit :
+`cd backend && uv run pytest tests/ -q` doit afficher 183 passed. Sinon, on
+corrige avant de commencer, pas après.
+
+**À la fin** — tests verts, lint vert, structure validée, commit explicatif,
+doc et ADR à jour, `sprint-status.yaml` à jour, story passée en `review` (pas
+en `done` directement), `AGENTS.md` régénéré si le cadre a bougé, tag si
 jalon.
 
 Ne pas laisser dans l'arbre de travail du travail non commité : c'est la
