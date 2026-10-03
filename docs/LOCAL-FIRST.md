@@ -266,11 +266,23 @@ temporelle : on utilise le même graphe, en local.
 - `SEMAPHORE_LIMIT` (défaut 10) pour éviter les 429
 - Télémétrie **opt-out** : `GRAPHITI_TELEMETRY_ENABLED=false`
 
-### Avantage local : sentence-transformers déjà installé
+### Le cas de l'embedder : « déjà installé » ne veut pas dire « installable »
 
-`sentence-transformers==3.0.0` et `torch==2.9.1` sont déjà dans le venv
-(dépendance de camel-ai). L'embedder et le cross-encoder peuvent donc tourner
-en local sans rien ajouter.
+`sentence-transformers==3.0.0` et `torch==2.9.1` sont **bien** dans le venv.
+Mais ce n'est pas `camel-ai` qui les y met, c'est `camel-oasis`, qui **épingle**
+`sentence-transformers==3.0.0`. L'extra `graphiti-core[sentence-transformers]`
+exige `>=3.2.1` : même forme de conflit que sur le driver `neo4j`, et l'extra
+est donc **ininstallable** sans arbitrage.
+
+> ⚠️ **Corrigé le 3 octobre 2026** (story 001-1, [ADR 0011](../../decisions/0011-inventaire-driver-et-format-de-story.md)).
+> Ce paragraphe disait « dépendance de camel-ai » et en concluait que
+> l'embedder local était gratuit. C'est vrai du venv, faux de l'installation :
+> c'est le conflit qu'il faut voir, pas la version installée. **La story 001-4
+> est bloquée** et devra trancher — avec le même `override-dependencies`, ou en
+> acceptant un embedder moins récent. Un saut `sentence-transformers` 3.0 → 3.2
+> est un changement de modèle et de `torch` : il ne se décide pas par analogie
+> avec un driver. Mesuré et consigné dans
+> [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
 
 ---
 
@@ -457,9 +469,10 @@ mappent presque 1:1.
    ce n'est donc pas notre lock, c'est une contrainte de l'amont. Un second
    conflit de la même forme attend la story 001-4 :
    `sentence-transformers==3.0.0` vs `>=3.2.1`. Contre-mesure mesurée et
-   fonctionnelle : `override-dependencies` côté `uv` — un seul environnement,
-   183 tests verts, imports dans l'ordre. Pas de second venv, pas de
-   sous-processus. La décision reste à acter dans un ADR ; le détail est dans
+   rejouable (`mesurer-001-1.sh`) : `override-dependencies` côté `uv` — un seul
+   environnement, tests verts, imports dans l'ordre. Pas de second venv, pas de
+   sous-processus. La décision est **actée par l'ADR 0010**, précisée par l'ADR
+   0011 ; le geste sera posé par la story 001-1b. Le détail est dans
    [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
 
 ---
@@ -584,10 +597,13 @@ mapping `OPENAI_* ← LLM_*`, le compose et les clés `.env` sont réutilisables
    première extraction.
 2. `structured_output_mode="json_object"` explicite, plus retries et
    `SEMAPHORE_LIMIT`.
-3. **Embedder local `sentence-transformers`** (déjà dans le venv via camel-ai) :
-   zéro appel API, pas de collision de dimension, pas de chunking.
-4. **Conflit de driver Neo4j** (`camel-oasis` vs `graphiti-core`) : voir le
-   point 4 du §11.
+3. **Embedder local `sentence-transformers`** — zéro appel API, pas de collision
+   de dimension, pas de chunking. ⚠️ **bloqué** : l'extra exige `>=3.2.1` et
+   `camel-oasis` épingle `3.0.0` (voir « Le cas de l'embedder » plus haut, et
+   l'ADR 0011). Story 001-4, arbitrage propre.
+4. **Conflit de driver Neo4j** (`camel-oasis` vs `graphiti-core`) : **tranché**
+   par l'ADR 0010, précisé par l'ADR 0011. Override à poser par la story
+   001-1b ; comportement à prouver par la story 001-2.
 
 **Sur l'ontologie, la décision est plus simple qu'il n'y paraît** : le chemin de
 lecture (labels, `summary`, `fact`, `valid_at`) est identique avec ou sans

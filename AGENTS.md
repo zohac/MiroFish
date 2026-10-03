@@ -33,15 +33,23 @@ reproductible.**
 
 ### La tâche du moment
 
-**La story 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés
-(critères dans [`epic-001.md`](docs/plans/001-epreuve-graphiti-local/epic-001.md)).
-Son fichier `story-001-2.md` sera créé quand elle démarre, pas avant (ADR 0007).
-C'est aussi le **premier test comportemental** du driver `neo4j` forcé à 5.28
-(story 001-1) : personne n'a encore ouvert de connexion sous cet override.
+**La story 001-1b** — poser l'`override-dependencies` du driver `neo4j`, décidé
+par l'ADR 0010 et précisé par l'ADR 0011 (critères dans
+[`epic-001.md`](docs/plans/001-epreuve-graphiti-local/epic-001.md)). Son fichier
+`story-001-1b.md` sera créé quand elle démarre, pas avant (ADR 0007).
 
-> La story 001-1 est en `review` : son conflit est **réel et structurel**, la
-> parade est mesurée, mais la décision reste à acter dans un ADR avant de
-> l'appliquer.
+> **La story 001-1 est `done`.** Son conflit est **réel et structurel**, la
+> parade est mesurée et rejouable
+> ([`mesurer-001-1.sh`](docs/plans/001-epreuve-graphiti-local/mesurer-001-1.sh)),
+> et la décision est **actée** dans l'ADR 0010 puis précisée par l'ADR 0011. Ni
+> `graphiti-core` ni l'`override` ne sont dans l'arbre : c'est 001-1b qui les
+> pose. Cinq points de sa revue sont restés différés, dans
+> [`deferred-work.md`](deferred-work.md).
+>
+> **Puis 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés. C'est le
+> **premier test comportemental** du driver forcé : personne n'a encore ouvert
+> de connexion sous cet override. C'est là, pas dans 001-1, qu'un problème de
+> driver se verrait — et si elle casse, l'ADR 0010 est supersédé, pas réécrit.
 
 ---
 
@@ -153,7 +161,7 @@ mesurer un effort, pas à décider quoi construire.
 | PRD | `docs/plans/<NNN>-<slug>/prd.md` | quoi, pourquoi, **critères de sortie chiffrés** |
 | Architecture | `docs/plans/<NNN>-<slug>/architecture.md` | comment, avec schémas Mermaid |
 | Epic | `docs/plans/<NNN>-<slug>/epic-<NNN>.md` | le contrat d'ingénierie : FR, NFR, UX, index des stories, **documents à consulter** |
-| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>.md` | une story = un fichier markdown : en-tête minimal, puis les six sections en français (voir §2.10) |
+| Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>[-<suffixe>].md` | une story = un fichier markdown : en-tête minimal, puis les six sections en français (voir §2.10) |
 | Suivi | `sprint-status.yaml` (racine) | **l'agrégat par epic** |
 
 Règles :
@@ -162,13 +170,23 @@ Règles :
   c'est fini.
 - **Une story = un fichier markdown** (ADR 0007, forme précisée par l'ADR
   0009). Un petit en-tête `---` machine-readable (`id`, `epic`, `titre`,
-  `statut`, `auteur`), puis de la prose : c'est une note, pas une donnée.
-  L'état d'une story vit dans son fichier ; `sprint-status.yaml` ne porte que
-  l'agrégat d'epic. Deux endroits pour le même état, et l'état ment.
+  `statut`, `auteur`, `format`), puis de la prose : c'est une note, pas une
+  donnée. L'état d'une story vit dans son fichier ; `sprint-status.yaml` ne
+  porte que l'agrégat d'epic. Deux endroits pour le même état, et l'état ment.
+- L'`id` suit `<epic>-<n>`, avec un **suffixe alphabétique facultatif** pour une
+  story dérivée — celle qui naît d'un critère qu'une story précédente n'a pas
+  pu tenir (`001-1b` est le geste que la 001-1 n'appliquait pas). Le suffixe se
+  valide : `validate_plans.py` refuse un `id` mal formé.
+- `format: "2"` dans l'en-tête, et les six sections en français. Le marqueur
+  rend la rupture diagnosticable : un fichier au format 1 est refusé avec un
+  message qui nomme le format attendu, au lieu de sept « section absente »
+  identiques (ADR 0011).
 - Une story passe `backlog → in-progress → review → done`, jamais de saut.
   `blocked` quand une dépendance externe nous arrête. **Ne pas passer
   directement à `done`** : un `done` sans passer par `review` n'a pas été
-  relu.
+  relu. *Cette règle n'est outillée par rien* : `validate_plans.py` lit des
+  fichiers, pas un historique, et ne contrôle que l'appartenance de l'état à la
+  liste des cinq autorisés.
 - **Un fichier par story réellement démarrée**, pas imaginée — sinon la
   formalisation devient du bruit. Une story en `backlog` peut n'exister que
   dans l'index de `epic-<NNN>.md`, avec ses critères résumés.
@@ -176,14 +194,22 @@ Règles :
   mesurables, dépendances résolues, stratégie de test identifiée, documents
   lus.
 - **Définition de fini** cochée avant de finir, et **notes de complétion**
-  écrites : ce qui a divergé du plan, et pourquoi.
+  écrites : ce qui a divergé du plan, et pourquoi. Un critère **non satisfiable**
+  se barre et se date, il ne se supprime pas : le voir échouer est l'intérêt.
 - La structure est **validée par un script**
   (`backend/scripts/validate_plans.py`, PyYAML dans le groupe `dev`) lancé en
-  CI. Il impose trois invariants : un epic `in-progress` ou au-delà a un
-  dossier de plan complet (`prd.md`, `architecture.md`, `epic-<NNN>.md`) ; une
-  story `in-progress` ou au-delà a un fichier **et** est citée dans le hub ;
-  états et `id` sont valides, les six sections obligatoires sont présentes, et
-  une story en `review` ou `done` n'a plus aucune case de tâche ouverte.
+  CI. Voici ce qu'il impose, et rien de plus :
+  1. un epic `in-progress` ou au-delà a un dossier de plan complet
+     (`prd.md`, `architecture.md`, `epic-<NNN>.md`) ;
+  2. une story `in-progress` ou au-delà a un fichier **et** est citée dans le
+     hub — citation cherchée par frontières de mot, pas par sous-chaîne, sinon
+     `001-1b` tiendrait lieu de `001-1` ; et une ligne de hub passée
+     `in-progress` a un fichier derrière ;
+  3. états et `id` sont valides, `format` est bon, les six sections obligatoires
+     sont présentes, et une story en `review` ou `done` n'a plus aucune case
+     ouverte — ni dans `Tâches`, ni dans les deux définitions ;
+  4. une story `done` dont les notes de complétion sont encore au gabarit est
+     refusée.
 - `docs/STATUS.md` est la vue humaine, alimentée du YAML. Pas de second
   saisie.
 
@@ -236,12 +262,15 @@ Restent en anglais, et uniquement là :
 Les six sections d'une story sont donc en français : **Définition de prêt**,
 **Définition de fini**, **Tâches**, **Notes de développement**, **Revue**,
 **Notes de complétion**. L'illustration donnée dans l'ADR 0009 montre les
-noms anglais d'origine : elle est **caduque** sur ce point, l'ADR étant
-immuable. Ne pas la recopier.
+noms anglais d'origine : cet ADR est immuable, on ne l'a pas retouché, et son
+illustration est **caduque** sur ce point. L'ADR 0011 explique pourquoi le
+validateur exige désormais les titres français. **Ne pas la recopier.**
 
-> Cette règle n'est outillée par aucun contrôle : c'est une règle de
-> constitution, pas une vérification automatique. Un document en anglais
-> n'est pas détecté, il est en faute.
+> Cette règle est outillée par `validate_plans.py`, qui refuse un fichier sans
+> `format: "2"` ou dont les sections portent les titres anglais (ADR 0011). Elle
+> reste une règle de constitution sur *le reste* des documents : un PRD, une
+> architecture ou un ADR écrits en anglais ne sont détectés par rien. Un
+> document en anglais n'est pas détecté, il est en faute.
 
 ---
 
@@ -353,7 +382,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | `.env` copié dans l'image | secret dans l'historique Docker | `env_file`, jamais `COPY` |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
-| `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` vs `neo4j>=5.26.0` — **conflit structurel, vérifié** | story 001-1 : pins exacts des deux côtés, aucune combinaison publiée ne résout. Parade mesurée : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
+| `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` (pin exact) vs `neo4j>=5.26.0` (plancher) — **conflit structurel, vérifié** | story 001-1 : aucune combinaison publiée ne résout. Parade mesurée et rejouable : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
 
 ---
 
@@ -391,6 +420,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | l'epic en cours : PRD, architecture, epic, stories |
 | [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
 | [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
+| [`deferred-work.md`](deferred-work.md) | travail réel différé, avec ce qui le déclencherait |
 | [`docs/architecture/cible-graphstore.md`](docs/architecture/cible-graphstore.md) | schémas de l'architecture cible |
 | [`docs/decisions/`](docs/decisions/) | ADR — décisions d'architecture, figées |
 
@@ -408,6 +438,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0008 | **pnpm** pour Node : version figée dans `packageManager`, lock strict |
 | 0009 | **Fichiers de story en markdown**, pas en YAML |
 | 0010 | Forcer `neo4j` par `override-dependencies` : un seul environnement, on contourne le pin de l'amont |
+| 0011 | Relevé réel de la surface `neo4j` (pas de `neo4j.Version`), version résolue consignée, marqueur de format de story |
 
 ---
 
@@ -425,8 +456,9 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
 | Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
-| **`camel-oasis` et `graphiti-core` ne coexistent pas** : pins exacts incompatibles, ni dans un venv ni dans un lock | ADR 0010, story 001-1 · `LOCAL-FIRST.md` §11.4 |
-| **Un `override-dependencies` est un pari sur le comportement, pas sur le lock** : l'API est vérifiée, l'exécution ne l'est pas — la 001-2 tranche | ADR 0010 |
+| **`camel-oasis` et `graphiti-core` ne coexistent pas** : `neo4j==5.23.0` est un pin exact qu'aucune version ne desserre, `graphiti-core` exige un plancher `>=5.26.0` — aucune combinaison publiée ne résout | ADR 0010, ADR 0011, story 001-1 · `LOCAL-FIRST.md` §11.4 |
+| **Un `override` est un pari sur le comportement, pas sur le lock** : la surface du driver est relevée (`neo4j.Version` n'est utilisée nulle part), l'exécution ne l'est pas — la 001-2 tranche | ADR 0011 |
+| **La mesure de la 001-1 est rejouable** : `mesurer-001-1.sh` remet `pyproject.toml`, `uv.lock` et le venv à leur état initial, et sa sortie est versionnée dans `mesure-001-1.txt` | story 001-1 |
 | **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
 | Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |

@@ -118,7 +118,7 @@ Deux choses en découlent :
 
 | Risque | Signal | Parade |
 |---|---|---|
-| Conflit `graphiti-core` / `camel-oasis` sur le driver Neo4j | erreur d'import ou version incompatibe | venv séparé pour le graphe |
+| Conflit `graphiti-core` / `camel-oasis` sur le driver Neo4j | erreur d'import ou version incompatibe | forcer le driver par `override-dependencies` — acté par l'ADR 0010, précisé par l'ADR 0011, posé par la story 001-1b |
 | Structured output non honoré | erreur de validation JSON | mode `json_object`, puis modèle payant |
 | `MissingSessionID` | HTTP 400 | sous-classe du client LLM |
 | Reranker incompatible | erreur de logprobs | repli RRF |

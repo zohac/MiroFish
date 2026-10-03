@@ -42,6 +42,7 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0008](0008-pnpm.md) | pnpm comme gestionnaire de paquets Node | accepté — 2026-10-03 |
 | [0009](0009-format-des-stories.md) | Fichiers de story en markdown, pas en YAML | accepté — 2026-10-03 |
 | [0010](0010-override-driver-neo4j.md) | Forcer le driver `neo4j` par `override-dependencies` — un seul environnement | accepté — 2026-10-03 |
+| [0011](0011-inventaire-driver-et-format-de-story.md) | Relevé réel de la surface `neo4j`, version résolue consignée, marqueur de format de story | accepté — 2026-10-03 |
 
 ## Règles
 

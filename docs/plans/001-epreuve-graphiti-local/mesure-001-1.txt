@@ -1,0 +1,61 @@
+
+=== 0. état de départ ===
+ M backend/scripts/validate_plans.py
+ M backend/tests/test_validate_plans.py
+ M docs/plans/001-epreuve-graphiti-local/story-001-1.md
+?? deferred-work.md
+?? docs/plans/001-epreuve-graphiti-local/mesure-001-1.txt
+?? docs/plans/001-epreuve-graphiti-local/mesurer-001-1.sh
+uv.lock sha256 : 1b41b8657a5b9d4b3c39360bc17d940e13212e8f9ae65adb538f2a658814c48c
+
+=== 1. graphiti-core seul, sans arbitrage — on attend un refus ===
+  × No solution found when resolving dependencies for split (markers:
+  │ python_full_version == '3.12.*'):
+  ╰─▶ Because camel-oasis==0.2.5 depends on neo4j==5.23.0 and
+      graphiti-core==0.30.2 depends on neo4j>=5.26.0, we can conclude that
+      camel-oasis==0.2.5 and graphiti-core==0.30.2 are incompatible.
+      And because your project depends on camel-oasis==0.2.5, we can conclude
+      that graphiti-core==0.30.2 and your project are incompatible.
+      And because your project depends on graphiti-core==0.30.2 and your
+      project requires mirofish-backend[dev], we can conclude that your
+      project's requirements are unsatisfiable.
+
+hint: While the active Python version is 3.11, the resolution failed for other Python versions supported by your project. Consider limiting your project's supported Python versions using `requires-python`.
+=== 2. même chose, avec l'override de l'ADR 0010 ===
+Resolved 189 packages in 19ms
+Added graphiti-core v0.30.2
+Updated neo4j v5.23.0 -> v5.28.6
+Added posthog v7.62.1
+Added tenacity v9.1.4
+ + neo4j==5.28.6
+ + posthog==7.62.1
+ + tenacity==9.1.4
+
+=== 3. ce que chacun des trois paquets exige du driver ===
+borne déclarée   : neo4j>=5.26.0,<6.0.0
+version lockée   : neo4j 5.28.6
+exigences lues dans les METADATA installés :
+  Requires-Dist: neo4j (==5.23.0)
+  Requires-Dist: neo4j<6,>=5.18.0
+  Requires-Dist: neo4j>=5.26.0
+
+=== 4. imports dans l'ordre — camel-oasis, puis neo4j, puis graphiti_core ===
+oasis         ok oasis
+neo4j         ok 5.28.6
+graphiti_core ok graphiti_core
+
+=== 5. surface du driver réellement utilisée par camel et oasis ===
+neo4j.Version            0 fichier(s)
+GraphDatabase.driver     2 fichier(s)
+from neo4j import Query  1 fichier(s)
+neo4j.exceptions         1 fichier(s)
+
+=== 6. filet de tests ===
+........................................................................ [ 75%]
+................................................                         [100%]
+192 passed in 3.87s
+--- restauration ---
+pyproject.toml : 8afe9cb741aa002b…
+uv.lock        : 1b41b8657a5b9d4b…
+venv           : neo4j 5.23.0
+graphiti_core  : absent (attendu)

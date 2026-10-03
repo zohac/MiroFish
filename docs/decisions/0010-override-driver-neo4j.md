@@ -12,15 +12,21 @@ que c'est impossible tel quel :
 
 | Paquet | Exigence | Depuis |
 |---|---|---|
-| `camel-oasis==0.2.5` | `neo4j==5.23.0` (pin **exact**) | ses 9 versions publiées, de 0.0.1 à 0.2.5 |
-| `graphiti-core` | `neo4j>=5.26.0` | la 0.12.0 (juin 2025) |
+| `camel-oasis==0.2.5` | `neo4j==5.23.0` (**pin exact**) | ses 9 versions publiées, de 0.0.1 à 0.2.5 |
+| `graphiti-core` | `neo4j>=5.26.0` (**plancher**) | la 0.12.0 (juin 2025) |
 
-Ce sont deux épinglages exacts sur des versions qui ne se recouvrent pas : le
-résolveur refuse, et **aucune combinaison des paquets publiés ne résout**. Ce
-n'est donc pas un lock à refaire ni un fork mal fiché — c'est une contrainte
-structurelle de l'amont, présente chez le fork de référence `tt-a1i`, qui a dû
-contourner par un second venv *et* un sous-processus
+Ce sont deux exigences **de nature différente** sur des versions qui ne se
+recouvrent pas : `camel-oasis` impose un pin exact que rien ne desserre, et
+`graphiti-core` un plancher qu'une version plus ancienne côté Graphiti
+suffirait à satisfaire. Le résolveur refuse, et **aucune combinaison des paquets
+publiés ne résout**. Ce n'est donc pas un lock à refaire ni un fork mal fiché —
+c'est une contrainte structurelle de l'amont, présente chez le fork de référence
+`tt-a1i`, qui a dû contourner par un second venv *et* un sous-processus
 (`simulation_runner._get_simulation_python`).
+
+> **Ce paragraphe est précisé par l'ADR 0011**, qui remplace l'inventaire
+> d'API cité plus bas par un relevé réel, et consigne la version que l'override
+> a résolue.
 
 `camel-ai` lui-même accepte large (`neo4j>=5.18,<6`) : c'est `oasis` qui
 resserre à l'exact, pour son stockage graphe interne.
@@ -38,7 +44,12 @@ n'introduit pas de second environnement.**
 ```toml
 [tool.uv]
 override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
+# version effectivement résolue au lock du 2026-10-03 : neo4j 5.28.6
 ```
+
+> Cette écriture est la forme canonique. `docs/STATUS.md` et
+> `story-001-1.md` la reprennent à l'identique — une implémentation qui recopie
+> une borne différente n'implémente pas cet ADR (ADR 0011).
 
 Cette décision **tranche l'architecture, elle n'applique rien**. L'override
 n'est pas dans `pyproject.toml` à la date de cet ADR : il sera posé par une
@@ -55,8 +66,16 @@ Deux règles encadrent la mise en œuvre.
    de modèle et de `torch`, il ne se décide pas par analogie avec un driver.
 2. **Un `override` est une promesse faite au résolveur, pas au projet.** On
    promet que le code de `camel-oasis` fonctionne avec un driver qu'il déclare
-   incompatible. C'est vérifié au niveau de l'API (son usage du driver se
-   limite à `GraphDatabase.driver()` et `neo4j.Version`), **pas à l'exécution**.
+   incompatible. C'est vérifié au niveau de l'API — son usage du driver se
+   limite à `GraphDatabase.driver()` et `neo4j.Version` — **pas à
+   l'exécution**.
+
+   > ⚠️ **Précisé par l'ADR 0011.** L'inventaire ci-dessus est faux sur deux
+   > points : `neo4j.Version` n'est référencé nulle part dans `camel/` ni dans
+   > `oasis/`, et la surface réellement atteinte est plus large — `Query`, et
+   > quatre types d'exceptions du driver, qui sont précisément ce qui risque de
+   > bouger entre 5.23 et 5.28. La décision reste valide ; son inventaire est
+   > remplacé par un relevé.
    Si la story 001-2 révèle un comportement cassé, cet ADR est supersédé —
    il ne sera pas réécrit.
 
@@ -81,10 +100,14 @@ Deux règles encadrent la mise en œuvre.
 - Le saut 5.23 → 5.28 est **plus large que nécessaire** : Graphiti demande
   `>=5.26`, on atterrit sur la dernière 5.x disponible au moment du lock. Le
   verrouiller plus bas est possible, mais cela exige d'être revalidé à chaque
-  release du driver.
+  release du driver. La version résolue est **consignée dans le code ci-dessus**
+  (5.28.6 le 3 octobre 2026) : c'est elle que la story 001-2 teste, et c'est
+  celle qui sera déployée — sans quoi l'ADR se déclarerait supersédé sur un
+  test qui ne portait pas sur la version en service.
 - **Le comportement réel n'est pas encore prouvé** : aucun test de la story
   001-1 n'ouvre de connexion. C'est la story 001-2 qui tranche, et donc
-  Indirectement cet ADR.
+  indirectement cet ADR. *La surface du driver est en revanche relevée — le
+  relevé est dans l'ADR 0011, qui remplace l'inventaire de la règle 2.*
 
 ## Alternatives rejetées
 
@@ -112,6 +135,9 @@ Deux règles encadrent la mise en œuvre.
 
 - [`story-001-1.md`](../plans/001-epreuve-graphiti-local/story-001-1.md) — la
   mesure, ses chiffres, et la limite assumée
+- [ADR 0011](0011-inventaire-driver-et-format-de-story.md) — **précise** cet ADR :
+  le relevé réel de la surface du driver, la version résolue, et le format de
+  story
 - [ADR 0001](0001-remplacement-de-zep-par-graphiti.md) — pourquoi Graphiti
 - [ADR 0006](0006-docker-first.md) — pourquoi un seul environnement
 - [`docs/LOCAL-FIRST.md` §11](../LOCAL-FIRST.md) — le point ouvert, désormais

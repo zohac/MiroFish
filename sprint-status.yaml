@@ -11,7 +11,8 @@
 #         + blocked quand une dépendance externe nous arrête
 #
 # Le champ `plan` est obligatoire dès qu'un epic passe « in-progress » :
-# docs/plans/<id>-<slug>/{prd.md, architecture.md, stories.yaml}
+# docs/plans/<id>-<slug>/{prd.md, architecture.md, epic-<NNN>.md}
+# + story-<epic>-<n>.md pour chaque story démarrée (ADR 0007, 0009, 0011)
 
 projet: mirofish-local-first
 branche: local-first
@@ -32,11 +33,13 @@ epics:
       - "0 échec d'authentification (MissingSessionID) sur les appels LLM"
       - "graphe non vide, et relisible après redémarrage de Neo4j"
       - "verdict go / no-go écrit dans docs/STATUS.md"
-    # Story 001-1 (review) : le conflit graphiti-core/camel-oasis est réel et
-    # structurel — pins exacts incompatibles (neo4j==5.23.0 vs >=5.26.0, et
-    # sentence-transformers==3.0.0 vs >=3.2.1). Parade mesurée : override
-    # côté uv, un seul environnement, 183 tests verts. Décision à acter dans un
-    # ADR avant d'appliquer quoi que ce soit.
+    # Story 001-1 (done) : le conflit graphiti-core/camel-oasis est réel et
+    # structurel — neo4j==5.23.0 est un pin exact que graphiti-core ne peut pas
+    # satisfaire, son plancher étant >=5.26.0 (et l'inverse aussi : sentence-
+    # transformers==3.0.0 vs >=3.2.1). Parade mesurée et rejouable : override
+    # côté uv, un seul environnement, 192 tests verts. Décision ACTÉE par l'ADR
+    # 0010, précisée par l'ADR 0011. Rien n'est appliqué : la story 001-1b
+    # pose le geste.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).

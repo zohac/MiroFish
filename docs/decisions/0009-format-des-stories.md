@@ -10,10 +10,10 @@
 ## Contexte
 
 La première version des fichiers de story était en YAML. En rédigeant la
-story 001-1, le coût est apparu immédiatement : une définition de prêt, une
-stratégie de test, des notes d'architecture, des risques, des notes de
-complétion — tout ça est de la prose. En YAML, chaque paragraphe devenait un bloc `>-` à
-échapper, chaque tâche une liste de deux clés, et le diff d'une phrase
+story 001-1, le coût est apparu immédiatement : une Definition of Ready, une
+stratégie de test, des notes d'architecture, des risks, des completion notes —
+tout ça est de la prose. En YAML, chaque paragraphe devenait un bloc `>-` à
+échapper, chaque task une liste de deux clés, et le diff d'une phrase
 réécrite était illisible.
 
 Le pire : le fichier n'était plus lisible dans l'interface de GitHub sans une
@@ -35,19 +35,24 @@ auteur: agent
 
 # Story 001-1 — …
 
-## Définition de prêt
+## Definition of Ready
 - [x] …
 
-## Tâches
+## Tasks
 - [ ] 1. …
 
-## Notes de complétion
+## Completion notes
 _…_
 ```
 
-> Les noms de sections ci-dessus sont ceux de la décision d'origine. Ils ont
-> été francisés par la suite — voir `AGENTS.md` §2.10. L'illustration est
-> conservée telle quelle, cet ADR étant immuable ; ne pas la recopier.
+> **Périmètre de cet ADR.** L'illustration ci-dessus est celle de la décision
+> d'origine, et elle n'a pas été retouchée depuis : cet ADR est immuable
+> (AGENTS.md §2.3). Les six sections y portent donc encore les titres anglais.
+> C'est [`AGENTS.md` §2.10](../../../AGENTS.md) qui fait foi pour les titres en
+> français, et [`ADR 0011`](0011-titres-de-sections-en-francais.md) qui explique
+> pourquoi le validateur les exige désormais — et comment un fichier écrit avant
+> cette décision est diagnosed. **Ne pas recopier cette illustration telle
+> quelle** dans un fichier de story.
 
 L'en-tête ne contient que ce qui doit être **lu par une machine** :
 l'identité, l'epic, l'état, l'auteur. Tout le reste est de la prose, des cases
@@ -74,8 +79,8 @@ l'identité, l'epic, l'état, l'auteur. Tout le reste est de la prose, des cases
   courant. Acceptable : les six sections sont vérifiées à chaque run.
 
 **Note d'implémentation.** Le contrôle des tâches se fait sur les cases à
-cocher de la section `Tâches` : une story en `review` ou `done` ne doit plus
-avoir de case ouverte. Et une story `done` dont les notes de complétion
+cocher de la section `Tasks` : une story en `review` ou `done` ne doit plus
+avoir de case ouverte. Et une story `done` dont les completion notes
 contiennent encore « à remplir » est refusée — c'est le moyen le plus simple
 d'empêcher un `done` qui n'a rien documenté.
 

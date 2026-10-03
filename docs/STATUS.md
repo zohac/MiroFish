@@ -34,6 +34,12 @@ quatre jours de migration.
 **Epic 001 — Épreuve Graphiti local** (le seul point de rupture du projet).
 Plan : [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/prd.md)
 
+La story **001-1 est `done`** : le conflit `graphiti-core` / `camel-oasis` est
+réel et structurel, la parade est mesurée et rejouable
+([`mesurer-001-1.sh`](plans/001-epreuve-graphiti-local/mesurer-001-1.sh)), la
+décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
+revue sont restés différés : [`deferred-work.md`](../deferred-work.md).
+
 ## À faire
 
 | Epic | Titre | Dépend de |
@@ -66,15 +72,21 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Appliquer l'override décidé par l'ADR 0010** — l'ADR tranche
-   l'architecture, il n'applique rien. Le geste
-   (`[tool.uv] override-dependencies = ["neo4j>=5.26,<6"]`) est mesuré et
-   disponible ; il sera posé par une story dédiée, après revalidation.
+1. **Story 001-1b** — poser l'`override-dependencies` décidé par l'ADR 0010 et
+   précisé par l'ADR 0011. L'ADR tranche l'architecture, il n'applique rien. Le
+   geste est mesuré et rejouable :
+   ```toml
+   [tool.uv]
+   override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
+   # version résolue au lock du 2026-10-03 : neo4j 5.28.6
+   ```
+   Fichier prêt quand elle démarre ; `AGENTS.md` §1 la désigne comme la tâche du
+   moment.
 2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risques
    de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver
-   forcé : l'override est vérifié au niveau de l'API, pas à l'exécution, et
-   c'est 001-2 qui tranche l'ADR 0010 (il sera supersédé, pas réécrit, s'il
-   casse).
+   forcé : la surface du driver est relevée (ADR 0011), l'exécution ne l'est pas,
+   et c'est 001-2 qui tranche l'ADR 0010 — il sera supersédé, pas réécrit, s'il
+   casse.
 3. L'épreuve elle-même, et son verdict.
 
 ## Questions ouvertes
@@ -82,9 +94,9 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Question | Effet si la réponse change |
 |---|---|
 | Le graphe Zep actuel contient-il quelque chose à garder ? | Epic 006 : migration possible ou non |
-| ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée : override du driver, à acter dans un ADR |
-| Le driver `neo4j` forcé à 5.28 tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, on bascule sur un venv séparé |
-| `sentence-transformers` : même conflit que `neo4j` ? | **oui, mesuré** — bloque la story 001-4, même arbitrage à faire |
+| ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée et rejouable : override du driver, **actée par l'ADR 0010**, précisée par l'ADR 0011 |
+| Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé |
+| `sentence-transformers` : même conflit que `neo4j` ? | **oui, mesuré** — bloque la story 001-4, arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
 | La politique d'usage de l'endpoint gratuit tient-elle à ce volume ? | extraction sur un modèle payant |
 | Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF, comme Zep le fait déjà |
 
@@ -92,10 +104,10 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | 154, tous verts, **sans `.env`** |
+| Tests | 192, tous verts, **sans `.env`** (183 avant les neuf tests de revue ajoutés le 3 octobre) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 9 acceptés, 0 supersédé |
+| ADR | 11 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker dès que l'epic 005 est fait (ADR 0006) — en attendant, on travaille en local, et c'est dit |
 | Fork audités | 6 — 0 adopté |

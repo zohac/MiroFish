@@ -5,18 +5,25 @@ La constitution (AGENTS.md §2.8) exige des artefacts de plan par epic et un
 fichier markdown par story démarrée. Cette règle ne vaut que si quelqu'un la
 vérifie : ce script est cette vérification, et il tourne en CI.
 
-Trois invariants :
+Quatre invariants :
   1. un epic `in-progress` ou au-delà a un dossier de plan complet ;
   2. une story `in-progress` ou au-delà a un fichier ET est citée dans
      `epic-<NNN>.md` — le résumé des critères d'une story encore en backlog
      peut, lui, vivre uniquement dans le hub ;
-  3. les états sont parmi les cinq autorisés, les `id` sont uniques, les
-     sections obligatoires sont présentes, et une story en `review` ou `done`
-     n'a plus aucune tâche ouverte.
+  3. les états sont parmi les cinq autorisés, les `id` sont uniques et bien
+     formés, les sections obligatoires sont présentes, et une story en
+     `review` ou `done` n'a plus aucune case ouverte — ni dans `Tâches`, ni
+     dans les deux définitions ;
+  4. une story citée dans le hub comme `in-progress` ou au-delà a un fichier.
+
+Ce que ce script ne contrôle pas, et qu'il ne prétend pas contrôler :
+l'ordre des états. « Jamais de saut » (AGENTS.md §2.8) est une règle de
+convention, pas un invariant vérifiable ici — un validateur qui lit des
+fichiers n'a pas d'historique. Le dire ici vaut mieux que le laisser croire.
 
 Les stories sont du markdown (ADR 0009) : un petit en-tête machine-readable
-puis de la prose. C'est ce qui permet au script de lire l'état sans qu'il
-fasse drowned dans du YAML échappé.
+puis de la prose. C'est ce qui permet au script de lire l'état sans qu'il se
+noie dans du YAML échappé.
 
 Usage :
     cd backend && uv run python scripts/validate_plans.py
@@ -40,6 +47,22 @@ CLOSED_STATES = {"review", "done"}
 
 EPIC_REQUIRED = ("id", "slug", "titre", "statut")
 STORY_META_REQUIRED = ("id", "epic", "titre", "statut", "auteur")
+
+# Les six sections obligatoires sont en français depuis le format 2 (ADR 0011).
+# Avant lui, elles portaient les titres anglais `Definition of Ready`,
+# `Definition of Done`, `Tasks` et `Completion notes` : un fichier de story
+# écrit avant cette décision est irréprochable et refusé quand même, sans que
+# rien ne l'explique. Le marqueur de format rend la rupture explicite et donne
+# un diagnostic unique au lieu de sept messages identiques.
+STORY_FORMAT = "2"
+STORY_FORMAT_HELP = (
+    "format de story inconnu ou antérieur — les sections obligatoires sont en "
+    "français depuis le format 2 (ADR 0011), un fichier au format 1 porte "
+    "`## Tasks` et `## Completion notes`. Reprendre l'historique du fichier "
+    "(git log) puis le mettre à jour, ou le reformater."
+)
+STORY_ID_RE = re.compile(r"\A\d+-\d+[a-z]*\Z")
+
 STORY_SECTIONS = (
     "Définition de prêt",
     "Définition de fini",
@@ -48,6 +71,9 @@ STORY_SECTIONS = (
     "Revue",
     "Notes de complétion",
 )
+# Sections dont les cases à cocher obéissent au même régime que `Tâches`
+# pour une story en `review` ou `done`.
+STORY_CHECKED_SECTIONS = ("Définition de prêt", "Définition de fini")
 PLAN_ARTEFACTS = ("prd.md", "architecture.md")
 
 FRONT_MATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -108,6 +134,31 @@ def _section(body: str, title: str) -> str | None:
     return found.group(1) if found else None
 
 
+def _cited_in_hub(hub_text: str, story_id: str) -> bool:
+    """La story est-elle citée dans le hub de l'epic ?
+
+    Frontières de mot, jamais sous-chaîne nue : `001-1` est sous-chaîne de
+    `001-1b`, et une story en revue dont la ligne a disparu du hub ne doit pas
+    passer le contrôle sur celle de sa voisine. Les délimiteurs du hub (`|`,
+    espace) ne sont pas des caractères de mot, donc une ligne de tableau comme
+    une mention en prose comptent l'une et l'autre.
+    """
+    return re.search(rf"(?<![\w-]){re.escape(story_id)}(?![\w-])", hub_text) is not None
+
+
+def _hub_started_stories(hub_text: str) -> list[tuple[str, str]]:
+    """Stories du hub passées `in-progress` ou au-delà : (id, statut)."""
+    started = []
+    for line in hub_text.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        story_id, statut = cells[0], cells[2].strip("`")
+        if story_id and statut in ACTIVE_STATES:
+            started.append((story_id, statut))
+    return started
+
+
 def validate_sprint_status(root: Path) -> list[str]:
     """Contrôle l'agrégat d'epics."""
     path = root / "sprint-status.yaml"
@@ -166,8 +217,20 @@ def _validate_story(path: Path, epic_id: str, hub_text: str) -> list[str]:
     story_id = str(meta.get("id", "?"))
     if path.stem != f"story-{story_id}":
         problems.append(f"{where} : l'id `{story_id}` ne correspond pas au nom de fichier")
+    if not STORY_ID_RE.match(story_id):
+        problems.append(
+            f"{where} : id de story mal formé `{story_id}` "
+            "(attendu : `<epic>-<n>`, avec un suffixe alphabétique facultatif "
+            "pour une story dérivée — AGENTS.md §2.8)"
+        )
     if str(meta.get("epic", "")) != epic_id:
         problems.append(f"{where} : `epic` vaut `{meta.get('epic')}`, dossier du plan `{epic_id}`")
+
+    # Format : on sort avant les sections, sinon un fichier au format 1 produit
+    # sept messages identiques qui ne disent pas pourquoi il est refusé.
+    if str(meta.get("format", "")) != STORY_FORMAT:
+        problems.append(f"{where} : {STORY_FORMAT_HELP}")
+        return problems
 
     statut = meta.get("statut")
     if statut not in STATES:
@@ -182,18 +245,35 @@ def _validate_story(path: Path, epic_id: str, hub_text: str) -> list[str]:
     if not tasks:
         problems.append(f"{where} : « Tâches » vide — au moins une case à cocher attendue")
     elif statut in CLOSED_STATES:
-        ouvertes = [label.strip() for done, label in tasks if done != "x"]
+        ouvertes = [label.strip() for done, label in tasks if done.lower() != "x"]
         if ouvertes:
             problems.append(
                 f"{where} : statut `{statut}` mais tâches ouvertes : {' / '.join(ouvertes)}"
             )
+        # Les deux définitions obéissent au même régime : une Définition de fini
+        # non cochée sur une story en revue est une story qui n'est pas prête.
+        for section in STORY_CHECKED_SECTIONS:
+            section_ouvertes = [
+                label.strip()
+                for done, label in CHECKBOX_RE.findall(_section(body, section) or "")
+                if done.lower() != "x"
+            ]
+            if section_ouvertes:
+                problems.append(
+                    f"{where} : statut `{statut}` mais cases ouvertes dans "
+                    f"« {section} » : {' / '.join(section_ouvertes)}"
+                )
 
     if statut == "done":
         notes = (_section(body, "Notes de complétion") or "").strip().lower()
         if any(marker in notes for marker in PLACEHOLDER_MARKERS):
             problems.append(f"{where} : statut `done` mais notes de complétion encore en remplissage")
 
-    if statut in ACTIVE_STATES and hub_text and story_id not in hub_text:
+    # La citation se cherche par ligne de tableau, pas par sous-chaîne :
+    # « 001-1 » est sous-chaîne de « 001-1b », et une story en revue dont la
+    # ligne a disparu du hub passerait sinon le contrôle sur celle de sa
+    # voisine.
+    if statut in ACTIVE_STATES and hub_text and not _cited_in_hub(hub_text, story_id):
         problems.append(f"{where} : statut `{statut}` mais la story n'est pas citée dans epic-{epic_id}.md")
 
     return problems
@@ -213,6 +293,17 @@ def _validate_plan_folder(folder: Path, epic_id: str) -> list[str]:
     if not hub.is_file():
         problems.append(f"{folder} : hub obligatoire absent `epic-{epic_id}.md`")
     hub_text = hub.read_text(encoding="utf-8") if hub.is_file() else ""
+
+    # Invariant 2, moitié « a un fichier » : une ligne du hub passée
+    # `in-progress` sans fichier derrière, le plan et son index divergent en
+    # silence. Le résumé d'une story encore en backlog peut vivre sans fichier.
+    for story_id, statut in _hub_started_stories(hub_text):
+        if not (folder / f"story-{story_id}.md").is_file():
+            problems.append(
+                f"epic-{epic_id}.md : story `{story_id}` citée `{statut}` "
+                "mais aucun fichier story — créer le fichier ou repasser la ligne "
+                "en `backlog` (AGENTS.md §2.8)"
+            )
 
     seen: set[str] = set()
     for path in sorted(folder.glob("story-*.md")):

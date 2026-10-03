@@ -37,7 +37,14 @@ def _valid_story(story_id: str, epic: str, statut: str, *, tasks_checked: bool |
     checked = (statut in {"review", "done"}) if tasks_checked is None else tasks_checked
     mark = "x" if checked else " "
     meta = yaml.safe_dump(
-        {"id": story_id, "epic": epic, "titre": "Une story de test", "statut": statut, "auteur": "test"},
+        {
+            "id": story_id,
+            "epic": epic,
+            "titre": "Une story de test",
+            "statut": statut,
+            "auteur": "test",
+            "format": validate_plans.STORY_FORMAT,
+        },
         allow_unicode=True,
         sort_keys=False,
     ).strip()
@@ -216,6 +223,37 @@ def test_missing_section_is_reported(repo: Path):
     assert any("section obligatoire absente « Revue »" in p for p in problems)
 
 
+def test_english_section_titles_are_reported(repo: Path):
+    """Le contrat du renommage doit avoir un cas négatif, sans quoi il est décoratif.
+
+    Une story qui garde `## Tasks` et `## Completion notes` passe tous les tests
+    existants, qui n'écrivent jamais ces titres. Sans ce test, élargir le
+    matcher pour accepter les deux orthographes ne casse rien et la CI reste verte.
+    """
+    path = repo / "docs/plans/001-truc/story-001-1.md"
+    body = path.read_text(encoding="utf-8")
+    for french, english in (
+        ("## Définition de prêt", "## Definition of Ready"),
+        ("## Définition de fini", "## Definition of Done"),
+        ("## Tâches", "## Tasks"),
+        ("## Notes de complétion", "## Completion notes"),
+    ):
+        body = body.replace(french, english)
+    path.write_text(body, encoding="utf-8")
+    problems = validate_plans.validate(repo)
+    for absent in ("« Définition de prêt »", "« Définition de fini »",
+                   "« Tâches »", "« Notes de complétion »"):
+        assert any(f"section obligatoire absente {absent}" in p for p in problems)
+
+
+def test_pre_rename_format_is_reported_once(repo: Path):
+    """Un fichier au format 1 produit un diagnostic, pas sept messages identiques."""
+    _break_story(repo, f"format: '{validate_plans.STORY_FORMAT}'\n", "")
+    problems = validate_plans.validate(repo)
+    assert len(problems) == 1
+    assert "format de story inconnu ou antérieur" in problems[0]
+
+
 def test_done_story_with_open_task_is_reported(repo: Path):
     _write(repo / "docs/plans/001-truc/story-001-1.md",
            _valid_story("001-1", "001", "done", tasks_checked=False))
@@ -234,6 +272,29 @@ def test_empty_tasks_is_reported(repo: Path):
     _break_story(repo, "- [ ] 1. faire un truc", "- 1. faire un truc")
     problems = validate_plans.validate(repo)
     assert any("« Tâches » vide" in p for p in problems)
+
+
+def test_review_story_with_open_done_definition_is_reported(repo: Path):
+    """Une Définition de fini non cochée en revue est une story qui n'est pas prête.
+
+    Le contrôle des cases portait sur `Tâches` seul (ADR 0009) ; AGENTS.md §2.8
+    énonce la règle sans dire quelle section elle vise, si bien qu'elle se lisait
+    comme observée alors qu'elle ne l'était pas.
+    """
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "review"))
+    _break_story(repo, "## Définition de fini\n\n- tests verts",
+                 "## Définition de fini\n\n- [ ] tests verts")
+    _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n| 001-1 | story | `review` | x |")
+    problems = validate_plans.validate(repo)
+    assert any("cases ouvertes dans « Définition de fini »" in p for p in problems)
+
+
+def test_uppercase_checkbox_counts_as_done(repo: Path):
+    """`- [X]` est coché : `CHECKBOX_RE` accepte la majuscule, le filtre doit aussi."""
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "review"))
+    _break_story(repo, "- [x] 1. faire un truc", "- [X] 1. faire un truc")
+    _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\n| 001-1 | story | `review` | x |")
+    assert validate_plans.validate(repo) == []
 
 
 def test_done_story_with_placeholder_notes_is_reported(repo: Path):
@@ -257,6 +318,54 @@ def test_started_story_must_be_cited_in_hub(repo: Path):
 
 def test_backlog_story_need_not_be_cited(repo: Path):
     _write(repo / "docs/plans/001-truc/epic-001.md", "# Epic 001\n\nrien à voir")
+    assert validate_plans.validate(repo) == []
+
+
+def test_sibling_story_id_does_not_satisfy_citation(repo: Path):
+    """`001-1b` ne peut pas tenir lieu de citation pour `001-1`.
+
+    Une recherche par sous-chaîne fait passer la story 001-1 en revue sur la
+    ligne de sa voisine : l'invariant « citée dans le hub » devient indécidable
+    dès qu'un suffixe alphabétique existe.
+    """
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-1", "001", "review"))
+    _write(
+        repo / "docs/plans/001-truc/epic-001.md",
+        "# Epic 001\n\n| 001-1b | story dérivée | `backlog` | — |",
+    )
+    problems = validate_plans.validate(repo)
+    assert any("n'est pas citée dans" in p for p in problems)
+
+
+def test_started_hub_row_without_file_is_reported(repo: Path):
+    """Une story passée `in-progress` dans le hub doit avoir un fichier derrière."""
+    _write(
+        repo / "docs/plans/001-truc/epic-001.md",
+        "# Epic 001\n\n| 001-1 | story | `backlog` | — |\n\n"
+        "| 001-9 | story citée mais jamais démarrée | `in-progress` | — |",
+    )
+    problems = validate_plans.validate(repo)
+    assert any("`001-9` citée `in-progress` mais aucun fichier story" in p for p in problems)
+
+
+def test_backlog_hub_row_without_file_is_allowed(repo: Path):
+    _write(
+        repo / "docs/plans/001-truc/epic-001.md",
+        "# Epic 001\n\n| 001-1 | story | `backlog` | story-001-1.md |\n"
+        "| 001-9 | encore au backlog | `backlog` | — |",
+    )
+    assert validate_plans.validate(repo) == []
+
+
+def test_malformed_story_id_is_reported(repo: Path):
+    _write(repo / "docs/plans/001-truc/story-001-1.md", _valid_story("001-un", "001", "backlog"))
+    problems = validate_plans.validate(repo)
+    assert any("id de story mal formé" in p for p in problems)
+
+
+def test_derived_story_id_suffix_is_accepted(repo: Path):
+    """`001-1b` est une story dérivée : la convention l'admet, donc elle passe."""
+    _write(repo / "docs/plans/001-truc/story-001-1b.md", _valid_story("001-1b", "001", "backlog"))
     assert validate_plans.validate(repo) == []
 
 

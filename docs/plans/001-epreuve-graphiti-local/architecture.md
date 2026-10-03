@@ -85,10 +85,14 @@ collision de dimensions et le chunking.
 > vraie mais trompeuse : « déjà dans le venv » ne veut pas dire « installable ».
 > `camel-oasis` **épingle** `sentence-transformers==3.0.0`, et l'extra
 > `graphiti-core[sentence-transformers]` exige `>=3.2.1` — même forme de conflit
-> de pins exacts que `neo4j` (`5.23.0` vs `>=5.26.0`). L'extra est donc
-> **ininstallable** sans arbitrage. La story 001-4 devra trancher, avec le même
-> `override-dependencies` que pour le driver, ou en acceptant un embedder moins
-> récent. Mesuré et consigné dans [`story-001-1.md`](story-001-1.md).
+> que `neo4j` (`5.23.0` épinglé par `camel-oasis` contre le plancher `>=5.26.0`
+> exigé par Graphiti). L'extra est **ininstallable** sans arbitrage. La story
+> 001-4 devra trancher — avec un `override-dependencies` comme pour le driver,
+> ou en acceptant un embedder moins récent : un saut `sentence-transformers`
+> 3.0 → 3.2 est un changement de modèle et de `torch`, il ne se décide pas par
+> analogie avec un driver. Mesuré et consigné dans
+> [`story-001-1.md`](story-001-1.md) et
+> [ADR 0011](../../../decisions/0011-inventaire-driver-et-format-de-story.md).
 
 ```python
 from graphiti_core.embedder.sentence_transformer import (
@@ -123,8 +127,8 @@ survit pas au redémarrage n'est pas une preuve.
    pour vérifier que `camel-oasis` n'a pas cassé (story 001-1)
    → ⚠️ **fait, et ça ne passe pas tel quel** : `camel-oasis==0.2.5` épingle
    `neo4j==5.23.0`, `graphiti-core` exige `>=5.26.0`. Il faut l'`override`
-   décrit dans [`story-001-1.md`](story-001-1.md), **à acter dans un ADR** avant
-   d'être appliqué.
+   décrit dans [`story-001-1.md`](story-001-1.md) — **décidé par l'ADR 0010,
+   précisé par l'ADR 0011**, et posé par la story 001-1b.
 2. Neo4j up, healthcheck vert (001-2)
 3. Script de mesure sur 1 chunk → vérifier l'auth **avant** d'aller plus loin
    (001-3)
