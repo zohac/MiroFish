@@ -66,20 +66,12 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Migrer l'epic 001 vers la nouvelle structure** (ADR 0007) : `epic-001.md`
-   (FR / NFR / UX, index des stories, documents à consulter), un
-   `story-001-<n>.yaml` par story démarrée, et le script de validation branché
-   en CI. Le constitution l'exige, l'epic ne peut pas démarrer avant.
-2. Vérifier le conflit `graphiti-core` vs `camel-oasis` (story 001-1) — s'il
-   existe, il change le périmètre (venv séparé ou service isolé).
-3. Document de test : ✅ **trouvé et mesuré**. Rapport d'information n° 2506
-   de l'Assemblée nationale (transition énergétique et aménagement du
-   territoire, février 2026) — 80 pages, 26 168 mots. Téléchargé dans
-   `backend/uploads/documents/`.
-
-> Au passage, la préparation a révélé une erreur de mon PRD : `chunk_size`
-> compte des **caractères** (500), pas des mots. 5 000 mots donneraient ~1 400
-> chunks, pas 10. L'épreuve est rebornée sur 30 chunks.
+1. **Story 001-1** — le conflit `graphiti-core` vs `camel-oasis`. C'est le
+   prochain vrai risque : chez `tt-a1i`, ce point avait imposé un second venv
+   *et* un sous-processus. Fichier prêt : [`story-001-1.yaml`](plans/001-epreuve-graphiti-local/story-001-1.yaml).
+2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risks
+   de l'épreuve.
+3. L'épreuve elle-même, et son verdict.
 
 ## Questions ouvertes
 

@@ -147,15 +147,19 @@ Règles :
 - Une story passe `backlog → in-progress → review → done`, jamais de saut.
   `blocked` quand une dépendance externe nous arrête.
 - **Un fichier par story réellement démarrée**, pas imaginée — sinon la
-  formalisation devient du bruit.
+  formalisation devient du bruit. Une story en `backlog` peut n'exister que
+  dans l'index de `epic-<NNN>.md`, avec ses critères résumés.
 - **Definition of Ready** satisfaite avant de commencer : critères mesurables,
   dépendances résolues, stratégie de test identifiée, documents lus.
 - **Definition of Done** cochée avant de finir, et **completion notes**
   écrites : ce qui a divergé du plan, et pourquoi.
 - La structure est **validée par un script**
   (`backend/scripts/validate_plans.py`, PyYAML dans le groupe `dev`) lancé en
-  CI : index et fichiers doivent correspondre, champs obligatoires présents,
-  états connus, `id` uniques.
+  CI. Il impose trois invariants : un epic `in-progress` ou au-delà a un
+  dossier de plan complet (`prd.md`, `architecture.md`, `epic-<NNN>.md`) ; une
+  story `in-progress` ou au-delà a un fichier **et** est citée dans le hub ;
+  états et `id` sont valides, et une story en `review` ou `done` a toutes ses
+  tâches cochées.
 - `docs/STATUS.md` est la vue humaine, alimentée du YAML. Pas de second
   saisie.
 

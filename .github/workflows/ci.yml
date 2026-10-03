@@ -35,6 +35,11 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      # La constitution exige des artefacts de plan par epic ; ce script est
+      # la vérification. Un plan qui ne suit pas la structure casse la CI.
+      - name: Structure de planification
+        run: uv run python scripts/validate_plans.py
+
       # Aucun .env dans la CI : c'est volontaire, les tests doivent être
       # hermétiques (cf. AGENTS.md §2.2).
       - name: Tests

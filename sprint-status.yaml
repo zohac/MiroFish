@@ -32,25 +32,9 @@ epics:
       - "0 échec d'authentification (MissingSessionID) sur les appels LLM"
       - "graphe non vide, et relisible après redémarrage de Neo4j"
       - "verdict go / no-go écrit dans docs/STATUS.md"
-    stories:
-      - id: "001-1"
-        titre: "Vérifier le conflit de versions graphiti-core vs camel-oasis"
-        statut: backlog
-      - id: "001-2"
-        titre: "Neo4j 5.26 + APOC en local, avec volumes nommés"
-        statut: backlog
-      - id: "001-3"
-        titre: "Client LLM Graphiti portant l'en-tête de session"
-        statut: backlog
-      - id: "001-4"
-        titre: "Embedder local sentence-transformers"
-        statut: backlog
-      - id: "001-5"
-        titre: "Script de mesure reproductible + rapport versionné"
-        statut: backlog
-      - id: "001-6"
-        titre: "Verdict go / no-go documenté"
-        statut: backlog
+    # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
+    # epic-001.md pour l'index, story-001-<n>.yaml pour une story démarrée.
+    # Ici on ne garde que l'agrégat d'epic (ADR 0007).
 
   - id: "002"
     slug: interface-graphstore
