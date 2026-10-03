@@ -53,7 +53,8 @@ fallback ne pose aucun problème.
 ### Tests
 
 ```
-144 passed in 3.87s
+144 passed in 3.87s     # à l'installation
+154 passed in 3.89s     # après le travail LLM du §2 (+10 tests)
 ```
 
 ---
@@ -409,14 +410,16 @@ l'on veut une image de production.
 Approche : une interface `GraphStore` avec deux implémentations
 (`ZepGraphStore` qui continue de fonctionner, `GraphitiGraphStore` en local).
 On garde le chemin Zep opérationnel le temps de valider le local, et les
-144 tests servent de filet.
+154 tests servent de filet. La forme est validée par l'audit du §12 : c'est
+exactement l'ossature `interface + ZepCloudStore/GraphitiStore + factory` que
+`tt-a1i` a écrite — utile comme modèle, pas comme code.
 
 ### Ordre
 
 | Étape | Contenu | Verdict |
 |---|---|---|
-| **1** | Neo4j + Graphiti sur un document de test ; **mesurer** si `space-bunny-free` tient la sortie structurée | **décisif** |
-| 2 | Si l'extraction tient → ontologie dynamique, puis le reste | — |
+| **1** | Neo4j + Graphiti sur un document de test ; **mesurer** si `space-bunny-free` tient la sortie structurée — avec les 4 portails du §12.6 | **décisif** |
+| 2 | Si l'extraction tient → chemin de lecture (§12.6), puis ontologie dynamique en v2 | — |
 | 3 | Si elle ne tient pas → extraction sur un modèle payant ponctuel (moins cher que des crédits Zep) | — |
 
 **L'étape 1 est rapide et élimine le seul vrai point de rupture du projet.**
@@ -427,17 +430,173 @@ Estimation : **2 à 4 jours** de travail concentré, dont l'ontologie dynamique.
 Pas un rewrite — `zep_tools.py` est le plus gros morceau mais ses outils se
 mappent presque 1:1.
 
+> Cette estimation **n'est pas réduite** par l'existence des forks (§12.4) :
+> aucun ne résout le §6.1 ni le §6.3. Le gain possible est d'un demi-jour sur
+> l'ossature d'adaptateur, pas sur les deux points durs.
+
 ---
 
 ## 11. Points ouverts
 
 1. **Pourquoi le local ?** Crédit ou confidentialité ? Si c'est le budget, une
    autre piste existe : le quota gratuit Zep peut suffire pour quelques
-   simulations, et l'effort serait disproportionné.
-2. **Document de test** — manque un PDF/texte pour l'étape 1.
+   simulations, et l'effort serait disproportionné. → *partiellement tranché* :
+   la motivation est bien le coût (le LLM est gratuit, donc les crédits Zep sont le
+   seul poste payant), et la communauté a convergé sur Graphiti comme seule
+   voie OSS. Mais l'audit (§12) montre que personne n'a livré d'implémentation
+   robuste : la question n'est plus « quel fork adopter » mais « le budget
+   jours-homme vaut-il face au quota Zep ».
+2. **Document de test** — manque un PDF/texte pour l'étape 1. **Bloquant.**
 3. **Migration des données existantes** — le graphe Zep actuel contient-il
    quelque chose à conserver ? Si oui, il faut prévoir une migration, ce qui
    change le périmètre.
+4. **Conflit de driver Neo4j** — chez `tt-a1i`, `camel-oasis` et
+   `graphiti-core` étaient incompatibles dans un même venv, ce qui a imposé un
+   second venv **et** un sous-processus pour les simulations
+   (`simulation_runner._get_simulation_python`). Notre venv est plus récent et
+   n'a pas cette contrainte, mais ça doit être **vérifié** avant l'étape 1 : si
+   le conflit réapparaît, le périmètre change (venv séparé ou service
+   Graphiti isolé).
+
+---
+
+## 12. Audit des forks communautaires (3 octobre 2026)
+
+Vérification faite après coup : API GitHub (étoiles, dernière poussée, état
+des PR), clones peu profonds de `tt-a1i` et `Well-Go-USA`, puis diff du fork
+`tt-a1i` contre **sa propre base** (`985f89f`, 6 mars 2026) — indispensable
+pour isoler leur travail de la dérive upstream.
+
+### 12.1 Cartographie
+
+| Repo | ★ | Dernière poussée | Nature | Verdict |
+|---|---|---|---|---|
+| `666ghj/MiroFish` | 75 661 | 1er oct. | amont, Zep requis | référence |
+| `nikmcfly/MiroFish-Offline` | 2 570 | 24 mars | Neo4j CE 5.15 + Ollama, `GraphStorage` maison, **sans Graphiti** | jouable, mais sans temporalité |
+| `tt-a1i/MiroFish-local` | 155 | 17 mars | adaptateur Zep/Graphiti + Neo4j 5.26 | **référence, pas socle** |
+| `Well-Go-USA/mirofish-graphiti` | 0 | 15 juin | Graphiti + Neo4j, 3 jours de commits | mort-né |
+| `dimatolsto/MiroFish-Offline-Kuzu` | 0 | 27 mars | Kuzu embarqué, 1 jour | mort-né |
+| `cdavsnail/MiroFish-LocOllama` | 0 | 8 juil. | fork amont, 61 issues ouvertes | à éviter |
+| `SCTY-Inc/mirofish-cli` | 311 | 30 sept. | réécriture CLI (claude/codex CLI) | hors sujet Zep |
+| PR #634 (Zep → JSON) | — | fermée | non mergée, +927/−1418 | régression (keyword search) |
+
+Deux détails de méthode qui changent la lecture :
+
+- **Aucun des deux forks sérieux n'est un fork GitHub de l'amont** → pas de
+  synchro automatique, la réintégration serait manuelle.
+- `tt-a1i` n'a **pas de branche `main`** : sa branche par défaut est
+  `feat/zep-localization-mvp`, et sa base est du **6 mars** (pas du 17).
+
+### 12.2 Ce que `tt-a1i` a réellement fait
+
+| | Fichiers | Détail |
+|---|---|---|
+| Nouveau | 5 fichiers, ~1 690 lignes | `zep_adapter.py` (279), `zep_graphiti_impl.py` (904), `zep_cloud_impl.py` (223), `zep_factory.py` (136), `graphiti_patch.py` (148) |
+| Modifié | 13 fichiers | `api/{graph,simulation}.py`, `config.py`, 7 services Zep, `utils/{file_parser,llm_client}.py` |
+| Supprimé | `utils/zep_paging.py` | jugé inutile dans leur architecture |
+| Tests | **aucun** | `backend/tests/` n'existe pas dans le fork |
+
+Le découpage est bon : une interface, deux implémentations, une factory.
+C'est exactement la forme du §10.
+
+### 12.3 Cinq raisons de ne pas le reprendre tel quel
+
+1. **Le graphe revient vide, silencieusement.**
+   `zep_entity_reader.py:265-269` ignore les nœuds dont les labels sont ⊆
+   `{Entity, Node}`. Les nœuds Graphiti sont **toujours** `[:Entity]` → *toute
+   entité est droppée*, et personas comme configuration de simulation voient un
+   graphe vide. Aucun warning. C'est le bug le plus grave, et il n'apparaît
+   dans aucun de leurs docs.
+
+2. **La temporalité est écrasée.** `graph_builder.py:489-490` force
+   `"invalid_at": None, "expired_at": None  # 适配器暂不支持`, alors que le
+   Cypher (`zep_graphiti_impl.py:636-638`) récupère bien `valid_at` /
+   `invalid_at` / `expired_at` de Graphiti. Ils jettent exactement le
+   différenciant décrit au §3. `get_all_edges` rate en plus les arêtes
+   `EPISODIC`, et `get_node` / `get_node_edges` ne filtrent pas par `group_id`
+   (fuite entre simulations).
+
+3. **Structured output jamais configuré** — zéro occurrence de
+   `structured_output_mode`, `SEMAPHORE_LIMIT` ou `max_retries`. Le défaut
+   `json_schema` reste actif : le §6.3 est donc *non traité*. Pire,
+   `get_episode_status()` renvoie toujours `processed=True` et
+   `wait_for_episode()` toujours `True` → le builder rapporte un succès
+   complet même si rien n'a été extrait.
+
+4. **Le patch est dépendant d'une version précise.** `graphiti_patch.py`
+   reproduit la signature positionnelle de `add_nodes_and_edges_bulk_tx` de
+   **graphiti-core 0.25.0**, pinné `>=0.25.0,<0.26.0`. La dernière version est
+   **0.30.2**. Au-delà : soit un `TypeError` au premier épisode, soit — pire —
+   `apply_patch()` avale l'échec, log un warning, et Neo4j refuse l'écriture
+   sans signal. Aucun contrôle de version, aucun switch de désactivation.
+
+5. **Ontologie hors périmètre, explicitement.** `set_ontology()` est un no-op
+   qui écrit dans un cache jamais relu (`zep_graphiti_impl.py:363-389`),
+   `custom_entity_types=` n'apparaît nulle part, et `graph_builder.py:219-226`
+   passe des listes JSON là où Zep attend `{name: Class}`. Ils conservent même
+   l'`ontology_generator.py` d'avant les correctifs de juillet.
+
+À quoi s'ajoutent des incompatibilités avec notre base actuelle : leur ajout
+d'épisodes passe par le chemin **legacy** (`batch_size=3` + `sleep(1)`) au lieu
+de l'API Batch d'upstream, et il leur manque `utils/zep_paging.py`,
+`is_retryable_zep_error`, `normalize_ontology_attributes`, `utils/locale.py`.
+
+### 12.4 Coût du portage
+
+Le portage par merge est hors de prix : entre le 6 mars et aujourd'hui,
+upstream a bougé **+2 785 / −1 017 lignes sur les 14 fichiers que le fork a
+touchés** (`api/graph.py` +600, `simulation_runner.py` +648,
+`graph_builder.py` +563, `api/simulation.py` +421,
+`zep_graph_memory_updater.py` +399, `llm_client.py` +253). Et leur `config.py`
+**régresserait** trois correctifs upstream récents (`load_dotenv(override=True)`,
+rejet de `ZEP_API_URL`, avertissement DEBUG).
+
+Conclusion : **prendre la forme, pas le code**. Les ~900 lignes de
+`zep_graphiti_impl.py` méritent d'être réécrites ; l'ossature d'adaptateur, le
+mapping `OPENAI_* ← LLM_*`, le compose et les clés `.env` sont réutilisables.
+
+### 12.5 Ce qui est réutilisable
+
+- L'ossature interface + deux impls + factory (`zep_adapter.py`).
+- L'isolation par `group_id` : `add_episode(group_id=graph_id)` et toutes les
+  lectures Cypher filtrées — c'est la bonne réponse au §6.2.
+- Le mapping `OPENAI_API_KEY` / `OPENAI_BASE_URL` depuis `LLM_*`
+  (`config.py`, 4 lignes) : c'est ce qui fait pointer les appels internes de
+  Graphiti sur notre endpoint.
+- La dégradation automatique en **RRF** quand l'API ne gère pas les logprobs
+  (`GRAPHITI_FORCE_CROSS_ENCODER`).
+- `docker-compose.local.yml` : Neo4j 5.26 + APOC + volumes nommés +
+  healthcheck. Copiable tel quel (retirer le `version:` obsolète et le mot de
+  passe en dur).
+
+### 12.6 Conséquences sur le plan
+
+**L'étape 1 doit avoir quatre portails** — exactement ceux que le fork a ratés :
+
+1. **En-tête de session dans le client Graphiti.** `OpenAIGenericClient`
+   n'expose pas de paramètre d'en-têtes documenté → sous-classer et overrider
+   `acompletion` pour injecter `x-opencode-session` et le User-Agent. Sinon on
+   n'obtiendra pas un verdict sur le modèle, mais un `MissingSessionID` dès la
+   première extraction.
+2. `structured_output_mode="json_object"` explicite, plus retries et
+   `SEMAPHORE_LIMIT`.
+3. **Embedder local `sentence-transformers`** (déjà dans le venv via camel-ai) :
+   zéro appel API, pas de collision de dimension, pas de chunking.
+4. **Conflit de driver Neo4j** (`camel-oasis` vs `graphiti-core`) : voir le
+   point 4 du §11.
+
+**Sur l'ontologie, la décision est plus simple qu'il n'y paraît** : le chemin de
+lecture (labels, `summary`, `fact`, `valid_at`) est identique avec ou sans
+ontologie custom. Donc **faire le chemin de lecture une fois, et démarrer sans
+ontologie custom** ; l'ontologie générée devient une v2. Cela recale le §6.1 :
+c'est désormais une *v2*, plus le gros de l'effort initial.
+
+**Règle de travail** : tout ce qu'on écrira côté graphe doit avoir des tests.
+L'absence de `backend/tests/` chez eux est précisément la raison pour laquelle
+ces bugs sont invisibles.
+
+*(Audit technique, pas un jugement sur les personnes : le travail est sérieux et
+bien documenté, il est simplement arrêté à un MVP et non vérifié.)*
 
 ---
 
@@ -463,4 +622,27 @@ Pour rebuilt après un changement de dépendance :
 
 ```bash
 cd backend && uv lock && uv sync
+```
+
+### Audit des forks
+
+```bash
+# État réel d'un fork (étoiles / dernière poussée)
+gh api repos/tt-a1i/MiroFish-local \
+  --jq '{stars: .stargazers_count, pushed: .pushed_at, default: .default_branch}'
+
+gh api repos/666ghj/MiroFish/pulls/634 \
+  --jq '{state, merged, changed_files, title}'
+
+# Identifier la base d'un fork (indispensable : les forks ne suivent pas l'amont)
+git clone --depth 1 https://github.com/tt-a1i/MiroFish-local.git
+SHA=$(git -C MiroFish rev-list -1 --before=2026-03-17 upstream/main)
+git -C MiroFish log -1 --format='base: %h %ad %s' --date=short $SHA
+git -C MiroFish archive $SHA backend/app | tar -x -C "$TMPDIR/march"
+
+# Empreinte réelle du fork (et non la dérive upstream)
+diff -rq "$TMPDIR/march/backend/app" tt-a1i/backend/app
+
+# Mesurer la dérive upstream sur les fichiers que le fork a touchés
+git diff --stat $SHA HEAD -- backend/app/api/graph.py backend/app/services/zep_tools.py
 ```
