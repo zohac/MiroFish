@@ -45,6 +45,9 @@ htmlcov/
 .cursor/
 .claude/
 
+# Agent tooling (packs de skills, hors projet)
+.agents/
+
 # 文档与测试程序
 mydoc/
 mytest/
