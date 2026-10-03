@@ -1,0 +1,113 @@
+# Suivi des epics — source de vérité unique
+#
+# Lu par AGENTS.md §2.8. Une story n'est « done » que si : code + tests +
+# critères d'acceptation validés + ce fichier à jour.
+#
+# GitHub Projects, si on l'ouvre un jour, n'est qu'une VUE générée depuis ce
+# fichier. Pas de double saisie : deux sources de vérité pour le même état,
+# c'est l'état qui finit par mentir.
+#
+# États : backlog → in-progress → review → done   (jamais de saut)
+#         + blocked quand une dépendance externe nous arrête
+#
+# Le champ `plan` est obligatoire dès qu'un epic passe « in-progress » :
+# docs/plans/<id>-<slug>/{prd.md, architecture.md, stories.yaml}
+
+projet: mirofish-local-first
+branche: local-first
+mis_a_jour: 2026-10-03
+
+epics:
+  - id: "001"
+    slug: epreuve-graphiti-local
+    titre: "Épreuve Graphiti local — le modèle gratuit tient-il l'extraction ?"
+    statut: in-progress
+    plan: docs/plans/001-epreuve-graphiti-local
+    pourquoi: >-
+      Seul point de rupture du projet : la qualité du structured output de
+      space-bunny-free. Tant que ce n'est pas mesuré, tout le reste est
+      spéculatif.
+    criteres_de_sortie:
+      - "10 chunks de 500 mots ou plus extraits sans erreur sur un document réel"
+      - "0 échec d'authentification (MissingSessionID) sur les appels LLM"
+      - "graphe non vide, et relisible après redémarrage de Neo4j"
+      - "verdict go / no-go écrit dans docs/STATUS.md"
+    stories:
+      - id: "001-1"
+        titre: "Vérifier le conflit de versions graphiti-core vs camel-oasis"
+        statut: backlog
+      - id: "001-2"
+        titre: "Neo4j 5.26 + APOC en local, avec volumes nommés"
+        statut: backlog
+      - id: "001-3"
+        titre: "Client LLM Graphiti portant l'en-tête de session"
+        statut: backlog
+      - id: "001-4"
+        titre: "Embedder local sentence-transformers"
+        statut: backlog
+      - id: "001-5"
+        titre: "Script de mesure reproductible + rapport versionné"
+        statut: backlog
+      - id: "001-6"
+        titre: "Verdict go / no-go documenté"
+        statut: backlog
+
+  - id: "002"
+    slug: interface-graphstore
+    titre: "Interface GraphStore — ZepGraphStore + factory ZEP_BACKEND"
+    statut: backlog
+    depend_de: ["001"]
+    pourquoi: >-
+      ADR 0001. Tant que les services appellent le client Zep directement,
+      la bascule vers Graphiti est un rewrite. C'est le chantier qui rend le
+      reste réversible.
+
+  - id: "003"
+    slug: chemin-de-lecture-graphiti
+    titre: "GraphitiGraphStore — écriture et chemin de lecture (ADR 0003)"
+    statut: backlog
+    depend_de: ["001", "002"]
+    pourquoi: >-
+      Sans ontologie custom, Graphiti ne pose que le label Entity, et
+      zep_entity_reader.py:262 filtre tout. Le chemin de lecture est le vrai
+      travail ; l'ontologie est une v2.
+
+  - id: "004"
+    slug: bascule-sans-zep
+    titre: "Construire un graphe en local sans clé Zep"
+    statut: backlog
+    depend_de: ["003"]
+    pourquoi: >-
+      Preuve finale : documents → graphe → personas → simulation → rapport,
+      sans ZEP_API_KEY. C'est la définition de « local-first ».
+
+  - id: "005"
+    slug: docker-local
+    titre: "Docker local — Neo4j dans le compose, image qui démarre tout"
+    statut: backlog
+    depend_de: ["003"]
+    pourquoi: >-
+      Une seule commande doit lancer backend + frontend + Neo4j, avec volumes
+      persistants. Piège connu : uv sync --frozen impose de régénérer le
+      lock avant de construire.
+
+  - id: "006"
+    slug: migration-donnees-zep
+    titre: "Migrer un graphe Zep existant — ou acter qu'on jette"
+    statut: backlog
+    depend_de: ["003"]
+    pourquoi: >-
+      Question ouverte (LOCAL-FIRST.md §11, point 3) : le graphe Zep courant
+      contient-il quelque chose qui vaille la peine d'être conservé ? La
+      réponse change le périmètre, donc l'epic reste ouvert tant qu'elle
+      n'est pas tranchée.
+
+  - id: "007"
+    slug: ontologie-dynamique
+    titre: "Ontologie dynamique (v2)"
+    statut: backlog
+    depend_de: ["003"]
+    pourquoi: >-
+      Reportée en v2 par ADR 0003. Le chemin de lecture étant fait, le
+      surcoût marginal de l'ontologie devient acceptable — mais seulement si
+      la v1 a livré un graphe exploitable.

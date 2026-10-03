@@ -9,15 +9,21 @@ la **constitution** ; ce dossier est le **fond**.
 
 | Dossier | Contenu | Convention de nommage |
 |---|---|---|
-| `docs/` (racine) | contexte technique de référence | un fichier = un sujet |
+| `docs/` (racine) | contexte technique de référence, état du projet | un fichier = un sujet |
+| `docs/plans/` | un dossier par epic : PRD, architecture, stories | `<NNN>-<slug>/` |
 | `docs/decisions/` | ADR : décisions d'architecture | `NNNN-titre-en-kebab-case.md` |
 | `docs/architecture/` | schémas Mermaid — existant et cible | un fichier = une vue |
+
+À la racine du dépôt : `sprint-status.yaml` (suivi machine-readable) et
+`AGENTS.md` (constitution).
 
 ## Index
 
 | Document | Statut | Contenu |
 |---|---|---|
 | [`LOCAL-FIRST.md`](LOCAL-FIRST.md) | vivant | installation, rôle de Zep, inventaire du couplage, obstacles, plan, audit des forks |
+| [`STATUS.md`](STATUS.md) | vivant | fait / en cours / à faire, critères de l'épreuve en cours |
+| [`plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/prd.md) | vivant | PRD, architecture et stories de l'épreuve Graphiti |
 | [`architecture/cible-graphstore.md`](architecture/cible-graphstore.md) | vivant | architecture cible du graphe (contexte + séquence) |
 | [`decisions/README.md`](decisions/README.md) | vivant | conventions et index des ADR |
 | [`decisions/0001-remplacement-de-zep-par-graphiti.md`](decisions/0001-remplacement-de-zep-par-graphiti.md) | accepté | Graphiti + Neo4j derrière une interface |
