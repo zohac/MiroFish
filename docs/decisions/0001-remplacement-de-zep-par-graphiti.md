@@ -11,10 +11,10 @@ simulation, enrichit les personas, enregistre les événements des tours de
 simulation, et alimente les outils du rapport (`docs/LOCAL-FIRST.md` §3).
 
 C'est le seul poste payant du projet, et il est proportionnel au volume
-d'épisodes envoyées. Zep Community Edition (auto-hébergé) est **déprécié**
+d'épisodes envoyés. Zep Community Edition (auto-hébergé) est **déprécié**
 depuis avril 2025 et son dépôt est archivé. La voie OSS est **Graphiti**, le
-moteur qui fait tourner Zep Cloud lui-même (Apache-2.0), qui gère la
-temporalité nativement (`valid_at`, `invalid_at`, `expired_at`).
+moteur qui fait tourner Zep Cloud lui-même, sous licence Apache-2.0, et qui
+gère la temporalité nativement (`valid_at`, `invalid_at`, `expired_at`).
 
 Le coût du graphe n'est pas le même que celui des crédits Zep : l'extraction
 devient **un travail de LLM que nous payons nous-mêmes**. Avec un LLM gratuit,
@@ -44,7 +44,7 @@ local. Pas de bascule big-bang.
 - L'extraction d'entités passe à notre charge : latence, et CPU pour l'embedder
   et le reranker.
 - Neo4j est une brique à opérer (2–4 Go de RAM, un service de plus).
-- Le domaine Zep fuite dans **18 fichiers** ; il faut le faire disparaître
+- Le domaine Zep fuite dans **10 fichiers** ; il faut le faire disparaître
   progressivement derrière l'interface, sans jamais le disséminer davantage.
 
 **Point ouvert**
@@ -57,11 +57,11 @@ local. Pas de bascule big-bang.
 
 - **Zep Community Edition auto-hébergé** — déprécié, dépôt archivé. Impossible
   de construire une base dessus.
-- **Remplacer Zep par des fichiers JSON** ( proposition #634, fermée non
-  mergée le 3 octobre 2026) — supprime la recherche sémantique au profit d'une
-  recherche par mots-clés. Régression fonctionnelle sur le cœur du produit.
+- **Remplacer Zep par des fichiers JSON** (PR #634, fermée non mergée le
+  3 octobre 2026) — supprime la recherche sémantique au profit d'une recherche
+  par mots-clés. Régression fonctionnelle sur le cœur du produit.
 - **Garder Zep** — coût par épisode, données chez un tiers, et le quota
   gratuit est plafonné.
-- **Neo4j par simulation** plutôt que `group_id` — une base par simulation
-  complique le partage et l'outillage ; le partitionnement par `group_id` est
-  suffisant et c'est ce que le fork de référence retenait.
+- **Une base Neo4j par simulation** plutôt qu'un partitionnement par
+  `group_id` — une base par simulation complique le partage et l'outillage ; le
+  partitionnement suffit, et c'est ce que le fork de référence retenait.

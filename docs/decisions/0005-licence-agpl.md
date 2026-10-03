@@ -5,9 +5,8 @@
 
 ## Contexte
 
-MiroFish est sous **AGPL-3.0** (`LICENSE`, confirmé par
-`pyproject.toml`). Graphiti est Apache-2.0 — permissive, donc sans
-incompatibilité.
+MiroFish est sous **AGPL-3.0** (`LICENSE`, confirmé par `pyproject.toml`).
+Graphiti est Apache-2.0 — permissive, donc sans incompatibilité.
 
 La section 13 de l'AGPL impose de mettre le code source complet à disposition
 des autres utilisateurs lorsqu'on exécute une version **modifiée** en **mode
@@ -24,7 +23,7 @@ déclenche la clause.
 des sources n'a pas été décidée explicitement.
 
 Si une exposition a lieu : le code reste AGPL et les sources sont publiées.
-Un fork **reste obligatoirement AGPL** — il ne peut pas être repasser en MIT
+Un fork **reste obligatoirement AGPL** — il ne peut pas être repassé en MIT
 ni fermé.
 
 ## Conséquences

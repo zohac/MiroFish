@@ -19,6 +19,7 @@ la **constitution** ; ce dossier est le **fond**.
 |---|---|---|
 | [`LOCAL-FIRST.md`](LOCAL-FIRST.md) | vivant | installation, rôle de Zep, inventaire du couplage, obstacles, plan, audit des forks |
 | [`architecture/cible-graphstore.md`](architecture/cible-graphstore.md) | vivant | architecture cible du graphe (contexte + séquence) |
+| [`decisions/README.md`](decisions/README.md) | vivant | conventions et index des ADR |
 | [`decisions/0001-remplacement-de-zep-par-graphiti.md`](decisions/0001-remplacement-de-zep-par-graphiti.md) | accepté | Graphiti + Neo4j derrière une interface |
 | [`decisions/0002-forks-adoption-refusee.md`](decisions/0002-forks-adoption-refusee.md) | accepté | ne pas adopter de fork : prendre la forme |
 | [`decisions/0003-ontologie-differee-en-v2.md`](decisions/0003-ontologie-differee-en-v2.md) | accepté | ontologie dynamique reportée en v2 |

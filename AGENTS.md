@@ -25,6 +25,7 @@ parallèle) via `camel-oasis`, puis rédige un rapport.
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
+- État du projet : [`docs/STATUS.md`](docs/STATUS.md)
 - Contexte technique détaillé : [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md)
 
 ---
@@ -64,24 +65,25 @@ Règles de qualité des tests :
 - **Hermétiques** : jamais de dépendance à `.env` ni à l'ordre d'exécution.
   Si un test casse selon la machine, mocker l'environnement
   (`monkeypatch.delenv(...)`) plutôt que figer une valeur.
-- **Pas de réseau réel** : les clients HTTP/LLM sont mockés. Un test qui
+- **Pas de réseau réel** : les clients HTTP et LLM sont mockés. Un test qui
   appelle l'API ne teste pas notre code.
-- **Un test = une intention.** Si le nom du test contient un « et », il
-  faut deux tests.
-- Les tests qui touchent un contrat Zep existant sont notre filet de
-  sécurité pendant la migration : ils doivent rester verts **avant et après**
-  chaque refactor.
+- **Un test = une intention.** Si le nom du test contient un « et », il faut
+  deux tests.
+- Les tests qui touchent un contrat Zep existant sont notre filet de sécurité
+  pendant la migration : ils doivent rester verts **avant et après** chaque
+  refactor.
 
 ### 2.3 Docs et décisions dans `/docs`
 
 - **Contexte technique** → `docs/LOCAL-FIRST.md`
+- **État du projet** → `docs/STATUS.md`
 - **Décision d'architecture** → un ADR dans `docs/decisions/NNNN-titre.md`
 - **Schéma** → `docs/architecture/`, diagrammes Mermaid
-- `AGENTS.md` = constitution + index. Il est mis à jour en fin de session
-  dès que le cadre change.
+- `AGENTS.md` = constitution + index, mis à jour en fin de session dès que le
+  cadre change.
 
-Un ADR est **immuable** une fois accepté. Pour le changer, on écrit un
-nouvel ADR qui le supersède — on ne réécrit pas l'histoire.
+Un ADR est **immuable** une fois accepté. Pour le changer, on écrit un nouvel
+ADR qui le supersède — on ne réécrit pas l'histoire.
 
 ### 2.4 Secrets
 
@@ -103,13 +105,36 @@ Dépendance prévue : `graphiti-core` (Apache-2.0). Aucune autre.
 - Branche de travail : **`local-first`**. `origin` = `zohac/MiroFish`,
   `upstream` = `666ghj/MiroFish`.
 - **Ne jamais pousser sur `upstream`.**
-- Message de commit = *ce qui* + *pourquoi*. Pas de « fix » nu.
+- Message de commit = *ce qui* + *le pourquoi*. Pas de « fix » nu.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 
 ### 2.7 Licence
 
 AGPL-3.0. Exécuter une version modifiée en mode réseau avec d'autres
 utilisateurs impose de publier les sources. Voir l'ADR 0005.
+
+### 2.8 Aucune feature sans plan
+
+On n'attaque pas une fonctionnalité sans ses artefacts. Le **GitHub Projects
+sans plan ne sert à rien** : la valeur est dans les artefacts, la liste n'est
+qu'une vue.
+
+| Artefact | Emplacement | Répond à |
+|---|---|---|
+| PRD | `docs/plans/<NNN>-<slug>/prd.md` | quoi, pourquoi, **critères de succès mesurables** |
+| Architecture | `docs/plans/<NNN>-<slug>/architecture.md` | comment, avec schémas Mermaid |
+| Stories | `docs/plans/<NNN>-<slug>/stories.yaml` | découpage en unités testables |
+| Suivi | `sprint-status.yaml` (racine) | état de chaque epic |
+
+Règles :
+
+- Un PRD sans critère de succès chiffré est un Linear — on ne sait pas
+  quand c'est fini.
+- Une story passe `backlog → in-progress → review → done`. Jamais de saut.
+- **Une story n'est `done` que si** : code + tests + critères d'acceptation
+  validés + `sprint-status.yaml` à jour.
+- `docs/STATUS.md` est la vue humaine, alimentée depuis `sprint-status.yaml`.
+  Pas de second saisie manuel.
 
 ---
 
@@ -119,11 +144,14 @@ utilisateurs impose de publier les sources. Voir l'ADR 0005.
 # Installation complète (le Python système est ignoré : uv gère le 3.11)
 npm run setup:all
 
-# Backend :5001 + frontend :3000 (proxy /api → 5001)
+# Backend : 5001 + frontend : 3000 (proxy /api → 5001)
 npm run dev
 
 # Tests
 cd backend && uv run pytest tests/ -q
+
+# Lint
+cd backend && uv run ruff check .
 
 # Dépendances : lock DANS le backend, sinon le build Docker casse
 cd backend && uv lock && uv sync
@@ -153,15 +181,15 @@ Variables d'environnement utiles :
 | Tests | `backend/tests/` | pytest — 154 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
+| Planification | `docs/plans/`, `sprint-status.yaml` | PRD, architecture, stories, suivi |
 | Docker | `Dockerfile`, `docker-compose.yml` | 1 service, **mode dev** |
 
 ---
 
 ## 5. Le graphe : rayon d'impact
 
-Le graphe de connaissances est le point le plus couplé du code. 18 fichiers
-contiennent une référence à Zep ; le noyau qui utilise réellement le client
-est :
+Le graphe de connaissances est le point le plus couplé du code. **Dix
+fichiers utilisent réellement le client Zep** — le noyau :
 
 ```
 backend/app/api/graph.py
@@ -187,20 +215,22 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | Piège | Symptôme | Réflexe |
 |---|---|---|
 | Python système hors plage (`>=3.11,<3.13`) | `uv` refuse de synchroniser | utiliser `backend/.venv` (3.11 géré par uv) |
-| `uv sync --frozen` échoue au build | lock désynchronisé | `uv lock` puis `uv sync`, **avant** de builder |
+| `uv sync --frozen` échoue au build | lock désynchronisé | `uv lock` puis `uv sync`, **avant** de construire l'image |
 | Ports 3000/3001 occupés | le frontend démarre sur 3002 | normal ; CORS est en `*`. Libérer les ports si besoin |
 | Dockerfile `CMD npm run dev` | image en mode dev, pas de build front | à corriger seulement si on vise la production |
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
-| Structured output non honoré | échec d'extraction | `structured_output_mode="json_object"` explicite |
+| Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
 | `camel-oasis` vs `graphiti-core` | conflit de version du driver Neo4j | vérifier **avant** d'ajouter la dépendance |
 
 ---
 
-## 7. Definition of Done
+## 7. Définition de « Done »
 
 - [ ] `cd backend && uv run pytest tests/ -q` → tout vert
+- [ ] `cd backend && uv run ruff check .` → rien
 - [ ] Aucun secret dans le diff
-- [ ] Doc mise à jour si le comportement ou une décision a changé
+- [ ] Artefacts de plan à jour (PRD / architecture / stories / `sprint-status.yaml`)
+- [ ] Doc mise à jour si le comportement a changé
 - [ ] ADR écrit si une décision d'architecture a été prise
 - [ ] Message de commit qui explique le **pourquoi**
 - [ ] `AGENTS.md` touché si le cadre lui-même a changé
@@ -213,6 +243,8 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 - Ontologie dynamique → reportée en v2, ADR 0003
 - Moderniser le frontend ou l'i18n
 - Exposer l'application en réseau sans lire l'ADR 0005
+- GitHub Projects : uniquement comme vue générée depuis `sprint-status.yaml`,
+  et seulement quand plusieurs epics seront en cours
 
 ---
 
@@ -220,9 +252,12 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 
 | Doc | Contenu |
 |---|---|
-| [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | Installation, rôle de Zep, inventaire du couplage, obstacles, plan, audit des forks |
-| [`docs/README.md`](docs/README.md) | Conventions et index de la documentation |
-| [`docs/architecture/cible-graphstore.md`](docs/architecture/cible-graphstore.md) | Schémas de l'architecture cible |
+| [`docs/STATUS.md`](docs/STATUS.md) | fait / en cours / à faire / prochain pas |
+| [`sprint-status.yaml`](sprint-status.yaml) | état machine-readable des epics |
+| [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
+| [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
+| [`docs/plans/`](docs/plans/) | un dossier par epic : PRD, architecture, stories |
+| [`docs/architecture/cible-graphstore.md`](docs/architecture/cible-graphstore.md) | schémas de l'architecture cible |
 | [`docs/decisions/`](docs/decisions/) | ADR — décisions d'architecture, figées |
 
 ### Décisions figées
@@ -239,10 +274,11 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 
 ## 10. Contrat de session
 
-**Au début** — lire ce fichier, puis `docs/README.md`, puis l'ADR concerné.
+**Au début** — lire ce fichier, puis `docs/STATUS.md`, puis l'ADR concerné.
 
-**À la fin** — tests verts, commit explicatif, docs et ADR à jour,
-`AGENTS.md` régénéré si le cadre a bougé, tag si jalon.
+**À la fin** — tests verts, lint vert, commit explicatif, docs, ADR et
+`sprint-status.yaml` à jour, `AGENTS.md` régénéré si le cadre a bougé, tag si
+jalon.
 
-Ne pas laisser dans le working tree du travail non commité : c'est la
+Ne pas laisser dans l'arbre de travail du travail non commité : c'est la
 première cause de perte de travail sur ce dépôt.

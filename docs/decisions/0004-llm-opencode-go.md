@@ -38,7 +38,8 @@ seul module** : `backend/app/utils/llm_compat.py`.
 
 **Positives**
 
-- Coût marginal réellement nul, ce qui rend le graphe local rentable (§7).
+- Coût marginal réellement nul, ce qui rend le graphe local rentable
+  (`docs/LOCAL-FIRST.md` §7).
 - Changer de fournisseur reste possible : la compat est opt-in par hôte.
 - L'effort de raisonnement est honoré (14 tokens de raisonnement constatés
   contre 0 en `low`).
@@ -46,9 +47,10 @@ seul module** : `backend/app/utils/llm_compat.py`.
 **Négatives / risques**
 
 - **Graphiti n'est pas couvert.** Ses appels LLM passent par son propre client
-  (`OpenAIGenericClient`) et n'enverront ni session ni user-agent : à l'extraction,
-  on obtiendrait un `MissingSessionID` — un échec de plumbing, pas un verdict
-  sur le modèle. Il faudra sous-classer le client et overrider `acompletion`.
+  (`OpenAIGenericClient`) et n'enverront ni session ni user-agent : à
+  l'extraction, on obtiendrait un `MissingSessionID` — un échec de plumbing, pas
+  un verdict sur le modèle. Il faudra sous-classer le client et surcharger
+  `acompletion`.
 - La qualité du structured output est **à mesurer** (étape 1 du plan). Si elle
   ne suffit pas, on bascule l'extraction sur un modèle payant ponctuel, ce qui
   reste moins cher que des crédits Zep.

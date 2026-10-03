@@ -1,12 +1,17 @@
 # Architecture cible — la couche graphe
 
-Deux vues, deux questions distinctes. Les schémas distinguent l'**existant
-observé** (trait plein), la **cible proposée** (pointillés) et les
-**hypothèses** (« À confirmer »). Aucune couleur personnalisée n'est utilisée :
-le thème par défaut de Mermaid suffit et évite tout enjeu de contraste.
+Deux vues, deux questions distinctes. Le schéma de conteneurs distingue
+l'**existant observé** (trait plein) de la **cible proposée** (pointillés) ; le
+diagramme de séquence le signale dans ses libellés. Aucune couleur
+personnalisée n'est utilisée : le thème par défaut de Mermaid suffit et évite
+tout enjeu de contraste.
 
-Décision associée : [ADR 0001](../decisions/0001-remplacement-de-zep-par-graphiti.md) ·
-ADR 0003 (ontologie en v2).
+Les deux blocs Mermaid ont été validés par parsing (mermaid@11).
+
+Décisions associées :
+[ADR 0001](../decisions/0001-remplacement-de-zep-par-graphiti.md) ·
+[ADR 0003](../decisions/0003-ontologie-differee-en-v2.md) ·
+[ADR 0004](../decisions/0004-llm-opencode-go.md).
 
 ---
 
@@ -17,7 +22,7 @@ qui change concrètement quand on remplace Zep par Graphiti ?
 
 **Portée** — backend uniquement. Le frontend ne parle pas au graphe.
 
-**Sources** — `backend/app/api/{graph,simulation}.py`,
+**Sources** — `backend/app/api/graph.py`, `backend/app/api/simulation.py`,
 `backend/app/services/graph_builder.py`, `backend/app/utils/zep.py`,
 `backend/app/config.py`, `backend/pyproject.toml`.
 
@@ -46,14 +51,14 @@ flowchart LR
 - `GraphStore` est l'unique porte d'entrée : les services ne connaissent plus
   `zep.py`. C'est la discipline qui rend la bascule possible sans réécrire les
   services.
-- `ZEP_BACKEND=cloud|graphiti` choisit l'implémentation **une seule fois**, à
-  la construction — jamais dans un `if` au milieu d'un service.
+- `ZEP_BACKEND=cloud|graphiti` choisit l'implémentation **une seule fois**, à la
+  construction — jamais dans un `if` au milieu d'un service.
 - Les deux implémentations doivent exposer le même contrat : nœuds, arêtes
-  **avec leurs dates**, recherche hybride, création/suppression de graphe.
+  **avec leurs dates**, recherche hybride, création et suppression de graphe.
 
 **À confirmer**
 
-- Le contrat exact de l'interface : on le fige après avoir vu les ~16 points
+- Le contrat exact de l'interface : on le fige après avoir recensé les points
   d'entrée Zep réellement utilisés, pas avant.
 
 ---
@@ -68,8 +73,10 @@ Pendant les tours de simulation, le graphe n'est **qu'écrit**, pas lu par les
 agents (`docs/LOCAL-FIRST.md` §3).
 
 **Sources** — `backend/app/services/graph_builder.py`,
-`zep_graph_memory_updater.py`, `zep_entity_reader.py`,
-`oasis_profile_generator.py`, `backend/app/utils/zep_paging.py`.
+`backend/app/services/zep_graph_memory_updater.py`,
+`backend/app/services/zep_entity_reader.py`,
+`backend/app/services/oasis_profile_generator.py`,
+`backend/app/utils/zep_paging.py`.
 
 ```mermaid
 sequenceDiagram
@@ -93,7 +100,7 @@ sequenceDiagram
     GS->>DB: écriture nœuds / arêtes / épisodes
   end
   GS-->>GB: episode_id + statut
-  Note over GB,GS: risque 3 : le statut doit être réel,<br/>jamais "traité" par défaut
+  Note over GB,GS: risque 3 : le statut doit être réel,<br/>jamais « traité » par défaut
   GB->>GS: get_graph_data(graph_id)
   GS-->>GB: nœuds + arêtes + valid_at / invalid_at
   Note over GB: risque 4 : filtrer sur les types d'entités
@@ -101,13 +108,13 @@ sequenceDiagram
 
 **Les quatre points de rupture, au même endroit**
 
-1. **Structured output** — Graphiti dépend du JSON structuré. Il faut
-   `structured_output_mode="json_object"` explicite, sinon l'extraction échoue
-   silencieusement ou bruyamment selon le modèle.
+1. **Structured output** — Graphiti dépend du JSON structuré. Il faut le
+   mode `json_object` explicite, sinon l'extraction échoue selon le modèle, et
+   pas toujours de la même façon.
 2. **En-tête de session** — le client LLM de Graphiti n'envoie ni session ni
    user-agent : à couvrir en sous-classant `OpenAIGenericClient`.
-3. **Statut d'épisode** — le build doit savoir si l'extraction a réellement
-   eu lieu. Un statut toujours « traité » masque toutes les pannes.
+3. **Statut d'épisode** — le build doit savoir si l'extraction a réellement eu
+   lieu. Un statut toujours « traité » masque toutes les pannes.
 4. **Filtrage des entités** — `zep_entity_reader.py:262` ignore tout nœud dont
    les labels ne dépassent pas `{Entity, Node}`. Sans ontologie custom
    (ADR 0003), Graphiti ne met que `Entity` : **tout est filtré**. Le chemin de
