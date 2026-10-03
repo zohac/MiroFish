@@ -52,9 +52,13 @@ Règles associées :
 
 **Négatives**
 
-- Tant que l'image amont reste en mode dev (`CMD npm run dev`) et que le
+- Tant que l'image amont reste en mode dev (`CMD pnpm run dev`) et que le
   compose ne contient pas Neo4j, **le compose n'est pas encore la
   référence** : cette décision ne devient exécutable qu'à l'epic 005.
+- Point plus fin, et facile à rater : le `docker-compose.yml` pointe
+  aujourd'hui `image: ghcr.io/666ghj/mirofish:latest`, c'est-à-dire l'**image
+  amont**. Elle ne contient aucune de nos modifications. Il faudra passer à
+  `build: .` pour que Docker soit réellement notre environnement de référence.
 - Les volumes montés sur macOS sont lents, et le projet embarque `torch` —
   à mesurer.
 - Le build est plus lent qu'un `pytest` local.
