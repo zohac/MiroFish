@@ -60,7 +60,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `done` | [`story-001-1.md`](story-001-1.md) |
-| 001-1b | Appliquer l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `backlog` | — |
+| 001-1b | Poser l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `in-progress` | [`story-001-1b.md`](story-001-1b.md) |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés | `backlog` | — |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |

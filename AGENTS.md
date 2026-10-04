@@ -34,16 +34,17 @@ reproductible.**
 ### La tâche du moment
 
 **La story 001-1b** — poser l'`override-dependencies` du driver `neo4j`, décidé
-par l'ADR 0010 et précisé par l'ADR 0011 (critères dans
-[`epic-001.md`](docs/plans/001-epreuve-graphiti-local/epic-001.md)). Son fichier
-`story-001-1b.md` sera créé quand elle démarre, pas avant (ADR 0007).
+par l'ADR 0010 et précisé par l'ADR 0011. Fichier prêt :
+[`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
+Deux lignes de déclaration, un lock régénéré, et une promesse à tenir : le
+protocole de mesure de la 001-1 doit **rester rejouable** sur l'arbre qui en
+résulte — sans quoi poser l'override ferait perdre la mesure.
 
 > **La story 001-1 est `done`.** Son conflit est **réel et structurel**, la
 > parade est mesurée et rejouable
 > ([`mesurer-001-1.sh`](docs/plans/001-epreuve-graphiti-local/mesurer-001-1.sh)),
-> et la décision est **actée** dans l'ADR 0010 puis précisée par l'ADR 0011. Ni
-> `graphiti-core` ni l'`override` ne sont dans l'arbre : c'est 001-1b qui les
-> pose. Cinq points de sa revue sont restés différés, dans
+> et la décision est **actée** dans l'ADR 0010 puis précisée par l'ADR 0011.
+> Cinq points de sa revue sont restés différés, dans
 > [`deferred-work.md`](deferred-work.md).
 >
 > **Puis 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés. C'est le
@@ -77,7 +78,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**183 tests** — il doit grossir, jamais rétrécir.
+**192 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -143,7 +144,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  183 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  192 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -284,7 +285,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 183 tests
+cd backend && uv run pytest tests/ -q                  # 192 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -331,7 +332,7 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 183 tests |
+| Tests | `backend/tests/` | pytest — 192 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -477,7 +478,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 183 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 192 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,

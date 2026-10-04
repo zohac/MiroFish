@@ -40,6 +40,13 @@ réel et structurel, la parade est mesurée et rejouable
 décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
 revue sont restés différés : [`deferred-work.md`](../deferred-work.md).
 
+La story **001-1b est `in-progress`** : poser l'override. Fichier prêt —
+[`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md). Le point
+difficile n'est pas la déclaration, c'est que poser l'override **casse le
+protocole de mesure de la 001-1** — son assertion exige `graphiti-core` absent,
+et il ajoute une seconde table `[tool.uv]` que TOML refuse. Le rendre rejouable
+sur l'arbre résultant fait partie de sa définition de fini.
+
 ## À faire
 
 | Epic | Titre | Dépend de |
@@ -80,8 +87,9 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
    override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
    # version résolue au lock du 2026-10-03 : neo4j 5.28.6
    ```
-   Fichier prêt quand elle démarre ; `AGENTS.md` §1 la désigne comme la tâche du
-   moment.
+   En cours : [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md).
+   `graphiti-core` **sans l'extra `sentence-transformers`** — l'extra
+   déclencherait le second conflit et reviendrait à trancher la 001-4 ici.
 2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risques
    de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver
    forcé : la surface du driver est relevée (ADR 0011), l'exécution ne l'est pas,

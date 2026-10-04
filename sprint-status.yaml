@@ -38,8 +38,11 @@ epics:
     # satisfaire, son plancher étant >=5.26.0 (et l'inverse aussi : sentence-
     # transformers==3.0.0 vs >=3.2.1). Parade mesurée et rejouable : override
     # côté uv, un seul environnement, 192 tests verts. Décision ACTÉE par l'ADR
-    # 0010, précisée par l'ADR 0011. Rien n'est appliqué : la story 001-1b
-    # pose le geste.
+    # 0010, précisée par l'ADR 0011.
+    # Story 001-1b (in-progress) : poser l'override. Le geste est petit ; la
+    # dette ne l'est pas — poser la borne rend mesurer-001-1.sh inutilisable
+    # (il exige graphiti-core absent et ajoute un second [tool.uv]), donc le
+    # protocole doit rester rejouable sur l'arbre résultant.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).

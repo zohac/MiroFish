@@ -128,7 +128,10 @@ survit pas au redémarrage n'est pas une preuve.
    → ⚠️ **fait, et ça ne passe pas tel quel** : `camel-oasis==0.2.5` épingle
    `neo4j==5.23.0`, `graphiti-core` exige `>=5.26.0`. Il faut l'`override`
    décrit dans [`story-001-1.md`](story-001-1.md) — **décidé par l'ADR 0010,
-   précisé par l'ADR 0011**, et posé par la story 001-1b.
+   précisé par l'ADR 0011** — et c'est la story
+   [001-1b](story-001-1b.md) qui le pose. Attention : `graphiti-core` **sans
+   extra**. L'extra `sentence-transformers` déclencherait le second conflit et
+   reviendrait à trancher la 001-4 par la porte de derrière.
 2. Neo4j up, healthcheck vert (001-2)
 3. Script de mesure sur 1 chunk → vérifier l'auth **avant** d'aller plus loin
    (001-3)
