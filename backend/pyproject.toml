@@ -24,6 +24,14 @@ dependencies = [
     "camel-oasis==0.2.5",
     "camel-ai==0.2.78",
     
+    # 知识图谱（本地，Graphiti + Neo4j，替代 Zep Cloud — ADR 0001）
+    # **Sans l'extra `sentence-transformers`** : l'extra exige
+    # `sentence-transformers>=3.2.1` et `camel-oasis==0.2.5` épingle `==3.0.0`.
+    # Conflit de même nature que `neo4j`, mais **non tranché ici** : c'est la
+    # story 001-4 (ADR 0010, règle 1). Le pin exact reprend la version que la
+    # story 001-1 a mesurée, et que l'ADR 0010 vise (« la 0.30 »).
+    "graphiti-core==0.30.2",
+    
     # 文件处理
     "PyMuPDF>=1.24.0",
     # 编码检测（支持非UTF-8编码的文本文件）
@@ -71,3 +79,22 @@ select = ["E9", "F63", "F7", "F82"]
 [tool.ruff.lint.per-file-ignores]
 # Les scripts sont des points d'entrée, pas une bibliothèque.
 "scripts/*" = ["F401"]
+
+[tool.uv]
+# ADR 0010 : `camel-oasis==0.2.5` épingle `neo4j==5.23.0`, `graphiti-core`
+# exige `neo4j>=5.26.0` — deux exigences incompatibles, aucune combinaison
+# publiée ne résout (story 001-1). On force donc le driver, et on garde un
+# seul environnement (ADR 0006).
+#
+# **Périmètre : `neo4j` seul** (ADR 0010, règle 1). Le conflit
+# `sentence-transformers==3.0.0` contre `>=3.2.1` est de même nature mais
+# n'est pas tranché ici : story 001-4. Élargir cet override reviendrait à
+# trancher cette story sans le dire — `backend/tests/test_pyproject_override.py`
+# refuse un override plus large que `neo4j`.
+#
+# La borne est une plage, pas un pin : elle se résout sur la dernière 5.x au
+# jour du lock. La version ci-dessous est donc **consignée à côté**, pour que
+# la dérive soit visible dans ce fichier plutôt que cachée dans `uv.lock` —
+# c'est elle que la story 001-2 doit tester (ADR 0011).
+override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
+# version effectivement résolue au lock du 2026-10-03 : neo4j 5.28.6
