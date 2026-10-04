@@ -278,11 +278,17 @@ est donc **ininstallable** sans arbitrage.
 > Ce paragraphe disait « dépendance de camel-ai » et en concluait que
 > l'embedder local était gratuit. C'est vrai du venv, faux de l'installation :
 > c'est le conflit qu'il faut voir, pas la version installée. **La story 001-4
-> est bloquée** et devra trancher — avec le même `override-dependencies`, ou en
+> est bloquée** et devra trancher — avec son propre `override-dependencies`, ou en
 > acceptant un embedder moins récent. Un saut `sentence-transformers` 3.0 → 3.2
 > est un changement de modèle et de `torch` : il ne se décide pas par analogie
 > avec un driver. Mesuré et consigné dans
 > [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
+>
+> **Confirmé le 4 octobre 2026** (story 001-1b) : l'override posé pour le driver
+> porte sur **`neo4j` seul** — `sentence-transformers` 3.0.0 et `torch` 2.9.1 sont
+> restés intacts dans le lock, et `graphiti-core` est déclaré **sans extra**.
+> `backend/tests/test_pyproject_override.py` refuse qu'on élargisse cet override :
+> le passage à 3.2 reste une décision de la 001-4, pas un effet de bord.
 
 ---
 
@@ -397,7 +403,8 @@ L'image existe déjà (`Dockerfile`) : base `python:3.11`, `uv` pour le backend,
 
 1. Ajouter un service `neo4j` dans le compose — **avec un volume**, sinon le
    graphe est perdu à chaque recréation.
-2. Ajouter `graphiti-core` aux dépendances backend.
+2. ~~Ajouter `graphiti-core` aux dépendances backend.~~ → **fait** le
+   4 octobre 2026 (story 001-1b), avec `override-dependencies` pour le driver.
 3. Faire pointer MiroFish vers `neo4j:7687` sur le réseau compose.
 
 ### ⚠️ Piège de build
@@ -406,7 +413,10 @@ Le Dockerfile utilise **`uv sync --frozen`**. `--frozen` échoue si `uv.lock`
 n'est pas cohérent avec `pyproject.toml`.
 
 Ajouter `graphiti-core` impose de **régénérer le lock (`uv lock`) avant de
-builder**, sinon l'image ne se construit pas.
+builder**, sinon l'image ne se construit pas. **C'est fait** — le lock est
+régénéré et commité avec la déclaration, et la CI échoue sur la même
+désynchronisation (`uv sync --frozen`) : le piège est désormais surveillé, pas
+évité.
 
 ### Limite de l'image actuelle
 
@@ -472,8 +482,12 @@ mappent presque 1:1.
    rejouable (`mesurer-001-1.sh`) : `override-dependencies` côté `uv` — un seul
    environnement, tests verts, imports dans l'ordre. Pas de second venv, pas de
    sous-processus. La décision est **actée par l'ADR 0010**, précisée par l'ADR
-   0011 ; le geste sera posé par la story 001-1b. Le détail est dans
-   [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md).
+   0011, et **appliquée par la story 001-1b le 4 octobre 2026** :
+   `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` est dans
+   `backend/pyproject.toml`, avec `neo4j 5.28.6` en commentaire à côté de la
+   borne, et 204 tests verts. Le détail est dans
+   [`story-001-1.md`](plans/001-epreuve-graphiti-local/story-001-1.md) et
+   [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md).
 
 ---
 

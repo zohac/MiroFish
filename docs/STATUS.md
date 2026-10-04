@@ -40,12 +40,17 @@ réel et structurel, la parade est mesurée et rejouable
 décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
 revue sont restés différés : [`deferred-work.md`](../deferred-work.md).
 
-La story **001-1b est `in-progress`** : poser l'override. Fichier prêt —
-[`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md). Le point
-difficile n'est pas la déclaration, c'est que poser l'override **casse le
-protocole de mesure de la 001-1** — son assertion exige `graphiti-core` absent,
-et il ajoute une seconde table `[tool.uv]` que TOML refuse. Le rendre rejouable
-sur l'arbre résultant fait partie de sa définition de fini.
+La story **001-1b est `review`** : l'`override-dependencies` du driver est posé
+dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le
+lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
+avait consignée, sans écart. **204 tests verts.**
+
+Le point difficile n'était pas la déclaration : c'est que poser l'override
+**cascait le protocole de mesure de la 001-1**. Il ne casse plus — il **normalise**
+`pyproject.toml` dans l'état qu'il veut mesurer, puis restaure l'octet initial,
+et **refuse** un arbre ambigu au lieu de le deviner. Rejoué sur les deux arbres,
+204 tests verts à chaque fois.
+[`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md).
 
 ## À faire
 
@@ -79,23 +84,23 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Story 001-1b** — poser l'`override-dependencies` décidé par l'ADR 0010 et
-   précisé par l'ADR 0011. L'ADR tranche l'architecture, il n'applique rien. Le
-   geste est mesuré et rejouable :
-   ```toml
-   [tool.uv]
-   override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
-   # version résolue au lock du 2026-10-03 : neo4j 5.28.6
-   ```
-   En cours : [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md).
-   `graphiti-core` **sans l'extra `sentence-transformers`** — l'extra
-   déclencherait le second conflit et reviendrait à trancher la 001-4 ici.
-2. Puis 001-2 (Neo4j) et 001-3 (en-tête de session) — les deux autres risques
-   de l'épreuve. 001-2 est aussi le **premier test comportemental** du driver
-   forcé : la surface du driver est relevée (ADR 0011), l'exécution ne l'est pas,
-   et c'est 001-2 qui tranche l'ADR 0010 — il sera supersédé, pas réécrit, s'il
-   casse.
+1. **Story 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés. C'est le
+   **premier test comportemental du driver forcé** : personne n'a encore ouvert
+   de connexion sous cet override. La surface est relevée (ADR 0011),
+   l'exécution ne l'est pas — et c'est 001-2 qui tranche l'ADR 0010, par
+   supersession s'il casse. Elle dispose maintenant de `neo4j 5.28.6` lockée,
+   version que l'override a résolue et que `pyproject.toml` consigne.
+2. Puis 001-3 (en-tête de session) et 001-4 (embedder) — les deux autres risques
+   de l'épreuve. 001-4 reste **bloquée par le même conflit** que le driver
+   (`sentence-transformers==3.0.0` contre `>=3.2.1`), avec son propre arbitrage :
+   l'ADR 0010 ne couvre que `neo4j`, et un test
+   (`backend/tests/test_pyproject_override.py`) refuse qu'on l'élargisse en
+   silence.
 3. L'épreuve elle-même, et son verdict.
+
+> La 001-1b reste en `review` : le geste est posé, testé et mesuré, mais une
+> relecture est due avant de la passer en `done`
+> ([`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md)).
 
 ## Questions ouvertes
 
@@ -103,7 +108,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 |---|---|
 | Le graphe Zep actuel contient-il quelque chose à garder ? | Epic 006 : migration possible ou non |
 | ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée et rejouable : override du driver, **actée par l'ADR 0010**, précisée par l'ADR 0011 |
-| Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé |
+| Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé. La version est lockée et **consignée dans `pyproject.toml`**, donc 001-2 teste bien celle qui sera déployée |
 | `sentence-transformers` : même conflit que `neo4j` ? | **oui, mesuré** — bloque la story 001-4, arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
 | La politique d'usage de l'endpoint gratuit tient-elle à ce volume ? | extraction sur un modèle payant |
 | Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF, comme Zep le fait déjà |
@@ -112,7 +117,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | 192, tous verts, **sans `.env`** (183 avant les neuf tests de revue ajoutés le 3 octobre) |
+| Tests | **204**, tous verts, **sans `.env`** (192 avant la story 001-1b ; 183 avant les neuf tests de revue du 3 octobre) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |
