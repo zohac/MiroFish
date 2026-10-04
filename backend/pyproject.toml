@@ -24,7 +24,10 @@ dependencies = [
     "camel-oasis==0.2.5",
     "camel-ai==0.2.78",
     
-    # 知识图谱（本地，Graphiti + Neo4j，替代 Zep Cloud — ADR 0001）
+    # Graphe de connaissances local (Graphiti + Neo4j, à la place de Zep
+    # Cloud — ADR 0001). En-têtes de section en chinois comme ceux de l'amont ;
+    # l'explication, elle, est en français (AGENTS.md §2.10).
+    #
     # **Sans l'extra `sentence-transformers`** : l'extra exige
     # `sentence-transformers>=3.2.1` et `camel-oasis==0.2.5` épingle `==3.0.0`.
     # Conflit de même nature que `neo4j`, mais **non tranché ici** : c'est la
