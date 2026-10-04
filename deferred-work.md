@@ -26,10 +26,12 @@ travail laissé en suspens par la story.
   rouvre l'epic 001**, à chaque `uv lock`, et le déclencheur est mécanique —
   `backend/tests/test_pyproject_override.py::test_resolved_version_comment_matches_the_lock`
   échoue dès que la version lockée s'écarte de celle consignée dans
-  `backend/pyproject.toml`. *Ce qui reste à faire, et qui n'est pas fait : nommer
-  ce propriétaire dans un **ADR de précision** (l'ADR 0010 est immuable), et
-  décider si une release du driver doit déclencher une story de revalidation
-  plutôt qu'un simple correctif de commentaire.*
+  `backend/pyproject.toml`. C'est une amélioration réelle par rapport à l'ADR
+  0010, qui disait « rien ne surveille la dérive en continu » : la suite la
+  surveille, donc la CI la surveille. *Ce qui reste à faire, et qui n'est pas
+  fait : nommer ce propriétaire dans un **ADR de précision** (l'ADR 0010 est
+  immuable), et décider si une release du driver doit déclencher une story de
+  revalidation plutôt qu'un simple correctif de commentaire.*
 - **L'override promet une compatibilité que rien ne prouve à l'exécution.**
   `neo4j 5.28.6` est lockée, les imports passent dans l'ordre, les 204 tests
   sont verts — et **aucune connexion n'a jamais été ouverte** sous cet override.
