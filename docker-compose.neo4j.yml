@@ -76,24 +76,29 @@ services:
       # vraiment — sans lui, `apoc.meta.data()` échoue.
       NEO4J_PLUGINS: '["apoc"]'
 
-      # `apoc.merge.*` et `apoc.create.*` sont des **procédures d'écriture** :
-      # hors de la liste par défaut, Neo4j les refuse en `ClientError`. Sans
-      # cette ligne, `camel-oasis`.write_node` échoue même avec le plugin
-      # installé — le plugin présent mais muet, ce qui est pire que son absence.
+      # Ces procédures-là sont refusées par défaut, **même plugin installé** :
+      # hors liste, Neo4j répond `ClientError` et `camel` en déduit « plugin
+      # absent » — un message faux, et un remède qui ne change rien.
       #
-      # La liste est **étroite, et volontairement** : elle ne débride que les
-      # trois procédures que la story 001-2 a réellement observées sur le chemin
-      # d'écriture de `camel` — `apoc.merge.node`, `apoc.merge.relationship`,
-      # `apoc.create.addLabels`. Un `apoc.*` serait plus simple à écrire et
-      # serait aussi débridé au-delà de ce qu'on a mesuré : sur une base de
-      # développement, l'écart ne se voit pas, jusqu'au jour où une version de
-      # `camel` appelle une procédure d'écriture que personne n'avait prévue.
-      # `apoc.meta.data()` est une **lecture** : elle passe par la liste par
-      # défaut, qui autorise déjà les lectures. Si `camel` réclame un jour une
-      # écriture hors de ces trois motifs, l'erreur qu'il produit accuse un
-      # plugin absent — donc élargir ici doit être un geste visible, pas un
-      # élargissement de convenience.
-      NEO4J_dbms_security_procedures_unrestricted: "apoc.merge.*,apoc.create.*"
+      # La liste est **étroite, et mesurée** : ce sont exactement les quatre
+      # procédures que `camel` appelle — `apoc.meta.data` au `refresh_schema()`
+      # du `__init__` (`neo4j_graph.py:28`), puis `apoc.merge.node`,
+      # `apoc.merge.relationship` et `apoc.create.addLabels` à l'écriture.
+      #
+      # **`apoc.meta.data` est une lecture, et il faut quand même le débrider.**
+      # C'est le fait que la mesure a imposé, contre l'intuition : APOC marque
+      # ses procédures d'introspection comme **sandboxed**, et une sandboxed est
+      # refusée même quand la lecture serait permise. Écrire seulement
+      # `apoc.merge.*,apoc.create.*` casse donc `camel` dès le premier
+      # `refresh_schema`, au `__init__` — mesuré le 5 octobre 2026, en rejouant
+      # le protocole sur cette restriction :
+      #
+      #   apoc.meta.data is unavailable because it is sandboxed and has dependencies
+      #
+      # Élargir cette liste est un geste à assumer : si `camel` réclame une
+      # procédure hors de ces quatre, l'erreur qu'il produira accusera un plugin
+      # absent. Rejouer `verifier-001-2.sh compose` après tout élargissement.
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.meta.data,apoc.merge.*,apoc.create.*"
 
       # Heap borné. Sans cela, Neo4j prend la moitié de la mémoire de la VM
       # Docker Desktop, et une épreuve locale peut affamer le reste du poste.

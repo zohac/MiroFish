@@ -158,8 +158,30 @@ case "$MODE" in
 esac
 
 cd "$RACINE" || exit 1
-if ! docker compose "${SITES[@]}" up -d --wait >/dev/null 2>&1; then
-    echo "le conteneur neo4j n'a pas pu démarrer — la mesure s'arrête ici" >&2
+
+etape "0. configuration mesurée"
+echo "mode            : $MODE"
+echo "configuration   : $LIBELLE"
+echo "attente APOC    : $ATTENTE_APOC"
+echo "version compose : $(grep -E '^\s+image: neo4j:' "$COMPOSE" | sed 's/.*image: *//')"
+# Les empreintes sont **du contenu**, pas d'un commit : elles identifient
+# exactement les fichiers qui ont produit la mesure, même si la mesure a été
+# prise sur un arbre modifié — et l'ancrage reste vrai après le commit, ce qu'un
+# `git rev-parse HEAD` ne peut pas promettre. C'est ce qui rend la sortie
+# vérifiable par un lecteur qui n'a que le fichier sous les yeux.
+echo "compose         : $(shasum -a 256 "$COMPOSE" | cut -c1-16)…"
+echo "script          : $(shasum -a 256 "$RACINE/backend/scripts/verifier_driver_neo4j.py" | cut -c1-16)…"
+echo "surcharge APOC  : $(shasum -a 256 "$SANS_APOC" | cut -c1-16)… (plugin retiré, dérogation vidée)"
+
+etape "1. démarrage et healthcheck"
+# **Un seul `up`**, et il est ici : c'est la preuve du healthcheck, donc elle doit
+# apparaître dans l'artefact. La version précédente démarrait une fois en silence
+# avant l'étape 0, puis une seconde fois ici pour l'affichage — deux cycles
+# d'attente, et la transition « Waiting → Healthy » n'était visible que grâce au
+# doublon. Ici la commande est celle qui porte l'assertion, et son message est
+# celui qu'on veut lire : `--wait` ne rend la main que sur un healthcheck vert.
+if ! docker compose "${SITES[@]}" up -d --wait; then
+    echo "le conteneur neo4j n'a pas pu démarrer ou ne devient pas healthy — la mesure s'arrête ici" >&2
     docker compose "${SITES[@]}" logs --tail 40 neo4j >&2 || true
     exit 1
 fi
@@ -168,28 +190,7 @@ if [ -z "$CONTENEUR" ]; then
     echo "le conteneur neo4j n'a pas été créé — la mesure s'arrête ici" >&2
     exit 1
 fi
-
-etape "0. configuration mesurée"
-echo "mode            : $MODE"
-echo "configuration   : $LIBELLE"
-echo "attente APOC    : $ATTENTE_APOC"
-echo "compose         : $(shasum -a 256 "$COMPOSE" | cut -c1-16)…"
-# Les empreintes sont **du contenu**, pas d'un commit : elles identifient
-# exactement les fichiers qui ont produit la mesure, même si la mesure a été
-# prise sur un arbre modifié — et l'ancrage reste vrai après le commit, ce qu'un
-# `git rev-parse HEAD` ne peut pas promettre. C'est ce qui rend la sortie
-# vérifiable par un lecteur qui n'a que le fichier sous les yeux.
-echo "script          : $(shasum -a 256 "$RACINE/backend/scripts/verifier_driver_neo4j.py" | cut -c1-16)…"
-echo "surcharge APOC  : $(shasum -a 256 "$SANS_APOC" | cut -c1-16)… (plugin retiré, dérogation vidée)"
 echo "conteneur       : $CONTENEUR"
-echo "version compose : $(grep -E '^\s+image: neo4j:' "$COMPOSE" | sed 's/.*image: *//')"
-
-etape "1. démarrage et healthcheck"
-# Le conteneur est **déjà** démarré et attendu par le bloc juste au-dessus, qui
-# échoue avec un diagnostic en cas de panne. Ce second `up -d --wait` était un
-# doublon : il refaisait un cycle d'attente complet, et son absence de
-# diagnostic était justifié par le fait que le premier avait `>/dev/null 2>&1`.
-# Une seule commande, et cette fois avec son diagnostic.
 docker compose "${SITES[@]}" ps --format '  {{.Name}}  {{.State}}  {{.Status}}'
 attendre_bolt || exit 1
 

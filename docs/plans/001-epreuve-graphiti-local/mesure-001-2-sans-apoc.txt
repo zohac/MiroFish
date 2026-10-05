@@ -3,15 +3,17 @@
 mode            : sans-apoc
 configuration   : serveur SANS le plugin APOC
 attente APOC    : absent
-compose         : 3eddc18 · abdcdf4f9bfec4e1…
-conteneur       : 8a3dbda05f9249b4a178606c13bca2cb541e79ba5d84c2d6525edd3f9e7ba901
 version compose : neo4j:5.26.31-community
+compose         : b00ec4eedd02a265…
+script          : 0f293f36378bc6a5…
+surcharge APOC  : ac897c512125c217… (plugin retiré, dérogation vidée)
 
 =========== 1. démarrage et healthcheck ===========
  Container mirofish-neo4j-neo4j-1 Running 
  Container mirofish-neo4j-neo4j-1 Waiting 
  Container mirofish-neo4j-neo4j-1 Healthy 
-mirofish-neo4j-neo4j-1  running  Up 7 seconds (healthy)
+conteneur       : a4b02e01c5fa8442b4d3d6395fa3d42b6131ebb6f39f1378769648bb50d7de16
+mirofish-neo4j-neo4j-1  running  Up 2 minutes (healthy)
 Bolt joignable après 3s environ
 
 =========== 2. version effective du serveur et du driver ===========
@@ -22,7 +24,7 @@ Bolt joignable après 3s environ
 
 =========== 3. écriture, surface de l'ADR 0011, procédures Graphiti, APOC ===========
 Test comportemental du driver forcé — story 001-2 — phase « ecrire »
-  horodatage : 2026-10-05T14:38:31+00:00
+  horodatage : 2026-10-05T20:11:14+00:00
   driver     : neo4j 5.28.6 (locké par backend/uv.lock, forcé par l'override de l'ADR 0010)
   serveur    : Neo4j 5.26.31 (community)
   cible      : bolt://localhost:7687
@@ -36,7 +38,7 @@ Test comportemental du driver forcé — story 001-2 — phase « ecrire »
   OK    AuthError sur mot de passe faux                                 [exceptions]
          AuthError : {code: Neo.ClientError.Security.Unauthorized} {message: The client is unauthorized due to authentica
   OK    ServiceUnavailable sur port fermé                               [exceptions]
-         port 51939 : ServiceUnavailable : Couldn't connect to 127.0.0.1:51939 (resolved to ('127.0.0.1:51939',)):
+         port 63824 : ServiceUnavailable : Couldn't connect to 127.0.0.1:63824 (resolved to ('127.0.0.1:63824',)):
   OK    Query paramétrée                                                [Query]
          Query(text=..., timeout=...) puis .data() : [{'a': 'mirofish-verification', 'b': 1}]
   OK    transaction gérée — execute_write                               [transactions]
@@ -46,7 +48,7 @@ Test comportemental du driver forcé — story 001-2 — phase « ecrire »
   OK    transaction gérée — read_transaction                            [transactions]
          session.read_transaction() renvoie 1 — dépréciée, présente : read_transaction has been renamed to execute_read
   OK    ClientError sur contrainte violée                               [exceptions]
-         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(2) already exists with label `MiroFis
+         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(3) already exists with label `MiroFis
   OK    CypherSyntaxError sur requête invalide                          [exceptions]
          CypherSyntaxError ⊂ ClientError : {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input '': expected an identifier (line 1, colu
   OK    schéma Graphiti (index fulltext + range)                        [Graphiti]
@@ -54,18 +56,18 @@ Test comportemental du driver forcé — story 001-2 — phase « ecrire »
   OK    CALL db.indexes() YIELD name — absente, hors chemin d'écriture  [Graphiti]
          ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `db.indexes` registere — relevée, elle pèse sur `build_indices_and_constraints(delete_existing=True)`, jamais sur `add_episode`
   OK    procédure native db.create.setNodeVectorProperty                [Graphiti]
-         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+         disponible et vérifiée : {'nom': 'mirofish-verification-procedures'}
   OK    procédure native db.index.fulltext.queryNodes                   [Graphiti]
-         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+         disponible et vérifiée : {'nom': 'mirofish-verification-procedures'}
   OK    index de la sonde visibles                                      [Graphiti]
          SHOW INDEXES renvoie ['mirofish_verification_fulltext', 'mirofish_verification_vector'] sur ['mirofish_verification_fulltext', 'mirofish_verification_vector'] attendus
   OK    APOC                                                          
          absent comme le protocole l'annonce : ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `a
   OK    écriture du graphe de vérification                            
-         deux transactions gérées : remise à zéro puis 2 nœuds MiroFishVerification et une arête VERIFIES (valid_at=2026-10-05T14:38:32.760486+00:00), 2 nœud(s) de la sonde en base
+         deux transactions gérées : remise à zéro puis 2 nœuds MiroFishVerification et une arête VERIFIES (valid_at=2026-10-05T20:11:15.338297+00:00), 2 nœud(s) de la sonde en base
 
   17/17 contrôles passés
-  1 écart(s) connu(s) et documenté(s) : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
+  1 écart(s) connu(s) et documenté(s) — comptés parmi les passés parce qu'ils le sont : une fonctionnalité mesurée manquante, pas un défaut du driver : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
 code de sortie : 0
 
 =========== 4. arrêt puis redémarrage du conteneur — le cas C3 ===========
@@ -76,11 +78,11 @@ mirofish-neo4j-neo4j-1  exited
  Container mirofish-neo4j-neo4j-1 Starting 
  Container mirofish-neo4j-neo4j-1 Started 
 Bolt joignable après 6s environ
-mirofish-neo4j-neo4j-1  running  Up 6 seconds (health: starting)
+mirofish-neo4j-neo4j-1  running  Up 5 seconds (health: starting)
 
 =========== 5. relecture après redémarrage ===========
 Test comportemental du driver forcé — story 001-2 — phase « relire »
-  horodatage : 2026-10-05T14:38:43+00:00
+  horodatage : 2026-10-05T20:11:25+00:00
   driver     : neo4j 5.28.6 (locké par backend/uv.lock, forcé par l'override de l'ADR 0010)
   serveur    : Neo4j 5.26.31 (community)
   cible      : bolt://localhost:7687
@@ -94,7 +96,7 @@ Test comportemental du driver forcé — story 001-2 — phase « relire »
   OK    AuthError sur mot de passe faux                                 [exceptions]
          AuthError : {code: Neo.ClientError.Security.Unauthorized} {message: The client is unauthorized due to authentica
   OK    ServiceUnavailable sur port fermé                               [exceptions]
-         port 51963 : ServiceUnavailable : Couldn't connect to 127.0.0.1:51963 (resolved to ('127.0.0.1:51963',)):
+         port 63840 : ServiceUnavailable : Couldn't connect to 127.0.0.1:63840 (resolved to ('127.0.0.1:63840',)):
   OK    Query paramétrée                                                [Query]
          Query(text=..., timeout=...) puis .data() : [{'a': 'mirofish-verification', 'b': 1}]
   OK    transaction gérée — execute_write                               [transactions]
@@ -104,7 +106,7 @@ Test comportemental du driver forcé — story 001-2 — phase « relire »
   OK    transaction gérée — read_transaction                            [transactions]
          session.read_transaction() renvoie 1 — dépréciée, présente : read_transaction has been renamed to execute_read
   OK    ClientError sur contrainte violée                               [exceptions]
-         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(2) already exists with label `MiroFis
+         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(5) already exists with label `MiroFis
   OK    CypherSyntaxError sur requête invalide                          [exceptions]
          CypherSyntaxError ⊂ ClientError : {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input '': expected an identifier (line 1, colu
   OK    schéma Graphiti (index fulltext + range)                        [Graphiti]
@@ -112,18 +114,18 @@ Test comportemental du driver forcé — story 001-2 — phase « relire »
   OK    CALL db.indexes() YIELD name — absente, hors chemin d'écriture  [Graphiti]
          ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `db.indexes` registere — relevée, elle pèse sur `build_indices_and_constraints(delete_existing=True)`, jamais sur `add_episode`
   OK    procédure native db.create.setNodeVectorProperty                [Graphiti]
-         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+         disponible et vérifiée : {'nom': 'mirofish-verification-procedures'}
   OK    procédure native db.index.fulltext.queryNodes                   [Graphiti]
-         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+         disponible et vérifiée : {'nom': 'mirofish-verification-procedures'}
   OK    index de la sonde visibles                                      [Graphiti]
          SHOW INDEXES renvoie ['mirofish_verification_fulltext', 'mirofish_verification_vector'] sur ['mirofish_verification_fulltext', 'mirofish_verification_vector'] attendus
   OK    APOC                                                          
          absent comme le protocole l'annonce : ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `a
   OK    relecture après redémarrage                                   
-         ['mirofish-verification-alpha', 'mirofish-verification-beta'] reliés par VERIFIES, valid_at=2026-10-05T14:38:32.760486000+00:00 — le volume nommé a tenu
+         ['mirofish-verification-alpha', 'mirofish-verification-beta'] reliés par VERIFIES, valid_at=2026-10-05T20:11:15.338297000+00:00 — le volume nommé a tenu
 
   17/17 contrôles passés
-  1 écart(s) connu(s) et documenté(s) : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
+  1 écart(s) connu(s) et documenté(s) — comptés parmi les passés parce qu'ils le sont : une fonctionnalité mesurée manquante, pas un défaut du driver : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
 code de sortie : 0
 
 =========== 6. verdict de cette exécution ===========

@@ -373,11 +373,18 @@ def test_le_plugin_apoc_est_installe():
         "plugin installé"
     )
     debride = debridage.group(1).strip().strip('"').strip("'")
-    for procedure in ("apoc.merge.", "apoc.create."):
+    # Les quatre procédures que `camel` appelle, nommées par la mesure et pas par
+    # catégorie. `apoc.meta.data` en fait partie **bien que ce soit une lecture** :
+    # APOC la marque comme sandboxed, et une sandboxed est refusée même quand lire
+    # est permis. Écrire `apoc.merge.*,apoc.create.*` laisse donc passer ce test
+    # et casse `camel` au premier `refresh_schema` — ce que le rejeu du
+    # 5 octobre 2026 a attrapé, avec `ProcedureRegistrationFailed` là où le
+    # compose livré promettait `OK`.
+    for procedure in ("apoc.meta.data", "apoc.merge.", "apoc.create."):
         assert procedure in debride, (
-            f"la dérogation vaut {debride!r} et ne couvre pas `{procedure}*` : "
-            "camel-oasis écrit par ces procédures, et l'erreur qu'il produirait "
-            "accuserait un plugin absent alors qu'il est présent"
+            f"la dérogation vaut {debride!r} et ne couvre pas `{procedure}` : "
+            "camel-oasis en a besoin, et l'erreur qu'il produirait accuserait un "
+            "plugin absent alors qu'il est présent"
         )
 
 

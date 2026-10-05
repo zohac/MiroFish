@@ -2,7 +2,7 @@
 id: "001-2"
 epic: "001"
 titre: "Neo4j 5.26 + APOC en local, premier test comportemental du driver forcé"
-statut: in-progress
+statut: review
 auteur: agent
 format: "2"
 ---
@@ -201,7 +201,12 @@ tri et vérification à la source. **31 constats retenus (28 correctifs, 3
 différés), 11 rejetés** — dont un pour lequel trois couches sur quatre se
 trompaient dans le même sens, et qui est documenté en annexe. La décision
 requise (la largeur de `procedures_unrestricted`) a été arbitrée par un humain le
-5 octobre 2026 : restreindre aux trois procédures mesurées.
+5 octobre 2026 : restreindre aux procédures réellement mesurées. **Le rejeu a
+corrigé cette décision dans le geste même** : la première liste écrite
+(`apoc.merge.*,apoc.create.*`) laissait `camel` casser au premier
+`refresh_schema`, parce qu'`apoc.meta.data` est **sandboxed** et exige lui aussi
+`unrestricted`. La liste livrée porte les quatre procédures, et le test les
+exige nommément.
 
 Les **28 correctifs sont appliqués** et la suite est à **279 tests**. Ce qu'ils
 ont changé, et qu'il faut savoir en les relisant :
@@ -226,15 +231,27 @@ ont changé, et qu'il faut savoir en les relisant :
 - **`docs/STATUS.md` est corrigé** : il annonçait `234 + 42 = 276`. La story
   disait juste, `STATUS.md` se trompait.
 
-> **Ce que ces correctifs rendent caducs, et qui n'est pas rattrapable ici.** Les
-> deux sorties versionnées ont été produites par le code du 5 octobre : leur
-> rapport ne contient pas la comparaison de valeurs des transactions, ni la
-> formulation nouvelle des écarts connus. Elles restent **la preuve de cette
-> exécution-là** — c'est-à-dire de la mesure qui a fait passer l'ADR 0010 — mais
-> **rejouer le protocole produira un texte différent**. Le rejouer n'est pas
-> facultatif : c'est la seule façon de refaire une preuve avec le code corrigé,
-> et `NFR-3` vaut dans les deux sens. Tant que ce rejeu n'a pas eu lieu, les deux
-> fichiers désignent une exécution réussie, pas l'état courant du script.
+> **Les deux sorties de mesure ont été rejouées, et ce rejeu a trouvé un défaut
+> de plus — dans le correctif lui-même.** Le raisonnement qui justifiait la liste
+> étroite tenait `apoc.meta.data` pour une lecture ordinaire, donc couverte par
+> la liste par défaut. C'est faux : APOC marque ses procédures d'introspection
+> comme **sandboxed**, et une sandboxed est refusée même quand lire est permis.
+> Le premier rejeu, sur `apoc.merge.*,apoc.create.*`, a rendu **16/17** avec
+>
+> ```
+> apoc.meta.data is unavailable because it is sandboxed and has dependencies
+> ```
+>
+> et `code de sortie : 1`. La liste livrée nomme donc les quatre procédures que
+> `camel` appelle, `apoc.meta.data` compris, et **le test les exige nommément** —
+> c'est lui qui gardera l'erreur si quelqu'un resserre la liste « pour
+> simplifier ». Les deux modes sont repassés à **17/17**, et les deux sorties
+> versionnées portent désormais la même empreinte de compose et de script.
+>
+> C'est la démonstration de ce que la story répète depuis le début : *mesurer,
+> ne pas présumer*. Le correctif le plus récent est celui qui a le plus vite
+> cassé, et seule l'exécution pouvait le dire — aucune relecture ne l'aurait vu,
+> parce que la ligne de dérogation était **plausible**.
 
 Ce qui tient : les cinq critères d'acceptation de l'epic pour la 001-2 sont
 **prouvés**, le compte de 17 contrôles est **juste** (vérifié contrôle par
@@ -245,7 +262,7 @@ comptages**, pas la validity du verdict.
 
 #### Correctifs
 
-- [x] [Revue][Correctif] Restreindre `procedures_unrestricted` aux trois procédures d'écriture réellement mesurées [docker-compose.neo4j.yml:78] — `apoc.*` débride tout ; la story n'a mesuré que `apoc.merge.*` et `apoc.create.addLabels`. Arbitrage humain, tranché le 5 octobre 2026. Le commentaire doit dire **pourquoi** la liste est étroite, sans quoi le prochain qui élargit ne saura pas que la liste était mesurée.
+- [x] [Revue][Correctif] Restreindre `procedures_unrestricted` aux procédures réellement mesurées [docker-compose.neo4j.yml:78] — `apoc.*` débridait tout sans justification. Arbitrage humain le 5 octobre 2026. **La première liste écrite était fausse** : elle omettait `apoc.meta.data`, que le rejeu a fait apparaître comme **sandboxed** — donc refusé malgré sa nature de lecture. La liste livrée nomme les quatre procédures de `camel`, le test les exige nommément, et le commentaire dit pourquoi la liste est étroite.
 
 - [x] [Revue][Correctif] `test_aucun_secret_en_clair_dans_le_compose` : corps de boucle inatteignable [backend/tests/test_neo4j_serveur_epreuve.py:461] — la garde ignore toute ligne contenant `AUTH`, et la branche à vérifier exige `NEO4J_AUTH:`. Le test ne peut pas échouer ; c'est `test_le_mot_de_passe_ne_vient_pas_d_un_env_file:222` qui porte réellement le secret.
 - [x] [Revue][Correctif] Six tests « Négatifs » n'exercent aucun code du dépôt [backend/tests/test_neo4j_serveur_epreuve.py:494,506,533 ; backend/tests/test_verifier_protocol.py:339] — la section s'intitule « vérifier que ces tests testent vraiment » et c'est précisément ce qu'elle ne fait pas.
@@ -320,12 +337,26 @@ Ce que la story a produit :
 | Protocole rejouable, deux modes | [`verifier-001-2.sh`](verifier-001-2.sh) |
 | Sortie du compose livré | [`mesure-001-2-compose.txt`](mesure-001-2-compose.txt) |
 | Sortie sans le plugin APOC | [`mesure-001-2-sans-apoc.txt`](mesure-001-2-sans-apoc.txt) |
-| 27 tests sur le serveur déclaré | `backend/tests/test_neo4j_serveur_epreuve.py` |
+| 29 tests sur le serveur déclaré | `backend/tests/test_neo4j_serveur_epreuve.py` |
 | 14 tests sur le protocole lui-même | `backend/tests/test_verifier_protocol.py` |
 
 Les deux versions mesurées : **driver `neo4j 5.28.6`**, lockée par
 `backend/uv.lock` ; **serveur `Neo4j 5.26.31` `community`**, lue de
 `CALL dbms.components()` et non déduite du tag.
+
+Les deux sorties versionnées ont été **rejouées le 5 octobre 2026** sur le code
+corrigé par la revue, et portent les mêmes empreintes de contenu — c'est ce qui
+permet de dire qu'elles décrivent la même configuration :
+
+| Empreinte | Valeur |
+|---|---|
+| `docker-compose.neo4j.yml` | `b00ec4eedd02a265…` |
+| `backend/scripts/verifier_driver_neo4j.py` | `0f293f36378bc6a5…` |
+| surcharge « sans APOC » | `ac897c512125c217…` |
+
+Un `git rev-parse HEAD` n'aurait pas suffi : au premier passage il pointait sur un
+commit qui ne contenait pas encore le compose. Une empreinte de **contenu**, elle,
+identifie exactement le fichier mesuré et reste vraie après le commit.
 
 ### Ce qui a divergé du plan, et pourquoi
 
@@ -358,12 +389,32 @@ l'affirmation, seulement la constante. Deux mesures opposées, deux conclusions
 opposées, et un plugin installé pour la bonne raison.
 
 **2. `apoc.merge.*` est une procédure d'écriture, et elle est refusée par
-défaut.** Le compose porte `NEO4J_dbms_security_procedures_unrestricted:
-"apoc.*"`. Sans elle, `apoc.merge.node` échoue en `ClientError` **alors que le
-plugin est installé** — et `camel` dit dans ce cas « le plugin n'est pas
-installé », donc l'erreur est fausse. C'est le pire état des deux : le message
-accuse un diagnostic, et le remède qu'il suggère ne change rien. Le test
-`test_le_plugin_apoc_est_installe` garde les deux lignes ensemble.
+défaut.** Le compose porte `NEO4J_dbms_security_procedures_unrestricted`, sans
+quoi `apoc.merge.node` échoue en `ClientError` **alors que le plugin est
+installé** — et `camel` dit dans ce cas « le plugin n'est pas installé », donc
+l'erreur est fausse. C'est le pire état des deux : le message accuse un
+diagnostic, et le remède qu'il suggère ne change rien. Le test
+`test_le_plugin_apoc_est_installe` garde la valeur de la dérogation, pas
+seulement sa clé.
+
+**2 bis. Une procédure d'introspection est *sandboxed*, et se débride comme une
+écriture.** Trouvé par la revue, puis corrigé par le rejeu — le 5 octobre 2026,
+après l'arbitrage qui avait restreint la dérogation à `apoc.merge.*` et
+`apoc.create.*`. `camel` appelle aussi `apoc.meta.data` au `__init__` de son
+`Neo4jGraph`, et l'intuition disait qu'une **lecture** n'avait pas besoin d'être
+débridée. Faux : APOC marque `apoc.meta.data` comme **sandboxed**, et une
+sandboxed est refusée même quand lire est permis. Le rejeu a rendu **16/17** :
+
+```
+apoc.meta.data is unavailable because it is sandboxed and has dependencies
+```
+
+La liste livrée nomme donc les **quatre** procédures de `camel` —
+`apoc.meta.data`, `apoc.merge.*`, `apoc.create.*` — et le test les exige
+nommément. C'est la deuxième fois que la story apprend la même leçon : la
+question « APOC est-il nécessaire ? » ne se répond pas par catégorie (écriture
+vs lecture), seulement par exécution. La ligne était **plausible**, et aucune
+relecture ne l'aurait vue.
 
 **3. La hiérarchie d'exceptions n'est pas une chaîne, et ce n'est pas une dérive.**
 Le contrôle l'a d'abord **échoué**, et le test avait tort : il affirmait
