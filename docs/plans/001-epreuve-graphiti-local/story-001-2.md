@@ -2,7 +2,7 @@
 id: "001-2"
 epic: "001"
 titre: "Neo4j 5.26 + APOC en local, premier test comportemental du driver forcé"
-statut: review
+statut: done
 auteur: agent
 format: "2"
 ---
