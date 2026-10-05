@@ -39,14 +39,19 @@ epics:
     # transformers==3.0.0 vs >=3.2.1). Parade mesurée et rejouable : override
     # côté uv, un seul environnement, 192 tests verts à l'époque. Décision ACTÉE
     # par l'ADR 0010, précisée par l'ADR 0011.
-    # Story 001-1b (review) : l'override est POSÉ. pyproject.toml porte
-    # override-dependencies = ["neo4j>=5.26.0,<6.0.0"] avec neo4j 5.28.6 en
-    # commentaire, graphiti-core==0.30.2 est en dépendance produit SANS extra,
-    # et le lock est régénéré et commité — 234 tests verts (204 au premier jet). Le protocole
-    # mesurer-001-1.sh a dû être réécrit : il exigeait graphiti-core absent et
-    # ajoutait un second [tool.uv]. Il normalise maintenant pyproject.toml dans
-    # l'état qu'il veut mesurer, refuse un arbre ambigu, et a été rejoué sur les
-    # deux arbres. Reste 001-2, premier test COMPORTEMENTAL du driver forcé.
+    # Story 001-1b (done) : l'override est POSÉ, relu et corrigé.
+    # pyproject.toml porte override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
+    # avec neo4j 5.28.6 en commentaire, graphiti-core==0.30.2 est en
+    # dépendance produit SANS extra, et le lock est régénéré et commité.
+    # Le protocole mesurer-001-1.sh a dû être réécrit : il exigeait
+    # graphiti-core absent et ajoutait un second [tool.uv]. Il normalise
+    # maintenant pyproject.toml dans l'état qu'il veut mesurer, refuse un
+    # arbre ambigu, et a été rejoué sur les deux arbres — les deux sorties
+    # sont versionnées. Revue par 4 couches : 5 findings bloquants, tous
+    # corrigés (dont --frozen qui ne vérifiait pas le lock, et la télémétrie
+    # posthog activée par défaut, désactivée depuis). 234 tests, +30 de
+    # revue (204 au premier jet de la story).
+    # Reste 001-2, premier test COMPORTEMENTAL du driver forcé.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).

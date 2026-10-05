@@ -130,7 +130,7 @@ def forced_by_other_levers(data: dict) -> list[str]:
     """Les paquets forcés **autrement** que par `override-dependencies`.
 
     `constraint-dependencies` et `[tool.uv.sources]` sont deux autres façons de
-   选定 une version sans que la règle 1 de l'ADR 0010 ne les regarde. Ce qui
+    forcer une version sans que la règle 1 de l'ADR 0010 ne les regarde. Ce qui
     n'est pas surveillé n'est pas gardé, même si la documentation dit l'inverse.
     """
     tool_uv = data.get("tool", {}).get("uv", {})

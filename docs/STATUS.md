@@ -38,9 +38,9 @@ La story **001-1 est `done`** : le conflit `graphiti-core` / `camel-oasis` est
 réel et structurel, la parade est mesurée et rejouable
 ([`mesurer-001-1.sh`](plans/001-epreuve-graphiti-local/mesurer-001-1.sh)), la
 décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
-revue sont restés différés : [`deferred-work.md`](../deferred-work.md).
+revue de la 001-1 sont dans [`deferred-work.md`](../deferred-work.md).
 
-La story **001-1b est `review`** : l'`override-dependencies` du driver est posé
+La story **001-1b est `done`** : l'`override-dependencies` du driver est posé
 dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le
 lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
 avait consignée, sans écart. **234 tests verts.**
@@ -117,9 +117,12 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
    silence.
 3. L'épreuve elle-même, et son verdict.
 
-> La 001-1b reste en `review` : le geste est posé, testé et mesuré, mais une
-> relecture est due avant de la passer en `done`
-> ([`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md)).
+> La 001-1b a été relue par quatre couches indépendantes avant d'être passée en
+> `done`. Cinq de leurs findings invalidaient des affirmations écrites dans la
+> story — dont deux qui résistaient à l'examen le plus simple : `uv sync
+> --frozen` ne vérifie pas le lock, et les tests de cohérence lock lisaient le
+> lock que `uv run` venait de réécrire. Le compte rendu est dans
+> [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md) § Revue.
 
 ## Questions ouvertes
 

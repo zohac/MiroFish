@@ -33,7 +33,7 @@ reproductible.**
 
 ### La tâche du moment
 
-> **La story 001-1 est `done`**, et la **001-1b est `review`** : l'`override-dependencies`
+> **Les stories 001-1 et 001-1b sont `done`** : l'`override-dependencies`
 > du driver `neo4j` est posé dans `backend/pyproject.toml`, avec
 > `graphiti-core==0.30.2` **sans extra** et le lock régénéré et commité.
 > `neo4j 5.28.6` résolue — la version que l'ADR 0011 avait consignée, sans écart.

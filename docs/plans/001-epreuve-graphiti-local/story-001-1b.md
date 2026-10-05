@@ -2,7 +2,7 @@
 id: "001-1b"
 epic: "001"
 titre: "Poser l'override-dependencies du driver neo4j"
-statut: review
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -127,6 +127,25 @@ pas lire un lock valide comme une preuve de fonctionnement.
    laisserait aucune trace.
 
 ## Revue
+
+### Passage en `done` — 4 octobre 2026
+
+La story a été relue avant d'être close, et les corrections issues de cette revue
+sont **dans l'arbre**, pas promises : `--locked` en CI et dans l'image, les tests
+de cohérence lock comparant l'index git, la télémétrie coupée, le pin de
+`graphiti-core` gardé. `validate_plans.py` valide, 234 tests verts.
+
+Ce qui a été trouvé et **différé** — parce que ce n'est pas du travail qu'elle
+aurait dû faire — est dans [`deferred-work.md`](../../../deferred-work.md) :
+le propriétaire de la revalidation à chaque release du driver, le pin du
+frontend (`--frozen-lockfile` a la même sémantique que `--frozen`, non testée),
+et la surveillance d'un éventuel **nouveau** client de télémétrie dans
+`graphiti-core`. Un `done` qui ne nierait aucun coût serait un `done` de façade :
+l'override en porte trois, ils sont nommés.
+
+**Ce que `done` ne signifie pas.** Aucune connexion n'a été ouverte sous cet
+override. C'est la story 001-2, et elle seule, qui tranchera l'ADR 0010 — par
+supersession s'il casse, jamais par réécriture.
 
 ### Revue de code — 4 octobre 2026
 
