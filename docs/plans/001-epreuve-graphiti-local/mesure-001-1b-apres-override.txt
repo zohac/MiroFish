@@ -1,0 +1,71 @@
+
+=== 0. état de départ ===
+ M .env.example
+ M .github/workflows/ci.yml
+ M Dockerfile
+ M backend/app/config.py
+ M backend/tests/test_pyproject_override.py
+ M docs/plans/001-epreuve-graphiti-local/mesurer-001-1.sh
+?? backend/tests/test_graphiti_telemetry.py
+?? backend/tests/test_mesurer_protocol.py
+uv.lock sha256 : 3addcc571928d47778aabb0c8dd5d9e4a95e4c7b24649e1d9351b4c959accc0c
+venv au départ : neo4j 5.28.6, graphiti_core présent
+pin de l'arbre : graphiti-core==0.30.2
+état de l'arbre : APRÈS la 001-1b — graphiti-core + override de l'ADR 0010
+dans les deux cas, la mesure porte sur le même couple de versions (voir étape 1)
+
+=== 1. graphiti-core seule, sans arbitrage — on attend un refus ===
+graphiti-core==0.30.2, pas d’override
+  × No solution found when resolving dependencies for split (markers:
+  │ python_full_version == '3.12.*'):
+  ╰─▶ Because camel-oasis==0.2.5 depends on neo4j==5.23.0 and
+      graphiti-core==0.30.2 depends on neo4j>=5.26.0, we can conclude that
+      camel-oasis==0.2.5 and graphiti-core==0.30.2 are incompatible.
+      And because your project depends on camel-oasis==0.2.5, we can conclude
+      that graphiti-core==0.30.2 and your project are incompatible.
+      And because your project depends on graphiti-core==0.30.2 and your
+      project requires mirofish-backend[dev], we can conclude that your
+      project's requirements are unsatisfiable.
+
+hint: While the active Python version is 3.11, the resolution failed for other Python versions supported by your project. Consider limiting your project's supported Python versions using `requires-python`.
+=== 2. même chose, avec l'override de l'ADR 0010 ===
+graphiti-core==0.30.2, [tool.uv] posé
+Resolved 189 packages in 3ms
+Uninstalled 1 package in 0.41ms
+Installed 1 package in 0.86ms
+ ~ mirofish-backend==0.1.0 (from file:///Users/simon/dev/MiroFish/backend)
+version résolue consignée : neo4j 5.28.6
+
+=== 3. ce que chacun des trois paquets exige du driver ===
+borne déclarée   : neo4j>=5.26.0,<6.0.0
+version lockée   : neo4j 5.28.6
+exigences lues dans les METADATA installés :
+  Requires-Dist: neo4j (==5.23.0)
+  Requires-Dist: neo4j<6,>=5.18.0
+  Requires-Dist: neo4j>=5.26.0
+
+=== 4. imports dans l'ordre — camel-oasis, puis neo4j, puis graphiti_core ===
+   Building mirofish-backend @ file:///Users/simon/dev/MiroFish/backend
+      Built mirofish-backend @ file:///Users/simon/dev/MiroFish/backend
+Uninstalled 1 package in 0.40ms
+Installed 1 package in 1ms
+oasis         ok oasis
+neo4j         ok 5.28.6
+graphiti_core ok graphiti_core
+
+=== 5. surface du driver réellement utilisée par camel et oasis ===
+neo4j.Version            0 fichier(s)
+GraphDatabase.driver     2 fichier(s)
+from neo4j import Query  1 fichier(s)
+neo4j.exceptions         1 fichier(s)
+
+=== 6. filet de tests ===
+........................................................................ [ 92%]
+..................                                                       [100%]
+234 passed in 7.43s
+--- restauration ---
+pyproject.toml : 332a335368b0043c…
+uv.lock        : 3addcc571928d477…
+venv           : neo4j 5.28.6
+graphiti_core  : présent
+état           : identique au départ (neo4j 5.28.6, graphiti_core présent)

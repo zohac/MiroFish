@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-03
+mis_a_jour: 2026-10-04
 
 epics:
   - id: "001"
@@ -42,7 +42,7 @@ epics:
     # Story 001-1b (review) : l'override est POSÉ. pyproject.toml porte
     # override-dependencies = ["neo4j>=5.26.0,<6.0.0"] avec neo4j 5.28.6 en
     # commentaire, graphiti-core==0.30.2 est en dépendance produit SANS extra,
-    # et le lock est régénéré et commité — 204 tests verts. Le protocole
+    # et le lock est régénéré et commité — 234 tests verts (204 au premier jet). Le protocole
     # mesurer-001-1.sh a dû être réécrit : il exigeait graphiti-core absent et
     # ajoutait un second [tool.uv]. Il normalise maintenant pyproject.toml dans
     # l'état qu'il veut mesurer, refuse un arbre ambigu, et a été rejoué sur les

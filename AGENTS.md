@@ -39,8 +39,8 @@ reproductible.**
 > `neo4j 5.28.6` résolue — la version que l'ADR 0011 avait consignée, sans écart.
 > Le protocole de mesure de la 001-1 **reste rejouable sur les deux arbres** : il
 > normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure
-> l'octet initial, et refuse un arbre ambigu au lieu de le deviner. **204 tests
-> verts.** Fichiers :
+> l'octet initial, et refuse un arbre ambigu au lieu de le deviner. Les deux
+> sorties de mesure sont versionnées. **234 tests verts.** Fichiers :
 > [`story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md),
 > [`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
 >
@@ -79,7 +79,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**204 tests** — il doit grossir, jamais rétrécir.
+**234 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -145,7 +145,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  204 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  234 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -286,7 +286,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 204 tests
+cd backend && uv run pytest tests/ -q                  # 234 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -333,7 +333,7 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 204 tests |
+| Tests | `backend/tests/` | pytest — 234 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -460,7 +460,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
 | **`camel-oasis` et `graphiti-core` ne coexistent pas** : `neo4j==5.23.0` est un pin exact qu'aucune version ne desserre, `graphiti-core` exige un plancher `>=5.26.0` — aucune combinaison publiée ne résout | ADR 0010, ADR 0011, story 001-1 · `LOCAL-FIRST.md` §11.4 |
 | **Un `override` est un pari sur le comportement, pas sur le lock** : la surface du driver est relevée (`neo4j.Version` n'est utilisée nulle part), l'exécution ne l'est pas — la 001-2 tranche | ADR 0011 |
-| **La mesure de la 001-1 est rejouable, sur les deux arbres** : `mesurer-001-1.sh` normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure `pyproject.toml`, `uv.lock` et le venv à l'octet initial ; il refuse un arbre ambigu (override d'un autre périmètre, geste à moitié posé) au lieu de le deviner. Rejoué sur l'arbre avant et après l'override, 204 tests verts à chaque fois | story 001-1, story 001-1b |
+| **La mesure de la 001-1 est rejouable, sur les deux arbres** : `mesurer-001-1.sh` normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure `pyproject.toml`, `uv.lock` et le venv à l'octet initial ; il refuse un arbre ambigu (override d'un autre périmètre, `[tool.uv]` portant d'autres clés, geste à moitié posé) au lieu de le deviner. Les **deux sorties sont versionnées** dans [`mesures-001-1b.md`](docs/plans/001-epreuve-graphiti-local/mesures-001-1b.md) | story 001-1, story 001-1b |
 | **L'override est posé, et sa version résolue est gardée** : `pyproject.toml` porte `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` avec `neo4j 5.28.6` en commentaire, et un test échoue si le lock s'en écarte — donc à chaque CI | story 001-1b · ADR 0011 |
 | **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
@@ -480,7 +480,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 204 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 234 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,

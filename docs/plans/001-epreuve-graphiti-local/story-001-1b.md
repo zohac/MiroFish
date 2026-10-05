@@ -128,7 +128,124 @@ pas lire un lock valide comme une preuve de fonctionnement.
 
 ## Revue
 
-Suivis éventuels : _aucun pour l'instant._
+### Revue de code — 4 octobre 2026
+
+Relecture des quatre commits `971fbc3..204ff33` par quatre couches indépendantes
+( chasse aveugle, chasse aux cas limites, écart de vérification, auditeur
+d'acceptation), chacune sans voir les autres. Bilan : **60 findings**, dont
+**cinq vérifiés comme invalides des affirmations de cette story** — donc
+corrigés, pas contestés. Les 55 autres sont dans les sections qui suivent.
+
+> **Pourquoi ces findings sont sous `## Revue` et non sous `## Tâches`.**
+> `validate_plans.py` refuse toute case ouverte dans `## Tâches` pour une story
+> en `review`. C'est aussi, de toute façon, le bon endroit pour le compte rendu
+> d'une revue.
+
+#### Bloquants — une affirmation fausse, corrigée
+
+- [x] **`uv sync --frozen` ne vérifie pas le lock.** La story, `AGENTS.md` §10 et
+      `LOCAL-FIRST.md` affirmaient que le piège de build était « surveillé, pas
+      évité ». Vérifié : sur un `pyproject.toml` que le lock ne satisfait pas,
+      `--frozen` sort en **0** et installe le lock tel quel — la dépendance
+      ajoutée est silencieusement absente. C'est `--locked` qui sort en 1.
+      **« ne pas mettre à jour le lock » n'est pas « vérifier que le lock est à
+      jour ».** Corrigé dans `Dockerfile:24` et `.github/workflows/ci.yml`.
+- [x] **Les tests de cohérence lock étaient auto-satisfaits.** `uv run pytest` —
+      la commande de la CI comme celle de `AGENTS.md` §3 — **re-résout et
+      réécrit `uv.lock` avant que la suite ne l'ouvre**. Démontré : un lock
+      amputé de son `[manifest] overrides` donne `1 failed` en interpréteur
+      direct et `12 passed` sous `uv run`. Les tests lisaient le lock que `uv`
+      venait d'écrire pour coller au pyproject, donc la dérive qu'ils existent
+      pour empêcher passait en vert. Le test compare désormais les octets de
+      **l'index git**, dans un sous-processus en `UV_FROZEN=1`.
+- [x] **La version résolue de `graphiti-core` n'était gardée par rien.** Le pin
+      `==0.30.2` est présenté comme une décision dans les notes de complétion,
+      et `graphiti-core>=0.30` passait les 204 tests. C'est le pin qui décide de
+      ce que la 001-2 importera : il est maintenant gardé, contre le lock, avec
+      son négatif.
+- [x] **`test_extra_on_graphiti_core_is_reported` ne testait pas ce qu'il
+      disait.** Sa fixture *ajoutait* une seconde entrée
+      `graphiti-core[sentence-transformers]` à côté de la vraie : elle prouvait
+      qu'une entrée porte un extra, pas que la nôtre n'en porte pas. Elle mute
+      maintenant **la déclaration livrée**.
+- [x] **Le bloc canonique de l'ADR 0011 avait été supprimé de `STATUS.md`.**
+      L'ADR exige que `STATUS.md` et la story reprennent cette écriture exacte ;
+      le diff retirait le seul bloc qui restait. Restauré.
+
+#### Corrigés sans être bloquants
+
+- [x] **Le périmètre de l'override n'était gardé qu'à moitié.** `constraint-
+      dependencies` et `[tool.uv.sources]` sont deux autres façons de forcer une
+      version, et rien ne les regardait : élargir l'override par ce levier ne
+      laisserait aucune trace, alors que la story affirme le contraire dans trois
+      documents. Les deux sont surveillés.
+- [x] **La version lockée n'était pas confrontée à la borne.** Un lock sur
+      `5.23.0` — le pin de `camel-oasis`, c'est-à-dire l'override qui ne
+      s'applique plus — passait, tant que le commentaire suivait. La seule
+      comparaison commentaire/lock ne le voit pas.
+- [x] **`sentence-transformers 3.0.0` et `torch 2.9.1` n'étaient vérifiés que par
+      une lecture du diff, une fois.** La définition de fini les coche ; un test
+      les garde désormais, donc la preuve ne disparaît pas au prochain
+      `uv lock`.
+- [x] **Les deux invariants qui lisent le lock n'avaient aucun test négatif** —
+      « sept négatifs sur neuf, les deux trous sont ceux qui vérifient le lock ».
+- [x] **Le commentaire de version était cherché n'importe où dans le fichier**,
+      alors que l'ADR 0011 dit « à côté de la borne ». Un commentaire en tête de
+      fichier.passait et aurait survécu à un changement de borne.
+- [x] **Le protocole : `trap` posé après le premier sync** (une interruption
+      entre les deux laissait un venv muté, jamais restauré), **`uv lock` et
+      `uv sync` non asservis à l'étape 2** (`$LOCKED_NEO4J` était lu dans le venv
+      — donc périmé — et consigné comme « version résolue »), **`[tool.uv]`
+      supprimé en silence** quand il portait d'autres clés (`index-url` : la
+      mesure se faisait contre un autre index que la production), **mode inconnu
+      mesurant la branche « refus » en silence**, **`graphiti-core` dans un groupe
+      `dev` étiquetant l'arbre « AVANT la 001-1b »**, **`python3` sans
+      `tomllib` produisant un `ImportError` en pleine étape**.
+- [x] **Le protocole n'avait aucune couverture.** Huit tests l'exercent
+      maintenant en **extrait la vraie fonction du vrai script** — une seconde
+      implémentation dériverait, ce qui est précisément ce qu'on veut voir.
+      Chaque garde-fou a été neutralisé puis le test rejoué : il échoue bien.
+- [x] **Le protocole insérait `graphiti-core` à la marge**, en perdant
+      l'indentation. Le pyproject restait valide — `uv` ne protestait pas — mais
+      l'arbre mesuré n'était plus l'arbre du dépôt. Visible parce que l'étape 6
+      lance la suite sur l'arbre réécrit, invisible autrement.
+
+#### Retenues pour la suite, avec ce qui les déclencherait
+
+- [x] **`posthog` entre par la porte de `graphiti-core`, et la télémétrie est
+      active par défaut** — traitée comme une décision, pas comme un détail.
+      Voir les notes de complétion.
+- [x] **NFR-3 : ma plus forte affirmation n'avait aucun artefact versionné.**
+      Les deux sorties sont désormais dans
+      [`mesure-001-1b-avant-override.txt`](mesure-001-1b-avant-override.txt) et
+      [`mesure-001-1b-apres-override.txt`](mesure-001-1b-apres-override.txt),
+      expliquées dans [`mesures-001-1b.md`](mesures-001-1b.md).
+      `mesure-001-1.txt` n'est **pas** rafraîchi : c'est la preuve du
+      3 octobre, et ses `192 passed` sont ceux de ce jour-là.
+- [x] **`epic-001.md` annonçait « atteint »** dans la colonne des critères alors
+      que la story est en revue. Le marqueur a reculé dans les notes de la story,
+      qui est sa place.
+- [x] **`deferred-work.md` se contredisait** : une entrée disait « ni comment on
+      le remarquerait », l'autre que le déclencheur est mécanique. La première est
+      marquée comme traitée.
+- [x] **`sprint-status.yaml` gardait `mis_a_jour: 2026-10-03`** alors que son
+      bloc 001-1b décrivait le 4 octobre.
+- [x] **`docs/README.md` n'indexe ni l'ADR 0010 ni l'ADR 0011.** Entrée
+      différée, préexistante, et ce diff y ajoute des renvois.
+
+#### Différé, avec ce qui le déclencherait
+
+- Le **pin du frontend** : `pnpm install --frozen-lockfile` a une sémantique
+  analogue à `--frozen` et n'a pas été testé comme elle. *Ce qui déclencherait :
+  une désynchronisation constatée côté Node, ou un ADR de précision sur la
+  sémantique des deux drapeaux.*
+- **`constraint-dependencies` reste autorisé sur `neo4j`.** Le test refuse un
+  levier qui force *un autre paquet* ; il n'interdit pas un second mécanisme sur
+  le même, qui n'apporterait rien et compliquerait la lecture. *Ce qui
+  déclencherait : son apparition dans `pyproject.toml`.*
+- **Les chiffres du diff du lock** (50 lignes ajoutées, 3 supprimées, cinq
+  lignes de version) ne sont pas reproductibles depuis un artefact. Ils sont
+  exacts pour ce commit, et `git diff 971fbc3..HEAD --stat` les régénère.
 
 ## Notes de complétion
 
@@ -148,9 +265,9 @@ lignes de version, cinq seulement changent, et `sentence-transformers 3.0.0` et
 `torch 2.9.1` n'en font pas partie. C'est la règle 1 de l'ADR 0010 vérifiée par
 le lock lui-même, pas par une intention.
 
-`uv sync --frozen` réussit dans un venv vierge, et les trois imports passent dans
-l'ordre (`oasis`, `neo4j 5.28.6`, `graphiti_core`). **204 tests verts**, 192
-avant cette story.
+`uv sync --locked` réussit dans un venv vierge, et les trois imports passent dans
+l'ordre (`oasis`, `neo4j 5.28.6`, `graphiti_core`). **234 tests verts** après la
+revue, 204 au premier jet de cette story, 192 avant elle.
 
 **La version résolue est celle de l'ADR 0011.** 5.28.6, sans écart — mais rien ne
 l'aurait garanti : `neo4j>=5.26.0,<6.0.0` résout sur la dernière 5.x au jour du
@@ -221,7 +338,10 @@ versions.
 
 > `mesure-001-1.txt` **n'a pas été rafraîchie** : c'est la sortie datée du
 > 3 octobre 2026 sur un arbre sans override, la preuve historique. Ses 192
-> `passed` sont ceux de ce jour-là.
+> `passed` sont ceux de ce jour-là. Les deux sorties de la 001-1b sont dans
+> [`mesure-001-1b-avant-override.txt`](mesure-001-1b-avant-override.txt) et
+> [`mesure-001-1b-apres-override.txt`](mesure-001-1b-apres-override.txt), et
+> [`mesures-001-1b.md`](mesures-001-1b.md) explique ce qu'elles prouvent.
 
 ### Réversibilité
 
@@ -232,6 +352,44 @@ reconstitué. Le protocole rejoué sur cet arbre **refait reproduire le refus du
 résolveur** : c'est la preuve du conflit, pas une restauration du lock. Puis
 `uv sync --frozen` remet le venv sur `neo4j 5.23.0` sans `graphiti_core`, et
 `git status` ne montre que les fichiers du protocole lui-même.
+
+### `posthog` entre par la porte de `graphiti-core` — et la télémétrie part
+
+`graphiti-core` traîne `posthog 7.62.1` et `tenacity 9.1.4` dans le lock.
+Première réaction : une télémétrie de plus, dans un projet dont la thèse est le
+local-first. Vérification dans le venv installé :
+
+```python
+# graphiti_core/telemetry/telemetry.py:36
+env_value = os.environ.get(TELEMETRY_ENV_VAR, 'true').lower()
+```
+
+**Activée par défaut**, ciblant `us.i.posthog.com` (`telemetry.py:19`), et
+appelée depuis `Graphiti.__init__` (`graphiti.py:248`) — donc dès la
+construction du client, avant toute extraction. Le dépôt ne posait la variable
+**nulle part**. Je ne l'avais pas vu en posant l'override.
+
+Coupé par défaut, donc, dans `app/config.py` :
+
+```python
+GRAPHITI_TELEMETRY_ENABLED = (
+    os.environ.get('GRAPHITI_TELEMETRY_ENABLED', 'false').lower() in ('true', '1', 'yes', 'on')
+)
+# `graphiti-core` lit la variable dans `os.environ` au moment où le client est
+# construit, pas via notre Config. La pousser ici est ce qui rend la config
+# effective plutôt que décorative.
+os.environ['GRAPHITI_TELEMETRY_ENABLED'] = 'true' if GRAPHITI_TELEMETRY_ENABLED else 'false'
+```
+
+La seconde ligne est celle qui compte : sans elle, `Config` disait `false` et le
+client partait quand même en télémétrie, parce que la bibliothèque lit
+`os.environ`. Le test qui le vérifie échoue si on la retire — vérifié en la
+retirant. Et un autre test prouve que la bibliothèque **aurait** été active de sa
+propre initiative, sans notre config : sans cette preuve, « on est coupé » ne
+distingue pas « on a décidé » de « la bibliothèque a changé d'avis ».
+
+Une seule chose nous protégeait avant : `telemetry.py:31` court-circuite sous
+pytest. La suite était donc propre, et l'application ne l'était pas.
 
 ### Ce que cette story ne prouve toujours pas
 

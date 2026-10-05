@@ -43,13 +43,32 @@ revue sont restés différés : [`deferred-work.md`](../deferred-work.md).
 La story **001-1b est `review`** : l'`override-dependencies` du driver est posé
 dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le
 lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
-avait consignée, sans écart. **204 tests verts.**
+avait consignée, sans écart. **234 tests verts.**
+
+**`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
+`posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
+écrit une télémétrie d'initialisation vers `us.i.posthog.com` depuis
+`Graphiti.__init__`, **activée par défaut** (`telemetry.py:36`, défaut `'true'`).
+Un projet dont la thèse est le local-first ne peut pas laisser sortir de la
+machine sans l'avoir demandé : `app/config.py` pose
+`GRAPHITI_TELEMETRY_ENABLED=false` par défaut **et** pousse la variable dans
+l'environnement, parce que c'est là que la bibliothèque la lit. Six tests, dont un
+qui prouve que la bibliothèque aurait été active de sa propre initiative.
+
+L'override, dans la forme exacte que l'ADR 0011 impose :
+
+```toml
+[tool.uv]
+override-dependencies = ["neo4j>=5.26.0,<6.0.0"]
+# version effectivement résolue au lock du 2026-10-03 : neo4j 5.28.6
+```
 
 Le point difficile n'était pas la déclaration : c'est que poser l'override
 **cascait le protocole de mesure de la 001-1**. Il ne casse plus — il **normalise**
 `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure l'octet initial,
 et **refuse** un arbre ambigu au lieu de le deviner. Rejoué sur les deux arbres,
-204 tests verts à chaque fois.
+204 tests verts sur l'arbre d'avant, 234 sur celui d'après — les deux sorties
+sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/mesures-001-1b.md).
 [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md).
 
 ## À faire
@@ -117,7 +136,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | **204**, tous verts, **sans `.env`** (192 avant la story 001-1b ; 183 avant les neuf tests de revue du 3 octobre) |
+| Tests | **234**, tous verts, **sans `.env`** (204 après la 001-1b ; 192 avant ; 183 avant les neuf tests de revue du 3 octobre) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |
