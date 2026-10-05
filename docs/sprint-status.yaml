@@ -51,6 +51,12 @@ epics:
     # corrigés (dont --frozen qui ne vérifiait pas le lock, et la télémétrie
     # posthog activée par défaut, désactivée depuis). 234 tests, +30 de
     # revue (204 au premier jet de la story).
+    # Story 001-2 (backlog, RÉDIGÉE) : Neo4j 5.26.31-community dans un compose
+    # SÉPARÉ, serveur figé sur un patch (le tag 5.26 est flottant et a bougé le
+    # 2 octobre), écart driver 5.28.6 / serveur 5.26.31 consigné et gardé par un
+    # test. Elle exercera la surface de l'ADR 0011, pas seulement l'import, et
+    # mesurera si APOC est encore nécessaire à Graphiti 0.30.2 — qui n'appelle
+    # aucune procédure APOC et n'utilise que des procédures natives.
     # Reste 001-2, premier test COMPORTEMENTAL du driver forcé.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.

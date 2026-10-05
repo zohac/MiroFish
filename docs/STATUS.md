@@ -103,12 +103,20 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Story 001-2** — Neo4j 5.26 + APOC en local, avec volumes nommés. C'est le
-   **premier test comportemental du driver forcé** : personne n'a encore ouvert
-   de connexion sous cet override. La surface est relevée (ADR 0011),
-   l'exécution ne l'est pas — et c'est 001-2 qui tranche l'ADR 0010, par
-   supersession s'il casse. Elle dispose maintenant de `neo4j 5.28.6` lockée,
-   version que l'override a résolue et que `pyproject.toml` consigne.
+1. **Story 001-2 — rédigée, à démarrer.** Neo4j en local, dans un compose
+   **séparé** de celui de l'application, serveur figé sur `5.26.31-community`.
+   C'est le **premier test comportemental du driver forcé** : personne n'a
+   encore ouvert de connexion sous cet override. La surface est relevée (ADR
+   0011), l'exécution ne l'est pas — et c'est 001-2 qui tranche l'ADR 0010, par
+   supersession s'il casse. Elle dispose de `neo4j 5.28.6` lockée, version que
+   l'override a résolu et que `pyproject.toml` consigne.
+   Fichier : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md).
+   Trois choix y sont déjà actés, et chacun a sa raison : le **tag du serveur est
+   figé** sur un patch (le tag `5.26` est flottant et a bougé le 2 octobre),
+   l'**écart** entre le driver 5.28.6 et le serveur 5.26.31 est consigné plutôt
+   quelaissé, et la surface de l'ADR 0011 sera **exercée** et pas seulement
+   importée. Au passage, la story mesurera si **APOC est encore nécessaire** :
+   `graphiti-core 0.30.2` n'appelle aucune procédure APOC.
 2. Puis 001-3 (en-tête de session) et 001-4 (embedder) — les deux autres risques
    de l'épreuve. 001-4 reste **bloquée par le même conflit** que le driver
    (`sentence-transformers==3.0.0` contre `>=3.2.1`), avec son propre arbitrage :

@@ -61,7 +61,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 |---|---|---|---|
 | 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `done` | [`story-001-1.md`](story-001-1.md) |
 | 001-1b | Poser l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `done` | [`story-001-1b.md`](story-001-1b.md) |
-| 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés | `backlog` | — |
+| 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `backlog` | [`story-001-2.md`](story-001-2.md) |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
 | 001-5 | Script de mesure reproductible + rapport versionné | `backlog` | — |
@@ -73,12 +73,18 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 > un fichier par story **réellement démarrée**, pas imaginée. Le script de
 > validation impose l'inverse, lui : une story `in-progress` ou au-delà **doit**
 > avoir un fichier et être citée dans ce document.
+>
+> `001-2` a son fichier alors qu'elle est `backlog` : c'est le premier test
+> comportemental du driver forcé, et ses choix — version du serveur figée,
+> compose séparé, surface à exercer — méritaient d'être écrits **avant** de la
+> démarrer, pas pendant. C'est une exception assumée : le fichier est là pour
+> fixer le périmètre, pas pour prétendre que le travail a commencé.
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
 | 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then **aucune erreur de résolution** — ⚠️ **échec mesuré et rejouable** (`mesurer-001-1.sh`, sortie dans `mesure-001-1.txt`) : `neo4j==5.23.0` est un pin exact que `graphiti-core` ne peut pas satisfaire (plancher `>=5.26.0`), et l'inverse vaut aussi · sous l'`override` de l'ADR 0010, `camel-oasis`, `neo4j` et `graphiti_core` s'importent dans cet ordre et les tests restent verts |
 | 001-1b | Given l'ADR 0010 et l'ADR 0011, when on ajoute `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` dans `backend/pyproject.toml`, then `uv lock` résout · `uv sync --frozen` réussit · `oasis`, `neo4j` et `graphiti_core` s'importent dans cet ordre · les tests passent · **le geste est réversible** : retirer l'override puis `git checkout backend/pyproject.toml backend/uv.lock` ramène l'arbre à l'état initial, et `uv lock` **échoue à nouveau** sans l'override — c'est bien la preuve du conflit, pas une restauration du lock · *mesuré, en revue* : `neo4j 5.28.6` lockée, lock revenu au sha `1b41b865…` après `git checkout`, `mesurer-001-1.sh` rejoué sur **les deux** arbres, les deux sorties versionnées dans [`mesures-001-1b.md`](mesures-001-1b.md) |
-| 001-2 | Given le compose local, when il démarre, then le healthcheck Neo4j passe au vert · un nœud écrit survit à la recréation du conteneur — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé |
+| 001-2 | Given un `docker-compose.neo4j.yml` séparé et un serveur **figé** sur `neo4j:5.26.31-community`, when il démarre, then le healthcheck Bolt passe au vert · une écriture puis une relecture passent par `neo4j 5.28.6` sous le pin `camel-oasis`, sans workaround · un nœud survit à l'arrêt puis au redémarrage · les quatre symboles de la surface de l'ADR 0011 sont **exercés**, dont la hiérarchie d'exceptions prouvé par un `ClientError` réel · le verdict est écrit et l'écart driver/serveur consigné — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé |
 | 001-3 | Given un appel d'extraction, when l'hôte est `opencode.ai`, then aucun `MissingSessionID` · given un autre endpoint, then aucun en-tête ajouté |
 | 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`) : arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
 | 001-5 | Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités · le rapport contient appels, latences, retries, erreurs exactes · il est commité |

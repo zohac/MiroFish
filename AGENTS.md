@@ -44,11 +44,16 @@ reproductible.**
 > [`story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md),
 > [`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
 >
-> **La tâche du moment est 001-2** — Neo4j 5.26 + APOC en local, avec volumes
-> nommés. C'est le **premier test comportemental** du driver forcé : personne
-> n'a encore ouvert de connexion sous cet override. C'est là, pas dans 001-1,
+> **La tâche du moment est 001-2, et sa story est rédigée** —
+> [`story-001-2.md`](docs/plans/001-epreuve-graphiti-local/story-001-2.md).
+> Neo4j en local, compose **séparé**, serveur figé sur `5.26.31-community`.
+> C'est le **premier test comportemental** du driver forcé : personne n'a
+> encore ouvert de connexion sous cet override. C'est là, pas dans 001-1,
 > qu'un problème de driver se verrait — et si elle casse, l'ADR 0010 est
-> supersédé, pas réécrit.
+> supersédé, pas réécrit. Trois choix y sont déjà actés : le tag du serveur est
+> **figé** (le tag `5.26` est flottant, et il a bougé le 2 octobre 2026),
+> l'écart driver 5.28.6 / serveur 5.26.31 est consigné et gardé par un test, et
+> la surface de l'ADR 0011 sera **exercée** et non seulement importée.
 >
 > Cinq points de la revue de 001-1 et trois dettes contractées par l'override
 > sont dans [`deferred-work.md`](docs/deferred-work.md).
