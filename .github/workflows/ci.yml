@@ -26,11 +26,14 @@ jobs:
         with:
           enable-cache: true
 
-      # --frozen : la CI échoue si pyproject.toml et uv.lock divergent.
-      # C'est exactement le piège du Dockerfile, on le laisse ici au lieu
-      # de le découvrir au build de l'image.
+      # --locked, et non --frozen : « ne pas mettre à jour le lock » n'est pas
+      # « vérifier que le lock est à jour ». Sur un pyproject que le lock ne
+      # satisfait pas, --frozen sort en 0 et l'image part sans la dépendance —
+      # c'est exactement le piège du Dockerfile, on le laisse ici au lieu de le
+      # découvrir au build. Vérifié le 4 octobre 2026 : --locked sort en 1 sur
+      # le même arbre.
       - name: Sync des dépendances
-        run: uv sync --frozen
+        run: uv sync --locked
 
       - name: Lint
         run: uv run ruff check .

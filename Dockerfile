@@ -22,9 +22,14 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
 COPY backend/pyproject.toml backend/uv.lock ./backend/
 
 # Dépendances (Node + Python), verrouillées
+# `--locked` et non `--frozen` : `--frozen` signifie « ne mets pas le lock à
+# jour », pas « vérifie que le lock est à jour ». Sur un pyproject que le lock ne
+# satisfait pas, `--frozen` sort en 0 et installe le lock tel quel — la
+# dépendance ajoutée est silencieusement absente de l'image. Vérifié le
+# 4 octobre 2026 ; `--locked` sort en 1 sur le même arbre.
 RUN pnpm install --frozen-lockfile \
   && pnpm --dir frontend install --frozen-lockfile \
-  && cd backend && uv sync --frozen
+  && cd backend && uv sync --locked
 
 # Code source
 COPY . .
