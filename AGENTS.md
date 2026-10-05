@@ -44,9 +44,9 @@ reproductible.**
 > [`story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md),
 > [`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
 >
-> **La tâche du moment est 001-3, en tête de la 001-2.** La story **001-2 est
-> `review`** : c'est le **premier test comportemental** du driver forcé, et il
-> est **passé**. `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`,
+> **La story 001-2 est `done`** : c'est le **premier test comportemental** du
+> driver forcé. Il est **passé**, puis **relu**, puis **rejoué sur le code
+> corrigé**. `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`,
 > tient contact avec un vrai serveur `Neo4j 5.26.31 community` — écriture,
 > relecture après arrêt puis redémarrage (le critère C3, pour la moitié qui ne
 > dépend pas de l'extraction), et toute la surface de l'ADR 0011 **exercée** :
@@ -57,10 +57,21 @@ reproductible.**
 >
 > **APOC a deux réponses, pas une** — et c'est le point le plus utile de la
 > story : `graphiti-core 0.30.2` s'en passe (zéro occurrence dans le paquet,
-> mesuré), mais **`camel-oasis` en a besoin** (`apoc.meta.data()` au `__init__`
-> de son `Neo4jGraph`, `apoc.merge.node` à l'écriture). Le plugin reste donc
-> installé, pour `camel` et non pour Graphiti. `architecture.md` §4 est corrigé :
-> il prescrivait APOC en recopiant le fork de référence, sans dire pourquoi.
+> mesurée **et gardée par un test**), mais **`camel-oasis` en a besoin**
+> (`apoc.meta.data()` au `__init__` de son `Neo4jGraph`, `apoc.merge.node` à
+> l'écriture). Le plugin reste donc installé, pour `camel` et non pour Graphiti,
+> et la dérogation est **restreinte aux trois procédures mesurées** plutôt
+> qu'ouverte à `apoc.*`. `architecture.md` §4 est corrigé : il prescrivait APOC
+> en recopiant le fork de référence, sans dire pourquoi.
+>
+> **Une revue de code à quatre couches a trouvé six garde-fous qui ne pouvaient
+> pas échouer** — celui du secret, celui de la dérogation, celui du healthcheck,
+> et deux sur l'identifiant de conteneur — et un critère **C3 qui ne tenait que
+> par coïncidence** de forme du graphe de vérification. Les 28 correctifs sont
+> appliqués, chacun vérifié, **six par mutation** sur le vrai fichier puis
+> restauration à l'octet initial. La sonde des procédures écrit désormais sur son
+> propre nœud, et les trois transactions sont **comparées** à leur valeur
+> attendue au lieu d'être comptées comme vertes à l'aveugle.
 >
 > Trois trouvailles à connaître avant la 001-5 : `Neo4jError` et `DriverError`
 > sont des branches **sœurs** sous `GqlError`, pas une chaîne ; `graphiti-core`
@@ -69,7 +80,7 @@ reproductible.**
 > `apoc.merge.*` est refusé par défaut même plugin installé, sans quoi `camel`
 > accuse une installation qui est présente.
 >
-> **277 tests verts.** Cinq points de la revue de 001-1 et six dettes
+> **279 tests verts.** Cinq points de la revue de 001-1 et six dettes
 > contractées par l'override sont dans
 > [`deferred-work.md`](docs/deferred-work.md).
 
@@ -99,7 +110,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**277 tests** — il doit grossir, jamais rétrécir.
+**279 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -165,7 +176,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  277 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  279 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -324,7 +335,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 277 tests
+cd backend && uv run pytest tests/ -q                  # 279 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -372,7 +383,7 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 277 tests |
+| Tests | `backend/tests/` | pytest — 279 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -381,6 +392,9 @@ Variables d'environnement utiles :
 | Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
 | Épreuve du graphe | `docker-compose.neo4j.yml` | Neo4j seul, séparé — `5.26.31-community`, volumes nommés |
 | Vérification du driver | `backend/scripts/verifier_driver_neo4j.py` | test comportemental de l'override (001-2), 17 contrôles |
+| Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
+| Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
+| Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |
 | Docker | `Dockerfile`, `docker-compose.yml` | image amont, 1 service — **à étendre** (epic 005) |
 
 ---
@@ -530,7 +544,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 277 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 279 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,

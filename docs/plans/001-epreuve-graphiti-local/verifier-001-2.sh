@@ -7,7 +7,8 @@
 # la réponse est non, l'ADR 0010 est supersédé, pas réécrit.
 #
 # Le script ne conclut rien : il affiche. Le verdict est dans
-# `story-001-2.md`, la sortie brute dans `mesure-001-2.txt`.
+# `story-001-2.md`, les deux sorties brutes dans `mesure-001-2-compose.txt` et
+# `mesure-001-2-sans-apoc.txt` — le nom du mode décide laquelle.
 #
 # ## Ce que le protocole fait, dans l'ordre
 #
@@ -72,6 +73,18 @@ services:
       NEO4J_dbms_security_procedures_unrestricted: ""
 YAML
 
+# La surcharge est un **artefact de mesure** : sans elle, une sortie qui prétend
+# avoir tourné sans le plugin n'est pas vérifiable, et la comparaison des deux
+# fichiers versionnés ne prouve rien. Son empreinte est donc affichée à côté de
+# celle du compose livré.
+#
+# `trap` posé **immédiatement** après le `mktemp`. Les sorties d'erreur qui
+# suivent ne passaient pas toutes par le `rm -f` manuel — une exécution
+# interrompue laissait un fichier `apoc-off-*.yml` dans le répertoire temporaire,
+# à raison d'une fuite par essai raté. Un protocole rejouable (NFR-3) ne fuit pas
+# d'état entre deux exécutions.
+trap 'rm -f "$SANS_APOC"' EXIT INT TERM
+
 etape() { printf '\n=========== %s ===========\n' "$1"; }
 
 # Attendre que le Bolt réponde, sans dépendre du healthcheck Docker. Le
@@ -107,13 +120,23 @@ attendre_bolt() {
     return 1
 }
 
-# Le mot de passe vient du `.env`, comme le compose. Le lire ici plutôt que de le
-# passer en variable d'environnement évite qu'il atterrisse dans l'historique du
-# shell ou dans la sortie capturée.
-NEO4J_PASSWORD=$(grep '^NEO4J_PASSWORD=' "$RACINE/.env" 2>/dev/null | cut -d= -f2-)
+# Le mot de passe vient du `.env`, comme le compose — Docker Compose l'interpole
+# au même endroit, donc le protocole et le serveur parlent bien du même secret.
+#
+# Ce que la lecture ici évite : que le mot de passe soit tapé, donc qu'il
+# atterrisse dans l'historique du shell. Ce qu'elle n'évite pas, et qu'il faut
+# dire : `cypher-shell` le reçoit en **argument**, donc il est lisible dans la
+# table des processus du conteneur pendant la durée de l'appel. Un serveur
+# d'épreuve local à mot de passe jetable s'accommode de ce risque ; un serveur
+# réel exigerait `NEO4J_AUTH` passé par l'environnement, jamais en argument.
+NEO4J_PASSWORD=$(sed -n 's/^NEO4J_PASSWORD=//p' "$RACINE/.env" 2>/dev/null | head -1)
+NEO4J_PASSWORD=${NEO4J_PASSWORD%$'\r'}
+NEO4J_PASSWORD=${NEO4J_PASSWORD#\"}
+NEO4J_PASSWORD=${NEO4J_PASSWORD%\"}
+NEO4J_PASSWORD=${NEO4J_PASSWORD#\'}
+NEO4J_PASSWORD=${NEO4J_PASSWORD%\'}
 if [ -z "${NEO4J_PASSWORD:-}" ]; then
     echo "NEO4J_PASSWORD absent du .env — le protocole ne peut pas démarrer le serveur" >&2
-    rm -f "$SANS_APOC"
     exit 1
 fi
 
@@ -130,7 +153,6 @@ case "$MODE" in
         ;;
     *)
         echo "mode inconnu : « $MODE » (attendu : sans-apoc ou compose)" >&2
-        rm -f "$SANS_APOC"
         exit 1
         ;;
 esac
@@ -151,19 +173,23 @@ etape "0. configuration mesurée"
 echo "mode            : $MODE"
 echo "configuration   : $LIBELLE"
 echo "attente APOC    : $ATTENTE_APOC"
-echo "compose         : $(cd "$RACINE" && git rev-parse --short HEAD 2>/dev/null) · $(shasum -a 256 "$COMPOSE" | cut -c1-16)…"
+echo "compose         : $(shasum -a 256 "$COMPOSE" | cut -c1-16)…"
+# Les empreintes sont **du contenu**, pas d'un commit : elles identifient
+# exactement les fichiers qui ont produit la mesure, même si la mesure a été
+# prise sur un arbre modifié — et l'ancrage reste vrai après le commit, ce qu'un
+# `git rev-parse HEAD` ne peut pas promettre. C'est ce qui rend la sortie
+# vérifiable par un lecteur qui n'a que le fichier sous les yeux.
+echo "script          : $(shasum -a 256 "$RACINE/backend/scripts/verifier_driver_neo4j.py" | cut -c1-16)…"
+echo "surcharge APOC  : $(shasum -a 256 "$SANS_APOC" | cut -c1-16)… (plugin retiré, dérogation vidée)"
 echo "conteneur       : $CONTENEUR"
 echo "version compose : $(grep -E '^\s+image: neo4j:' "$COMPOSE" | sed 's/.*image: *//')"
 
 etape "1. démarrage et healthcheck"
-# `--wait` bloque jusqu'au healthcheck vert : c'est déjà une assertion de la
-# story — un healthcheck qui ne passe jamais ferait échouer la commande, donc
-# aucun diagnostic n'aurait à être produit à la main.
-if ! docker compose "${SITES[@]}" up -d --wait; then
-    echo "le conteneur ne devient pas healthy — la mesure s'arrête ici" >&2
-    docker compose "${SITES[@]}" logs --tail 40 neo4j >&2 || true
-    exit 1
-fi
+# Le conteneur est **déjà** démarré et attendu par le bloc juste au-dessus, qui
+# échoue avec un diagnostic en cas de panne. Ce second `up -d --wait` était un
+# doublon : il refaisait un cycle d'attente complet, et son absence de
+# diagnostic était justifié par le fait que le premier avait `>/dev/null 2>&1`.
+# Une seule commande, et cette fois avec son diagnostic.
 docker compose "${SITES[@]}" ps --format '  {{.Name}}  {{.State}}  {{.Status}}'
 attendre_bolt || exit 1
 
@@ -202,8 +228,13 @@ CODE_RELEIRE=$?
 echo "code de sortie : $CODE_RELEIRE"
 
 etape "6. verdict de cette exécution"
+# La version du driver est **lue**, pas écrite : elle est déjà calculée à l'étape
+# 2, et la ligne du verdict s'y réfère. Un littéral `5.28.6` dans le verdict
+# aurait fait qu'une sortie rejouée après un mouvement du lock afficherait encore
+# `5.28.6` — une version que personne n'aurait mesurée (NFR-3).
+DRIVER_VERSION=$(cd "$RACINE/backend" && uv run python -c "import importlib.metadata as m; print(m.version('neo4j'))")
 if [ "$CODE_RELEIRE" -eq 0 ]; then
-    echo "  driver 5.28.6 : tient contact avec le serveur, écriture et relecture comprises"
+    echo "  driver $DRIVER_VERSION : tient contact avec le serveur, écriture et relecture comprises"
     echo "  surface ADR 0011 : exercée, hiérarchie d'exceptions comprise"
     echo "  volume nommé : le nœud a survécu à l'arrêt puis au redémarrage"
 else

@@ -110,6 +110,13 @@ RELATION = "VERIFIES"
 NODE_ALPHA = f"{PREFIX}-alpha"
 NODE_BETA = f"{PREFIX}-beta"
 APOC_NODE = f"{PREFIX}-apoc"
+# Nœud **de la sonde des procédures**, distinct de ceux que `relire_graphe`
+# certifie. Les deux contrôles tournent dans les deux phases, y compris `relire` ;
+# sur un nœud commun, la phase qui prouve la survie au redémarrage recréait avant
+# de certifier une partie du graphe qu'elle relit. Le critère C3 ne tiendrait
+# alors plus que par le nœud et l'arête que cette sonde ne touche pas — c'est-à-dire
+# par coïncidence de forme du graphe, pas par propriété.
+NODE_PROCEDURES = f"{PREFIX}-procedures"
 
 # Les noms d'index et de contrainte sont des **identifiants Cypher**, pas des
 # valeurs : le tiret de `PREFIX` y est une faute de syntaxe, pas un caractère
@@ -192,8 +199,12 @@ class Report:
         passes = len(self.checks) - len(self.failures)
         lines.append(f"  {passes}/{len(self.checks)} contrôles passés")
         if self.connus:
-            lignes = ", ".join(c.name for c in self.connus)
-            lines.append(f"  {len(self.connus)} écart(s) connu(s) et documenté(s) : {lignes}")
+            noms = ", ".join(c.name for c in self.connus)
+            lines.append(
+                f"  {len(self.connus)} écart(s) connu(s) et documenté(s) — comptés parmi "
+                f"les passés parce qu'ils le sont : une fonctionnalité mesurée manquante, "
+                f"pas un défaut du driver : {noms}"
+            )
         if self.failures:
             lines.append("  en échec : " + ", ".join(c.name for c in self.failures))
         return "\n".join(lines)
@@ -246,8 +257,14 @@ def une_ligne(texte: object, largeur: int = 140) -> str:
 
     Le message complet d'une erreur Neo4j tient parfois en dix lignes ; dans un
     rapport, ce sont les cent premiers caractères qui font le diagnostic.
+
+    Le repli sur la chaîne vide n'est pas cosmétique : cette fonction est appelée
+    **depuis les gestionnaires d'exception**, et `str(exc)` peut être vide — un
+    `str()` vide ne rend pas seulement le diagnostic muet, il fait lever
+    `IndexError` à l'endroit même qui devait nommer la panne.
     """
-    return str(texte).splitlines()[0][:largeur]
+    lignes = str(texte).splitlines()
+    return (lignes[0] if lignes else "")[:largeur]
 
 
 # --------------------------------------------------------------------------
@@ -357,9 +374,12 @@ def controler_indisponible(report: Report, user: str) -> None:
     """`ServiceUnavailable` doit être levé sur un port où rien n'écoute.
 
     Le port vient d'une socket liée sur un port éphémère puis refermée : il est
-    donc libre par construction, sans course possible avec un autre service du
-    poste — contrairement à un port en dur, qui serait libre aujourd'hui et
-    occupé la prochaine fois que le protocole est rejoué.
+    donc très probablement libre — le « libre par construction, sans course
+    possible » qu'affirmait ce commentaire était faux, et la différence tient à
+    une fenêtre de quelques millisecondes entre la fermeture et la connexion.
+    Si un autre service prenait ce port dans cette fenêtre, le contrôle ne verrait
+    pas `ServiceUnavailable` mais la panne de cet autre service : il la signale
+    alors par son nom au lieu de la compter comme un succès.
     """
     probe = socket.socket()
     probe.bind(("127.0.0.1", 0))
@@ -425,16 +445,31 @@ def controler_transactions(report: Report, driver) -> None:
       retiré : si 5.28.6 les avait supprimées, `oasis` casserait à l'exécution
       sans qu'aucune résolution ne l'ait dit. On note donc ce que le driver dit
       de sa propre dépréciation, au lieu de la supposer muette.
+
+    Chaque transaction est comparée à la valeur attendue, pas seulement exécutée :
+    `oasis` **consomme** ce retour (`agent_graph.py:50` et `:54` le renvoient,
+    `agents_generator.py:447` le passe à `range()`), donc un driver qui cessait de
+    propager la valeur de la fonction de rappel Breaking silencieusement
+    produirait ici un rapport au vert. Un contrôle qui n'assert pas n'est pas un
+    contrôle, c'est un appel.
     """
 
     def _ecrire(tx, valeur):
         requete = f"CREATE (n:{SONDE_LABEL} {{valeur: $v}}) RETURN n.valeur AS v"
         return tx.run(requete, v=valeur).single()["v"]
 
-    for nom, appeler in (
-        ("execute_write", lambda s: s.execute_write(_ecrire, "sonde-execute-write")),
-        ("write_transaction", lambda s: s.write_transaction(_ecrire, "sonde-write-transaction")),
-        ("read_transaction", lambda s: s.read_transaction(lambda tx: tx.run("RETURN 1 AS v").single()["v"])),
+    for nom, attendu, appeler in (
+        ("execute_write", "sonde-execute-write", lambda s: s.execute_write(_ecrire, "sonde-execute-write")),
+        (
+            "write_transaction",
+            "sonde-write-transaction",
+            lambda s: s.write_transaction(_ecrire, "sonde-write-transaction"),
+        ),
+        (
+            "read_transaction",
+            1,
+            lambda s: s.read_transaction(lambda tx: tx.run("RETURN 1 AS v").single()["v"]),
+        ),
     ):
         with warnings.catch_warnings(record=True) as attrape:
             warnings.simplefilter("always")
@@ -445,10 +480,13 @@ def controler_transactions(report: Report, driver) -> None:
                 report.guard(f"transaction gérée — {nom}", f"{type(exc).__name__} : {une_ligne(exc)}", surface="transactions")
                 continue
         deprecations = [str(w.message) for w in attrape if issubclass(w.category, DeprecationWarning)]
+        juste = valeur == attendu
         rapport = f"session.{nom}() renvoie {valeur!r}"
+        if not juste:
+            rapport += f" — attendu {attendu!r} : la valeur n'est pas propagée à l'appelant"
         if deprecations:
             rapport += f" — dépréciée, présente : {une_ligne(deprecations[0], 90)}"
-        report.add(f"transaction gérée — {nom}", True, rapport, surface="transactions")
+        report.add(f"transaction gérée — {nom}", juste, rapport, surface="transactions")
 
     with driver.session() as session:
         session.run(f"MATCH (n:{SONDE_LABEL}) DELETE n")
@@ -557,6 +595,10 @@ def controler_procedures(report: Report, driver) -> None:
     `db.index.fulltext.queryRelationships` appartiennent à d'autres
     fournisseurs ou à d'autres chemins ; elles ne sont pas exercées ici, et le
     dire évite de laisser croire à un relevé exhaustif.
+
+    La sonde écrit sur `NODE_PROCEDURES`, son propre nœud : ce contrôle tourne
+    aussi dans la phase `relire`, et un `MERGE` sur `NODE_ALPHA` ferait recréer
+    par la phase de relecture une partie du graphe qu'elle certify.
     """
     preparer_procedures(driver)
 
@@ -565,15 +607,15 @@ def controler_procedures(report: Report, driver) -> None:
             "db.create.setNodeVectorProperty",
             f"MERGE (n:{LABEL} {{name: $nom}}) SET n.embedding = [0.0, 0.0, 0.0] "
             "WITH n CALL db.create.setNodeVectorProperty(n, 'embedding', $v) RETURN n.name AS nom",
-            {"nom": NODE_ALPHA, "v": VECTOR},
-            lambda ligne: ligne["nom"] == NODE_ALPHA,
+            {"nom": NODE_PROCEDURES, "v": VECTOR},
+            lambda ligne: ligne["nom"] == NODE_PROCEDURES,
         ),
         (
             "db.index.fulltext.queryNodes",
             f"CALL db.index.fulltext.queryNodes('{FULLTEXT_INDEX}', $q) YIELD node, score "
             "RETURN node.name AS nom ORDER BY score DESC LIMIT 1",
-            {"q": NODE_ALPHA},
-            lambda ligne: ligne["nom"] == NODE_ALPHA,
+            {"q": NODE_PROCEDURES},
+            lambda ligne: ligne["nom"] == NODE_PROCEDURES,
         ),
     )
     for nom, requete, params, verifie in etapes:
@@ -644,27 +686,38 @@ def controler_schema_graphiti(report: Report, driver) -> None:
     noms = re.findall(r"INDEX\s+([A-Za-z_][A-Za-z_0-9]*)", "\n".join(fulltext + rangee))
     attendus = set(noms)
 
-    avec_avant = set()
+    # Ce qui existait **avant** ce contrôle. Sans cet instantané, le nettoyage
+    # plus bas supprime tous les index dont le nom est déclaré par la bibliothèque,
+    # y compris ceux d'un graphe déjà en base : les requêtes sont `IF NOT EXISTS`,
+    # donc un index préexistant passe la création sans être créé par nous, et il
+    # disparaît quand même. Le serveur de l'épreuve est appelé à être réutilisé
+    # par la 001-5 ; c'est son schéma qui serait emporté.
+    pre_existants = set()
+    visibles = set()
     try:
         with driver.session() as session:
+            pre_existants = {ligne["name"] for ligne in session.run("SHOW INDEXES").data()}
             for requete in fulltext + rangee:
                 session.run(requete).consume()
-            avec_avant = {ligne["name"] for ligne in session.run("SHOW INDEXES").data()}
+            visibles = {ligne["name"] for ligne in session.run("SHOW INDEXES").data()}
     except Exception as exc:  # noqa: BLE001
         creer = f"{type(exc).__name__} : {une_ligne(exc)}"
-        avec_avant = set()
+        visibles = set()
     else:
         creer = f"{len(fulltext)} index fulltext et {len(rangee)} index range créés"
 
-    crees = attendus & avec_avant
+    crees = attendus & visibles
     report.add(
         "schéma Graphiti (index fulltext + range)",
-        len(crees) == len(attendus),
-        f"{creer} — {len(crees)}/{len(attendus)} déclarés et visibles dans SHOW INDEXES",
+        bool(attendus) and len(crees) == len(attendus),
+        f"{creer} — {len(crees)}/{len(attendus)} déclarés et visibles dans SHOW INDEXES"
+        if attendus
+        else f"{len(fulltext) + len(rangee)} requêtes lues, **aucun nom d'index extrait** : "
+        "la lecture ne couvre plus la forme des requêtes, ce contrôle ne mesurerait rien",
         surface="Graphiti",
     )
 
-    manquants = sorted(attendus - avec_avant)
+    manquants = sorted(attendus - visibles)
     if manquants:
         report.add(
             "index Graphiti tous visibles",
@@ -674,7 +727,7 @@ def controler_schema_graphiti(report: Report, driver) -> None:
         )
 
     with driver.session() as session:
-        for nom in sorted(attendus & avec_avant):
+        for nom in sorted(crees - pre_existants):
             session.run(f"DROP INDEX {nom}").consume()
 
     controler_procedure_absente(report, driver, "CALL db.indexes() YIELD name")
@@ -970,6 +1023,17 @@ def executer(phase: str, attente_apoc: str) -> int:
         )
         return 1
 
+    # `en_tete` est liée **avant** le `try` : la lecture des deux versions peut
+    # échouer (`distribution_version` sur un venv non synchronisé, serveur mort
+    # entre l'ouverture et la lecture), et le `print` du rapport est **après** le
+    # bloc. Sans cette initialisation, une panne de lecture produirait un
+    # `UnboundLocalError` sur une variable jamais liée — un traceback, donc aucun
+    # rapport, là où le contrat du script est justement de rendre un rapport et de
+    # sortir non zéro.
+    en_tete = [
+        f"Test comportemental du driver forcé — story 001-2 — phase « {phase} »",
+        "  versions illisibles : le rapport ci-dessous décrit une exécution incomplète",
+    ]
     try:
         version_driver = distribution_version("neo4j")
         version, edition = version_serveur(driver)
@@ -1001,6 +1065,12 @@ def executer(phase: str, attente_apoc: str) -> int:
         else:
             effaces = nettoyer(driver)
             report.add("nettoyage", True, f"{effaces} nœud(s) de vérification supprimés, index et contrainte retirés")
+    except Exception as exc:  # noqa: BLE001 — un rapport doit toujours être rendu
+        report.guard(
+            "exécution de la phase",
+            f"{type(exc).__name__} : {une_ligne(exc)} — la phase s'est interrompue ici",
+            surface=phase,
+        )
     finally:
         driver.close()
 

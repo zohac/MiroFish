@@ -14,7 +14,7 @@ lisent le **vrai** `docker-compose.neo4j.yml` et échouent si l'écart sort de c
 qui a été mesuré.
 
 **2. Le tag du serveur est figé.** `neo4j:5.26` est flottant : vérifié sur Docker
-Hub, il pointait déjà sur `5.26.31` le 2 octobre 2026, et il bouge à chaque
+Hub, il pointait déjà sur `5.26.31` le 5 octobre 2026, et il bouge à chaque
 sortie. Un tag flottant dans un compose versionné signifie qu'un `up` six mois
 après démarre autre chose que ce qu'on a mesuré — c'est le même raisonnement que
 la version résolue de l'override, consignée à côté dans `pyproject.toml`
@@ -36,10 +36,15 @@ les postes qui ont déjà le serveur, c'est-à-dire aucun.
 """
 
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
+from importlib import util as import_util
+from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
+
+import pytest
 
 BACKEND = Path(__file__).resolve().parents[1]
 REPO = BACKEND.parent
@@ -71,10 +76,6 @@ BORNE_DRIVER = "neo4j>=5.26.0,<6.0.0"
 # pas été mesuré : on refuse de le laisser passer en silence.
 SERVEUR_MESURE = (5, 26, 31)
 
-# Trois versions majeures au plus d'écart entre le driver et le serveur. Un
-# écart plus large n'est pas « mesuré puis toléré », c'est « jamais mesuré ».
-ECART_MAXIMAL = 2
-
 
 def version_triplet(version: str) -> tuple[int, ...] | None:
     """`5.26.31` → `(5, 26, 31)`. `None` si la version est illisible.
@@ -95,12 +96,36 @@ def tag_serveur(compose: str) -> str | None:
     On lit le fichier **réellement livré**, pas une copie de fixture : un
     garde-fou qui lirait sa propre fixture prouverait que la fixture est
     conforme, pas que le compose l'est.
+
+    Le tag cherché est celui du **service `neo4j`**, pas la première ligne
+    `image:` du fichier. Sans cette précision, la fonction renvoyait l'image du
+    premier service venu : invisible aujourd'hui — le compose d'épreuve n'a qu'un
+    service — mais l'epic 005 va lui ajouter des voisins, et un test mesurerait
+    alors l'image du mauvais service **silencieusement**.
     """
-    for ligne in compose.splitlines():
-        correspond = re.match(r"^\s+image:\s*(\S+)\s*$", ligne)
-        if correspond:
-            return correspond.group(1)
-    return None
+    bloc = re.search(
+        r"^  neo4j:\s*$(.*?)(?=^  \S|\Z)",
+        lignes_actives(compose),
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    if bloc is None:
+        return None
+    correspond = re.search(r"^\s+image:\s*(\S+)\s*$", bloc.group(1), flags=re.MULTILINE)
+    return correspond.group(1) if correspond else None
+
+
+def corps_tag(compose: str) -> str:
+    """La version du tag d'image, ou une erreur qui nomme le tag fautif.
+
+    `tag.split(":", 1)[1]` sans garde levait `IndexError` sur une image sans
+    tag — un échec de fixture, là où il fallait un message sur le compose. Un
+    test qui casse pour une raison étrangère à ce qu'il garde finit supprimé.
+    """
+    tag = tag_serveur(compose)
+    assert tag is not None, "aucune image de service neo4j dans le compose"
+    corps = tag.split(":", 1)[1] if ":" in tag else ""
+    assert corps, f"tag sans version : {tag!r} — le serveur d'épreuve n'est pas figé"
+    return corps
 
 
 def lire_compose() -> str:
@@ -123,6 +148,20 @@ def lignes_actives(texte: str) -> str:
     à écrire moins de commentaires.
     """
     return "\n".join(ligne for ligne in texte.splitlines() if not ligne.strip().startswith("#"))
+
+
+def lire_sortie_versionnee(dossier: Path, mode: str) -> str | None:
+    """Le texte d'une sortie de mesure versionnée, ou `None` si elle manque.
+
+    La lecture passe par ici pour que le cas « absente » ait un endroit unique à
+    tester. Avant, chaque test lisait le fichier à sa main, et le test censé
+    vérifier le cas « absent » attrapait l'exception de `pathlib` au lieu de
+    celle de cette fonction.
+    """
+    sortie = dossier / f"mesure-001-2-{mode}.txt"
+    if not sortie.exists():
+        return None
+    return sortie.read_text(encoding="utf-8")
 
 
 def version_driver_lockee() -> str:
@@ -160,7 +199,7 @@ def test_le_serveur_mesure_est_celui_du_compose_livre():
     """Le tag est-il exactement celui que la story a mesuré ?
 
     Un `5.26` ou un `latest` ici ne « marcherait pas moins bien » : il
-   꼴oulderait de dire ce qu'on mesure.
+    dirait autre chose que ce qu'on mesure.
     """
     tag = tag_serveur(lire_compose())
     assert tag == IMAGE_CANONIQUE, (
@@ -178,11 +217,9 @@ def test_le_patch_du_serveur_est_fige():
     flottant, `5.26.31` n'en est pas un. C'est le seul endroit où la règle
     « figer » est vérifiable sans lancer Docker.
     """
-    tag = tag_serveur(lire_compose())
-    assert tag is not None, "aucune image de service neo4j dans le compose"
-    corps = tag.split(":", 1)[1] if ":" in tag else ""
+    corps = corps_tag(lire_compose())
     assert corps.count(".") >= 2, (
-        f"le tag {tag!r} ne fige pas son patch : « 5.26 » glisse à chaque "
+        f"le tag « {corps} » ne fige pas son patch : « 5.26 » glisse à chaque "
         "sortie de Neo4j. Un `up` six mois après démarrerait un serveur "
         "qu'on n'a pas mesuré."
     )
@@ -247,6 +284,17 @@ def test_le_healthcheck_interroge_le_bolt():
     assert "cypher-shell" in corps, (
         "le healthcheck n'exécute aucune requête : il vérifie qu'un processus "
         "tourne, pas que le Bolt répond. Il faut `cypher-shell … \"RETURN 1\"`."
+    )
+    # L'**extraction du mot de passe**, pas seulement sa présence. Le healthcheck
+    # lit `${NEO4J_AUTH#neo4j/}` : sans le `#neo4j/`, `-p` reçoit
+    # `neo4j/<mot de passe>` au lieu du mot de passe, la connexion échoue, et le
+    # conteneur ne devient jamais `healthy` — donc `up --wait` ne rend jamais la
+    # main et le protocole expire. Vérifié par mutation : avec `-p "$${NEO4J_AUTH}"`
+    # les 41 tests passaient.
+    assert re.search(r"-p\s+\"?\$\$\{NEO4J_AUTH#neo4j/\}", corps), (
+        "le healthcheck ne retire pas le préfixe `neo4j/` de NEO4J_AUTH : il passe "
+        "`neo4j/<mot de passe>` comme mot de passe, la sonde échoue, et le "
+        "conteneur ne devient jamais healthy"
     )
 
 
@@ -314,11 +362,23 @@ def test_le_plugin_apoc_est_installe():
         f"NEO4J_PLUGINS vaut {plugins.group(1)!r}, sans apoc : camel-oasis en a "
         "besoin, son Neo4jGraph casse dès le premier refresh_schema"
     )
-    assert "procedures_unrestricted" in compose, (
+    # La **valeur** de la dérogation, et pas sa clé : une liste restreinte à
+    # `apoc.read.*` laisserait le plugin installé et muet sur l'écriture, l'état
+    # exact que la story nomme « le pire des deux ». Vérifié par mutation :
+    # `procedures_unrestricted: "apoc.read.*"` faisait passer les 41 tests.
+    debridage = re.search(r"^\s*NEO4J_dbms_security_procedures_unrestricted:\s*(.+?)\s*$", compose, flags=re.MULTILINE)
+    assert debridage, (
         "apoc.merge.* et apoc.create.* sont des procédures d'écriture : sans "
         "dbms.security.procedures.unrestricted, Neo4j les refuse même avec le "
         "plugin installé"
     )
+    debride = debridage.group(1).strip().strip('"').strip("'")
+    for procedure in ("apoc.merge.", "apoc.create."):
+        assert procedure in debride, (
+            f"la dérogation vaut {debride!r} et ne couvre pas `{procedure}*` : "
+            "camel-oasis écrit par ces procédures, et l'erreur qu'il produirait "
+            "accuserait un plugin absent alors qu'il est présent"
+        )
 
 
 # --------------------------------------------------------------------------
@@ -334,9 +394,7 @@ def test_le_driver_locke_est_celui_de_la_borne_de_l_adrs():
     """
     compose = lire_compose()
     tag = tag_serveur(compose)
-    assert tag is not None, "aucune image de service neo4j dans le compose"
-    corps = tag.split(":", 1)[1]
-    serveur = version_triplet(corps)
+    serveur = version_triplet(corps_tag(compose))
     assert serveur, f"version de serveur illisible dans le tag {tag!r}"
     driver = version_triplet(version_driver_lockee())
     assert driver, f"version de driver illisible : {version_driver_lockee()!r}"
@@ -366,26 +424,22 @@ def test_l_ecart_driver_serveur_reste_dans_ce_qui_a_ete_mesure():
     supposer que ça marche.
     """
     compose = lire_compose()
-    corps = tag_serveur(compose).split(":", 1)[1]
+    corps = corps_tag(compose)
     serveur = version_triplet(corps)
     driver = version_triplet(version_driver_resolue())
     assert serveur and driver, "version illisible"
-    ecart = abs(serveur[0] - driver[0])
-    assert ecart <= ECART_MAXIMAL, (
-        f"serveur {'.'.join(map(str, serveur))} contre driver "
-        f"{'.'.join(map(str, driver))} : écart de {ecart} majeure(s), "
-        f"au-delà de ce que la story 001-2 a mesuré ({ECART_MAXIMAL})"
-    )
+    # Une **égalité**, pas un écart maximal. La version précédente calculait
+    # `abs(serveur[0] - driver[0])`, un écart de **majeures** : entre deux `5.x`
+    # il vaut toujours 0, donc l'assertion ne pouvait pas échouer — et son
+    # commentaire annonçait « trois versions majeures » pour une constante
+    # valant 2. Une borne sur une grandeur constante n'est pas une borne.
     if serveur != SERVEUR_MESURE:
-        pytest_saut = (
-            f"le compose déclare un serveur {'.'.join(map(str, serveur))}, "
-            f"la story a mesuré {'.'.join(map(str, SERVEUR_MESURE))}"
-        )
         raise AssertionError(
-            pytest_saut
-            + " — si c'est délibéré, rejouer verifier-001-2.sh et versionner la "
-            "nouvelle sortie ; le test ne se met pas à jour tout seul, sinon il "
-            "ne garderait plus rien."
+            f"le compose déclare un serveur {'.'.join(map(str, serveur))}, "
+            f"la story a mesuré {'.'.join(map(str, SERVEUR_MESURE))} contre un "
+            f"driver {'.'.join(map(str, driver))} — si c'est délibéré, rejouer "
+            "verifier-001-2.sh et versionner la nouvelle sortie ; le test ne se "
+            "met pas à jour tout seul, sinon il ne garderait plus rien."
         )
 
 
@@ -399,8 +453,7 @@ def test_le_serveur_declares_la_version_qui_a_ete_mesuree():
     divergence serait un fait consigné et non un oubli.
     """
     compose = lire_compose()
-    corps = tag_serveur(compose).split(":", 1)[1]
-    declare = version_triplet(corps)
+    declare = version_triplet(corps_tag(compose))
     mesure = re.search(
         r"Neo4j Kernel\", \[\"([\d.]+)\"\], \"community\"",
         (REPO / "docs/plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt").read_text(encoding="utf-8")
@@ -454,20 +507,31 @@ def test_aucun_secret_en_clair_dans_le_compose():
 
     `NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}` est la forme attendue. Un mot de passe
     écrit en clair serait dans l'historique git pour toujours (AGENTS.md §2.4).
+
+    La ligne `NEO4J_AUTH` est donc **analysée explicitement** : la boucle ne la
+    saute pas. La version précédente la sautait sur un filtre qui eliminait toute
+    ligne contenant `AUTH` — et `NEO4J_AUTH:` en contient — si bien que la
+    branche qui vérifiait la valeur ne pouvait pas s'exécuter, pour aucune
+    composition du fichier. Un test qui ne peut pas échouer n'est pas un test :
+    c'est le genre de garde-fou que l'on compte à l'inventaire et qui ne garde
+    rien.
     """
     compose = lire_compose()
+    vues = 0
     for ligne in compose.splitlines():
         nu = ligne.strip()
-        if nu.startswith("#") or "PASSWORD" in nu or "AUTH" in nu:
+        if nu.startswith("#") or "NEO4J_AUTH:" not in nu:
             continue
-        if re.search(r"NEO4J_AUTH:\s*neo4j/\$\{", nu):
-            continue
-        if "NEO4J_AUTH:" in nu and ":" in nu.split("NEO4J_AUTH:")[1]:
-            valeur = nu.split("NEO4J_AUTH:")[1].strip().strip('"').strip("'")
-            assert "${" in valeur, (
-                f"secret en clair dans le compose : NEO4J_AUTH={valeur!r}. "
-                "Le mot de passe vient du .env, jamais d'un fichier versionné."
-            )
+        vues += 1
+        valeur = nu.split("NEO4J_AUTH:", 1)[1].strip().strip('"').strip("'")
+        assert "${" in valeur, (
+            f"secret en clair dans le compose : NEO4J_AUTH={valeur!r}. "
+            "Le mot de passe vient du .env, jamais d'un fichier versionné."
+        )
+    assert vues, (
+        "le compose livré ne déclare plus NEO4J_AUTH : ce test n'a rien vérifié, "
+        "et un serveur démarrerait avec un secret implicite"
+    )
 
 
 def test_le_compose_livre_ne_depend_d_aucun_fichier_de_surcharge():
@@ -489,61 +553,129 @@ def test_le_compose_livre_ne_depend_d_aucun_fichier_de_surcharge():
 
 # --------------------------------------------------------------------------
 # Négatifs — vérifier que ces tests testent vraiment
+#
+# Un test négatif ne vaut que s'il **exerce le garde-fou** qu'il prétend
+# vérifier. Une assertion sur une fixture littérale est une arithmétique sur du
+# texte local : elle passe quoi qu'il arrive au dépôt. La section précédente
+# faisait précisément cela — six tests sans aucun code du dépôt, dont les
+# docstrings annonçaient le contraire. Chacun appelle désormais le code réel,
+# sur un cas qu'il doit refuser.
 # --------------------------------------------------------------------------
 
+def _compose_avec_image(image: str) -> str:
+    """Un compose minimal dont le service `neo4j` porte l'image donnée."""
+    return f"services:\n  neo4j:\n    image: {image}\n"
+
+
+def _patch_fige(serveur: tuple[int, ...], driver: tuple[int, ...]) -> str | None:
+    """Ce que dit `test_le_driver_locke_est_celui_de_la_borne_de_l_adrs`.
+
+    La même règle, isolated : même majeure, et serveur au moins au plancher que
+    déclare l'override. `None` signifie « la règle passe ».
+    """
+    if serveur[0] != driver[0]:
+        return (
+            f"serveur {serveur[0]}.x et driver {driver[0]}.x : deux versions "
+            "majeures différentes n'ont jamais été mesurées ensemble"
+        )
+    borne = BORNE_DRIVER.replace("neo4j", "").strip()
+    plancher = version_triplet(borne.split(",")[0].lstrip(">="))
+    if plancher is not None and serveur < plancher:
+        return f"serveur {'.'.join(map(str, serveur))} sous le plancher que déclare graphiti-core"
+    return None
+
+
 def test_un_tag_sans_patch_est_reporte():
-    """Le saut que la règle du patch figé interdit : `neo4j:5.26`."""
-    compose = "services:\n  neo4j:\n    image: neo4j:5.26\n"
-    corps = tag_serveur(compose).split(":", 1)[1]
+    """Le saut que la règle du patch figé interdit : `neo4j:5.26`.
+
+    Le test livré compte les points du tag ; ici on vérifie que **ce compte est
+    bien la règle qui refuse**, en appliquant la même expression au cas
+    flottant puis au cas figé. Une fixture qui porterait elle-même l'assertion
+    ne prouverait que sa propre fixture.
+    """
+    corps = corps_tag(_compose_avec_image("neo4j:5.26"))
     assert corps.count(".") < 2, "la fixture n'est pas un tag flottant"
+    assert corps_tag(_compose_avec_image("neo4j:5.26.31-community")).count(".") >= 2
 
 
 def test_un_tag_enterprise_est_reporte():
-    """Le tag nu est l'édition Enterprise, qui réclame un accord de licence."""
-    assert tag_serveur("services:\n  neo4j:\n    image: neo4j:5.26.31\n") != IMAGE_CANONIQUE
+    """Le tag nu est l'édition Enterprise, qui réclame un accord de licence.
 
-
-def test_un_ecart_de_majeure_trop_large_est_reporte():
-    """Le cas que le garde-fou doit voir : deux majeures d'écart.
-
-    `abs(serveur[0] - driver[0])` ne mesure que la **majeure** : c'est
-    volontairement grossier, parce que Neo4j ne promet la compatibilité que sur
-    la même majeure, et qu'un écart de plusieurs majeures est le seul cas qu'on
-    veut voir signalé sans discussion. La fixture est à trois majors d'écart,
-    pour ne pas dépendre de la valeur exacte du seuil — un test négatif qui
-    frôle la limite échouerait au moindre changement de `ECART_MAXIMAL`.
+    `test_le_serveur_mesure_est_celui_du_compose_livre` compare le tag livré à
+    `IMAGE_CANONIQUE`. Ici on vérifie que cette comparaison **refuse** le tag nu,
+    et que le refus tient à l'édition, pas à un hasard de chaîne.
     """
-    serveur, driver = (8, 0, 0), (5, 28, 6)
-    assert abs(serveur[0] - driver[0]) > ECART_MAXIMAL
+    nu = tag_serveur(_compose_avec_image("neo4j:5.26.31"))
+    assert nu is not None
+    assert nu != IMAGE_CANONIQUE, "le tag nu passerait pour l'image canonique"
+    assert "community" not in nu, (
+        "un tag sans suffixe est l'édition Enterprise, qui réclame un accord de "
+        "licence — hors de question pour une épreuve à 0 € (NFR-1)"
+    )
+
+
+def test_un_ecart_de_majeure_est_reporte():
+    """Deux majeures d'écart n'ont jamais été mesurées ensemble.
+
+    La règle qui porte l'écart driver / serveur est « même majeure, et serveur
+    au moins au plancher que déclare l'override ». Ce test la rejoue par
+    `_patch_fige`, sur un cas qu'elle doit refuser et sur le cas réellement
+    mesuré qu'elle doit accepter.
+    """
+    refus = _patch_fige((8, 0, 0), (5, 28, 6))
+    assert refus, "un serveur 8.x passerait pour compatible avec un driver 5.x"
+    assert _patch_fige((5, 26, 31), (5, 28, 6)) is None, (
+        "le cas réellement mesuré (5.26.31 / 5.28.6) devrait passer : si ce "
+        "test échoue, la règle elle-même est fausse"
+    )
+    sous_plancher = _patch_fige((5, 25, 0), (5, 28, 6))
+    assert sous_plancher, "un serveur sous le plancher de graphiti-core passerait"
 
 
 def test_une_version_illisible_est_refusee_plutot_que_devinee():
+    """`version_triplet` ne devine pas une version qu'elle ne sait pas lire.
+
+    Le cas qui compte n'est pas « cinq » : c'est une image épinglée par digest,
+    ou un tag sans version. Les deux doivent rendre `None`, jamais produire
+    `(5, 26, 31)` par défaut.
+    """
     assert version_triplet("cinq") is None
     assert version_triplet("") is None
+    assert version_triplet("5.26.") is None
+    assert version_triplet("latest") is None
     assert version_triplet("5.26.31-community") == (5, 26, 31)
+    assert version_triplet("5.26.31-rc1") == (5, 26, 31)
 
 
 def test_un_serveur_sous_le_plancher_de_graphiti_est_reporte():
-    """`graphiti-core` exige `>=5.26.0` : un serveur 5.25 serait hors contrat."""
-    plancher = version_triplet("5.26.0")
+    """Le plancher est celui de la **borne de l'ADR 0010**, pas une copie.
+
+    Un test dont la référence est une version écrite en dur ne survit pas à la
+    décision qu'elle codifie : le jour où la borne bouge, le test continuerait
+    d'exiger l'ancienne, ou cesserait d'exiger quoi que ce soit.
+    """
+    borne = BORNE_DRIVER.replace("neo4j", "").strip()
+    plancher = version_triplet(borne.split(",")[0].lstrip(">="))
+    assert plancher is not None, f"borne illisible : {BORNE_DRIVER!r}"
     assert version_triplet("5.25.0") < plancher
     assert version_triplet("5.26.31") >= plancher
 
 
 def test_une_sortie_absente_est_signalee_et_non_ignoree(tmp_path):
-    """Une sortie de mesure absente doit faire échouer le test, pas le contourner.
+    """Une sortie de mesure absente doit être **signalée**, pas contournée.
 
-    On rejoue le cas sur une racine temporaire, sans toucher au vrai fichier : un
-    test qui déplace un fichier du dépôt pour vérifier un test finit un jour par
-    ne pas le restaurer. Le cas est ici une simple lecture — ce qui le rend
-    vérifiable sans rien mocker du tout.
+    Le test vérifie `lire_sortie_versionnee` — la fonction du dépôt qui lit les
+    sorties — et non `pathlib`. La version précédente lisait un chemin absent
+    dans un `tmp_path` vide, attrapait le `FileNotFoundError` de `pathlib`, puis
+    retournait : elle passait pour n'importe quelle version de Python, et
+    supprimer l'assertion `mesure` de la fonction l'aurait laissée verte.
     """
-    cible = tmp_path / "mesure-001-2-compose.txt"
-    try:
-        cible.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return
-    raise AssertionError("une sortie absente ne doit pas se lire sans erreur")
+    absente = lire_sortie_versionnee(tmp_path, "compose")
+    assert absente is None, "une sortie absente ne doit pas se lire sans erreur"
+    # Et le même appel sur le fichier réellement livré doit, lui, aboutir.
+    presente = lire_sortie_versionnee(REPO / "docs/plans/001-epreuve-graphiti-local", "compose")
+    assert presente, "la sortie versionnée du compose livré est introuvable"
+    assert "serveur    : Neo4j " in presente
 
 
 def test_les_deux_modes_du_protocole_sont_couverts_par_une_sortie():
@@ -575,8 +707,25 @@ def test_le_verdict_de_la_sortie_versionnee_est_lisible():
     """
     sortie = REPO / "docs/plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt"
     texte = sortie.read_text(encoding="utf-8")
-    for attendu in ("driver     : neo4j ", "serveur    : Neo4j ", "contrôles passés"):
+    for attendu in ("driver     : neo4j ", "serveur    : Neo4j "):
         assert attendu in texte, f"la sortie versionnée ne porte pas « {attendu} »"
+    # Le **résultat**, pas seulement la présence de la mention : la version
+    # précédente cherchait la chaîne « contrôles passés », que porterait aussi
+    # bien un `0/17`. Une sortie vide de résultat satisfait un test qui ne lit
+    # pas le résultat.
+    rapport = re.search(r"(\d+)/(\d+) contrôles passés", texte)
+    assert rapport, "la sortie versionnée ne porte aucun compte de contrôles"
+    passes, total = int(rapport.group(1)), int(rapport.group(2))
+    assert total > 0, "la sortie versionnée ne décrit aucun contrôle"
+    assert passes == total, (
+        f"la sortie versionnée porte {passes}/{total} contrôles passés : la "
+        "preuve doit décrire une exécution sans échec, ou l'ADR 0010 doit être "
+        "réexaminé"
+    )
+    assert "code de sortie : 0" in texte, (
+        "la sortie versionnée ne consigne pas un code de sortie nul : une mesure "
+        "qui a échoué ne prouve pas ce qu'elle prétend avoir mesuré"
+    )
 
 
 def test_le_protocole_est_versionne_et_executable():
@@ -631,20 +780,26 @@ def test_le_compose_est_valide_pour_docker_compose():
     """`docker compose config` valide le YAML du compose livré.
 
     Le test est **conditionnel** : sans Docker, il se déclare non conduit plutôt
-    que de passer en vert. Un test qui passe parce qu'il n'a rien fait est un
-    test qui ne prouve rien (AGENTS.md §2.2).
+    que de passer en vert — un `pytest.skip`, jamais un `return`. Un `return`
+    ferait enregistrer un succès à pytest, donc un test vert qui n'a rien fait :
+    c'est exactement ce qu'AGENTS.md §2.2 interdit, et c'est ce qu'un `return`
+    faisait ici. Un `pytest.skip` se voit dans le rapport de sortie.
     """
-    import shutil
-
     if shutil.which("docker") is None:
-        return
+        pytest.skip("docker absent : le compose livré n'a pas pu être validé")
     fini = subprocess.run(
         ["docker", "compose", "-f", str(COMPOSE), "config", "-q"],
         capture_output=True,
         text=True,
+        timeout=60,
+        check=False,
     )
-    if fini.returncode != 0 and "Cannot connect to the Docker daemon" in (fini.stderr or ""):
-        return
+    if fini.returncode != 0:
+        # `config` n'a pas besoin du démon : s'il échoue, c'est le YAML ou la
+        # configuration qui est en cause. Seuls les messages qui disent que le
+        # démon est injoignable entrent dans le cas « non conduit ».
+        if "Cannot connect to the Docker daemon" in (fini.stderr or ""):
+            pytest.skip("démoneur Docker injoignable : le compose n'a pas pu être validé")
     assert fini.returncode == 0, f"docker compose config refuse le compose :\n{fini.stderr}"
 
 
@@ -682,3 +837,86 @@ def test_le_prefixe_du_projet_est_fige():
         "un préfixe différent pointe un volume différent, et le graphe "
         "paraîtrait vide après un simple changement de répertoire"
     )
+
+
+# --------------------------------------------------------------------------
+# Les faits que la story tire des bibliothèques — gardés, pas seulement racontés
+# --------------------------------------------------------------------------
+
+def test_graphiti_ne_appelle_aucune_procedure_apoc():
+    """`graphiti-core` n'a besoin d'aucune procédure APOC — mesuré, donc gardé.
+
+    L'affirmation est reprise dans le compose, `architecture.md`, `AGENTS.md`,
+    `docs/STATUS.md`, `sprint-status.yaml` et les notes de la story. Elle est
+    aussi ce qui justifie de garder le plugin APOC **pour `camel` et non pour
+    Graphiti**. Aucun test ne la vérifiait : un `uv lock` qui ferait monter
+    `graphiti-core` à une version appelant `apoc.merge.*` laisserait ces six
+    documents faux, et le compose garderait un plugin installé pour rien — sans
+    qu'aucune suite bronche.
+
+    On lit donc le paquet installé. Zéro occurrence de `apoc` est le résultat
+    mesuré ; la première suffit à faire échouer, avec le fichier nommé.
+    """
+    try:
+        racine = Path(distribution("graphiti_core").locate_file("graphiti_core"))
+    except PackageNotFoundError:  # pragma: no cover — la dépendance est lockée
+        pytest.skip("graphiti-core absent du venv : rien à vérifier ici")
+    occurrences = []
+    for fichier in sorted(racine.rglob("*.py")):
+        contenu = fichier.read_text(encoding="utf-8", errors="replace")
+        for numero, ligne in enumerate(contenu.splitlines(), 1):
+            if "apoc" in ligne.lower():
+                occurrences.append(f"{fichier.relative_to(racine)}:{numero}")
+    assert not occurrences, (
+        "graphiti-core appelle désormais une procédure APOC : "
+        + ", ".join(occurrences[:5])
+        + " — la conclusion « Graphiti n'a pas besoin d'APOC, camel en a besoin » "
+        "et la justification du plugin dans le compose sont à refaire."
+    )
+
+
+def test_le_script_de_verification_importe_ce_qui_a_ete_mesure():
+    """Le script doit **s'importer**, pas seulement compiler.
+
+    `test_script_compiles` vérifie la syntaxe, et
+    `test_le_script_de_verification_est_versionne` cherche des noms de symboles
+    par `grep` — or ces noms figurent aussi dans les commentaires du script, donc
+    le test passait sur un script devenu **inimportable**. C'est le couplage le
+    plus fragile du script : cinq symboles viennent de `graphiti_core` et de
+    `camel`, deux bibliothèques dont l'ADR 0011 mesure justement qu'elles
+    bougent.
+
+    L'import est hermétique : aucune connexion n'est ouverte, aucun embedder
+    n'est construit — ces imports portent des requêtes Cypher et des constantes.
+    """
+    script = BACKEND / "scripts" / "verifier_driver_neo4j.py"
+    spec = import_util.spec_from_file_location("verifier_driver_neo4j_sous_test", script)
+    assert spec and spec.loader, f"{script} n'est pas importable"
+    module = import_util.module_from_spec(spec)
+    # Le module est inscrit **avant** l'exécution : `@dataclass` relit
+    # `sys.modules[cls.__module__].__dict__`, donc un module créé mais jamais
+    # enregistré fait échouer l'import — ce qui aurait rendu ce test rouge pour
+    # une raison étrangère à ce qu'il vérifie.
+    precedent = sys.modules.get(spec.name)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if precedent is None:
+            del sys.modules[spec.name]
+        else:
+            sys.modules[spec.name] = precedent
+
+    # La surface relevée par l'ADR 0011, résolue par le **module importé** et
+    # non par une chaîne de caractères.
+    for nom in ("GraphDatabase", "Query", "GqlError", "ClientError", "DriverError", "Neo4jError"):
+        assert hasattr(module, nom), (
+            f"le script n'expose plus {nom} : la surface de l'ADR 0011 a bougé, "
+            "et ce qu'il mesure n'est plus ce que camel atteint"
+        )
+    for nom in ("get_fulltext_indices", "get_range_indices", "GraphProvider", "NODE_PROPERTY_QUERY", "EXCLUDED_LABELS"):
+        assert getattr(module, nom, None), (
+            f"le script n'importe plus `{nom}` : les requêtes d'indexation et la "
+            "requête qui décide d'APOC ne seraient plus celles des bibliothèques "
+            "installées, donc ce serait un autre serveur qui serait mesuré"
+        )

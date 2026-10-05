@@ -20,8 +20,12 @@ seconde implémentation dériverait, et c'est exactement le défaut qu'on cherch
 """
 
 import re
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
+
+import pytest
 
 BACKEND = Path(__file__).resolve().parents[1]
 REPO = BACKEND.parent
@@ -31,6 +35,22 @@ PROTOCOLE = REPO / "docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh"
 # que Graphiti réclame, l'autre ce que `camel` réclame, et les conclusions sont
 # opposées.
 MODES = ("sans-apoc", "compose")
+
+
+def _corps_fonction_de(nom: str, source: Path) -> str:
+    """Le corps d'une fonction bash, extrait d'un fichier donné.
+
+    `source` est paramétré pour que le cas « la fonction n'est pas là » puisse
+    être rejoué sur un fichier de.fixture : c'est ce cas qui prouve que
+    l'extraction **échoue**, et non qu'elle renvoie silencieusement un corps vide.
+    """
+    texte = source.read_text(encoding="utf-8")
+    trouve = re.search(rf"^{nom}\(\)\s*\{{\n.*?^\}}$", texte, re.MULTILINE | re.DOTALL)
+    if not trouve:
+        # Variante sur une seule ligne, pour les fonctions d'une expression.
+        trouve = re.search(rf"^{nom}\(\)\s*\{{[^\n]*\}}$", texte, re.MULTILINE)
+    assert trouve, f"{nom} est introuvable dans {source.name}"
+    return trouve.group(0)
 
 
 def _corps_fonction(nom: str) -> str:
@@ -43,19 +63,25 @@ def _corps_fonction(nom: str) -> str:
     question de regexp au lieu de la chose qu'il garde est un test qu'on
     finit par supprimer.
     """
-    texte = PROTOCOLE.read_text(encoding="utf-8")
-    trouve = re.search(rf"^{nom}\(\)\s*\{{\n.*?^\}}$", texte, re.MULTILINE | re.DOTALL)
-    if not trouve:
-        # Variante sur une seule ligne, pour les fonctions d'une expression.
-        trouve = re.search(rf"^{nom}\(\)\s*\{{[^\n]*\}}$", texte, re.MULTILINE)
-    assert trouve, f"{nom} est introuvable dans le protocole"
-    return trouve.group(0)
+    return _corps_fonction_de(nom, PROTOCOLE)
 
 
 def _executer(fonction: str, corps: str, environnement: dict[str, str]) -> tuple[int, str]:
-    """Exécute une fonction du protocole avec un environnement fabriqué."""
-    script = REPO / ".protocole-extrait.sh"
-    try:
+    """Exécute une fonction du protocole avec un environnement fabriqué.
+
+    Le script extrait vit dans un **fichier temporaire du système**, jamais à la
+    racine du dépôt. L'emplacement précédent se justifiait par « le protocole
+    résout ses chemins par `dirname $0` », ce qui est faux : les extraits
+    utilisés ici — le bloc `NEO4J_PASSWORD=$(grep …)`, le `case` de sélection —
+    ne mentionnent jamais `$0`. Le second motif, « le protocole suivant exige un
+    arbre propre », était également faux : le protocole n'appelle
+    `git rev-parse --short HEAD`, qui n'a rien à exiger de l'arbre. Un fichier
+    écrit dans le dépôt et effacé dans un `finally` reste un fichier non suivi
+    dès qu'un `pytest -x` s'interrompt au milieu — et le dépôt n'a pas le droit
+    d'en garder.
+    """
+    with tempfile.TemporaryDirectory(prefix="mirofish-protocole-") as dossier:
+        script = Path(dossier) / "extrait.sh"
         script.write_text(
             "set -uo pipefail\n"
             f"{corps}\n"
@@ -67,15 +93,10 @@ def _executer(fonction: str, corps: str, environnement: dict[str, str]) -> tuple
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
             env={**dict(**{"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}), **environnement},
         )
         return fini.returncode, (fini.stdout + fini.stderr)
-    finally:
-        # Le fichier temporaire est écrit **à la racine du dépôt** parce que le
-        # protocole résout ses chemins par `dirname $0`. Il est supprimé dans tous
-        # les cas : un fichier d'extraction laissé dans l'arbre ferait échouer
-        # `git status` du protocole suivant, qui exige un arbre propre.
-        script.unlink(missing_ok=True)
 
 
 # --------------------------------------------------------------------------
@@ -89,13 +110,25 @@ def test_un_mot_de_passe_absent_est_refuse():
     implicite — donc une base dont personne n'a choisi le secret, et une mesure
     qui compare des chiffres pris sur cette base. Le refus est la seule issue
     honnête.
+
+    Le bloc extrait va de la lecture du `.env` au `fi` du refus, et **rien
+    d'autre** : il ne dépend d'aucune autre variable du protocole. C'est ce qui
+    rend le test exact — la version précédente extrayait jusqu'au `fi` d'un
+    bloc qui contenait `rm -f "$SANS_APOC"`, variable non déclarée dans
+    l'extrait : sous `set -u`, c'était cet échec qui produisait le code de
+    sortie, pas le `exit 1` du refus. Le test passait donc sans garantir que le
+    protocole sorte par là.
     """
     corps = re.search(
-        r"NEO4J_PASSWORD=\$\(grep.*?^fi$",
+        r"NEO4J_PASSWORD=\$\(sed.*?^fi$",
         PROTOCOLE.read_text(encoding="utf-8"),
         re.MULTILINE | re.DOTALL,
     )
     assert corps, "le protocole ne lit plus NEO4J_PASSWORD depuis le .env"
+    assert "SANS_APOC" not in corps.group(0), (
+        "le bloc de refus dépend d'une variable du protocole : l'extraction "
+        "échouerait sur `set -u` pour une raison étrangère au refus lui-même"
+    )
     code, sortie = _executer(
         "test_$(echo 1)",
         corps.group(0),
@@ -114,10 +147,10 @@ def test_un_mode_inconnu_est_refuse():
     """`verifier-001-2.sh n'importe-quoi` doit s'arrêter, pas mesurer n'importe quoi.
 
     Le cas est réel : `bash verifier-001-2.sh` sans argument prend un mode par
-    défaut, et une faute de frappe prend un mode inexistant. Si le `case` lacked
-    de refus, le protocole partirait sur le `compose` livré en croyant mesurer une
-    variante — et le rapport afficherait une configuration qui n'est pas celle
-    qu'on a demandée.
+    défaut, et une faute de frappe prend un mode inexistant. Si le `case` perdait
+    sa branche de refus, le protocole partirait sur le `compose` livré en croyant
+    mesurer une variante — et le rapport afficherait une configuration qui n'est
+    pas celle qu'on a demandée.
     """
     texte = PROTOCOLE.read_text(encoding="utf-8")
     bloc = re.search(r"^case \"\$MODE\" in$.*?^esac$", texte, re.MULTILINE | re.DOTALL)
@@ -126,8 +159,8 @@ def test_un_mode_inconnu_est_refuse():
     assert "compose)" in bloc.group(0), "le mode « compose » a disparu du protocole"
 
     # On rejoue la sélection seule, avec les deux modes et un mode inconnu.
-    script = REPO / ".protocole-modes.sh"
-    try:
+    with tempfile.TemporaryDirectory(prefix="mirofish-protocole-") as dossier:
+        script = Path(dossier) / "modes.sh"
         script.write_text(
             "set -uo pipefail\n"
             # `MODE` est la variable que le protocole lit ; sans elle le `case`
@@ -150,6 +183,7 @@ def test_un_mode_inconnu_est_refuse():
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=30,
             )
             assert fini.returncode == 0, f"le mode {mode} devrait être accepté : {fini.stderr}"
         fini = subprocess.run(
@@ -157,11 +191,10 @@ def test_un_mode_inconnu_est_refuse():
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
         assert fini.returncode != 0, "un mode inconnu ne doit pas être accepté"
         assert "mode inconnu" in (fini.stdout + fini.stderr)
-    finally:
-        script.unlink(missing_ok=True)
 
 
 def test_le_mode_par_defaut_est_le_compose_livre():
@@ -205,14 +238,22 @@ def test_l_identifiant_du_conteneur_est_resolu_a_chaque_appel():
     fonction = _corps_fonction("identifiant")
     assert "ps -q neo4j" in fonction, "identifiant() ne résout plus le conteneur"
 
-    # La fonction doit être appelée dans `attendre_bolt`, pas une variable
-    # calculée une fois : c'est la distinction entre les deux bugs.
+    # La fonction doit être **appelée** dans `attendre_bolt`, pas une variable
+    # calculée une fois : c'est la distinction entre les deux bugs. On cherche
+    # donc l'appel lui-même, et pas seulement le mot — l'assertion précédente
+    # était `… is None or "identifiant" in attendre`, dont le second terme était
+    # toujours vrai dès que la précédente passait : elle ne vérifiait rien.
     attendre = _corps_fonction("attendre_bolt")
-    assert "identifiant" in attendre, (
-        "attendre_bolt n'appelle plus identifiant() : il utilise un identifiant "
-        "figé, qui devient faux au premier recreate"
+    assert re.search(r"conteneur=\$\(\s*identifiant\s*\)", attendre), (
+        "attendre_bolt n'appelle pas identifiant() : il utilise un identifiant "
+        "figé, qui devient faux au premier recreate. L'identifiant doit être "
+        "résolu à chaque itération, pas une fois."
     )
-    assert re.search(r'\$\{?CONTENEUR\}?', attendre) is None or "identifiant" in attendre
+    assert not re.search(r"\$\{?CONTENEUR\b", attendre), (
+        "attendre_bolt utilise $CONTENEUR : un identifiant figé au début du "
+        "protocole casse dès que le conteneur est recréé — ce que fait tout "
+        "changement d'environnement, donc précisément le mode « sans APOC »"
+    )
 
 
 def test_le_protocole_ne_fige_pas_d_identifiant_de_conteneur():
@@ -226,8 +267,14 @@ def test_le_protocole_ne_fige_pas_d_identifiant_de_conteneur():
     texte = PROTOCOLE.read_text(encoding="utf-8")
     corps_attendre = _corps_fonction("attendre_bolt")
     dehors = texte.replace(corps_attendre, "")
-    assert 'docker exec "$CONTENEUR"' not in dehors, (
-        "un docker exec utilise encore l'identifiant figé hors de attendre_bolt"
+    # **Toute** forme d'expansion de `$CONTENEUR` passée à un `docker exec`, pas
+    # seulement la forme exacte `"$CONTENEUR"`. La version précédente ne voyait
+    # que celle-là : `docker exec $CONTENEUR` ou `docker exec "${CONTENEUR}"`
+    # seraient passés — et rejoueraient le bug.
+    fige = re.findall(r'docker exec[^\n]*\$\{?CONTENEUR\b', dehors)
+    assert not fige, (
+        "un docker exec utilise encore l'identifiant figé hors de attendre_bolt : "
+        + " / ".join(e.strip() for e in fige)
     )
 
 
@@ -337,14 +384,30 @@ def test_le_protocule_ne_conclut_pas_a_la_place_du_verdict():
 # --------------------------------------------------------------------------
 
 def test_un_protocole_absent_est_signale(tmp_path):
-    """Le harnais refuse de s'exécuter sans protocole, plutôt que de passer.
+    """Le harnais refuse de s'extraire d'une source absente, plutôt que de passer.
 
-    Un harnais dont les assertions ne s'exécutent pas est un harnais vert : on
-    vérifie ici que l'extraction **échoue** quand la source manque.
+    On vérifie ici que l'extraction **échoue** quand la fonction attendue n'est pas
+    là. La version précédente affirmait
+    `assert not (tmp_path / "verifier-001-2.sh").exists()` — une tautologie sur un
+    répertoire vide — puis testait une chaîne littérale écrite sur place. Elle
+    n'appelait jamais l'extraction, donc elle passait même si la fonction avait
+    été supprimée, ou si l'extraction renvoyait silencieusement un corps vide.
     """
-    assert not (tmp_path / "verifier-001-2.sh").exists()
-    texte_faux = "identifiant() { echo rien }\n"
-    assert "ps -q neo4j" not in texte_faux, "la fixture doit être un protocole sans resolution"
+    # Le cas réel : un protocole refondu où `attendre_bolt` a disparu. La fixture
+    # contient bien une fonction — sinon le cas serait trivialement absent et le
+    # test ne prouverait rien.
+    refondu = tmp_path / "verifier-001-2.sh"
+    refondu.write_text("identifiant() { echo rien }\n", encoding="utf-8")
+    with pytest.raises(AssertionError) as echec:
+        _corps_fonction_de("attendre_bolt", refondu)
+    assert "introuvable" in str(echec.value), (
+        f"le refus ne nomme pas la fonction manquante : {echec.value}"
+    )
+
+    # Et le vrai protocole, lui, doit fournir les deux — sinon le test d'échec
+    # passerait pour la bonne raison.
+    assert "ps -q neo4j" in _corps_fonction_de("identifiant", PROTOCOLE)
+    assert "identifiant" in _corps_fonction_de("attendre_bolt", PROTOCOLE)
 
 
 def test_un_mode_sans_refus_laisse_passer_nimporte_quoi():
@@ -354,8 +417,8 @@ def test_un_mode_sans_refus_laisse_passer_nimporte_quoi():
     passe. Sans cette démonstration, « le protocole refuse un mode inconnu »
     ne serait qu'une affirmation sur la présence d'un `*)`.
     """
-    script = REPO / ".protocole-sans-refus.sh"
-    try:
+    with tempfile.TemporaryDirectory(prefix="mirofish-protocole-") as dossier:
+        script = Path(dossier) / "sans-refus.sh"
         script.write_text(
             "set -uo pipefail\n"
             'MODE="${1:-}"\n'
@@ -371,11 +434,10 @@ def test_un_mode_sans_refus_laisse_passer_nimporte_quoi():
             capture_output=True,
             text=True,
             check=False,
+            timeout=30,
         )
         assert fini.returncode == 0, "la fixture doit être un case sans refus"
         assert "aucun" in fini.stdout, "la fixture doit montrer que rien n'a été retenu"
-    finally:
-        script.unlink(missing_ok=True)
 
 
 def test_un_identifiant_fige_echouerait_reellement():
@@ -383,13 +445,26 @@ def test_un_identifiant_fige_echouerait_reellement():
 
     Sur une machine sans conteneur, un `docker exec <identifiant-inexistant>`
     échoue : c'est le cas que `identifiant()` évite. Le test le constate pour que
-    la règle ait une cause，而不是 une intuition.
+    la règle ait une cause, et non une intuition.
+
+    Sans binaire `docker`, le test se déclare **non conduit**. La version
+    précédente affirmait le contraire dans son commentaire — « sans Docker, la
+    commande échoue aussi » — mais `subprocess.run` ne renvoie pas un code : il
+    lève `FileNotFoundError`. Le test **échouait donc** sur un poste sans Docker,
+    ce qui contredisait son propre module et la règle d'herméticité d'AGENTS.md
+    §2.2. Un test qui casse selon la machine est un test qu'on corrige ou qu'on
+    supprime ; on l'a corrigé.
     """
+    if shutil.which("docker") is None:
+        pytest.skip("docker absent : le cas « conteneur inexistant » n'est pas rejouable")
     fini = subprocess.run(
         ["docker", "exec", "mirofish-neo4j-neo4j-inexistant", "true"],
         capture_output=True,
         text=True,
         check=False,
+        timeout=30,
     )
-    # Sans Docker, la commande échoue aussi — ce qui suffit à démontrer le cas.
-    assert fini.returncode != 0
+    assert fini.returncode != 0, (
+        "docker exec sur un conteneur inexistant devrait échouer ; s'il réussit, "
+        "le cas que identifiant() évite ne serait plus un défaut"
+    )

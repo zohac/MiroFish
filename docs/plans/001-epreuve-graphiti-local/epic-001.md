@@ -45,7 +45,7 @@ script.
 | NFR-2 | Aucun secret dans le rapport, le script ou l'image | `.env` n'est jamais versionné, le rapport est versionné |
 | NFR-3 | Script **rejouable à l'identique** : pas d'état caché, sortie capturée dans un fichier | une mesure non rejouable ne vaut pas une mesure |
 | NFR-4 | Le rapport se lit en **2 minutes** : verdict en tête, chiffres ensuite | c'est l'UX de cet epic (voir plus bas) |
-| NFR-5 | Les tests existants restent verts — **234** (183 à l'écriture de cet epic ; +9 de revue le 3 octobre, +12 par la 001-1b, +30 par la revue de la 001-1b) | le filet de sécurité ne doit pas bouger |
+| NFR-5 | Les tests existants restent verts — **279** (183 à l'écriture de cet epic ; +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue). Le seuil **suit les stories** : ce qui est exigé, c'est qu'il ne rétrécisse jamais | le filet de sécurité ne doit pas bouger |
 | NFR-6 | L'épreuve tourne sous Docker dès que l'epic 005 est fait ; **en attendant, en local** — et c'est dit | ADR 0006 n'est pas encore exécutable |
 
 ## UX requirements
@@ -61,7 +61,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 |---|---|---|---|
 | 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `done` | [`story-001-1.md`](story-001-1.md) |
 | 001-1b | Poser l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `done` | [`story-001-1b.md`](story-001-1b.md) |
-| 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `review` | [`story-001-2.md`](story-001-2.md) |
+| 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `done` | [`story-001-2.md`](story-001-2.md) |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
 | 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
 | 001-5 | Script de mesure reproductible + rapport versionné | `backlog` | — |
@@ -85,7 +85,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 |---|---|
 | 001-1 | Given `graphiti-core` ajouté, when `uv sync` tourne, then **aucune erreur de résolution** — ⚠️ **échec mesuré et rejouable** (`mesurer-001-1.sh`, sortie dans `mesure-001-1.txt`) : `neo4j==5.23.0` est un pin exact que `graphiti-core` ne peut pas satisfaire (plancher `>=5.26.0`), et l'inverse vaut aussi · sous l'`override` de l'ADR 0010, `camel-oasis`, `neo4j` et `graphiti_core` s'importent dans cet ordre et les tests restent verts |
 | 001-1b | Given l'ADR 0010 et l'ADR 0011, when on ajoute `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` dans `backend/pyproject.toml`, then `uv lock` résout · `uv sync --frozen` réussit · `oasis`, `neo4j` et `graphiti_core` s'importent dans cet ordre · les tests passent · **le geste est réversible** : retirer l'override puis `git checkout backend/pyproject.toml backend/uv.lock` ramène l'arbre à l'état initial, et `uv lock` **échoue à nouveau** sans l'override — c'est bien la preuve du conflit, pas une restauration du lock · *mesuré, en revue* : `neo4j 5.28.6` lockée, lock revenu au sha `1b41b865…` après `git checkout`, `mesurer-001-1.sh` rejoué sur **les deux** arbres, les deux sorties versionnées dans [`mesures-001-1b.md`](mesures-001-1b.md) |
-| 001-2 | Given un `docker-compose.neo4j.yml` séparé et un serveur **figé** sur `neo4j:5.26.31-community`, when il démarre, then le healthcheck Bolt passe au vert · une écriture puis une relecture passent par `neo4j 5.28.6` sous le pin `camel-oasis`, sans workaround · un nœud survit à l'arrêt puis au redémarrage · les quatre symboles de la surface de l'ADR 0011 sont **exercés**, dont la hiérarchie d'exceptions prouvé par un `ClientError` réel · le verdict est écrit et l'écart driver/serveur consigné — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé — ⚠️ **mesuré, et le driver tient** : 17/17 contrôles, deux fois, **l'ADR 0010 n'est pas supersédé**. Écart 5.28.6 / 5.26.31 gardé par un test. APOC : `graphiti-core` s'en passe, `camel-oasis` en a besoin — deux mesures, pas une |
+| 001-2 | Given un `docker-compose.neo4j.yml` séparé et un serveur **figé** sur `neo4j:5.26.31-community`, when il démarre, then le healthcheck Bolt passe au vert · une écriture puis une relecture passent par `neo4j 5.28.6` sous le pin `camel-oasis`, sans workaround · un nœud survit à l'arrêt puis au redémarrage · les quatre symboles de la surface de l'ADR 0011 sont **exercés**, dont la hiérarchie d'exceptions prouvé par un `ClientError` réel · le verdict est écrit et l'écart driver/serveur consigné — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé — ⚠️ **mesuré, et le driver tient** : 17/17 contrôles, deux fois, **l'ADR 0010 n'est pas supersédé**. Écart 5.28.6 / 5.26.31 gardé par un test. APOC : `graphiti-core` s'en passe — **gardé par un test** —, `camel-oasis` en a besoin, et la dérogation est **restreinte aux trois procédures mesurées**, pas `apoc.*` · **revue à quatre couches** : 28 correctifs, dont six garde-fous qui ne pouvaient pas échouer, et un C3 qui ne tenait que par coïncidence — **rejoué sur le code corrigé** |
 | 001-3 | Given un appel d'extraction, when l'hôte est `opencode.ai`, then aucun `MissingSessionID` · given un autre endpoint, then aucun en-tête ajouté |
 | 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`) : arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
 | 001-5 | Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités · le rapport contient appels, latences, retries, erreurs exactes · il est commité |
@@ -122,4 +122,4 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 - [ ] Verdict go / no-go écrit dans [`docs/STATUS.md`](../../STATUS.md)
 - [ ] Un no-go a produit un ADR ; un go a fait passer l'epic 002 en `in-progress`
 - [ ] `rapport.md` est versionné, le script est rejouable, aucune histoire en suspens
-- [ ] Les tests existants restent verts — **234** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue)
+- [ ] Les tests existants restent verts — **279** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue)

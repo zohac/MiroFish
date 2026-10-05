@@ -45,12 +45,22 @@ dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et l
 lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
 avait consignée, sans écart.
 
-### La story 001-2 est `review` — le driver forcé **tient**
+### La story 001-2 est `done` — le driver forcé **tient**
 
 > C'est la réponse que l'ADR 0010 attendait et qu'il ne pouvait pas avoir : est-ce
 > que `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`, tient
 > contact avec un vrai serveur ? **Oui.** 17 contrôles, deux fois, sur deux
 > configurations de serveur. **L'ADR 0010 n'est pas supersédé.**
+>
+> La story est passée par **une revue de code à quatre couches** avant d'être
+> close, et cette revue a trouvé mieux que des coquilles : **six garde-fous qui ne
+> pouvaient pas échouer** — le secret, la dérogation APOC, le healthcheck, deux
+> sur l'identifiant de conteneur — et un **critère C3 qui ne tenait que par
+> coïncidence** de forme du graphe de vérification. Les 28 correctifs sont
+> appliqués, **six vérifiés par mutation** sur le vrai fichier puis restauration à
+> l'octet initial, et **les deux mesures ont été rejouées** sur le code corrigé.
+> Cinq des « mutants vérifiés » que la story annonçait ne l'avaient pas été : le
+> tri de la revue l'a montré, la correction l'a fait.
 
 Premier contact avec un vrai serveur, donc premières mesures :
 
@@ -93,7 +103,9 @@ Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
 [`verifier-001-2.sh`](plans/001-epreuve-graphiti-local/verifier-001-2.sh),
 [`mesure-001-2-compose.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt),
 [`mesure-001-2-sans-apoc.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-sans-apoc.txt).
-**277 tests verts**, 234 + 42 de la 001-2.
+**279 tests verts**, 235 + 44 de la 001-2 (41 dans ses deux fichiers de tests,
+plus 2 ajouts de la revue de code, plus `test_script_compiles[verifier_driver_neo4j.py]`
+auto-paramétré par la découverte de scripts).
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -153,9 +165,10 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Relire la 001-2, puis 001-3** (en-tête de session) et **001-4** (embedder) —
-   les deux autres risques de l'épreuve. 001-4 reste **bloquée par le même
-   conflit** que le driver (`sentence-transformers==3.0.0` contre `>=3.2.1`),
+1. **Démarrer la 001-3** (en-tête de session), puis la **001-4** (embedder) — les
+   deux autres risques de l'épreuve. La 001-2 est close ; 001-4 reste **bloquée
+   par le même conflit** que le driver (`sentence-transformers==3.0.0` contre
+   `>=3.2.1`),
    avec son propre arbitrage : l'ADR 0010 ne couvre que `neo4j`, et un test
    (`backend/tests/test_pyproject_override.py`) refuse qu'on l'élargisse en
    silence. Deux choses que la 001-2 laisse à la 001-5, et qu'il faut y lire :
@@ -188,7 +201,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | **277**, tous verts, **sans `.env`** (+42 par la 001-2 ; 234 avant ; 204 après la 001-1b ; 192 ; 183 avant les neuf tests de revue du 3 octobre) |
+| Tests | **279**, tous verts, **sans `.env`** (+44 par la 001-2 et sa revue ; 235 avant ; 204 après la 001-1b ; 192 ; 183 avant les neuf tests de revue du 3 octobre) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

@@ -29,7 +29,7 @@ services:
     # - `5.26` est le plancher que déclare `graphiti-core` (`neo4j>=5.26.0`),
     #   et une LTS : c'est le choix de `architecture.md` §4.
     # - Le patch est figé parce que `neo4j:5.26` est **flottant** : vérifié sur
-    #   Docker Hub le 4 octobre 2026, il pointait déjà sur 5.26.31, et il bouge à
+    #   Docker Hub le 5 octobre 2026, il pointait déjà sur 5.26.31, et il bouge à
     #   chaque sortie. Un tag flottant dans un compose versionné signifie qu'un
     #   `up` six mois après démarre autre chose que ce qu'on a mesuré. Même
     #   raisonnement que la version résolue de l'override, consignée à côté dans
@@ -52,9 +52,14 @@ services:
 
       # `NEO4J_PLUGINS` installe APOC au premier démarrage. **Ce n'est pas le
       # besoin de Graphiti** — `graphiti-core==0.30.2` n'appelle aucune
-      # procédure APOC, mesuré : zéro occurrence de `apoc` dans le paquet, et
-      # ses procédures sont toutes natives (`db.create.setNodeVectorProperty`,
-      # `db.idx.fulltext.createNodeIndex`, `db.index.fulltext.queryNodes`).
+      # procédure APOC, mesuré : zéro occurrence de `apoc` dans le paquet. Les
+      # deux procédures qu'il utilise sur le chemin Neo4j sont **natives**
+      # (`db.create.setNodeVectorProperty`, `db.index.fulltext.queryNodes`).
+      # Attention au relevé : la variante `db.idx.fulltext.createNodeIndex`
+      # appartient à **FalkorDB** et à **Kuzu**, pas à Neo4j — c'est pourquoi ce
+      # compose ne la mentionne pas, et pourquoi
+      # `verifier_driver_neo4j.py` tire sa liste de `graph_queries` avec le
+      # fournisseur Neo4j au lieu de la recompter par `grep`.
       # `architecture.md` §4 le prescrit en recopiant le compose du fork de
       # référence, sans dire pourquoi.
       #
@@ -63,7 +68,7 @@ services:
       # `add_nodes_from_df` / `add_edges_from_df` utilisent `apoc.merge.node`,
       # `apoc.merge.relationship` et `apoc.create.addLabels`. Sans APOC, le
       # chemin Neo4j de `camel` se casse sur un `ClientError` au premier
-      # `refresh_schema`. C'est mesuré au 4 octobre 2026, voir les notes de
+      # `refresh_schema`. C'est mesuré au 5 octobre 2026, voir les notes de
       # complétion de `story-001-2.md`.
       #
       # Coût assumé : un téléchargement au premier `up`, une fois par machine.
@@ -75,7 +80,20 @@ services:
       # hors de la liste par défaut, Neo4j les refuse en `ClientError`. Sans
       # cette ligne, `camel-oasis`.write_node` échoue même avec le plugin
       # installé — le plugin présent mais muet, ce qui est pire que son absence.
-      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      #
+      # La liste est **étroite, et volontairement** : elle ne débride que les
+      # trois procédures que la story 001-2 a réellement observées sur le chemin
+      # d'écriture de `camel` — `apoc.merge.node`, `apoc.merge.relationship`,
+      # `apoc.create.addLabels`. Un `apoc.*` serait plus simple à écrire et
+      # serait aussi débridé au-delà de ce qu'on a mesuré : sur une base de
+      # développement, l'écart ne se voit pas, jusqu'au jour où une version de
+      # `camel` appelle une procédure d'écriture que personne n'avait prévue.
+      # `apoc.meta.data()` est une **lecture** : elle passe par la liste par
+      # défaut, qui autorise déjà les lectures. Si `camel` réclame un jour une
+      # écriture hors de ces trois motifs, l'erreur qu'il produit accuse un
+      # plugin absent — donc élargir ici doit être un geste visible, pas un
+      # élargissement de convenience.
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.merge.*,apoc.create.*"
 
       # Heap borné. Sans cela, Neo4j prend la moitié de la mémoire de la VM
       # Docker Desktop, et une épreuve locale peut affamer le reste du poste.

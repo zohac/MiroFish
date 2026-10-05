@@ -51,7 +51,7 @@ epics:
     # corrigés (dont --frozen qui ne vérifiait pas le lock, et la télémétrie
     # posthog activée par défaut, désactivée depuis). 234 tests, +30 de
     # revue (204 au premier jet de la story).
-    # Story 001-2 (review, MESURÉE) : le driver forcé TIENT. Neo4j 5.26.31-
+    # Story 001-2 (DONE) : le driver forcé TIENT. Neo4j 5.26.31-
     # community dans un compose SÉPARÉ (docker-compose.neo4j.yml), tag figé sur
     # un patch, écart driver 5.28.6 / serveur 5.26.31 consigné et gardé par un
     # test. 17 contrôles, deux fois : surface de l'ADR 0011 EXERCÉE (pas
@@ -70,6 +70,8 @@ epics:
     # 277 tests (+42). Les tests d'intégration ne sont pas en CI : ils lisent le
     # compose et les deux sorties versionnées, la preuve d'exécution reste
     # rejouable à la main.
+    # 001-2 relue par 4 couches : 28 correctifs, dont six garde-fous morts et un C3
+    # qui ne tenait que par coïncidence. 279 tests (+45). Mesures rejouées.
     # Reste 001-3 (en-tête de session) puis 001-4 (embedder), bloquée par le même
     # conflit que le driver.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :

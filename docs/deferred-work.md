@@ -46,7 +46,8 @@ travail laissé en suspens par la story.
   Il porte sur `camel-oasis 0.2.5` et `camel-ai 0.2.78`. Le réintégrage de
   l'amont (`AGENTS.md` §2.6, ~100 commits depuis mars) peut apporter une
   surface supplémentaire. *Ce qui déclencherait : un `git rebase upstream/main` —
-  le relevé est à refaire avant la story 001-2, pas après.*
+  ~~le relevé est à refaire avant la story 001-2~~ (périmé au 5 octobre 2026 : c'est
+  cette story qui l'a fait).*
   **Partiellement traité le 5 octobre 2026** (story 001-2) : la surface est
   désormais **exercée** et non seulement importée, par
   `backend/scripts/verifier_driver_neo4j.py` — 17 contrôles, dont les quatre
@@ -99,3 +100,32 @@ mesurés, consignés dans les sorties versionnées.
   déclencherait : le besoin d'un healthcheck « la base a du contenu », qui n'a
   pas de sens pour une base neuve et n'en aurait que pour un graphe d'épreuve
   déjà construit — donc probablement jamais.*
+
+## Deferred from: code review of story-001-2.md (2026-10-05)
+
+Revue du commit `61fc51a` par quatre couches indépendantes. **Trois constats
+avaient été différés** ; deux ont été **traités dans le même mouvement** que la
+clôture de la story, parce que les fichiers étaient déjà ouverts et que laisser
+un chiffre faux vieillir coûte plus cher que le corriger :
+
+- ~~**`AGENTS.md` §4 ne listait pas quatre des sept livrables de la 001-2.**~~
+  **Traité le 5 octobre 2026** : le protocole `verifier-001-2.sh`, les deux
+  sorties de mesure et les deux fichiers de tests sont dans la carte du dépôt.
+- ~~**`epic-001.md` NFR-5 restait à « 234 ».**~~ **Traité le 5 octobre 2026** :
+  NFR-5 porte le compte réel (279) et **dit désormais que le seuil suit les
+  stories** — c'est la règle, pas le chiffre, qui doit tenir.
+
+Reste un constat, qui ne se corrige pas dans une story :
+
+- **La story est passée `backlog → review` en un seul commit, sans passer par
+  `in-progress`.** `git log` ne montre que deux révisions du fichier :
+  `3eddc18` (`statut: backlog`) puis `61fc51a` (`statut: review`). `AGENTS.md`
+  §2.8 exige `backlog → in-progress → review → done`, « jamais de saut », et
+  reconnaît lui-même que la règle « n'est outillée par rien » :
+  `validate_plans.py` lit des fichiers, pas un historique, et passe. Le garde-fou
+  de la constitution a donc été contourné sans bruit. *Ce qui déclencherait : rien
+  d'automatique. Le seul remède est une trace dans le fichier de story — donc
+  dans la spec sous revue — que la revue de code n'a pas le droit de réécrire.*
+  *Ce qui reste à faire, hors revue : décider si la constitution doit gagner un
+  contrôle outillé de la transition, puisqu'elle admet elle-même que la règle
+  n'est pas appliquée.*
