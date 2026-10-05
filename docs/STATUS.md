@@ -1,7 +1,7 @@
 # État du projet
 
 Une page, mise à jour à chaque changement d'epic. La source de vérité est
-[`sprint-status.yaml`](../sprint-status.yaml) — ce fichier en est la **vue
+[`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas un second saisie.
 
 > Dernière mise à jour : **3 octobre 2026** · branche `local-first`
@@ -27,7 +27,7 @@ quatre jours de migration.
 | 5 ADR — Graphiti, forks, ontologie, LLM, licence | `docs/decisions/` |
 | 7 ADR — + Docker-first, structure par story | `docs/decisions/0006`, `0007` |
 | 8 ADR — + pnpm (Node), version figée dans `packageManager` | `docs/decisions/0008` |
-| Constitution, suivi, CI + lint ruff | `AGENTS.md`, `sprint-status.yaml`, `.github/workflows/ci.yml` |
+| Constitution, suivi, CI + lint ruff | `AGENTS.md`, `docs/sprint-status.yaml`, `.github/workflows/ci.yml` |
 
 ## En cours
 
@@ -38,7 +38,7 @@ La story **001-1 est `done`** : le conflit `graphiti-core` / `camel-oasis` est
 réel et structurel, la parade est mesurée et rejouable
 ([`mesurer-001-1.sh`](plans/001-epreuve-graphiti-local/mesurer-001-1.sh)), la
 décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
-revue de la 001-1 sont dans [`deferred-work.md`](../deferred-work.md).
+revue de la 001-1 sont dans [`deferred-work.md`](deferred-work.md).
 
 La story **001-1b est `done`** : l'`override-dependencies` du driver est posé
 dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le

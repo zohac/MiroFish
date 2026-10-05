@@ -1,7 +1,7 @@
 # Epic 001 — Épreuve Graphiti local
 
 - **Statut** : `in-progress` · **Dépend de** : rien · **Bloque** : 002, 003
-- **Suivi** : [`sprint-status.yaml`](../../../sprint-status.yaml)
+- **Suivi** : [`sprint-status.yaml`](../../../docs/sprint-status.yaml)
 
 > On mesure avant de construire. Le plan complet du projet est dans
 > [`docs/LOCAL-FIRST.md`](../../LOCAL-FIRST.md) ; cet epic est le **test qui

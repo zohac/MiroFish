@@ -9,13 +9,21 @@ la **constitution** ; ce dossier est le **fond**.
 
 | Dossier | Contenu | Convention de nommage |
 |---|---|---|
-| `docs/` (racine) | contexte technique de référence, état du projet | un fichier = un sujet |
+| `docs/` (racine) | contexte technique de référence, état du projet, suivi | un fichier = un sujet |
 | `docs/plans/` | un dossier par epic : PRD, architecture, stories | `<NNN>-<slug>/` |
 | `docs/decisions/` | ADR : décisions d'architecture | `NNNN-titre-en-kebab-case.md` |
 | `docs/architecture/` | schémas Mermaid — existant et cible | un fichier = une vue |
 
-À la racine du dépôt : `sprint-status.yaml` (suivi machine-readable) et
-`AGENTS.md` (constitution).
+À la racine de `docs/` : `STATUS.md` (état du projet),
+`sprint-status.yaml` (suivi machine-readable par epic) et `deferred-work.md`
+(travail différé, avec ce qui le déclencherait). À la racine **du dépôt** :
+`AGENTS.md` (constitution) — il reste à la racine parce qu'un agent doit le
+trouver avant d'avoir lu quoi que ce soit.
+
+> `sprint-status.yaml` et `deferred-work.md` vivaient à la racine du dépôt
+> jusqu'au 5 octobre 2026. `validate_plans.py` lit `docs/sprint-status.yaml` et
+> **nomme cet emplacement** quand le fichier manque, pour qu'on ne cherche pas à
+> l'ancien endroit.
 
 ## Index
 

@@ -30,9 +30,9 @@ est pire qu'un conflit assumé.
 - [x] Critères Given/When/Then écrits et mesurables
 - [x] Aucune dépendance externe non résolue
 - [x] Stratégie de test identifiée
-- [x] Documents à consulter lus — [`epic-001.md`](../epic-001.md),
-      [ADR 0010](../../../decisions/0010-override-driver-neo4j.md),
-      [ADR 0011](../../../decisions/0011-inventaire-driver-et-format-de-story.md),
+- [x] Documents à consulter lus — [`epic-001.md`](epic-001.md),
+      [ADR 0010](../../decisions/0010-override-driver-neo4j.md),
+      [ADR 0011](../../decisions/0011-inventaire-driver-et-format-de-story.md),
       [`story-001-1.md`](story-001-1.md),
       [`mesurer-001-1.sh`](mesurer-001-1.sh), `backend/pyproject.toml`
 
@@ -48,7 +48,7 @@ est pire qu'un conflit assumé.
 - [x] `mesurer-001-1.sh` **reste rejouable** sur l'arbre après override, et c'est vérifié en le lançant — **les deux arbres** : après le geste et après `git checkout`
 - [x] Réversibilité vérifiée : `git checkout backend/pyproject.toml backend/uv.lock` ramène à l'état initial, et `uv lock` **échoue** sans l'override — c'est la preuve du conflit, pas une restauration du lock — lock revenu au sha `1b41b865…`, celui qu'annonce la 001-1, et refus du résolveur reproduit
 - [x] `ruff`, `validate_plans.py` et `pytest` verts ; `uv.lock` régénéré **et commité**
-- [x] La version résolue et le propriétaire de la revalidation sont consignés dans [`deferred-work.md`](../../../deferred-work.md) — l'override promet une compatibilité que rien ne surveille
+- [x] La version résolue et le propriétaire de la revalidation sont consignés dans [`deferred-work.md`](../../../docs/deferred-work.md) — l'override promet une compatibilité que rien ne surveille
 
 ## Tâches
 
@@ -136,7 +136,7 @@ de cohérence lock comparant l'index git, la télémétrie coupée, le pin de
 `graphiti-core` gardé. `validate_plans.py` valide, 234 tests verts.
 
 Ce qui a été trouvé et **différé** — parce que ce n'est pas du travail qu'elle
-aurait dû faire — est dans [`deferred-work.md`](../../../deferred-work.md) :
+aurait dû faire — est dans [`deferred-work.md`](../../../docs/deferred-work.md) :
 le propriétaire de la revalidation à chaque release du driver, le pin du
 frontend (`--frozen-lockfile` a la même sémantique que `--frozen`, non testée),
 et la surveillance d'un éventuel **nouveau** client de télémétrie dans
@@ -421,7 +421,7 @@ Le coût de l'override — contourner une contrainte déclarée par l'amont, ave
 garde-fou faible — est inchangé. Un point s'améliore : la dérive de version est
 désormais **détectée à chaque exécution de la suite**, donc à chaque CI, et non
 seulement si quelqu'un relance `uv lock`. C'est consigné dans
-[`deferred-work.md`](../../../deferred-work.md), avec le propriétaire proposé de
+[`deferred-work.md`](../../../docs/deferred-work.md), avec le propriétaire proposé de
 la revalidation — l'ADR 0010 étant immuable, le nommer demande un ADR de
 précision.
 

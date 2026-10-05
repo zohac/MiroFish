@@ -48,8 +48,8 @@ _…_
 > **Périmètre de cet ADR.** L'illustration ci-dessus est celle de la décision
 > d'origine, et elle n'a pas été retouchée depuis : cet ADR est immuable
 > (AGENTS.md §2.3). Les six sections y portent donc encore les titres anglais.
-> C'est [`AGENTS.md` §2.10](../../../AGENTS.md) qui fait foi pour les titres en
-> français, et [`ADR 0011`](0011-titres-de-sections-en-francais.md) qui explique
+> C'est [`AGENTS.md` §2.10](../../AGENTS.md) qui fait foi pour les titres en
+> français, et [`ADR 0011`](0011-inventaire-driver-et-format-de-story.md) qui explique
 > pourquoi le validateur les exige désormais — et comment un fichier écrit avant
 > cette décision est diagnosed. **Ne pas recopier cette illustration telle
 > quelle** dans un fichier de story.

@@ -22,6 +22,12 @@ def _load_script():
 
 validate_plans = _load_script()
 
+# Le dépôt de test imite le vrai dépôt, donc `sprint-status.yaml` y vit sous
+# `docs/` comme depuis le 5 octobre 2026. Les tests lisent la constante du
+# script plutôt que de la réécrire : deux littéraux divergeraient au prochain
+# déplacement, et le Symptôme serait thirty-quatre tests rouges pour rien.
+SPRINT_STATUS_REL = validate_plans.SPRINT_STATUS_REL
+
 
 # --------------------------------------------------------------------------
 # Fixtures : un dépôt minimal conforme
@@ -77,7 +83,7 @@ def repo(tmp_path: Path) -> Path:
     _write(plan / "epic-001.md", "# Epic 001\n\n| 001-1 | story | `backlog` | story-001-1.md |")
     _write(plan / "story-001-1.md", _valid_story("001-1", "001", "backlog"))
     _write(
-        tmp_path / "sprint-status.yaml",
+        tmp_path / SPRINT_STATUS_REL,
         yaml.safe_dump(
             {
                 "projet": "test",
@@ -154,18 +160,18 @@ def test_missing_plan_folder_is_reported(repo: Path):
 
 
 def test_started_epic_without_plan_field_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
+    data = yaml.safe_load((repo / SPRINT_STATUS_REL).read_text())
     del data["epics"][0]["plan"]
-    _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump(data, allow_unicode=True))
     problems = validate_plans.validate(repo)
     assert any("`plan` obligatoire" in p for p in problems)
 
 
 def test_backlog_epic_needs_no_plan(repo: Path):
-    data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
+    data = yaml.safe_load((repo / SPRINT_STATUS_REL).read_text())
     del data["epics"][0]["plan"]
     data["epics"][0]["statut"] = "backlog"
-    _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump(data, allow_unicode=True))
     assert validate_plans.validate(repo) == []
 
 
@@ -174,17 +180,17 @@ def test_backlog_epic_needs_no_plan(repo: Path):
 # --------------------------------------------------------------------------
 
 def test_unknown_state_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
+    data = yaml.safe_load((repo / SPRINT_STATUS_REL).read_text())
     data["epics"][0]["statut"] = "en-cours"
-    _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump(data, allow_unicode=True))
     problems = validate_plans.validate(repo)
     assert any("état inconnu" in p for p in problems)
 
 
 def test_duplicate_epic_id_is_reported(repo: Path):
-    data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
+    data = yaml.safe_load((repo / SPRINT_STATUS_REL).read_text())
     data["epics"].append(dict(data["epics"][0]))
-    _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump(data, allow_unicode=True))
     problems = validate_plans.validate(repo)
     assert any("id dupliqué" in p for p in problems)
 
@@ -370,10 +376,10 @@ def test_derived_story_id_suffix_is_accepted(repo: Path):
 
 
 def test_story_without_file_is_allowed_while_epic_is_backlog(repo: Path):
-    data = yaml.safe_load((repo / "sprint-status.yaml").read_text())
+    data = yaml.safe_load((repo / SPRINT_STATUS_REL).read_text())
     data["epics"][0]["statut"] = "backlog"
     del data["epics"][0]["plan"]
-    _write(repo / "sprint-status.yaml", yaml.safe_dump(data, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump(data, allow_unicode=True))
     (repo / "docs/plans/001-truc/story-001-1.md").unlink()
     assert validate_plans.validate(repo) == []
 
@@ -403,8 +409,24 @@ def test_missing_sprint_status_is_reported(tmp_path: Path):
     assert any("sprint-status.yaml" in p for p in problems)
 
 
+def test_sprint_status_at_the_old_root_location_is_not_found(tmp_path: Path):
+    """Le fichier revenu à la racine ne doit pas être lu.
+
+    Depuis le 5 octobre 2026, l'agrégat d'epics est sous `docs/`. Un dépôt qui
+    garderait une copie à la racine — un ancien checkout, une synchronisation
+    oubliée, une fusion — ne doit pas passer pour conforme : le script lit un
+    seul emplacement, et dit lequel quand il ne le trouve pas.
+    """
+    _write(
+        tmp_path / "sprint-status.yaml",
+        yaml.safe_dump({"epics": [{"id": "001", "slug": "x", "titre": "t", "statut": "backlog"}]}),
+    )
+    problems = validate_plans.validate(tmp_path)
+    assert any(SPRINT_STATUS_REL in p for p in problems), problems
+
+
 def test_empty_epic_list_is_reported(repo: Path):
-    _write(repo / "sprint-status.yaml", yaml.safe_dump({"epics": []}, allow_unicode=True))
+    _write(repo / SPRINT_STATUS_REL, yaml.safe_dump({"epics": []}, allow_unicode=True))
     problems = validate_plans.validate(repo)
     assert any("non vide" in p for p in problems)
 

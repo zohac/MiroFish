@@ -48,6 +48,12 @@ CLOSED_STATES = {"review", "done"}
 EPIC_REQUIRED = ("id", "slug", "titre", "statut")
 STORY_META_REQUIRED = ("id", "epic", "titre", "statut", "auteur")
 
+# L'agrégat d'epics a vécu à la racine du dépôt avant le 5 octobre 2026, puis a
+# été déplacé sous `docs/` avec le reste de la documentation. Le chemin est une
+# constante et non un littéral réparti dans le script : c'est le seul endroit où
+# il faut revenir si le fichier bouge encore.
+SPRINT_STATUS_REL = "docs/sprint-status.yaml"
+
 # Les six sections obligatoires sont en français depuis le format 2 (ADR 0011).
 # Avant lui, elles portaient les titres anglais `Definition of Ready`,
 # `Definition of Done`, `Tasks` et `Completion notes` : un fichier de story
@@ -86,12 +92,18 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _load_yaml(path: Path) -> tuple[object | None, str | None]:
-    """Charge un YAML. Retourne (données, message d'erreur)."""
+def _load_yaml(path: Path, where: str | None = None) -> tuple[object | None, str | None]:
+    """Charge un YAML. Retourne (données, message d'erreur).
+
+    `where` est l'emplacement **attendu** depuis la racine du dépôt. Il ne sert
+    qu'au message d'absence : « fichier introuvable » sans le chemin laisse
+    chercher au mauvais endroit — c'est exactement le piège quand un fichier a
+    été déplacé, et qu'une vieille copie traîne encore à son ancien emplacement.
+    """
     try:
         return yaml.safe_load(path.read_text(encoding="utf-8")), None
     except FileNotFoundError:
-        return None, "fichier introuvable"
+        return None, f"fichier introuvable (attendu : {where})" if where else "fichier introuvable"
     except yaml.YAMLError as exc:
         return None, f"YAML invalide ({exc.__class__.__name__})"
 
@@ -161,8 +173,8 @@ def _hub_started_stories(hub_text: str) -> list[tuple[str, str]]:
 
 def validate_sprint_status(root: Path) -> list[str]:
     """Contrôle l'agrégat d'epics."""
-    path = root / "sprint-status.yaml"
-    data, err = _load_yaml(path)
+    path = root / SPRINT_STATUS_REL
+    data, err = _load_yaml(path, SPRINT_STATUS_REL)
     if err:
         return [f"sprint-status.yaml : {err}"]
     if not isinstance(data, dict):
@@ -338,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if not args.quiet:
-        epics = (yaml.safe_load((root / "sprint-status.yaml").read_text(encoding="utf-8")) or {}).get("epics", [])
+        epics = (yaml.safe_load((root / SPRINT_STATUS_REL).read_text(encoding="utf-8")) or {}).get("epics", [])
         stories = sum(len(list(p.glob("story-*.md")))
                       for p in (root / "docs" / "plans").glob("*") if p.is_dir())
         print(f"✓ structure de planification valide — {len(epics)} epics, {stories} fichier(s) de story")

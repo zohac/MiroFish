@@ -274,7 +274,7 @@ Mais ce n'est pas `camel-ai` qui les y met, c'est `camel-oasis`, qui **épingle*
 exige `>=3.2.1` : même forme de conflit que sur le driver `neo4j`, et l'extra
 est donc **ininstallable** sans arbitrage.
 
-> ⚠️ **Corrigé le 3 octobre 2026** (story 001-1, [ADR 0011](../../decisions/0011-inventaire-driver-et-format-de-story.md)).
+> ⚠️ **Corrigé le 3 octobre 2026** (story 001-1, [ADR 0011](decisions/0011-inventaire-driver-et-format-de-story.md)).
 > Ce paragraphe disait « dépendance de camel-ai » et en concluait que
 > l'embedder local était gratuit. C'est vrai du venv, faux de l'installation :
 > c'est le conflit qu'il faut voir, pas la version installée. **La story 001-4

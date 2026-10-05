@@ -51,7 +51,7 @@ reproductible.**
 > supersédé, pas réécrit.
 >
 > Cinq points de la revue de 001-1 et trois dettes contractées par l'override
-> sont dans [`deferred-work.md`](deferred-work.md).
+> sont dans [`deferred-work.md`](docs/deferred-work.md).
 
 ---
 
@@ -164,7 +164,7 @@ mesurer un effort, pas à décider quoi construire.
 | Architecture | `docs/plans/<NNN>-<slug>/architecture.md` | comment, avec schémas Mermaid |
 | Epic | `docs/plans/<NNN>-<slug>/epic-<NNN>.md` | le contrat d'ingénierie : FR, NFR, UX, index des stories, **documents à consulter** |
 | Story | `docs/plans/<NNN>-<slug>/story-<epic>-<n>[-<suffixe>].md` | une story = un fichier markdown : en-tête minimal, puis les six sections en français (voir §2.10) |
-| Suivi | `sprint-status.yaml` (racine) | **l'agrégat par epic** |
+| Suivi | `docs/sprint-status.yaml` | **l'agrégat par epic** |
 
 Règles :
 
@@ -338,7 +338,7 @@ Variables d'environnement utiles :
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
 | Locks | `pnpm-lock.yaml`, `frontend/pnpm-lock.yaml`, `backend/uv.lock` | versions figées — ne jamais en réécrire un à la main |
-| Planification | `docs/plans/`, `sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
+| Planification | `docs/plans/`, `docs/sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
 | Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
 | Docker | `Dockerfile`, `docker-compose.yml` | image amont, 1 service — **à étendre** (epic 005) |
 
@@ -418,11 +418,11 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | Doc | Contenu |
 |---|---|
 | [`docs/STATUS.md`](docs/STATUS.md) | fait / en cours / à faire / prochain pas |
-| [`sprint-status.yaml`](sprint-status.yaml) | agrégat machine-readable par epic |
+| [`sprint-status.yaml`](docs/sprint-status.yaml) | agrégat machine-readable par epic |
 | [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | l'epic en cours : PRD, architecture, epic, stories |
 | [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
 | [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
-| [`deferred-work.md`](deferred-work.md) | travail réel différé, avec ce qui le déclencherait |
+| [`deferred-work.md`](docs/deferred-work.md) | travail réel différé, avec ce qui le déclencherait |
 | [`docs/architecture/cible-graphstore.md`](docs/architecture/cible-graphstore.md) | schémas de l'architecture cible |
 | [`docs/decisions/`](docs/decisions/) | ADR — décisions d'architecture, figées |
 

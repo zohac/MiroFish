@@ -24,7 +24,7 @@ service Graphiti isolé). C'est le seul obstacle de cette story.
 - [x] Critères Given/When/Then écrits et mesurables
 - [x] Aucune dépendance externe non résolue
 - [x] Stratégie de test identifiée
-- [x] Documents à consulter lus — [`epic-001.md`](../epic-001.md), [ADR 0006](../../../decisions/0006-docker-first.md), `backend/pyproject.toml`
+- [x] Documents à consulter lus — [`epic-001.md`](epic-001.md), [ADR 0006](../../decisions/0006-docker-first.md), `backend/pyproject.toml`
 
 ## Définition de fini
 
@@ -60,9 +60,9 @@ contrôle d'import, pas un test fonctionnel.
 
 **Documents de référence.**
 
-- [`epic-001.md`](../epic-001.md) — le contrat de l'epic
-- [`docs/LOCAL-FIRST.md` §11](../../../LOCAL-FIRST.md) — le même obstacle, vu par l'amont
-- [ADR 0006](../../../decisions/0006-docker-first.md) — un seul environnement de référence
+- [`epic-001.md`](epic-001.md) — le contrat de l'epic
+- [`docs/LOCAL-FIRST.md` §11](../../LOCAL-FIRST.md) — le même obstacle, vu par l'amont
+- [ADR 0006](../../decisions/0006-docker-first.md) — un seul environnement de référence
 
 ## Revue
 
@@ -103,13 +103,13 @@ que cette section.
 #### Tranchées puis appliquées — 9
 
 - [x] [Review][Decision] **ADR 0009 (accepté) réécrit, et le hunk affirme le contraire de ce qu'il fait** → **retour en arrière intégral** : `git checkout c1e17e0 -- 0009-format-des-stories.md`. Illustration anglaise, Contexte, Note d'implémentation et puce Négatives sont revenues à leur état d'origine. La seule édition conservée est une note exacte : cet ADR est immuable, son illustration est caduque, l'ADR 0011 porte la décision. `AGENTS.md` §2.10 pointe 0011 et reconnaît que la règle est outillée.
-- [x] [Review][Decision] **L'inventaire d'API qui fonde l'override est faux** → **[ADR 0011](../../../decisions/0011-inventaire-driver-et-format-de-story.md)** créé : il relève la surface réelle (`GraphDatabase.driver`, `Query`, quatre types d'exceptions ; `neo4j.Version` **retiré**, 0 occurrence) et consigne la version résolue. L'ADR 0010 le pointe et signale par un encadré que sa règle 2 est remplacée. Indexé dans `decisions/README.md`, `AGENTS.md` §9, `epic-001.md`.
+- [x] [Review][Decision] **L'inventaire d'API qui fonde l'override est faux** → **[ADR 0011](../../decisions/0011-inventaire-driver-et-format-de-story.md)** créé : il relève la surface réelle (`GraphDatabase.driver`, `Query`, quatre types d'exceptions ; `neo4j.Version` **retiré**, 0 occurrence) et consigne la version résolue. L'ADR 0010 le pointe et signale par un encadré que sa règle 2 est remplacée. Indexé dans `decisions/README.md`, `AGENTS.md` §9, `epic-001.md`.
 - [x] [Review][Decision] **Renommer `STORY_SECTIONS` sans version de format** → **marqueur `format: "2"`** dans l'en-tête, avec sortie anticipée avant les contrôles de sections : un fichier au format 1 produit **un** message nommant le format, la raison et le remède, au lieu de sept identiques. Trois tests couvrent le cas.
 - [x] [Review][Decision] **La DoD réécrite après l'échec, et le saut `backlog → review`** → les six critères d'origine sont restaurés, **le premier barré et annoté « non satisfiable »** plutôt que supprimé. Statut conservé. La formulation barrée est celle du dépôt (`LOCAL-FIRST.md` §11 point 4, §Risques plus bas) : elle préserve l'échec sans laisser de case ouverte, ce que le validateur renforcé par la décision D8 refuse.
 - [x] [Review][Decision] **ADR 0010 « à acter » dans cinq fichiers, 001-1b dans un index sur trois** → les cinq occurrences corrigées (`AGENTS.md` §1, `sprint-status.yaml`, `docs/LOCAL-FIRST.md`, `docs/STATUS.md`, `architecture.md`). `AGENTS.md` §1 désigne **001-1b** comme la tâche du moment ; `STATUS.md` nomme la story et porte la forme canonique de la constante. L'ordre 001-1b → 001-2 est explicite des deux côtés.
 - [x] [Review][Decision] **NFR-3 citée à contresens, et la mesure non rejouable** → [`mesurer-001-1.sh`](mesurer-001-1.sh) écrit et **exécuté** : il mesure, remet `pyproject.toml`, `uv.lock` et le venv à leur état initial — vérifié, sha256 `1b41b865…`, `neo4j` 5.23.0, `graphiti_core` absent — et sa sortie est versionnée dans [`mesure-001-1.txt`](mesure-001-1.txt). La sortie du résolveur y est verbatim, avec les trois exigences lues dans les `METADATA` installés. La « Limite de la mesure » ne prétend plus que le PRD exclut Neo4j : elle dit ce que l'epic n'a pas encore fourni.
 - [x] [Review][Decision] **Plage non épinglée : 001-2 ne teste pas ce qui sera déployé** → la version résolue (**`neo4j 5.28.6`**, relevée par le protocole) est écrite dans l'ADR 0010 et dans l'ADR 0011. Les trois écritures de la constante (`ADR 0010`, `STATUS.md`, cette story) sont identiques : `neo4j>=5.26.0,<6.0.0`.
-- [x] [Review][Decision] **Le validateur n'impose pas les invariants qu'AGENTS.md §2.8 lui attribue** → `AGENTS.md` §2.8 n'énumère plus que ce qui est réellement appliqué et signale que « jamais de saut » n'est outillé par rien. `validate_plans.py` gagne : scan des cases des deux définitions pour une story en `review`/`done`, citation dans le hub par frontières de mot, présence du fichier derrière une ligne de hub `in-progress`, forme de l'`id`. L'ordre des états part en [`deferred-work.md`](../../../deferred-work.md) : il faudrait l'historique git.
+- [x] [Review][Decision] **Le validateur n'impose pas les invariants qu'AGENTS.md §2.8 lui attribue** → `AGENTS.md` §2.8 n'énumère plus que ce qui est réellement appliqué et signale que « jamais de saut » n'est outillé par rien. `validate_plans.py` gagne : scan des cases des deux définitions pour une story en `review`/`done`, citation dans le hub par frontières de mot, présence du fichier derrière une ligne de hub `in-progress`, forme de l'`id`. L'ordre des états part en [`deferred-work.md`](../../../docs/deferred-work.md) : il faudrait l'historique git.
 - [x] [Review][Decision] **`001-1b` hors convention `story-<epic>-<n>.md`** → la convention est documentée dans `AGENTS.md` §2.8 : suffixe alphabétique facultatif pour une story dérivée d'un critère qu'une story précédente n'a pas pu tenir. `validate_plans.py` valide la forme et refuse un `id` mal formé.
 
 #### Patch — 11

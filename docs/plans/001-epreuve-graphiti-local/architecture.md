@@ -92,7 +92,7 @@ collision de dimensions et le chunking.
 > 3.0 → 3.2 est un changement de modèle et de `torch`, il ne se décide pas par
 > analogie avec un driver. Mesuré et consigné dans
 > [`story-001-1.md`](story-001-1.md) et
-> [ADR 0011](../../../decisions/0011-inventaire-driver-et-format-de-story.md).
+> [ADR 0011](../../decisions/0011-inventaire-driver-et-format-de-story.md).
 
 ```python
 from graphiti_core.embedder.sentence_transformer import (
