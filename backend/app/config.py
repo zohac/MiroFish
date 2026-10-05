@@ -32,6 +32,24 @@ class Config:
     # Zep配置
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
     
+    # Graphiti 配置 —— 知识图谱本地化（ADR 0001，epic 001）
+    #
+    # `graphiti-core` embarque `posthog` et envoie une télémétrie
+    # d'initialisation vers us.i.posthog.com — **activée par défaut**
+    # (`telemetry.py` : `os.environ.get('GRAPHITI_TELEMETRY_ENABLED', 'true')`),
+    # appelée depuis `Graphiti.__init__`. Un projet dont la thèse est
+    # « local-first » (ADR 0005) ne peut pas laisser sortir de la machine sans
+    # l'avoir demandé : on coupe par défaut, et on ne rallume que sur demande
+    # explicite. Vérifié le 4 octobre 2026 (story 001-1b, revue).
+    GRAPHITI_TELEMETRY_ENABLED = (
+        os.environ.get('GRAPHITI_TELEMETRY_ENABLED', 'false').lower() in ('true', '1', 'yes', 'on')
+    )
+    # `graphiti-core` lit la variable dans `os.environ` au moment où le client est
+    # construit, pas via notre Config. La pousser ici, au chargement du module,
+    # est donc ce qui rend la config ci-dessus effective plutôt que décorative :
+    # sans cela, `Graphiti()` lirait le défaut de la bibliothèque — « true ».
+    os.environ['GRAPHITI_TELEMETRY_ENABLED'] = 'true' if GRAPHITI_TELEMETRY_ENABLED else 'false'
+    
     # 文件上传配置
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '../uploads')
