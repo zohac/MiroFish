@@ -373,19 +373,36 @@ def test_le_plugin_apoc_est_installe():
         "plugin installé"
     )
     debride = debridage.group(1).strip().strip('"').strip("'")
-    # Les quatre procédures que `camel` appelle, nommées par la mesure et pas par
-    # catégorie. `apoc.meta.data` en fait partie **bien que ce soit une lecture** :
-    # APOC la marque comme sandboxed, et une sandboxed est refusée même quand lire
-    # est permis. Écrire `apoc.merge.*,apoc.create.*` laisse donc passer ce test
-    # et casse `camel` au premier `refresh_schema` — ce que le rejeu du
-    # 5 octobre 2026 a attrapé, avec `ProcedureRegistrationFailed` là où le
-    # compose livré promettait `OK`.
-    for procedure in ("apoc.meta.data", "apoc.merge.", "apoc.create."):
-        assert procedure in debride, (
-            f"la dérogation vaut {debride!r} et ne couvre pas `{procedure}` : "
-            "camel-oasis en a besoin, et l'erreur qu'il produirait accuserait un "
-            "plugin absent alors qu'il est présent"
+
+    # **Couverture**, avec conscience du joker. Un test qui chercherait la
+    # sous-chaîne `apoc.meta.data` refuserait `apoc.*` en prétendant qu'il « ne
+    # couvre pas » la procédure — un message faux, alors que `apoc.*` la couvre.
+    # Les quatre procédures sont nommées par la mesure et non par catégorie :
+    # `apoc.meta.data` en fait partie **bien que ce soit une lecture**, parce
+    # qu'APOC la marque sandboxed et qu'une sandboxed est refusée même quand lire
+    # est permis. C'est le rejeu du 5 octobre 2026 qui l'a montré, en rendant
+    # `ProcedureRegistrationFailed` là où le compose livré promettait `OK`.
+    def _couvre(valeur: str, procedure: str) -> bool:
+        motifs = [m.strip() for m in valeur.split(",") if m.strip()]
+        return any(m == procedure or (m.endswith("*") and procedure.startswith(m[:-1])) for m in motifs)
+
+    for procedure in ("apoc.meta.data", "apoc.merge.node", "apoc.merge.relationship", "apoc.create.addLabels"):
+        assert _couvre(debride, procedure), (
+            f"la dérogation {debride!r} ne couvre pas `{procedure}` : camel-oasis "
+            "en a besoin, et l'erreur qu'il produirait accuserait un plugin absent "
+            "alors qu'il est présent"
         )
+
+    # **Largeur.** Le joker intégral est refusé nommément : il débride bien
+    # au-delà des quatre procédures mesurées, et c'est justement ce que la revue
+    # a corrigé — sur une base de développement l'écart ne se voit pas, jusqu'au
+    # jour où une version de `camel` appelle une procédure d'écriture que
+    # personne n'avait prévue. Élargir doit être un geste visible.
+    assert debride.replace(" ", "") != "apoc.*", (
+        "la dérogation est `apoc.*` : elle débride toute la bibliothèque alors que "
+        "la story n'en a mesuré que quatre procédures. Si l'élargissement est "
+        "délibéré, le dire dans le commentaire et rejouer verifier-001-2.sh"
+    )
 
 
 # --------------------------------------------------------------------------
