@@ -61,10 +61,11 @@ reproductible.**
 > (`apoc.meta.data()` au `__init__` de son `Neo4jGraph`, `apoc.merge.node` à
 > l'écriture). Le plugin reste donc installé, pour `camel` et non pour Graphiti,
 > et la dérogation est **restreinte aux quatre procédures que `camel` appelle**
-> plutôt qu'ouverte à `apoc.*` — dont `apoc.meta.data`, un **lecture sandboxed**
-> qu'il faut débrider quand même : la mesure l'a imposé contre l'intuition, en
-> rejouant le protocole sur une liste qui l'omettait. `architecture.md` §4 est corrigé : il prescrivait APOC
-> en recopiant le fork de référence, sans dire pourquoi.
+> plutôt qu'ouverte à `apoc.*` — dont `apoc.meta.data`, une **lecture
+> sandboxed** qu'il faut débrider quand même : la mesure l'a imposé contre
+> l'intuition, en rejouant le protocole sur une liste qui l'omettait.
+> `architecture.md` §4 est corrigé : il prescrivait APOC en recopiant le fork de
+> référence, sans dire pourquoi.
 >
 > **Une revue de code à quatre couches a trouvé six garde-fous qui ne pouvaient
 > pas échouer** — celui du secret, celui de la dérogation, celui du healthcheck,
