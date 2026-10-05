@@ -43,7 +43,57 @@ revue de la 001-1 sont dans [`deferred-work.md`](deferred-work.md).
 La story **001-1b est `done`** : l'`override-dependencies` du driver est posé
 dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le
 lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
-avait consignée, sans écart. **234 tests verts.**
+avait consignée, sans écart.
+
+### La story 001-2 est `review` — le driver forcé **tient**
+
+> C'est la réponse que l'ADR 0010 attendait et qu'il ne pouvait pas avoir : est-ce
+> que `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`, tient
+> contact avec un vrai serveur ? **Oui.** 17 contrôles, deux fois, sur deux
+> configurations de serveur. **L'ADR 0010 n'est pas supersédé.**
+
+Premier contact avec un vrai serveur, donc premières mesures :
+
+| Mesuré | Valeur |
+|---|---|
+| Driver | `neo4j 5.28.6` — lockée par `backend/uv.lock` |
+| Serveur | `Neo4j 5.26.31` `community` — lue de `CALL dbms.components()`, pas du tag |
+| Surface de l'ADR 0011 | 17/17 : `GraphDatabase.driver`, transactions, `Query`, 4 exceptions |
+| Hiérarchie d'exceptions | tient — mais `Neo4jError` et `DriverError` sont **sœurs** sous `GqlError` |
+| Volume nommé | le nœud survit à `stop` puis `start`, `valid_at` compris (**C3**) |
+| Écart driver / serveur | 5.28.6 / 5.26.31 — mesuré, gardé par un test |
+
+Le compose d'épreuve est **séparé** — [`docker-compose.neo4j.yml`](../../docker-compose.neo4j.yml)
+— parce que `docker-compose.yml` pointe l'image amont (AGENTS.md §2.9). L'epic
+005 l'absorbera quand l'environnement de référence existera.
+
+Deux mesures, parce qu'**APOC a deux réponses et non une** :
+
+- `graphiti-core==0.30.2` **s'en passe** — zéro occurrence de `apoc` dans le
+  paquet, et ses 31 requêtes d'indexation plus ses deux procédures vectorielles
+  passent sur un serveur sans plugin ;
+- **`camel-oasis` en a besoin** — `Neo4jGraph.__init__` lance `refresh_schema()`,
+  qui exécute `CALL apoc.meta.data()`, et `add_nodes_from_df` utilise
+  `apoc.merge.node`. Sans plugin, son chemin Neo4j casse dès le premier appel.
+
+Le plugin reste donc dans le compose, mais pour une raison que
+`architecture.md` §4 ne donnait pas — il y prescrivait APOC « repris du fork de
+référence ». **Cette phrase est désormais fausse** : le fork avait APOC parce
+que `camel` en a besoin, et c'est mesuré.
+
+Trois découvertes que personne n'avait faites, toutes dans
+[`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md) § Notes de
+complétion : la hiérarchie d'exceptions n'est pas une chaîne ; `graphiti-core`
+appelle `CALL db.indexes()`, qui **n'existe pas** sur un 5.x (hors chemin
+d'écriture, mais la 001-5 doit le savoir) ; et `apoc.merge.*` est refusé par
+défaut même plugin installé — sans quoi `camel` accuse une installation
+manquante qui est présente.
+
+Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
+[`verifier-001-2.sh`](plans/001-epreuve-graphiti-local/verifier-001-2.sh),
+[`mesure-001-2-compose.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt),
+[`mesure-001-2-sans-apoc.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-sans-apoc.txt).
+**277 tests verts**, 234 + 42 de la 001-2.
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -78,7 +128,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | 002 | Interface `GraphStore` + `ZepGraphStore` + factory | 001 |
 | 003 | `GraphitiGraphStore` : écriture et chemin de lecture | 001, 002 |
 | 004 | Construire un graphe sans clé Zep — la preuve finale | 003 |
-| 005 | Docker local : Neo4j dans le compose | 003 |
+| 005 | Docker local : Neo4j dans le compose — **le compose d'épreuve existe déjà**, il s'y substituera | 003 |
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette | 003 |
 | 007 | Ontologie dynamique (v2) | 003 |
 
@@ -103,26 +153,17 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Story 001-2 — rédigée, à démarrer.** Neo4j en local, dans un compose
-   **séparé** de celui de l'application, serveur figé sur `5.26.31-community`.
-   C'est le **premier test comportemental du driver forcé** : personne n'a
-   encore ouvert de connexion sous cet override. La surface est relevée (ADR
-   0011), l'exécution ne l'est pas — et c'est 001-2 qui tranche l'ADR 0010, par
-   supersession s'il casse. Elle dispose de `neo4j 5.28.6` lockée, version que
-   l'override a résolu et que `pyproject.toml` consigne.
-   Fichier : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md).
-   Trois choix y sont déjà actés, et chacun a sa raison : le **tag du serveur est
-   figé** sur un patch (le tag `5.26` est flottant et a bougé le 2 octobre),
-   l'**écart** entre le driver 5.28.6 et le serveur 5.26.31 est consigné plutôt
-   quelaissé, et la surface de l'ADR 0011 sera **exercée** et pas seulement
-   importée. Au passage, la story mesurera si **APOC est encore nécessaire** :
-   `graphiti-core 0.30.2` n'appelle aucune procédure APOC.
-2. Puis 001-3 (en-tête de session) et 001-4 (embedder) — les deux autres risques
-   de l'épreuve. 001-4 reste **bloquée par le même conflit** que le driver
-   (`sentence-transformers==3.0.0` contre `>=3.2.1`), avec son propre arbitrage :
-   l'ADR 0010 ne couvre que `neo4j`, et un test
+1. **Relire la 001-2, puis 001-3** (en-tête de session) et **001-4** (embedder) —
+   les deux autres risques de l'épreuve. 001-4 reste **bloquée par le même
+   conflit** que le driver (`sentence-transformers==3.0.0` contre `>=3.2.1`),
+   avec son propre arbitrage : l'ADR 0010 ne couvre que `neo4j`, et un test
    (`backend/tests/test_pyproject_override.py`) refuse qu'on l'élargisse en
-   silence.
+   silence. Deux choses que la 001-2 laisse à la 001-5, et qu'il faut y lire :
+   `CALL db.indexes()` **n'existe pas** sur un 5.x — donc la remise à zéro par
+   `build_indices_and_constraints(delete_existing=True)` échouerait ; et le
+   chemin `oasis` (celui de `agent_graph.py`) reste **non exercé**, la story
+   ayant volontairement mesuré le nôtre et pas le sien.
+2. La 001-5 aura le serveur prêt, avec les volumes en place.
 3. L'épreuve elle-même, et son verdict.
 
 > La 001-1b a été relue par quatre couches indépendantes avant d'être passée en
@@ -147,7 +188,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | **234**, tous verts, **sans `.env`** (204 après la 001-1b ; 192 avant ; 183 avant les neuf tests de revue du 3 octobre) |
+| Tests | **277**, tous verts, **sans `.env`** (+42 par la 001-2 ; 234 avant ; 204 après la 001-1b ; 192 ; 183 avant les neuf tests de revue du 3 octobre) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

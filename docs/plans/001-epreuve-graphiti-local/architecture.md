@@ -102,13 +102,14 @@ from graphiti_core.embedder.sentence_transformer import (
 
 ## 4. Neo4j
 
-Reprendre le compose du fork de référence, nettoyé (le `version:` est obsolète,
-le mot de passe est en dur) :
+Le compose ci-dessous est **le squelette de départ** ; il est écrit et mesuré
+depuis. Le compose réel est [`docker-compose.neo4j.yml`](../../../docker-compose.neo4j.yml)
+— **séparé** de `docker-compose.yml`, qui pointe l'image amont (AGENTS.md §2.9).
 
 ```yaml
 services:
   neo4j:
-    image: neo4j:5.26
+    image: neo4j:5.26            # ⚠️ voir les corrections du 5 octobre ci-dessous
     ports: ["7474:7474", "7687:7687"]
     environment:
       NEO4J_AUTH: neo4j/<mot-de-passe>
@@ -119,7 +120,49 @@ volumes:
 ```
 
 **Critère C3 impose de redémarrer Neo4j** et de relire : une extraction qui ne
-survit pas au redémarrage n'est pas une preuve.
+survit pas au redémarrage n'est pas une preuve. → **mesuré, le 5 octobre 2026**
+(story 001-2) : `stop` puis `start`, et le nœud est relu avec son arête et son
+`valid_at`.
+
+### Corrections du 5 octobre 2026 (story 001-2)
+
+**Le tag `neo4j:5.26` est flottant, et le squelette ci-dessus est faux.** Vérifié
+sur Docker Hub le 5 octobre : `5.26` pointe sur `5.26.31`, et il bouge à chaque
+sortie. Le tag livré est **`neo4j:5.26.31-community`** :
+
+- **patch figé**, pour qu'un `up` six mois après démarre le serveur qu'on a
+  mesuré — même raisonnement que la version résolue de l'override, consignée à
+  côté dans `pyproject.toml` (ADR 0011) ;
+- **`-community`**, parce que `neo4j:<version>` sans suffixe est l'édition
+  **Enterprise**, qui réclame un accord de licence. NFR-1 vaut 0 €.
+
+**APOC n'est pas là pour Graphiti.** Ce squelette le prescrit parce que le fork
+de référence l'avait, sans dire pourquoi. Mesuré :
+
+- **`graphiti-core==0.30.2` s'en passe** — zéro occurrence de `apoc` dans le
+  paquet, et sur un serveur sans plugin ses 31 requêtes d'indexation, ses
+  procédures vectorielles et sa recherche fulltext passent toutes ;
+- **`camel-oasis` en a besoin** — `Neo4jGraph.__init__` appelle
+  `refresh_schema()`, qui exécute `CALL apoc.meta.data()`, et `add_nodes_from_df`
+  utilise `apoc.merge.node`, `apoc.merge.relationship` et
+  `apoc.create.addLabels`. Sans plugin, le chemin Neo4j de `camel` casse dès le
+  premier appel, avec un message qui accuse une installation manquante.
+
+Le plugin **reste donc**, pour `camel` et non pour Graphiti. Et il faut
+`NEO4J_dbms_security_procedures_unrestricted: "apoc.*"` : `apoc.merge.*` est une
+procédure d'écriture, refusée par défaut même plugin installé.
+
+**L'écart driver / serveur est mesuré, pas présumé.** `neo4j 5.28.6` (locké par
+l'override de l'ADR 0010) contre `Neo4j 5.26.31`. Il tient : écriture, relecture
+après redémarrage, surface de l'ADR 0011 entière — 17/17 contrôles, deux fois.
+Un test garde l'écart, pour que le jour où quelqu'un aligne les deux « pour
+simplifier », ce soit un geste visible.
+
+**Un écart que personne n'attendait : `CALL db.indexes()` n'existe pas** sur un
+serveur 5.x. `graphiti-core` l'appelle dans `delete_all_indexes`, donc par
+`build_indices_and_constraints(delete_existing=True)` — **hors du chemin
+d'écriture d'épisodes**. La 001-5 doit le savoir avant de choisir sa remise à
+zéro.
 
 ## 5. Ordre d'exécution
 
@@ -133,6 +176,10 @@ survit pas au redémarrage n'est pas une preuve.
    extra**. L'extra `sentence-transformers` déclencherait le second conflit et
    reviendrait à trancher la 001-4 par la porte de derrière.
 2. Neo4j up, healthcheck vert (001-2)
+   → ✅ **fait, le 5 octobre 2026** : compose d'épreuve séparé, tag figé
+   `5.26.31-community`, healthcheck qui interroge le Bolt, volume nommé. Le
+   driver forcé **tient** — voir §4 et
+   [`story-001-2.md`](story-001-2.md)
 3. Script de mesure sur 1 chunk → vérifier l'auth **avant** d'aller plus loin
    (001-3)
 4. Embedder local branché (001-4)

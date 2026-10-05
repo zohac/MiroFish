@@ -1,0 +1,137 @@
+
+=========== 0. configuration mesurée ===========
+mode            : compose
+configuration   : serveur du compose livré, plugin APOC compris
+attente APOC    : attendu
+compose         : 3eddc18 · abdcdf4f9bfec4e1…
+conteneur       : 1021a392f6521dd245ee6248ca2573836228240de7072138ca6164aad3a5abf8
+version compose : neo4j:5.26.31-community
+
+=========== 1. démarrage et healthcheck ===========
+ Container mirofish-neo4j-neo4j-1 Running 
+ Container mirofish-neo4j-neo4j-1 Waiting 
+ Container mirofish-neo4j-neo4j-1 Healthy 
+mirofish-neo4j-neo4j-1  running  Up 15 minutes (healthy)
+Bolt joignable après 3s environ
+
+=========== 2. version effective du serveur et du driver ===========
+  name, versions, edition
+  "Neo4j Kernel", ["5.26.31"], "community"
+  driver locké : neo4j 5.28.6
+  graphiti-core: 0.30.2
+
+=========== 3. écriture, surface de l'ADR 0011, procédures Graphiti, APOC ===========
+Test comportemental du driver forcé — story 001-2 — phase « ecrire »
+  horodatage : 2026-10-05T14:38:01+00:00
+  driver     : neo4j 5.28.6 (locké par backend/uv.lock, forcé par l'override de l'ADR 0010)
+  serveur    : Neo4j 5.26.31 (community)
+  cible      : bolt://localhost:7687
+  APOC       : attendu = attendu
+  écart      : driver 5.28.6 / serveur 5.26.31 — assumé, et c'est l'objet de la mesure
+
+  OK    ouverture du driver                                             [GraphDatabase.driver]
+         GraphDatabase.driver(bolt://localhost:7687) puis verify_connectivity()
+  OK    hiérarchie d'exceptions                                         [ADR 0011]
+         les 7 liens tiennent ; Neo4jError et DriverError sont bien sœurs sous GqlError, et ClientError couvre les trois que camel attrape
+  OK    AuthError sur mot de passe faux                                 [exceptions]
+         AuthError : {code: Neo.ClientError.Security.Unauthorized} {message: The client is unauthorized due to authentica
+  OK    ServiceUnavailable sur port fermé                               [exceptions]
+         port 51835 : ServiceUnavailable : Couldn't connect to 127.0.0.1:51835 (resolved to ('127.0.0.1:51835',)):
+  OK    Query paramétrée                                                [Query]
+         Query(text=..., timeout=...) puis .data() : [{'a': 'mirofish-verification', 'b': 1}]
+  OK    transaction gérée — execute_write                               [transactions]
+         session.execute_write() renvoie 'sonde-execute-write'
+  OK    transaction gérée — write_transaction                           [transactions]
+         session.write_transaction() renvoie 'sonde-write-transaction' — dépréciée, présente : write_transaction has been renamed to execute_write
+  OK    transaction gérée — read_transaction                            [transactions]
+         session.read_transaction() renvoie 1 — dépréciée, présente : read_transaction has been renamed to execute_read
+  OK    ClientError sur contrainte violée                               [exceptions]
+         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(2) already exists with label `MiroFis
+  OK    CypherSyntaxError sur requête invalide                          [exceptions]
+         CypherSyntaxError ⊂ ClientError : {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input '': expected an identifier (line 1, colu
+  OK    schéma Graphiti (index fulltext + range)                        [Graphiti]
+         4 index fulltext et 27 index range créés — 31/31 déclarés et visibles dans SHOW INDEXES
+  OK    CALL db.indexes() YIELD name — absente, hors chemin d'écriture  [Graphiti]
+         ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `db.indexes` registere — relevée, elle pèse sur `build_indices_and_constraints(delete_existing=True)`, jamais sur `add_episode`
+  OK    procédure native db.create.setNodeVectorProperty                [Graphiti]
+         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+  OK    procédure native db.index.fulltext.queryNodes                   [Graphiti]
+         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+  OK    index de la sonde visibles                                      [Graphiti]
+         SHOW INDEXES renvoie ['mirofish_verification_fulltext', 'mirofish_verification_vector'] sur ['mirofish_verification_fulltext', 'mirofish_verification_vector'] attendus
+  OK    APOC                                                            [camel-oasis]
+         APOC 5.26.31 : la requête de camel (apoc.meta.data) répond, et apoc.merge.node crée (onCreate) puis met à jour (onMatch) — relu vu=True
+  OK    écriture du graphe de vérification                            
+         deux transactions gérées : remise à zéro puis 2 nœuds MiroFishVerification et une arête VERIFIES (valid_at=2026-10-05T14:38:02.839057+00:00), 2 nœud(s) de la sonde en base
+
+  17/17 contrôles passés
+  1 écart(s) connu(s) et documenté(s) : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
+code de sortie : 0
+
+=========== 4. arrêt puis redémarrage du conteneur — le cas C3 ===========
+ Container mirofish-neo4j-neo4j-1 Stopping 
+ Container mirofish-neo4j-neo4j-1 Stopped 
+--- après stop ---
+mirofish-neo4j-neo4j-1  exited
+ Container mirofish-neo4j-neo4j-1 Starting 
+ Container mirofish-neo4j-neo4j-1 Started 
+Bolt joignable après 6s environ
+mirofish-neo4j-neo4j-1  running  Up 5 seconds (health: starting)
+
+=========== 5. relecture après redémarrage ===========
+Test comportemental du driver forcé — story 001-2 — phase « relire »
+  horodatage : 2026-10-05T14:38:13+00:00
+  driver     : neo4j 5.28.6 (locké par backend/uv.lock, forcé par l'override de l'ADR 0010)
+  serveur    : Neo4j 5.26.31 (community)
+  cible      : bolt://localhost:7687
+  APOC       : attendu = attendu
+  écart      : driver 5.28.6 / serveur 5.26.31 — assumé, et c'est l'objet de la mesure
+
+  OK    ouverture du driver                                             [GraphDatabase.driver]
+         GraphDatabase.driver(bolt://localhost:7687) puis verify_connectivity()
+  OK    hiérarchie d'exceptions                                         [ADR 0011]
+         les 7 liens tiennent ; Neo4jError et DriverError sont bien sœurs sous GqlError, et ClientError couvre les trois que camel attrape
+  OK    AuthError sur mot de passe faux                                 [exceptions]
+         AuthError : {code: Neo.ClientError.Security.Unauthorized} {message: The client is unauthorized due to authentica
+  OK    ServiceUnavailable sur port fermé                               [exceptions]
+         port 51875 : ServiceUnavailable : Couldn't connect to 127.0.0.1:51875 (resolved to ('127.0.0.1:51875',)):
+  OK    Query paramétrée                                                [Query]
+         Query(text=..., timeout=...) puis .data() : [{'a': 'mirofish-verification', 'b': 1}]
+  OK    transaction gérée — execute_write                               [transactions]
+         session.execute_write() renvoie 'sonde-execute-write'
+  OK    transaction gérée — write_transaction                           [transactions]
+         session.write_transaction() renvoie 'sonde-write-transaction' — dépréciée, présente : write_transaction has been renamed to execute_write
+  OK    transaction gérée — read_transaction                            [transactions]
+         session.read_transaction() renvoie 1 — dépréciée, présente : read_transaction has been renamed to execute_read
+  OK    ClientError sur contrainte violée                               [exceptions]
+         ConstraintError ⊂ ClientError : {code: Neo.ClientError.Schema.ConstraintValidationFailed} {message: Node(2) already exists with label `MiroFis
+  OK    CypherSyntaxError sur requête invalide                          [exceptions]
+         CypherSyntaxError ⊂ ClientError : {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input '': expected an identifier (line 1, colu
+  OK    schéma Graphiti (index fulltext + range)                        [Graphiti]
+         4 index fulltext et 27 index range créés — 31/31 déclarés et visibles dans SHOW INDEXES
+  OK    CALL db.indexes() YIELD name — absente, hors chemin d'écriture  [Graphiti]
+         ClientError : {code: Neo.ClientError.Procedure.ProcedureNotFound} {message: There is no procedure with the name `db.indexes` registere — relevée, elle pèse sur `build_indices_and_constraints(delete_existing=True)`, jamais sur `add_episode`
+  OK    procédure native db.create.setNodeVectorProperty                [Graphiti]
+         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+  OK    procédure native db.index.fulltext.queryNodes                   [Graphiti]
+         disponible et vérifiée : {'nom': 'mirofish-verification-alpha'}
+  OK    index de la sonde visibles                                      [Graphiti]
+         SHOW INDEXES renvoie ['mirofish_verification_fulltext', 'mirofish_verification_vector'] sur ['mirofish_verification_fulltext', 'mirofish_verification_vector'] attendus
+  OK    APOC                                                            [camel-oasis]
+         APOC 5.26.31 : la requête de camel (apoc.meta.data) répond, et apoc.merge.node crée (onCreate) puis met à jour (onMatch) — relu vu=True
+  OK    relecture après redémarrage                                   
+         ['mirofish-verification-alpha', 'mirofish-verification-beta'] reliés par VERIFIES, valid_at=2026-10-05T14:38:02.839057000+00:00 — le volume nommé a tenu
+
+  17/17 contrôles passés
+  1 écart(s) connu(s) et documenté(s) : CALL db.indexes() YIELD name — absente, hors chemin d'écriture
+code de sortie : 0
+
+=========== 6. verdict de cette exécution ===========
+  driver 5.28.6 : tient contact avec le serveur, écriture et relecture comprises
+  surface ADR 0011 : exercée, hiérarchie d'exceptions comprise
+  volume nommé : le nœud a survécu à l'arrêt puis au redémarrage
+  configuration : serveur du compose livré, plugin APOC compris
+  APOC attendu  : attendu
+
+Le verdict global de la story est dans story-001-2.md, pas ici : ce
+protocole affiche, il ne conclut pas.

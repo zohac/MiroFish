@@ -45,6 +45,14 @@ jobs:
 
       # Aucun .env dans la CI : c'est volontaire, les tests doivent être
       # hermétiques (cf. AGENTS.md §2.2).
+      #
+      # Les tests du serveur Neo4j (`test_neo4j_serveur_epreuve.py`) lisent le
+      # compose et les sorties versionnées, **sans démarrer de conteneur** : ils
+      # gardent l'invariant statique — le serveur que le dépôt déclare reste
+      # celui qui a été mesuré. Le test comportemental lui-même
+      # (`scripts/verifier_driver_neo4j.py`) est hors CI : il lui faudrait un
+      # service Neo4j, et ses deux sorties versionnées portent déjà la preuve.
+      # C'est un choix assumé, écrit dans `test_neo4j_serveur_epreuve.py`.
       - name: Tests
         run: uv run pytest tests/ -q
 

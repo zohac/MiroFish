@@ -47,3 +47,55 @@ travail laissé en suspens par la story.
   l'amont (`AGENTS.md` §2.6, ~100 commits depuis mars) peut apporter une
   surface supplémentaire. *Ce qui déclencherait : un `git rebase upstream/main` —
   le relevé est à refaire avant la story 001-2, pas après.*
+  **Partiellement traité le 5 octobre 2026** (story 001-2) : la surface est
+  désormais **exercée** et non seulement importée, par
+  `backend/scripts/verifier_driver_neo4j.py` — 17 contrôles, dont les quatre
+  types d'exceptions obtenus pour de vrai. Si le réintégrage ajoute un symbole,
+  le contrôle correspondant manquera, et le rapport le dira d'autant moins
+  qu'il ne peut pas voir ce qu'il ne cherche pas. *Ce qui reste : refaire le
+  relevé **avant** la story 001-5, et non après — la 001-5 est le premier
+  chemin où une surface manquante se paie en extraction ratée.*
+
+## Deferred from: story-001-2.md (2026-10-05)
+
+Ce que la mesure a trouvé et que la story ne traite pas, faute de périmètre ou
+de suite de tests. Aucun de ces points n'est un doute : tous sont des faits
+mesurés, consignés dans les sorties versionnées.
+
+- **`graphiti-core 0.30.2` appelle `CALL db.indexes()`, que Neo4j 5.26 n'a pas.**
+  `graphiti_core/driver/neo4j/operations/graph_ops.py:73` et
+  `neo4j_driver.py:198` l'utilisent pour `delete_all_indexes`, atteint uniquement
+  par `build_indices_and_constraints(delete_existing=True)`. Mesuré le
+  5 octobre 2026 : `ClientError … ProcedureNotFound`. **Ce n'est pas bloquant pour
+  l'extraction** — le chemin d'écriture d'épisodes n'y passe pas, et le chemin
+  d'indexation que `Graphiti.__init__` lance en tâche de fond passe intégralement
+  (31 index créés et visibles dans `SHOW INDEXES`, mesuré). Mais la story 001-5
+  butera dessus si elle veut repartir de zéro par cette voie. *Ce qui
+  déclencherait : le choix de la 001-5 sur sa stratégie de remise à zéro — le
+  contournement est un `SHOW INDEXES YIELD name DROP INDEX name` en Cypher pur,
+  et la décision de ne pas patcher la bibliothèque appartient à un ADR, pas à
+  une story de mesure.*
+- **La hiérarchie d'exceptions du driver n'est pas celle qu'on imaginait.**
+  `Neo4jError` et `DriverError` sont des branches **sœurs** sous `GqlError`, pas
+  une chaîne : mesuré le 5 octobre 2026 sur `neo4j 5.28.6`. Ce n'est donc pas
+  une dérive 5.23 → 5.28, c'est une structure qui n'a jamais été celle que
+  l'ADR 0010 supposait. Ce que `camel` attrape reste correct — `ClientError`
+  couvre bien `AuthError`, `CypherSyntaxError` et `ConstraintError` — mais un
+  `except DriverError` n'attraperait **pas** `ClientError`. L'ADR 0011 reste
+  donc valable sur la surface, et son inventaire ne doit pas être lu comme une
+  hiérarchie. *Ce qui déclencherait : une version de driver qui unifie les deux
+  branches — le contrôle de hiérarchie du script le verrait.*
+- **L'override de `pyproject.toml` ne contraint pas le serveur.**
+  `neo4j>=5.26.0,<6.0.0` borne le **driver** ; le serveur est choisi par le
+  compose, et rien dans les dépendances ne l'aligne. L'écart 5.28.6 / 5.26.31
+  est mesuré et gardé par `backend/tests/test_neo4j_serveur_epreuve.py`, mais ce
+  test lit le compose : une image de serveur reconstruite **sous le même tag**
+  passerait. *Ce qui déclencherait : la construction de l'image Neo4j par
+  l'epic 005 — il faudra alors un test qui compare le tag au contenu, ou acter
+  qu'on accepte l'image amont de confiance.*
+- **Le healthcheck du compose interroge le Bolt, mais pas le contenu.**
+  Il vérifie qu'une requête passe, pas que le graphe survit. C'est suffisant
+  pour un démarrage, et c'est le script `ecrire`/`relire` qui porte C3. *Ce qui
+  déclencherait : le besoin d'un healthcheck « la base a du contenu », qui n'a
+  pas de sens pour une base neuve et n'en aurait que pour un graphe d'épreuve
+  déjà construit — donc probablement jamais.*

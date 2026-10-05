@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ❌ à faire |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé **validé à l'exécution** (001-2) |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -40,23 +40,38 @@ reproductible.**
 > Le protocole de mesure de la 001-1 **reste rejouable sur les deux arbres** : il
 > normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure
 > l'octet initial, et refuse un arbre ambigu au lieu de le deviner. Les deux
-> sorties de mesure sont versionnées. **234 tests verts.** Fichiers :
+> sorties de mesure sont versionnées. Fichiers :
 > [`story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md),
 > [`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
 >
-> **La tâche du moment est 001-2, et sa story est rédigée** —
-> [`story-001-2.md`](docs/plans/001-epreuve-graphiti-local/story-001-2.md).
-> Neo4j en local, compose **séparé**, serveur figé sur `5.26.31-community`.
-> C'est le **premier test comportemental** du driver forcé : personne n'a
-> encore ouvert de connexion sous cet override. C'est là, pas dans 001-1,
-> qu'un problème de driver se verrait — et si elle casse, l'ADR 0010 est
-> supersédé, pas réécrit. Trois choix y sont déjà actés : le tag du serveur est
-> **figé** (le tag `5.26` est flottant, et il a bougé le 2 octobre 2026),
-> l'écart driver 5.28.6 / serveur 5.26.31 est consigné et gardé par un test, et
-> la surface de l'ADR 0011 sera **exercée** et non seulement importée.
+> **La tâche du moment est 001-3, en tête de la 001-2.** La story **001-2 est
+> `review`** : c'est le **premier test comportemental** du driver forcé, et il
+> est **passé**. `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`,
+> tient contact avec un vrai serveur `Neo4j 5.26.31 community` — écriture,
+> relecture après arrêt puis redémarrage (le critère C3, pour la moitié qui ne
+> dépend pas de l'extraction), et toute la surface de l'ADR 0011 **exercée** :
+> 17 contrôles, deux fois. **L'ADR 0010 n'est pas supersédé**, sa règle 2 est
+> confirmée par la mesure. Le compose d'épreuve est **séparé**
+> (`docker-compose.neo4j.yml`), tag figé sur `5.26.31-community`, volume nommé,
+> healthcheck qui interroge le Bolt.
 >
-> Cinq points de la revue de 001-1 et trois dettes contractées par l'override
-> sont dans [`deferred-work.md`](docs/deferred-work.md).
+> **APOC a deux réponses, pas une** — et c'est le point le plus utile de la
+> story : `graphiti-core 0.30.2` s'en passe (zéro occurrence dans le paquet,
+> mesuré), mais **`camel-oasis` en a besoin** (`apoc.meta.data()` au `__init__`
+> de son `Neo4jGraph`, `apoc.merge.node` à l'écriture). Le plugin reste donc
+> installé, pour `camel` et non pour Graphiti. `architecture.md` §4 est corrigé :
+> il prescrivait APOC en recopiant le fork de référence, sans dire pourquoi.
+>
+> Trois trouvailles à connaître avant la 001-5 : `Neo4jError` et `DriverError`
+> sont des branches **sœurs** sous `GqlError`, pas une chaîne ; `graphiti-core`
+> appelle `CALL db.indexes()`, qui **n'existe pas** sur un 5.x (hors chemin
+> d'écriture, mais la remise à zéro de la 001-5 doit le savoir) ; et
+> `apoc.merge.*` est refusé par défaut même plugin installé, sans quoi `camel`
+> accuse une installation qui est présente.
+>
+> **277 tests verts.** Cinq points de la revue de 001-1 et six dettes
+> contractées par l'override sont dans
+> [`deferred-work.md`](docs/deferred-work.md).
 
 ---
 
@@ -84,7 +99,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**234 tests** — il doit grossir, jamais rétrécir.
+**277 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -150,7 +165,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  234 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  277 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -232,6 +247,24 @@ environnement reproductible, pas deux qui divergent.
 > après l'epic 005 : lancées maintenant, elles échouent ou font tourner le
 > code amont. **Tant que l'epic 005 n'est pas fait, on travaille en local,
 > et c'est un choix assumé.**
+>
+> **Une exception, et elle est assumée aussi : Neo4j tourne déjà sous Docker.**
+> `docker-compose.neo4j.yml` est un compose **séparé** (story 001-2), qui ne sert
+> qu'à l'épreuve du graphe. Il ne contient pas notre code — c'est un serveur de
+> base de données, pas un environnement d'application — donc il ne crée pas le
+> second environnement que la règle interdit. L'epic 005 l'absorbera dans
+> l'environnement de référence, et là `docker compose up` lancera vraiment tout.
+>
+> ```bash
+> # L'épreuve du graphe — utilisable aujourd'hui, depuis la racine du dépôt
+> docker compose -f docker-compose.neo4j.yml up -d --wait   # démarre et attend le Bolt
+> docker compose -f docker-compose.neo4j.yml ps              # état + healthcheck
+> docker compose -f docker-compose.neo4j.yml logs -f neo4j  # logs
+> docker compose -f docker-compose.neo4j.yml down            # garde le volume
+> ```
+>
+> Le mot de passe vient de `.env` (`NEO4J_PASSWORD`), **jamais** du compose.
+> `down -v` détruit le graphe — ne le lancer que sciemment.
 
 Ce qui restera vrai quand Docker sera prêt :
 
@@ -291,7 +324,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 234 tests
+cd backend && uv run pytest tests/ -q                  # 277 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -315,7 +348,8 @@ docker compose run --rm backend bash
 ```
 
 Ports : backend `5001` · frontend `3000` (3001, 3002 si occupés) · Neo4j
-`7474` (browser) et `7687` (bolt).
+`7474` (browser) et `7687` (Bolt) — ce dernier **est déjà exposé** par
+`docker-compose.neo4j.yml`, donc utilisable avant l'epic 005.
 
 Variables d'environnement utiles :
 
@@ -338,13 +372,15 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 234 tests |
+| Tests | `backend/tests/` | pytest — 277 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
 | Locks | `pnpm-lock.yaml`, `frontend/pnpm-lock.yaml`, `backend/uv.lock` | versions figées — ne jamais en réécrire un à la main |
 | Planification | `docs/plans/`, `docs/sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
 | Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
+| Épreuve du graphe | `docker-compose.neo4j.yml` | Neo4j seul, séparé — `5.26.31-community`, volumes nommés |
+| Vérification du driver | `backend/scripts/verifier_driver_neo4j.py` | test comportemental de l'override (001-2), 17 contrôles |
 | Docker | `Dockerfile`, `docker-compose.yml` | image amont, 1 service — **à étendre** (epic 005) |
 
 ---
@@ -464,10 +500,19 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
 | Le patch du fork de référence est figé sur `graphiti-core` 0.25 (actuel 0.30) | `LOCAL-FIRST.md` §12.3 |
 | **`camel-oasis` et `graphiti-core` ne coexistent pas** : `neo4j==5.23.0` est un pin exact qu'aucune version ne desserre, `graphiti-core` exige un plancher `>=5.26.0` — aucune combinaison publiée ne résout | ADR 0010, ADR 0011, story 001-1 · `LOCAL-FIRST.md` §11.4 |
-| **Un `override` est un pari sur le comportement, pas sur le lock** : la surface du driver est relevée (`neo4j.Version` n'est utilisée nulle part), l'exécution ne l'est pas — la 001-2 tranche | ADR 0011 |
+| **Le driver forcé a été validé à l'exécution** : `neo4j 5.28.6` tient contact avec `Neo4j 5.26.31 community` — écriture, relecture après `stop`/`start` (C3), et toute la surface de l'ADR 0011 exercée, 17/17 contrôles deux fois. **L'ADR 0010 n'est pas supersédé** | ADR 0010, story 001-2 · [`mesure-001-2-compose.txt`](docs/plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt) |
+| **`Neo4jError` et `DriverError` sont des branches sœurs** sous `GqlError`, pas une chaîne — mesuré sur 5.28.6. `camel` attrape `ClientError`, ce qui reste juste, mais un `except DriverError` n'attraperait pas `ClientError` | story 001-2 § Notes de complétion |
+| **`graphiti-core 0.30.2` n'a besoin d'aucune procédure APOC**, et `camel-oasis` en a besoin : `apoc.meta.data()` dès le `__init__` de `Neo4jGraph`, `apoc.merge.node` à l'écriture. Le plugin reste installé pour `camel`, pas pour Graphiti | story 001-2, `architecture.md` §4 |
+| **`CALL db.indexes()` n'existe pas sur un serveur 5.x**, et `graphiti-core` l'appelle dans `delete_all_indexes` — atteint seulement par `build_indices_and_constraints(delete_existing=True)`, donc hors chemin d'écriture | story 001-2, `deferred-work.md` |
+| **`apoc.merge.*` est refusé par défaut** même plugin installé ; sans `dbms.security.procedures.unrestricted`, `camel` accuse une installation manquante qui est présente | `docker-compose.neo4j.yml`, story 001-2 |
+| Le compose d'épreuve tourne **sans `.env` modifié** : le mot de passe vient de `${NEO4J_PASSWORD}`, interpolé, et pas de `env_file` — qui passerait `LLM_API_KEY` dans un conteneur Neo4j | `docker-compose.neo4j.yml`, `test_neo4j_serveur_epreuve.py` |
 | **La mesure de la 001-1 est rejouable, sur les deux arbres** : `mesurer-001-1.sh` normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure `pyproject.toml`, `uv.lock` et le venv à l'octet initial ; il refuse un arbre ambigu (override d'un autre périmètre, `[tool.uv]` portant d'autres clés, geste à moitié posé) au lieu de le deviner. Les **deux sorties sont versionnées** dans [`mesures-001-1b.md`](docs/plans/001-epreuve-graphiti-local/mesures-001-1b.md) | story 001-1, story 001-1b |
 | **L'override est posé, et sa version résolue est gardée** : `pyproject.toml` porte `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` avec `neo4j 5.28.6` en commentaire, et un test échoue si le lock s'en écarte — donc à chaque CI | story 001-1b · ADR 0011 |
 | **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
+| **`apoc.merge.*` refusé alors que le plugin est installé** | `camel` dit « plugin absent », le message est faux : il faut `NEO4J_dbms_security_procedures_unrestricted: "apoc.*"` dans le compose |
+| `CALL db.indexes()` échoue en `ProcedureNotFound` | `graphiti-core` l'appelle dans `delete_all_indexes` ; la commande a disparu en 5.x. Utiliser `SHOW INDEXES YIELD name DROP INDEX name` |
+| `cypher-shell` dans un healthcheck : le `$$` de Compose | `$$` pour le shell du conteneur, `$` pour Compose ; un seul `$` est consommé par l'interpolation |
+| Un nom d'index avec un tiret | `mirofish-verification_fulltext` est une faute de syntaxe Cypher : les identifiants ne prennent que lettres, chiffres et `_` |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
 | Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |
 
@@ -485,7 +530,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 234 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 277 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,

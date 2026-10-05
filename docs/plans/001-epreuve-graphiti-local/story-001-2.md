@@ -2,7 +2,7 @@
 id: "001-2"
 epic: "001"
 titre: "Neo4j 5.26 + APOC en local, premier test comportemental du driver forcé"
-statut: backlog
+statut: review
 auteur: agent
 format: "2"
 ---
@@ -42,49 +42,53 @@ puisse nous faire reculer, donc c'est le premier à lever.
 
 ## Définition de fini
 
-- [ ] `docker compose up` démarre un Neo4j **joignable**, et le healthcheck passe
-      au vert sans intervention manuelle
-- [ ] **Le premier test comportemental du driver forcé** : une écriture puis une
+- [x] `docker compose up` démarre un Neo4j **joignable**, et le healthcheck passe
+      au vert sans intervention manuelle — *mesuré* : `Healthy` dès le premier
+      `up -d --wait`, sans aucune commande manuelle
+- [x] **Le premier test comportemental du driver forcé** : une écriture puis une
       relecture passent par `neo4j 5.28.6` sous le `pin camel-oasis`, sans
-      workaround
-- [ ] Un nœud écrit **survit à l'arrêt puis au redémarrage** du conteneur — le
-      volume nommé fait son travail, et c'est la moitié de C3 qui ne dépend pas
-      encore de l'extraction
-- [ ] Les quatre symboles de la surface relevée par l'ADR 0011 sont **exercés à
+      workaround — *mesuré* : 17/17 contrôles, deux fois
+- [x] Un nœud écrit **survit à l'arrêt puis au redémarrage** du conteneur — le
+      volume nommé fait son travail — *mesuré* : `valid_at` relu à l'identique
+      après `stop` puis `start`
+- [x] Les quatre symboles de la surface relevée par l'ADR 0011 sont **exercés à
       l'exécution** : `GraphDatabase.driver()`, une transaction gérée,
       `Query`, et les quatre types d'exceptions
-- [ ] La hiérarchie d'exceptions est **éprouvée**, pas seulement importée : on
-      provoque un `ClientError` réel et on vérifie qu'il remonte comme attendu.
-      C'est ce que l'ADR 0011 désigne comme « ce qui a le plus de chances de
-      bouger entre deux versions majeures »
-- [ ] La version du **serveur** et celle du **driver** sont consignées, et leur
-      écart est expliqué — pas laissé dans un `compose.yaml`
-- [ ] Un test garde que le serveur supporté est compatible avec le driver locké,
-      donc qu'un `neo4j` mis à jour dans le compose ne casse pas en silence
-- [ ] Les 235 tests existants restent verts, et **au moins un nouveau** couvre
-      ce que la story produit
-- [ ] `ruff`, `validate_plans.py` et `pytest` verts ; le compose est **versionné**
-- [ ] **Le verdict est écrit** dans les notes de complétion : le driver tient, ou
-      il ne tient pas. Dans le second cas, l'ADR à écrire est nommé
-- [ ] `docs/STATUS.md` et `docs/sprint-status.yaml` à jour
+- [x] La hiérarchie d'exceptions est **éprouvée**, pas seulement importée — et
+      **elle n'est pas celle qu'on supposait** : `Neo4jError` et `DriverError`
+      sont sœurs sous `GqlError`, pas une chaîne. Voir les notes de complétion.
+- [x] La version du **serveur** et celle du **driver** sont consignées, et leur
+      écart est expliqué — `5.26.31` / `5.28.6`, dans le compose **et** dans les
+      deux sorties versionnées
+- [x] Un test garde que le serveur supporté est compatible avec le driver locké —
+      `backend/tests/test_neo4j_serveur_epreuve.py`, 27 tests
+- [x] Les 235 tests existants restent verts, et 42 nouveaux les couvrent —
+      **277 au total**, contre 235 au départ
+- [x] `ruff`, `validate_plans.py` et `pytest` verts ; le compose est **versionné**
+- [x] **Le verdict est écrit** dans les notes de complétion : le driver tient
+- [x] `docs/STATUS.md` et `docs/sprint-status.yaml` à jour
 
 ## Tâches
 
-- [ ] 1. Écrire `docker-compose.neo4j.yml` — **séparé** du compose de
+- [x] 1. Écrire `docker-compose.neo4j.yml` — **séparé** du compose de
       l'application, avec un volume nommé et les ports exposés explicitement
-- [ ] 2. Choisir et **figer** le tag du serveur (voir les notes), avec un
-      healthcheck qui teste l Bolt et pas seulement le processus
-- [ ] 3. `docker compose -f docker-compose.neo4j.yml up -d`, puis relever la
-      version **effective** du serveur et la consigner
-- [ ] 4. Écrire `backend/scripts/verifier_driver_neo4j.py` — le test
+- [x] 2. Choisir et **figer** le tag du serveur : `neo4j:5.26.31-community`, avec
+      un healthcheck qui teste le Bolt — mesuré, et deux tests gardent le tag
+- [x] 3. `docker compose -f docker-compose.neo4j.yml up -d`, puis relever la
+      version **effective** du serveur et la consigner — `CALL dbms.components()`
+      renvoie `5.26.31` `community`, pas le tag deviné
+- [x] 4. Écrire `backend/scripts/verifier_driver_neo4j.py` — le test
       comportemental : écriture, relecture, transaction, `Query`, exceptions
-- [ ] 5. Exercer chaque symbole de la surface de l'ADR 0011, et consigner ce qui
-      tient ou non
-- [ ] 6. Arrêter puis redémarrer le conteneur, relire : le nœud est-il là ?
-- [ ] 7. Vérifier qu'**APOC est ou non nécessaire** à Graphiti 0.30.2, et dire
-      le résultat plutôt que de le supposer (voir les notes)
-- [ ] 8. Ajouter le test qui garde la compatibilité serveur / driver locké
-- [ ] 9. Rédiger le verdict, mettre à jour `STATUS.md` et `sprint-status.yaml`
+- [x] 5. Exercer chaque symbole de la surface de l'ADR 0011, et consigner ce qui
+      tient ou non — tout tient, et la hiérarchie a une forme inattendue
+- [x] 6. Arrêter puis redémarrer le conteneur, relire : le nœud est-il là ? — oui,
+      arête et `valid_at` compris
+- [x] 7. Vérifier qu'**APOC est ou non nécessaire** — mesuré dans les deux sens :
+      Graphiti s'en passe, `camel-oasis` en a besoin. La question avait une seule
+      réponse dans les notes de développement ; elle en a deux.
+- [x] 8. Ajouter le test qui garde la compatibilité serveur / driver locké — 27
+      tests, mutants vérifiés
+- [x] 9. Rédiger le verdict, mettre à jour `STATUS.md` et `sprint-status.yaml`
 
 ## Notes de développement
 
@@ -179,7 +183,141 @@ Suivis éventuels : _aucun pour l'instant._
 
 ## Notes de complétion
 
-_À remplir à la fin : ce qui a divergé du plan, et pourquoi._
+### Verdict — le driver forcé tient
+
+> **`neo4j 5.28.6`, forcé par l'`override-dependencies` de l'ADR 0010 contre le
+> pin `==5.23.0` de `camel-oasis`, tient contact avec un vrai serveur.**
+> Écriture, relecture après arrêt et redémarrage, surface de l'ADR 0011
+> entière, hiérarchie d'exceptions comprise : **17/17 contrôles passés**, deux
+> fois, sur deux configurations de serveur différentes.
+>
+> **L'ADR 0010 n'est pas supersédé.** Il reste valide, et sa règle 2 — « un
+> `override` est une promesse faite au résolveur, pas au projet » — vient
+> d'être confirmée par la mesure plutôt que par un relevé d'API.
+
+Ce que la story a produit :
+
+| Livrable | Où |
+|---|---|
+| Compose d'épreuve, séparé, tag figé, healthcheck Bolt | `docker-compose.neo4j.yml` |
+| Script de vérification, 17 contrôles, 3 phases | `backend/scripts/verifier_driver_neo4j.py` |
+| Protocole rejouable, deux modes | [`verifier-001-2.sh`](verifier-001-2.sh) |
+| Sortie du compose livré | [`mesure-001-2-compose.txt`](mesure-001-2-compose.txt) |
+| Sortie sans le plugin APOC | [`mesure-001-2-sans-apoc.txt`](mesure-001-2-sans-apoc.txt) |
+| 27 tests sur le serveur déclaré | `backend/tests/test_neo4j_serveur_epreuve.py` |
+| 14 tests sur le protocole lui-même | `backend/tests/test_verifier_protocol.py` |
+
+Les deux versions mesurées : **driver `neo4j 5.28.6`**, lockée par
+`backend/uv.lock` ; **serveur `Neo4j 5.26.31` `community`**, lue de
+`CALL dbms.components()` et non déduite du tag.
+
+### Ce qui a divergé du plan, et pourquoi
+
+**1. La question « APOC est-il nécessaire ? » avait une seule réponse ; elle en
+a deux.** Les notes de développement annonçaient le résultat, et annonçaient le
+mauvais : si APOC était inutile, le plugin serait inutile. **Mesuré, c'est
+inversé.**
+
+- Sur le serveur **sans** plugin, tout ce que `graphiti-core` réclame passe :
+  `db.create.setNodeVectorProperty`, `db.index.fulltext.queryNodes`, et les
+  31 requêtes d'indexation que `Graphiti.__init__` lance en tâche de fond.
+  Zéro occurrence de `apoc` dans `graphiti-core==0.30.2`, mesuré sur le paquet.
+  **Graphiti n'a pas besoin d'APOC.**
+- `camel-oasis` en a besoin : `Neo4jGraph.__init__` appelle `refresh_schema()`,
+  qui exécute `CALL apoc.meta.data()` — `neo4j_graph.py:28`, `:120`, `:128` — et
+  `add_nodes_from_df` utilise `apoc.merge.node`, `apoc.merge.relationship` et
+  `apoc.create.addLabels` (`:470`, `:500`). Sans le plugin, le chemin Neo4j de
+  `camel` casse sur un `ClientError` dès le premier `refresh_schema`, avec un
+  message qui accuse l'utilisateur d'une installation manquante.
+
+Le plugin **reste donc dans le compose**, mais pour une raison que
+`architecture.md` §4 ne donnait pas : ce document le prescrit « repris du fork
+de référence », et le fork avait APOC parce que `camel` en a besoin. La mesure
+donne la raison, et `architecture.md` §4 mérite d'être corrigé en ce sens.
+
+C'est aussi ce qui a justifié deux exécutions du protocole au lieu d'une. Une
+seule ne pouvait pas distinguer « aucun des deux n'en a besoin » de « seul
+Graphiti n'en a pas besoin » — c'est-à-dire elle ne pouvait pas soutenir
+l'affirmation, seulement la constante. Deux mesures opposées, deux conclusions
+opposées, et un plugin installé pour la bonne raison.
+
+**2. `apoc.merge.*` est une procédure d'écriture, et elle est refusée par
+défaut.** Le compose porte `NEO4J_dbms_security_procedures_unrestricted:
+"apoc.*"`. Sans elle, `apoc.merge.node` échoue en `ClientError` **alors que le
+plugin est installé** — et `camel` dit dans ce cas « le plugin n'est pas
+installé », donc l'erreur est fausse. C'est le pire état des deux : le message
+accuse un diagnostic, et le remède qu'il suggère ne change rien. Le test
+`test_le_plugin_apoc_est_installe` garde les deux lignes ensemble.
+
+**3. La hiérarchie d'exceptions n'est pas une chaîne, et ce n'est pas une dérive.**
+Le contrôle l'a d'abord **échoué**, et le test avait tort : il affirmait
+`Neo4jError ⊂ DriverError`. Mesuré sur `neo4j 5.28.6` :
+
+```
+Neo4jError         ⊂ GqlError
+DriverError        ⊂ GqlError
+ClientError        ⊂ Neo4jError
+CypherSyntaxError  ⊂ ClientError
+AuthError          ⊂ ClientError
+ServiceUnavailable ⊂ DriverError
+```
+
+`Neo4jError` et `DriverError` sont des branches **sœurs** sous `GqlError` — d'où
+son nom. Ce n'est donc pas une dérive 5.23 → 5.28 : c'est une structure qui n'a
+jamais été celle qu'on imaginait, et qu'aucune résolution de dépendances ne
+pouvait montrer. L'ADR 0011 reste valable sur sa surface ; il ne doit pas être
+lu comme une hiérarchie. Ce que `camel` attrape reste juste — `ClientError`
+couvre bien `AuthError`, `CypherSyntaxError` et `ConstraintError` — mais un
+`except DriverError` n'attraperait pas `ClientError`, et c'est ce que l'ADR 0010
+supposait implicitement.
+
+**4. `graphiti-core` appelle une procédure qui n'existe pas sur un serveur 5.x.**
+`CALL db.indexes()` — `graph_ops.py:73`, `neo4j_driver.py:198` — répond
+`ProcedureNotFound` sur 5.26.31. C'est `delete_all_indexes`, atteint seulement
+par `build_indices_and_constraints(delete_existing=True)`, donc **hors du chemin
+d'écriture d'épisodes** : le chemin d'indexation du démarrage passe
+intégrellement. Le rapport le classe « écart connu », pas échec, parce que les
+confondre attribuerait au driver un défaut qui n'est pas le sien. La 001-5
+butera dessus si elle veut repartir de zéro par cette voie ; c'est consigné dans
+[`deferred-work.md`](../../deferred-work.md).
+
+Un relevé par `grep 'CALL db\.'` sur le paquet aurait présenté
+`db.idx.fulltext.createNodeIndex` comme une procédure du chemin Neo4j — elle
+appartient à **FalkorDB** et à **Kuzu**. Le script tire donc ses requêtes de
+`graphiti_core.graph_queries` avec le fournisseur Neo4j, au lieu de les
+recommencer.
+
+**5. Un test a échoué trois fois, et chaque fois c'était le script.** `Neo4jError
+⊂ DriverError` (le test avait tort), un `YIELD name` sur `apoc.meta.data()` qui
+n'a pas cette sortie, un étiquette d'équipe contenant un tiret. Les trois
+venaient de la même cause : le script **supposait** au lieu de mesurer, ou
+mesurait autre chose que ce qu'il croyait. La correction n'a jamais été
+d'assouplir le test.
+
+**6. Le protocole a buté sur son propre bug, et le temps d'attente l'a masqué.**
+`CONTENEUR` était résolu une fois au début ; le mode « sans APOC » change
+l'environnement, ce qui **recrée** le conteneur et change son ID. Le protocole a
+attendu 180 secondes un Bolt joignable sur un conteneur disparu — alors que le
+conteneur recréé était `Healthy` trois secondes plus tôt. Corrigé par
+`identifiant()`, appelé à chaque fois ; `test_l_identifiant_du_conteneur_est_resolu_a_chaque_appel`
+garde le cas.
+
+**7. Les tests d'intégration ne sont pas en CI, et c'est un choix assumé.**
+`backend/tests/test_neo4j_serveur_epreuve.py` ne démarre aucun conteneur : il
+lit le compose livré et les sorties versionnées. Le test comportemental reste
+un protocole à lancer à la main, dont les deux sorties sont versionnées. Ajouter
+un service Neo4j à la CI pour 17 contrôles coûtait plus, à chaque commit, que ce
+qu'il prouvait — et la CI n'a pas de service Neo4j.
+
+**8. Le compose `docker-compose.yml` n'a pas été touché.** Comme prévu dans les
+notes : il pointe l'image amont. Un test échoue s'il mentionne `neo4j`.
+
+### Ce que cette story a trouvé en passant — et qui ne la concerne pas
+
+L'`override` borne le **driver**, pas le serveur : rien dans les dépendances
+n'aligne `5.28.6` sur `5.26.31`. Le test garde l'écart, mais il lit le tag — une
+image reconstruite **sous le même tag** passerait. C'est un point pour l'epic
+005, qui construira l'image ; il est dans [`deferred-work.md`](../../deferred-work.md).
 
 ## Risques
 
@@ -189,6 +327,6 @@ _À remplir à la fin : ce qui a divergé du plan, et pourquoi._
 | `camel-oasis` casse sur son propre chemin d'écriture, pas le nôtre | distinction écrite dans les notes de développement ; si ça arrive, l'erreur n'est pas dans l'override |
 | Le tag `neo4j:5.26` glisse et l'épreuve devient irreproductible | patch figé (`5.26.31-community`), version effective relevée et consignée dans la sortie |
 | APOC inutile, téléchargé à chaque `compose up` sans raison | mesuré en tâche 7, résultat consigné — pas présumé |
-| Un secret Neo4j finit versionné | mot de passe dans `.env` via `env_file`, jamais en clair dans le compose ; vérifié avant le commit (AGENTS.md §2.4) |
+| Un secret Neo4j finit versionné | interpolation `${NEO4J_PASSWORD}` depuis le `.env`, jamais en clair dans le compose ; un test échoue sur un `NEO4J_AUTH` littéral, et pas de `env_file` non plus — il ferait entrer `LLM_API_KEY` dans un conteneur Neo4j (AGENTS.md §2.4) |
 | Le test comportemental se dégrade en « ça démarre, c'est tout » | la surface de l'ADR 0011 est **exercée**, pas importée ; chaque symbole a son assertion |
 | La story grossit et empiète sur la 001-5 | son périmètre est écrit noir sur blanc dans les notes : une connexion, une écriture, une relecture, un redémarrage |

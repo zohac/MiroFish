@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-04
+mis_a_jour: 2026-10-05
 
 epics:
   - id: "001"
@@ -51,13 +51,27 @@ epics:
     # corrigés (dont --frozen qui ne vérifiait pas le lock, et la télémétrie
     # posthog activée par défaut, désactivée depuis). 234 tests, +30 de
     # revue (204 au premier jet de la story).
-    # Story 001-2 (backlog, RÉDIGÉE) : Neo4j 5.26.31-community dans un compose
-    # SÉPARÉ, serveur figé sur un patch (le tag 5.26 est flottant et a bougé le
-    # 2 octobre), écart driver 5.28.6 / serveur 5.26.31 consigné et gardé par un
-    # test. Elle exercera la surface de l'ADR 0011, pas seulement l'import, et
-    # mesurera si APOC est encore nécessaire à Graphiti 0.30.2 — qui n'appelle
-    # aucune procédure APOC et n'utilise que des procédures natives.
-    # Reste 001-2, premier test COMPORTEMENTAL du driver forcé.
+    # Story 001-2 (review, MESURÉE) : le driver forcé TIENT. Neo4j 5.26.31-
+    # community dans un compose SÉPARÉ (docker-compose.neo4j.yml), tag figé sur
+    # un patch, écart driver 5.28.6 / serveur 5.26.31 consigné et gardé par un
+    # test. 17 contrôles, deux fois : surface de l'ADR 0011 EXERCÉE (pas
+    # importée), hiérarchie d'exceptions comprise, et le nœud survit à stop puis
+    # start — C3 prouvé pour la moitié qui ne dépend pas de l'extraction.
+    # L'ADR 0010 N'EST PAS SUPERSÉDÉ.
+    # Trois trouvailles : (1) Neo4jError et DriverError sont SOeurs sous GqlError,
+    # pas une chaîne — le contrôle l'a montré, c'est le test qui avait tort ;
+    # (2) graphiti-core appelle CALL db.indexes(), qui N'EXISTE PAS sur un 5.x —
+    # c'est delete_all_indexes, hors chemin d'écriture, mais la 001-5 doit le
+    # savoir avant de choisir sa remise à zéro ; (3) APOC a DEUX réponses, pas
+    # une : graphiti-core s'en passe (zéro occurrence dans le paquet), camel-oasis
+    # en a besoin (apoc.meta.data au __init__, apoc.merge.node à l'écriture) — le
+    # plugin reste, pour la raison que architecture.md §4 ne donnait pas. Corrigé
+    # aussi : apoc.merge.* est refusé par défaut même plugin installé.
+    # 277 tests (+42). Les tests d'intégration ne sont pas en CI : ils lisent le
+    # compose et les deux sorties versionnées, la preuve d'exécution reste
+    # rejouable à la main.
+    # Reste 001-3 (en-tête de session) puis 001-4 (embedder), bloquée par le même
+    # conflit que le driver.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).
