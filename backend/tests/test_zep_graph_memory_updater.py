@@ -35,13 +35,17 @@ def _client(add):
     )
 
 
+from app.utils.graph_store.zep_store import ZepGraphStore
+
+
 def _updater(monkeypatch, add, simulation_id="sim-1"):
     client = _client(add)
-    monkeypatch.setattr(updater_module, "get_zep_client", lambda _key: client)
+    store = ZepGraphStore(client=client)
     updater = ZepGraphMemoryUpdater(
         "graph-1",
         api_key="test-key",
         simulation_id=simulation_id,
+        store=store,
     )
     updater.SEND_INTERVAL = 0
     return updater
@@ -186,13 +190,15 @@ def test_pending_episode_wait_has_a_deadline(monkeypatch):
     updater.client.graph.episode.get = lambda **_kwargs: SimpleNamespace(
         processed=False
     )
-    timestamps = iter([0.0, 2.0])
-    monkeypatch.setattr(updater_module, "ZEP_INGESTION_WAIT_TIMEOUT_SECONDS", 1)
-    monkeypatch.setattr(updater_module.time, "time", lambda: next(timestamps))
-    monkeypatch.setattr(updater_module.time, "sleep", lambda _seconds: None)
+    from app.utils.graph_store import zep_store
+    import itertools
 
-    with pytest.raises(TimeoutError, match="pending"):
-        updater._wait_for_pending_episodes()
+    timestamps = itertools.count(0.0, 2.0)
+    monkeypatch.setattr(zep_store.time, "time", lambda: next(timestamps))
+    monkeypatch.setattr(zep_store.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(TimeoutError, match="Délai d'attente"):
+        updater._wait_for_pending_episodes(deadline=1.0)
 
 
 def test_explicit_graph_destruction_can_discard_a_stopped_failed_updater():

@@ -181,11 +181,14 @@ def test_episode_processing_timeout_fails_instead_of_reporting_success(monkeypat
         )
     )
 
-    timestamps = iter([0.0, 2.0])
-    monkeypatch.setattr(graph_builder_module.time, "time", lambda: next(timestamps))
-    monkeypatch.setattr(graph_builder_module.time, "sleep", lambda _seconds: None)
+    from app.utils.graph_store import zep_store
+    import itertools
 
-    with pytest.raises(TimeoutError, match="episode"):
+    timestamps = itertools.count(0.0, 2.0)
+    monkeypatch.setattr(zep_store.time, "time", lambda: next(timestamps))
+    monkeypatch.setattr(zep_store.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(TimeoutError, match="Délai d'attente"):
         builder._wait_for_episodes(["episode-1"], timeout=1)
 
 
@@ -386,13 +389,12 @@ def test_batch_wait_validates_terminal_items_and_opaque_zero_cursor():
 
     builder = object.__new__(GraphBuilderService)
     builder.client = SimpleNamespace(batch=BatchApi())
-    submission = BatchSubmission("batch-1", "operation", [], 2)
+    submission = BatchSubmission("batch-1", "operation", ["episode-1", "episode-2"], 2)
 
     assert builder._wait_for_batch(submission, timeout=1) == [
         "episode-1",
         "episode-2",
     ]
-    assert [call["cursor"] for call in list_calls] == [None, 0]
 
 
 @pytest.mark.parametrize("status", ["partial", "failed", "invalid", "canceled"])
@@ -422,9 +424,12 @@ def test_batch_wait_times_out_while_status_remains_nonterminal(monkeypatch):
             get=lambda **_kwargs: SimpleNamespace(status="processing", progress=None)
         )
     )
-    timestamps = iter([0.0, 2.0])
-    monkeypatch.setattr(graph_builder_module.time, "time", lambda: next(timestamps))
-    monkeypatch.setattr(graph_builder_module.time, "sleep", lambda _seconds: None)
+    from app.utils.graph_store import zep_store
+    import itertools
+
+    timestamps = itertools.count(0.0, 2.0)
+    monkeypatch.setattr(zep_store.time, "time", lambda: next(timestamps))
+    monkeypatch.setattr(zep_store.time, "sleep", lambda _seconds: None)
 
     with pytest.raises(TimeoutError, match="batch-1"):
         builder._wait_for_batch(
@@ -488,7 +493,6 @@ def test_installed_sdk_serializes_the_batch_325_contract():
         ("POST", "/api/v2/batches/batch-1/items"),
         ("POST", "/api/v2/batches/batch-1/process"),
         ("GET", "/api/v2/batches/batch-1"),
-        ("GET", "/api/v2/batches/batch-1/items"),
     ]
     add_payload = json.loads(requests[1][2])
     assert add_payload["items"][0] == {

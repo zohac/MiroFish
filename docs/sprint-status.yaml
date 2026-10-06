@@ -138,7 +138,13 @@ epics:
     # validation stricte dans Config.validate(), et mécanisme d'override
     # étanche (set_graph_store_override avec contrôle de type, override_graph_store).
     # 33 tests unitaires hermétiques (backend/tests/test_graph_store_factory.py).
-    # Revue BMad à 4 couches validée (7 patchs appliqués). 442 tests verts (+33).
+    # Story 002-4 (DONE) : refactoring des flux d'ingestion et d'écriture
+    # (backend/app/services/graph_builder.py, zep_graph_memory_updater.py,
+    # simulation_runner.py). Découplage total de zep_cloud et utils.zep au profit
+    # de GraphStore et get_graph_store(). Gestion fine de l'héritage d'exceptions
+    # GraphStoreError(RuntimeError) et GraphTimeoutError(TimeoutError). Revue BMad
+    # 4 couches validée (8 patchs appliqués). 10 tests unitaires avec MockIngestionStore
+    # (tests/test_graph_builder_refactor.py). 452 tests verts (+10). Clôture (done).
 
 
   - id: "003"

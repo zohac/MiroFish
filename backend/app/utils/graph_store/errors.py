@@ -1,7 +1,7 @@
 """Hiérarchie d'exceptions unifiée pour la couche GraphStore."""
 
 
-class GraphStoreError(Exception):
+class GraphStoreError(RuntimeError):
     """Erreur de base pour toutes les opérations sur le magasin de graphe."""
 
     pass
@@ -19,13 +19,13 @@ class GraphConnectionError(GraphStoreError):
     pass
 
 
-class GraphTimeoutError(GraphStoreError):
+class GraphTimeoutError(GraphStoreError, TimeoutError):
     """Levée lors de l'expiration du délai d'attente d'ingestion ou de requête."""
 
     pass
 
 
-class GraphValidationError(GraphStoreError):
+class GraphValidationError(GraphStoreError, ValueError):
     """Levée lorsque les paramètres fournis au magasin de graphe sont invalides."""
 
     pass
