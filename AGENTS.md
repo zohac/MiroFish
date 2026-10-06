@@ -62,7 +62,18 @@ reproductible.**
 > avec mode `--mock` et intégration `Graphiti` validées sans clé OpenAI. Revue de
 > code contradictoire passée (4 couches, 6 correctifs appliqués).
 >
-> **315 tests verts.** Prochaine étape : story **001-5** (script de mesure et rapport versionné).
+> **La story 001-5 est `done`** : le banc de mesure autonome
+> (`backend/scripts/mesurer_extraction_graphiti.py`) a exécuté l'épreuve complète
+> en conditions réelles sur les 30 premiers chunks du rapport AN n° 2506 avec
+> `space-bunny`, l'embedder local et Neo4j 5.26 :
+> - C1 : 29/30 chunks sans erreur (96.7 % ≥ 90 %) ;
+> - C2 : 0 échec `MissingSessionID` ;
+> - C3 : 49 nœuds et 45 relations persistés dans Neo4j ;
+> - C4 : 11 arêtes avec `valid_at` renseigné (corrigé en revue BMad 4 couches) ;
+> - C5 : [`docs/plans/001-epreuve-graphiti-local/rapport.md`](docs/plans/001-epreuve-graphiti-local/rapport.md) généré et versionné avec verdict GO en tête.
+> Revue 4 couches validée (8 patchs appliqués, 1 rejeté documenté).
+>
+> **333 tests verts.** Prochaine étape : story **001-6** (verdict go / no-go documenté et clôture de l'epic 001).
 
 ---
 

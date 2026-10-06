@@ -64,7 +64,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `done` | [`story-001-2.md`](story-001-2.md) |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `done` | [`story-001-3.md`](story-001-3.md) |
 | 001-4 | Embedder local Sentence-Transformers pour Graphiti | `done` | [`story-001-4.md`](story-001-4.md) |
-| 001-5 | Script de mesure reproductible + rapport versionné | `backlog` | [`story-001-5.md`](story-001-5.md) |
+| 001-5 | Script de mesure reproductible + rapport versionné | `done` | [`story-001-5.md`](story-001-5.md) |
 | 001-6 | Verdict go / no-go documenté | `backlog` | — |
 
 > **Pourquoi 001-4 a son fichier dès le backlog** : le cadrage initial

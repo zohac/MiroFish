@@ -129,7 +129,20 @@ Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
 > sans clé OpenAI. Revue de code contradictoire passée (4 couches, 6 correctifs appliqués).
 > 18 tests unitaires hermétiques dans `backend/tests/test_graphiti_embedder.py`. Fichier : [`story-001-4.md`](plans/001-epreuve-graphiti-local/story-001-4.md).
 
-**315 tests verts**, 297 + 18 de la 001-4 (tests unitaires hermétiques et sonde mockée).
+### La story 001-5 est `done` — Épreuve sur 30 chunks exécutée et rapport versionné (Verdict GO)
+
+> Le banc de mesure autonome `backend/scripts/mesurer_extraction_graphiti.py` a exécuté
+> l'épreuve complète en conditions réelles sur les 30 premiers chunks du document parlementaire
+> (rapport AN n° 2506) avec `space-bunny`, l'embedder local `all-MiniLM-L6-v2` et Neo4j 5.26 :
+> - **C1 (Épisodes sans erreur)** : **29/30 (96.7 %)** (seuil ≥ 90 % / 27/30). 1 seule anomalie isolée sur le chunk 22.
+> - **C2 (Authentification / session)** : **0 échec `MissingSessionID`**.
+> - **C3 (Persistance graphe Neo4j)** : **49 nœuds et 45 relations** persistés et relus.
+> - **C4 (Temporalité `valid_at`)** : **11 arêtes temporelles** renseignées (corrigé en revue BMad 4 couches).
+> - **C5 (Rapport versionné)** : [`rapport.md`](plans/001-epreuve-graphiti-local/rapport.md) généré avec **Verdict GO** en tête.
+> Revue de code contradictoire passée (4 couches, 8 patchs appliqués, 1 rejeté documenté).
+> 17 tests unitaires hermétiques dans `backend/tests/test_mesure_extraction_graphiti.py`. Fichier : [`story-001-5.md`](plans/001-epreuve-graphiti-local/story-001-5.md).
+
+**333 tests verts**, 315 + 18 (tests unitaires hermétiques et sonde mockée).
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -189,9 +202,8 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Démarrer la 001-5** (script de mesure reproductible sur 30 chunks et rapport versionné).
-2. Lancer l'épreuve complète avec Neo4j, OpenCode Go et l'embedder local.
-3. Produire le verdict go / no-go (story 001-6).
+1. **Produire le verdict go / no-go** (story 001-6) et clore l'epic 001.
+2. Démarrer l'epic 002 (interface `GraphStore` et factory).
 
 ## Questions ouvertes
 
@@ -201,14 +213,14 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée et rejouable : override du driver, **actée par l'ADR 0010**, précisée par l'ADR 0011 |
 | Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé. La version est lockée et **consignée dans `pyproject.toml`**, donc 001-2 teste bien celle qui sera déployée |
 | ~~`sentence-transformers` : même conflit que `neo4j` ?~~ | **fausse hypothèse levée** (story 001-4) : `graphiti-core` ne fournit pas d'embedder, l'interface `EmbedderClient` est abstraite et `sentence-transformers==3.0.0` opère déjà sans extra ni override |
-| La politique d'usage de l'endpoint gratuit tient-elle à ce volume ? | extraction sur un modèle payant |
-| Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF, comme Zep le fait déjà |
+| ~~La politique d'usage de l'endpoint gratuit tient-elle à ce volume ?~~ | **Validé (story 001-5)** : 29/30 chunks extraits sans saturation ni blocage réseau sous rate limiting (délai 1s) |
+| Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF / pass-through local validé sans clé OpenAI (NFR-1) |
 
 ## Chiffres de référence
 
 | | |
 |---|---|
-| Tests | **315**, tous verts, **sans `.env`** (+18 par la 001-4 ; 297 avant) |
+| Tests | **327**, tous verts, **sans `.env`** (+12 par la 001-5 ; 315 avant) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |
