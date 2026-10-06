@@ -63,7 +63,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | 001-1b | Poser l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `done` | [`story-001-1b.md`](story-001-1b.md) |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `done` | [`story-001-2.md`](story-001-2.md) |
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `done` | [`story-001-3.md`](story-001-3.md) |
-| 001-4 | Embedder local Sentence-Transformers pour Graphiti | `backlog` | [`story-001-4.md`](story-001-4.md) |
+| 001-4 | Embedder local Sentence-Transformers pour Graphiti | `done` | [`story-001-4.md`](story-001-4.md) |
 | 001-5 | Script de mesure reproductible + rapport versionné | `backlog` | — |
 | 001-6 | Verdict go / no-go documenté | `backlog` | — |
 
@@ -116,4 +116,4 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 - [ ] Verdict go / no-go écrit dans [`docs/STATUS.md`](../../STATUS.md)
 - [ ] Un no-go a produit un ADR ; un go a fait passer l'epic 002 en `in-progress`
 - [ ] `rapport.md` est versionné, le script est rejouable, aucune histoire en suspens
-- [ ] Les tests existants restent verts — **296** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue, +17 par la 001-3 et sa revue)
+- [ ] Les tests existants restent verts — **315** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue, +17 par la 001-3 et sa revue, +18 par la 001-4 et sa revue)

@@ -80,7 +80,15 @@ epics:
     # vérification autonome fiabilisée (scripts/verifier_llm_graphiti.py). Critère C2
     # validé (0 échec MissingSessionID). Revue 4 couches passée (6 correctifs).
     # 296 tests (+17).
-    # Reste 001-4 (embedder), bloquée par le même conflit que le driver.
+    # Story 001-4 (DONE) : SentenceTransformerEmbedder implémenté et validé.
+    # Adaptateur local sous-classant EmbedderClient sans extra ni conflit
+    # (sentence-transformers==3.0.0 déjà fourni par camel-oasis). Modèle par défaut
+    # all-MiniLM-L6-v2 (384 dim, 0 € marginal), lazy-loading thread-safe, délégation
+    # asynchrone via asyncio.to_thread, conversion rigoureuse en list[float]. Sonde
+    # autonome de vérification (scripts/verifier_embedder_graphiti.py) avec mode --mock
+    # et intégration conjointe Graphiti sans clé OpenAI validées. Revue de code
+    # contradictoire passée (4 couches, 6 correctifs). 315 tests (+18).
+    # Reste 001-5 (mesure 30 chunks) et 001-6 (verdict).
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).

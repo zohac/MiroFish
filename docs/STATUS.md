@@ -115,7 +115,21 @@ Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
 > (0 échec `MissingSessionID`). Revue de code contradictoire passée (4 couches, 6 correctifs appliqués).
 > Fichier : [`story-001-3.md`](plans/001-epreuve-graphiti-local/story-001-3.md).
 
-**296 tests verts**, 279 + 17 de la 001-3 (tests unitaires hermétiques et sonde mockée).
+### La story 001-4 est `done` — Embedder local Sentence-Transformers pour Graphiti
+
+> `SentenceTransformerEmbedder` sous-classe `EmbedderClient` dans `backend/app/utils/graphiti_embedder.py`.
+> L'investigation a levé la fausse hypothèse de blocage : `graphiti-core` n'embarquant aucun embedder
+> interne, aucun extra n'est nécessaire et `sentence-transformers==3.0.0` (fourni par `camel-oasis`)
+> opère déjà localement.
+> Modèle par défaut : `all-MiniLM-L6-v2` (384 dimensions, coût marginal de 0 €), chargement paresseux
+> (*lazy-loading*) thread-safe, encodage asynchrone non-bloquant via `asyncio.to_thread` et conversion
+> en flottants natifs Python.
+> Sonde de vérification validée (`backend/scripts/verifier_embedder_graphiti.py`) : inférence ~7 ms à chaud,
+> lot de 8 entités en ~50 ms (~6 ms/entité), mode `--mock` autonome et instanciation conjointe avec `Graphiti`
+> sans clé OpenAI. Revue de code contradictoire passée (4 couches, 6 correctifs appliqués).
+> 18 tests unitaires hermétiques dans `backend/tests/test_graphiti_embedder.py`. Fichier : [`story-001-4.md`](plans/001-epreuve-graphiti-local/story-001-4.md).
+
+**315 tests verts**, 297 + 18 de la 001-4 (tests unitaires hermétiques et sonde mockée).
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -175,10 +189,9 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Démarrer la 001-4** (embedder local `sentence-transformers`) — le dernier
-   verrou technique avant l'épreuve de mesure (001-5).
-2. La 001-5 aura le serveur prêt, avec les volumes en place et les clients branchés.
-3. L'épreuve elle-même, et son verdict.
+1. **Démarrer la 001-5** (script de mesure reproductible sur 30 chunks et rapport versionné).
+2. Lancer l'épreuve complète avec Neo4j, OpenCode Go et l'embedder local.
+3. Produire le verdict go / no-go (story 001-6).
 
 ## Questions ouvertes
 
@@ -187,7 +200,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 | Le graphe Zep actuel contient-il quelque chose à garder ? | Epic 006 : migration possible ou non |
 | ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée et rejouable : override du driver, **actée par l'ADR 0010**, précisée par l'ADR 0011 |
 | Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé. La version est lockée et **consignée dans `pyproject.toml`**, donc 001-2 teste bien celle qui sera déployée |
-| `sentence-transformers` : même conflit que `neo4j` ? | **oui, mesuré** — bloque la story 001-4, arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
+| ~~`sentence-transformers` : même conflit que `neo4j` ?~~ | **fausse hypothèse levée** (story 001-4) : `graphiti-core` ne fournit pas d'embedder, l'interface `EmbedderClient` est abstraite et `sentence-transformers==3.0.0` opère déjà sans extra ni override |
 | La politique d'usage de l'endpoint gratuit tient-elle à ce volume ? | extraction sur un modèle payant |
 | Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF, comme Zep le fait déjà |
 
@@ -195,7 +208,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | **296**, tous verts, **sans `.env`** (+17 par la 001-3 ; 279 avant) |
+| Tests | **315**, tous verts, **sans `.env`** (+18 par la 001-4 ; 297 avant) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

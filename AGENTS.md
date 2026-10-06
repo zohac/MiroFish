@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé (001-2) et client LLM session (001-3) validés |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé (001-2), LLM (001-3) et embedder local (001-4) validés |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -51,10 +51,18 @@ reproductible.**
 > défaut et relaie `LLM_REASONING_EFFORT` via `extra_body`. Sonde autonome
 > (`backend/scripts/verifier_llm_graphiti.py`) et critère C2 validé (0 échec
 > `MissingSessionID`). Revue de code contradictoire passée (4 couches, 6 correctifs
-> appliqués dont filtrage `<think>`, neutralité `base_url=None`, robustesse `choices=[]`
-> et sonde mockée fiabilisée).
+> appliqués).
 >
-> **296 tests verts.** Prochaine étape : story **001-4** (embedder local).
+> **La story 001-4 est `done`** : l'embedder local Sentence-Transformers
+> (`SentenceTransformerEmbedder` sous-classant `EmbedderClient`) opère sans extra
+> ni conflit de dépendances (`sentence-transformers==3.0.0` déjà présent). Modèle
+> par défaut `all-MiniLM-L6-v2` (384 dim, 0 € marginal), lazy-loading thread-safe,
+> inférence asynchrone via `asyncio.to_thread` (~7 ms à chaud), conversion en
+> `list[float]`. Sonde autonome (`backend/scripts/verifier_embedder_graphiti.py`)
+> avec mode `--mock` et intégration `Graphiti` validées sans clé OpenAI. Revue de
+> code contradictoire passée (4 couches, 6 correctifs appliqués).
+>
+> **315 tests verts.** Prochaine étape : story **001-5** (script de mesure et rapport versionné).
 
 ---
 
@@ -82,7 +90,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**296 tests** — il doit grossir, jamais rétrécir.
+**315 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -148,7 +156,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  296 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  315 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -307,7 +315,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 296 tests
+cd backend && uv run pytest tests/ -q                  # 315 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -352,10 +360,10 @@ Variables d'environnement utiles :
 |---|---|---|
 | Routes HTTP | `backend/app/api/` | `graph.py`, `simulation.py`, `report.py` |
 | Métier | `backend/app/services/` | construction graphe, personas, simulation, rapport |
-| Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `graphiti_llm_client.py`, `ontology.py`, `locale.py` |
+| Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `graphiti_llm_client.py`, `graphiti_embedder.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 296 tests |
+| Tests | `backend/tests/` | pytest — 315 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -365,6 +373,7 @@ Variables d'environnement utiles :
 | Épreuve du graphe | `docker-compose.neo4j.yml` | Neo4j seul, séparé — `5.26.31-community`, volumes nommés |
 | Vérification du driver | `backend/scripts/verifier_driver_neo4j.py` | test comportemental de l'override (001-2), 17 contrôles |
 | Vérification du LLM | `backend/scripts/verifier_llm_graphiti.py` | test de session & structured output Graphiti (001-3) |
+| Vérification de l'embedder | `backend/scripts/verifier_embedder_graphiti.py` | test d'encodage local & intégration Graphiti (001-4) |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |
@@ -495,7 +504,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | Le compose d'épreuve tourne **sans `.env` modifié** : le mot de passe vient de `${NEO4J_PASSWORD}`, interpolé, et pas de `env_file` — qui passerait `LLM_API_KEY` dans un conteneur Neo4j | `docker-compose.neo4j.yml`, `test_neo4j_serveur_epreuve.py` |
 | **La mesure de la 001-1 est rejouable, sur les deux arbres** : `mesurer-001-1.sh` normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure `pyproject.toml`, `uv.lock` et le venv à l'octet initial ; il refuse un arbre ambigu (override d'un autre périmètre, `[tool.uv]` portant d'autres clés, geste à moitié posé) au lieu de le deviner. Les **deux sorties sont versionnées** dans [`mesures-001-1b.md`](docs/plans/001-epreuve-graphiti-local/mesures-001-1b.md) | story 001-1, story 001-1b |
 | **L'override est posé, et sa version résolue est gardée** : `pyproject.toml` porte `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` avec `neo4j 5.28.6` en commentaire, et un test échoue si le lock s'en écarte — donc à chaque CI | story 001-1b · ADR 0011 |
-| **`architecture.md` §3 se trompe sur l'embedder** : `sentence-transformers` 3.0.0 est bien là, mais l'extra de Graphiti exige `>=3.2.1` — même conflit que `neo4j` | story 001-1 |
+| **L'hypothèse de conflit `sentence-transformers` est levée** : `graphiti-core` ne fournit aucun embedder interne et utilise l'interface `EmbedderClient` abstraite ; `sentence-transformers==3.0.0` (fourni par `camel-oasis`) s'exécute localement sans extra ni modification de `pyproject.toml` | story 001-4 |
 | **`apoc.merge.*` refusé alors que le plugin est installé** | `camel` dit « plugin absent », le message est faux : il faut `NEO4J_dbms_security_procedures_unrestricted: "apoc.*"` dans le compose |
 | `CALL db.indexes()` échoue en `ProcedureNotFound` | `graphiti-core` l'appelle dans `delete_all_indexes` ; la commande a disparu en 5.x. Utiliser `SHOW INDEXES YIELD name DROP INDEX name` |
 | `cypher-shell` dans un healthcheck : le `$$` de Compose | `$$` pour le shell du conteneur, `$` pour Compose ; un seul `$` est consommé par l'interpolation |
@@ -517,7 +526,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 296 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 315 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,
