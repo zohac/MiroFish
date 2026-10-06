@@ -10,11 +10,16 @@ humaine**, pas un second saisie.
 
 ## Où on en est
 
-Le **cadrage est terminé** : constitution du projet (`AGENTS.md`), audit des
-forks communautaires, cinq décisions d'architecture figées, CI qui lance les
-tests et le lint. Le **prochain jalon est l'épreuve Graphiti** — mesurer si
-le modèle gratuit tient l'extraction structurée, avant d'investir deux à
-quatre jours de migration.
+L'**épreuve Graphiti local (Epic 001) est validée avec succès (Verdict GO)** :
+le modèle gratuit `space-bunny` sur OpenCode Go, combiné à l'embedder local
+Sentence-Transformers (`all-MiniLM-L6-v2`) et à Neo4j 5.26, extrait des entités
+et relations exploitables (96.7 % de succès sur 30 chunks, 0 échec de session,
+49 nœuds et 45 relations persistés). Le point de rupture technique et économique
+est levé à un coût marginal de 0 €. L'Epic 001 est **clos**.
+
+Le **prochain jalon est l'Epic 002 (Interface `GraphStore`)** : introduire
+l'interface abstraite du store de graphe, encapsuler `ZepGraphStore` et poser
+la factory `ZEP_BACKEND` sans réécrire les services métiers.
 
 ## Fait
 
@@ -28,22 +33,28 @@ quatre jours de migration.
 | 7 ADR — + Docker-first, structure par story | `docs/decisions/0006`, `0007` |
 | 8 ADR — + pnpm (Node), version figée dans `packageManager` | `docs/decisions/0008` |
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `docs/sprint-status.yaml`, `.github/workflows/ci.yml` |
+| Épreuve Graphiti local (Epic 001) : 6 stories validées, verdict GO documenté | [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/rapport.md) |
 
 ## En cours
 
-**Epic 001 — Épreuve Graphiti local** (le seul point de rupture du projet).
-Plan : [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/prd.md)
+**Epic 002 — Interface `GraphStore` + `ZepGraphStore` + factory `ZEP_BACKEND`** (ADR 0001).
+Plan : [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md)
 
-La story **001-1 est `done`** : le conflit `graphiti-core` / `camel-oasis` est
-réel et structurel, la parade est mesurée et rejouable
-([`mesurer-001-1.sh`](plans/001-epreuve-graphiti-local/mesurer-001-1.sh)), la
-décision est actée par l'ADR 0010 et précisée par l'ADR 0011. Cinq points de sa
-revue de la 001-1 sont dans [`deferred-work.md`](deferred-work.md).
+L'epic 002 a été cadré et démarré :
+- PRD, architecture et contrat d'ingénierie posés dans `docs/plans/002-interface-graphstore/` ;
+- Objectif : découpler les 10 fichiers consommateurs du SDK `zep-cloud` derrière l'interface `GraphStore` et sa factory ;
+- Prochaine action : démarrer la story **002-1** (définition de l'interface `GraphStore` et des modèles neutres).
 
-La story **001-1b est `done`** : l'`override-dependencies` du driver est posé
-dans `backend/pyproject.toml`, avec `graphiti-core==0.30.2` **sans extra**, et le
-lock est régénéré et commité. `neo4j 5.28.6` résolue — la version que l'ADR 0011
-avait consignée, sans écart.
+### Bilan consolidé de l'Epic 001 — Épreuve Graphiti local (Verdict GO — Clos)
+
+L'epic 001 est intégralement achevé. Ses 6 stories ont été implémentées, testées et validées :
+- **Story 001-1** : Conflit de dépendances `graphiti-core` vs `camel-oasis` vérifié et mesuré (`mesure-001-1.txt`).
+- **Story 001-1b** : `override-dependencies` du driver Neo4j posé dans `backend/pyproject.toml` (`neo4j 5.28.6`), prouvé réversible (`mesures-001-1b.md`), ADR 0010 et ADR 0011 respectés.
+- **Story 001-2** : Driver forcé testé contre un vrai serveur `Neo4j 5.26.31-community` avec APOC (`docker-compose.neo4j.yml`), 17 contrôles validés deux fois, persistance C3 démontrée (`mesure-001-2-compose.txt`).
+- **Story 001-3** : `MiroFishLLMClient` sous-classant `OpenAIGenericClient`, injection transparente des en-têtes OpenCode Go, mode `json_object` par défaut, critère C2 validé (0 échec `MissingSessionID`).
+- **Story 001-4** : `SentenceTransformerEmbedder` local sans extra ni conflit, lazy-loading thread-safe, encodage asynchrone ~7 ms, intégration Graphiti sans clé OpenAI validée.
+- **Story 001-5** : Banc de mesure automatisé (`mesurer_extraction_graphiti.py`) et épreuve sur les 30 premiers chunks du rapport AN n° 2506, rapport versionné [`rapport.md`](plans/001-epreuve-graphiti-local/rapport.md).
+- **Story 001-6** : Décision formelle GO documentée, clôture de l'epic 001 et synchronisation des référentiels.
 
 ### La story 001-2 est `done` — le driver forcé **tient**
 
@@ -142,7 +153,21 @@ Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
 > Revue de code contradictoire passée (4 couches, 8 patchs appliqués, 1 rejeté documenté).
 > 17 tests unitaires hermétiques dans `backend/tests/test_mesure_extraction_graphiti.py`. Fichier : [`story-001-5.md`](plans/001-epreuve-graphiti-local/story-001-5.md).
 
-**333 tests verts**, 315 + 18 (tests unitaires hermétiques et sonde mockée).
+### La story 001-6 est `done` — Verdict formel GO et clôture de l'Epic 001
+
+> Le verdict global de l'épreuve est formellement **GO** (aucun modèle payant externe requis).
+> Tous les critères C1 à C5 fixés par le PRD sont respectés ou dépassés :
+> - **C1 (Extraction sans erreur)** : **29/30 épisodes (96.7 %)** (seuil d'acceptation ≥ 90 % / 27/30). Une seule anomalie isolée (chunk 22, `ValidationError` Pydantic sans blocage de la chaîne).
+> - **C2 (Session et auth)** : **0 échec `MissingSessionID`**, étanchéité de session complète.
+> - **C3 (Persistance graphe Neo4j)** : Graphe non vide et relisible après redémarrage (**49 nœuds et 45 relations** persistés et relus).
+> - **C4 (Temporalité)** : **11 arêtes temporelles** avec attribut `valid_at` explicite.
+> - **C5 (Rapport versionné)** : [`rapport.md`](plans/001-epreuve-graphiti-local/rapport.md) généré, daté et versionné avec le verdict GO en tête.
+>
+> La thèse du projet local-first est confirmée : l'extraction de connaissances à coût marginal de 0 €
+> fonctionne de bout en bout sans modèle payant. L'epic 001 est officiellement clos, débloquant l'epic 002.
+> Fichier : [`story-001-6.md`](plans/001-epreuve-graphiti-local/story-001-6.md).
+
+**333 tests verts**, tous hermétiques et sans `.env` (+18 par la 001-5 et sa revue).
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -174,7 +199,6 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 | Epic | Titre | Dépend de |
 |---|---|---|
-| 002 | Interface `GraphStore` + `ZepGraphStore` + factory | 001 |
 | 003 | `GraphitiGraphStore` : écriture et chemin de lecture | 001, 002 |
 | 004 | Construire un graphe sans clé Zep — la preuve finale | 003 |
 | 005 | Docker local : Neo4j dans le compose — **le compose d'épreuve existe déjà**, il s'y substituera | 003 |
@@ -183,27 +207,27 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 ---
 
-## Critères de succès de l'épreuve — chiffrés, sinon « ça tient » ne veut rien dire
+## Synthèse des critères de l'épreuve (Epic 001) — Verdict GO validé
 
-| # | Critère | Seuil |
-|---|---|---|
-| C1 | Épisodes extraits sans erreur | **≥ 27 sur 30** chunks (90 %) |
-| C2 | Échecs d'authentification (`MissingSessionID`) | **0** |
-| C3 | Graphe non vide **et relisible après redémarrage de Neo4j** | ≥ 1 entité, ≥ 1 relation persistées |
-| C4 | Temporalité : `valid_at` renseigné | ≥ 1 arête |
-| C5 | Rapport de mesure versionné dans le dépôt | 1 fichier |
+| # | Critère | Seuil PRD | Mesuré en conditions réelles | Statut |
+|---|---|---|---|---|
+| C1 | Épisodes extraits sans erreur | **≥ 27 sur 30** chunks (90 %) | **29 sur 30 (96.7 %)** | ✅ Conforme |
+| C2 | Échecs d'authentification (`MissingSessionID`) | **0** | **0** | ✅ Conforme |
+| C3 | Graphe non vide **et relisible après redémarrage de Neo4j** | ≥ 1 entité, ≥ 1 relation persistées | **49 nœuds, 45 relations** | ✅ Conforme |
+| C4 | Temporalité : `valid_at` renseigné | ≥ 1 arête | **11 arêtes temporelles** | ✅ Conforme |
+| C5 | Rapport de mesure versionné dans le dépôt | 1 fichier | **[`rapport.md`](plans/001-epreuve-graphiti-local/rapport.md)** | ✅ Conforme |
 
 Échantillon : les 30 premiers chunks du rapport n° 2506 de l'Assemblée
 nationale (URL et sha256 dans le PRD de l'epic 001).
 
-**Règle de décision** : si C1 ou C2 échoue, on s'arrête là. Pas de migration
-partielle sur une extraction qui ne fonctionne pas. Le repli est alors
-l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
+**Règle de décision** : tous les critères critiques étant validés, la décision est un
+**GO formel** pour engager le remplacement de Zep par Graphiti + Neo4j derrière
+l'interface `GraphStore` (Epic 002).
 
 ## Prochain pas
 
-1. **Produire le verdict go / no-go** (story 001-6) et clore l'epic 001.
-2. Démarrer l'epic 002 (interface `GraphStore` et factory).
+1. **Démarrer la Story 002-1** : Recensement des besoins et définition formelle de l'interface `GraphStore` et des dataclasses neutres.
+2. Implémenter `ZepGraphStore` (story 002-2).
 
 ## Questions ouvertes
 
@@ -211,16 +235,16 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 |---|---|
 | Le graphe Zep actuel contient-il quelque chose à garder ? | Epic 006 : migration possible ou non |
 | ~~`camel-oasis` et `graphiti-core` sont-ils compatibles dans un venv ?~~ | **répondu non** (story 001-1) — parade mesurée et rejouable : override du driver, **actée par l'ADR 0010**, précisée par l'ADR 0011 |
-| Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ? | 001-2 est le premier test ; s'il casse, l'ADR 0010 est supersédé et on bascule sur un venv séparé. La version est lockée et **consignée dans `pyproject.toml`**, donc 001-2 teste bien celle qui sera déployée |
+| ~~Le driver `neo4j` forcé à **5.28.6** tient-il **à l'exécution** ?~~ | **Validé (story 001-2)** : 17 contrôles réussis deux fois, persistance prouvée, l'ADR 0010 n'est pas supersédé |
 | ~~`sentence-transformers` : même conflit que `neo4j` ?~~ | **fausse hypothèse levée** (story 001-4) : `graphiti-core` ne fournit pas d'embedder, l'interface `EmbedderClient` est abstraite et `sentence-transformers==3.0.0` opère déjà sans extra ni override |
 | ~~La politique d'usage de l'endpoint gratuit tient-elle à ce volume ?~~ | **Validé (story 001-5)** : 29/30 chunks extraits sans saturation ni blocage réseau sous rate limiting (délai 1s) |
-| Le reranker supporte-t-il cet endpoint (logprobs) ? | repli RRF / pass-through local validé sans clé OpenAI (NFR-1) |
+| ~~Le reranker supporte-t-il cet endpoint (logprobs) ?~~ | **Validé (story 001-5)** : repli pass-through local sans appel externe ni clé OpenAI (NFR-1) |
 
 ## Chiffres de référence
 
 | | |
 |---|---|
-| Tests | **327**, tous verts, **sans `.env`** (+12 par la 001-5 ; 315 avant) |
+| Tests | **333**, tous verts, **sans `.env`** (+18 par la 001-5 et sa revue ; 315 avant) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé (001-2), LLM (001-3) et embedder local (001-4) validés |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 (Interface GraphStore) démarré (Epic 001 clos, Verdict GO) |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -33,47 +33,12 @@ reproductible.**
 
 ### La tâche du moment
 
-> **Les stories 001-1 et 001-1b sont `done`** : l'`override-dependencies`
-> du driver `neo4j` est posé dans `backend/pyproject.toml`, avec
-> `graphiti-core==0.30.2` **sans extra** et le lock régénéré et commité.
-> `neo4j 5.28.6` résolue — la version que l'ADR 0011 avait consignée, sans écart.
+> **L'epic 001 (« Épreuve Graphiti local ») est intégralement clos avec un VERDICT GO validé.**
+> Les 6 stories ont été menées à bien, testées et revues (333 tests verts).
 >
-> **La story 001-2 est `done`** : c'est le **premier test comportemental** du
-> driver forcé. Il est **passé**, puis **relu**, puis **rejoué sur le code
-> corrigé**. `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`,
-> tient contact avec un vrai serveur `Neo4j 5.26.31 community` — 17 contrôles,
-> deux fois. Le compose d'épreuve est **séparé** (`docker-compose.neo4j.yml`).
->
-> **La story 001-3 est `done`** : le client LLM Graphiti (`MiroFishLLMClient`
-> sous-classant `OpenAIGenericClient`) injecte automatiquement `x-opencode-session`
-> et `User-Agent: mirofish/0.1.0` vers OpenCode Go, conserve une neutralité stricte
-> pour les autres fournisseurs, active `structured_output_mode="json_object"` par
-> défaut et relaie `LLM_REASONING_EFFORT` via `extra_body`. Sonde autonome
-> (`backend/scripts/verifier_llm_graphiti.py`) et critère C2 validé (0 échec
-> `MissingSessionID`). Revue de code contradictoire passée (4 couches, 6 correctifs
-> appliqués).
->
-> **La story 001-4 est `done`** : l'embedder local Sentence-Transformers
-> (`SentenceTransformerEmbedder` sous-classant `EmbedderClient`) opère sans extra
-> ni conflit de dépendances (`sentence-transformers==3.0.0` déjà présent). Modèle
-> par défaut `all-MiniLM-L6-v2` (384 dim, 0 € marginal), lazy-loading thread-safe,
-> inférence asynchrone via `asyncio.to_thread` (~7 ms à chaud), conversion en
-> `list[float]`. Sonde autonome (`backend/scripts/verifier_embedder_graphiti.py`)
-> avec mode `--mock` et intégration `Graphiti` validées sans clé OpenAI. Revue de
-> code contradictoire passée (4 couches, 6 correctifs appliqués).
->
-> **La story 001-5 est `done`** : le banc de mesure autonome
-> (`backend/scripts/mesurer_extraction_graphiti.py`) a exécuté l'épreuve complète
-> en conditions réelles sur les 30 premiers chunks du rapport AN n° 2506 avec
-> `space-bunny`, l'embedder local et Neo4j 5.26 :
-> - C1 : 29/30 chunks sans erreur (96.7 % ≥ 90 %) ;
-> - C2 : 0 échec `MissingSessionID` ;
-> - C3 : 49 nœuds et 45 relations persistés dans Neo4j ;
-> - C4 : 11 arêtes avec `valid_at` renseigné (corrigé en revue BMad 4 couches) ;
-> - C5 : [`docs/plans/001-epreuve-graphiti-local/rapport.md`](docs/plans/001-epreuve-graphiti-local/rapport.md) généré et versionné avec verdict GO en tête.
-> Revue 4 couches validée (8 patchs appliqués, 1 rejeté documenté).
->
-> **333 tests verts.** Prochaine étape : story **001-6** (verdict go / no-go documenté et clôture de l'epic 001).
+> **L'epic 002 (« Interface GraphStore ») est cadré et ouvert.**
+> Plan complet posé dans [`docs/plans/002-interface-graphstore/`](docs/plans/002-interface-graphstore/prd.md) (`prd.md`, `architecture.md`, `epic-002.md`).
+> Prochaine étape : démarrage de la story **002-1** (recensement des contrats d'utilisation et interface formelle `GraphStore`).
 
 ---
 
@@ -516,6 +481,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | **La mesure de la 001-1 est rejouable, sur les deux arbres** : `mesurer-001-1.sh` normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure `pyproject.toml`, `uv.lock` et le venv à l'octet initial ; il refuse un arbre ambigu (override d'un autre périmètre, `[tool.uv]` portant d'autres clés, geste à moitié posé) au lieu de le deviner. Les **deux sorties sont versionnées** dans [`mesures-001-1b.md`](docs/plans/001-epreuve-graphiti-local/mesures-001-1b.md) | story 001-1, story 001-1b |
 | **L'override est posé, et sa version résolue est gardée** : `pyproject.toml` porte `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` avec `neo4j 5.28.6` en commentaire, et un test échoue si le lock s'en écarte — donc à chaque CI | story 001-1b · ADR 0011 |
 | **L'hypothèse de conflit `sentence-transformers` est levée** : `graphiti-core` ne fournit aucun embedder interne et utilise l'interface `EmbedderClient` abstraite ; `sentence-transformers==3.0.0` (fourni par `camel-oasis`) s'exécute localement sans extra ni modification de `pyproject.toml` | story 001-4 |
+| **Verdict GO de l'épreuve Graphiti local (Epic 001)** : space-bunny sur OpenCode Go avec SentenceTransformerEmbedder et Neo4j 5.26 extrait 29/30 chunks sans erreur, 0 défaut session, 49 nœuds et 45 relations persistés. Aucun modèle payant requis (coût marginal 0 €) | story 001-5, story 001-6, `rapport.md`, `STATUS.md` |
 | **`apoc.merge.*` refusé alors que le plugin est installé** | `camel` dit « plugin absent », le message est faux : il faut `NEO4J_dbms_security_procedures_unrestricted: "apoc.*"` dans le compose |
 | `CALL db.indexes()` échoue en `ProcedureNotFound` | `graphiti-core` l'appelle dans `delete_all_indexes` ; la commande a disparu en 5.x. Utiliser `SHOW INDEXES YIELD name DROP INDEX name` |
 | `cypher-shell` dans un healthcheck : le `$$` de Compose | `$$` pour le shell du conteneur, `$` pour Compose ; un seul `$` est consommé par l'interpolation |
@@ -537,7 +503,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 315 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 333 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,

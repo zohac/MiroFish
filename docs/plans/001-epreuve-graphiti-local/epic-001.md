@@ -1,6 +1,6 @@
 # Epic 001 — Épreuve Graphiti local
 
-- **Statut** : `in-progress` · **Dépend de** : rien · **Bloque** : 002, 003
+- **Statut** : `done` · **Dépend de** : rien · **Bloque** : 002, 003
 - **Suivi** : [`sprint-status.yaml`](../../../docs/sprint-status.yaml)
 
 > On mesure avant de construire. Le plan complet du projet est dans
@@ -65,7 +65,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | 001-3 | Client LLM Graphiti portant l'en-tête de session | `done` | [`story-001-3.md`](story-001-3.md) |
 | 001-4 | Embedder local Sentence-Transformers pour Graphiti | `done` | [`story-001-4.md`](story-001-4.md) |
 | 001-5 | Script de mesure reproductible + rapport versionné | `done` | [`story-001-5.md`](story-001-5.md) |
-| 001-6 | Verdict go / no-go documenté | `backlog` | [`story-001-6.md`](story-001-6.md) |
+| 001-6 | Verdict go / no-go documenté | `done` | [`story-001-6.md`](story-001-6.md) |
 
 > **Pourquoi 001-4 a son fichier dès le backlog** : le cadrage initial
 > anticipait un blocage par conflit de versions `sentence-transformers`
@@ -112,8 +112,8 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 
 ## L'epic est terminé quand
 
-- [ ] C1 à C5 evaluated et consignés dans [`rapport.md`](rapport.md)
-- [ ] Verdict go / no-go écrit dans [`docs/STATUS.md`](../../STATUS.md)
-- [ ] Un no-go a produit un ADR ; un go a fait passer l'epic 002 en `in-progress`
-- [ ] `rapport.md` est versionné, le script est rejouable, aucune histoire en suspens
-- [ ] Les tests existants restent verts — **315** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue, +17 par la 001-3 et sa revue, +18 par la 001-4 et sa revue)
+- [x] C1 à C5 évalués et consignés dans [`rapport.md`](rapport.md)
+- [x] Verdict go / no-go écrit dans [`docs/STATUS.md`](../../STATUS.md)
+- [x] Un no-go aurait produit un ADR ; le verdict GO documenté dans `STATUS.md` clôture l'epic 001 et débloque l'epic 002 pour démarrage
+- [x] `rapport.md` est versionné, le script est rejouable, aucune histoire en suspens
+- [x] Les tests existants restent verts — **333** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue, +17 par la 001-3 et sa revue, +18 par la 001-4 et sa revue, +18 par la 001-5 et sa revue)

@@ -22,7 +22,7 @@ epics:
   - id: "001"
     slug: epreuve-graphiti-local
     titre: "Épreuve Graphiti local — le modèle gratuit tient-il l'extraction ?"
-    statut: in-progress
+    statut: done
     plan: docs/plans/001-epreuve-graphiti-local
     pourquoi: >-
       Seul point de rupture du projet : la qualité du structured output de
@@ -88,7 +88,16 @@ epics:
     # autonome de vérification (scripts/verifier_embedder_graphiti.py) avec mode --mock
     # et intégration conjointe Graphiti sans clé OpenAI validées. Revue de code
     # contradictoire passée (4 couches, 6 correctifs). 315 tests (+18).
-    # Reste 001-5 (mesure 30 chunks) et 001-6 (verdict).
+    # Story 001-5 (DONE) : banc de mesure autonome (scripts/mesurer_extraction_graphiti.py)
+    # exécuté en conditions réelles sur les 30 premiers chunks du rapport AN n° 2506
+    # avec space-bunny, all-MiniLM-L6-v2 et Neo4j 5.26. Résultats : C1 = 29/30 (96.7 % >= 90 %),
+    # C2 = 0 échec MissingSessionID, C3 = 49 nœuds et 45 relations persistés et relus,
+    # C4 = 11 arêtes avec valid_at renseigné, C5 = rapport.md versionné avec verdict GO.
+    # Revue BMad 4 couches validée (8 patchs appliqués). 333 tests (+18).
+    # Story 001-6 (DONE) : verdict formel GO documenté dans docs/STATUS.md et clôture
+    # de l'epic 001. Hypothèse confirmée : extraction fonctionnelle à coût marginal 0 €.
+    # Synchronisation complète de la documentation d'état et des référentiels.
+    # Epic 001 clos, Epic 002 débloqué pour cadrage et démarrage.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).
@@ -96,12 +105,19 @@ epics:
   - id: "002"
     slug: interface-graphstore
     titre: "Interface GraphStore — ZepGraphStore + factory ZEP_BACKEND"
-    statut: backlog
+    statut: in-progress
+    plan: docs/plans/002-interface-graphstore
     depend_de: ["001"]
     pourquoi: >-
       ADR 0001. Tant que les services appellent le client Zep directement,
       la bascule vers Graphiti est un rewrite. C'est le chantier qui rend le
       reste réversible.
+    criteres_de_sortie:
+      - "Interface GraphStore définie et typée sans dépendance Zep"
+      - "ZepGraphStore implémente 100 % du contrat existant"
+      - "Factory get_graph_store() pilotée par ZEP_BACKEND (défaut 'cloud')"
+      - "0 import direct du SDK Zep dans les services et routes API"
+      - "100 % des tests existants restent verts (333 tests)"
 
   - id: "003"
     slug: chemin-de-lecture-graphiti

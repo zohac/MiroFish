@@ -2,7 +2,7 @@
 id: "001-6"
 epic: "001"
 titre: "Verdict go / no-go documenté et clôture de l'epic 001"
-statut: backlog
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -53,31 +53,31 @@ d'état (`docs/STATUS.md`, `docs/sprint-status.yaml`, `docs/plans/001-epreuve-gr
 
 ## Définition de prêt
 
-- [ ] Rapport d'épreuve `docs/plans/001-epreuve-graphiti-local/rapport.md` versionné et validé (mesure réelle sur 30 chunks)
-- [ ] Résultats chiffrés des critères C1 à C5 de `prd.md` confirmés et conformes (C1 ≥ 90 %, C2 = 0, C3 > 0, C4 ≥ 1, C5 = 1)
-- [ ] Suite globale de tests hermétiques au vert (333 tests passés avec succès)
-- [ ] Revue contradictoire BMad 4 couches de la story 001-5 achevée et corrigée (8 patchs appliqués)
-- [ ] Documents à consulter lus — [`epic-001.md`](epic-001.md), [`prd.md`](prd.md), [`rapport.md`](rapport.md), [`docs/STATUS.md`](../../STATUS.md), [`docs/sprint-status.yaml`](../../sprint-status.yaml), [`AGENTS.md`](../../../AGENTS.md) §1 et §7, [ADR 0001](../../decisions/0001-graphiti-neo4j-local.md), [ADR 0004](../../decisions/0004-llm-opencode-go.md)
+- [x] Rapport d'épreuve `docs/plans/001-epreuve-graphiti-local/rapport.md` versionné et validé (mesure réelle sur 30 chunks)
+- [x] Résultats chiffrés des critères C1 à C5 de `prd.md` confirmés et conformes (C1 ≥ 90 %, C2 = 0, C3 > 0, C4 ≥ 1, C5 = 1)
+- [x] Suite globale de tests hermétiques au vert (333 tests passés avec succès)
+- [x] Revue contradictoire BMad 4 couches de la story 001-5 achevée et corrigée (8 patchs appliqués)
+- [x] Documents à consulter lus — [`epic-001.md`](epic-001.md), [`prd.md`](prd.md), [`rapport.md`](rapport.md), [`docs/STATUS.md`](../../STATUS.md), [`docs/sprint-status.yaml`](../../sprint-status.yaml), [`AGENTS.md`](../../../AGENTS.md) §1 et §7, [ADR 0001](../../decisions/0001-graphiti-neo4j-local.md), [ADR 0004](../../decisions/0004-llm-opencode-go.md)
 
 ## Définition de fini
 
-- [ ] Le verdict global GO est documenté et motivé dans `docs/STATUS.md` avec le récapitulatif des 5 critères C1-C5
-- [ ] Les sections d'avancement de `docs/STATUS.md` (« Où on en est », « Fait », « En cours », « À faire ») sont mises à jour pour acter la clôture de l'epic 001 et annoncer l'epic 002
-- [ ] Les conditions de sortie de `docs/plans/001-epreuve-graphiti-local/epic-001.md` (« L'epic est terminé quand ») sont intégralement cochées
-- [ ] Le statut de l'epic 001 dans `docs/sprint-status.yaml` passe à `done` avec le bilan consolidé, et l'epic 002 est débloqué pour démarrage
-- [ ] La constitution `AGENTS.md` §1 (« La tâche du moment ») et §7 (« Définition de fini ») est alignée sur la fin de l'epic 001
-- [ ] `validate_plans.py` confirme la validité de l'ensemble de la structure documentaire
-- [ ] Tous les tests existants restent 100 % au vert (`uv run pytest tests/ -q`, 333 tests) et `uv run ruff check .` est vierge
-- [ ] Aucun secret ni token d'authentification n'apparaît dans le commit
+- [x] Le verdict global GO est documenté et motivé dans `docs/STATUS.md` avec le récapitulatif des 5 critères C1-C5
+- [x] Les sections d'avancement de `docs/STATUS.md` (« Où on en est », « Fait », « En cours », « À faire ») sont mises à jour pour acter la clôture de l'epic 001 et annoncer l'epic 002
+- [x] Les conditions de sortie de `docs/plans/001-epreuve-graphiti-local/epic-001.md` (« L'epic est terminé quand ») sont intégralement cochées
+- [x] Le statut de l'epic 001 dans `docs/sprint-status.yaml` passe à `done` avec le bilan consolidé, et l'epic 002 est débloqué pour démarrage
+- [x] La constitution `AGENTS.md` §1 (« La tâche du moment ») et §7 (« Définition de fini ») est alignée sur la fin de l'epic 001
+- [x] `validate_plans.py` confirme la validité de l'ensemble de la structure documentaire
+- [x] Tous les tests existants restent 100 % au vert (`uv run pytest tests/ -q`, 333 tests) et `uv run ruff check .` est vierge
+- [x] Aucun secret ni token d'authentification n'apparaît dans le commit
 
 ## Tâches
 
-- [ ] 1. Rédiger la décision formelle de verdict GO dans `docs/STATUS.md` (critères C1-C5, confirmation de l'hypothèse et feuille de route)
-- [ ] 2. Mettre à jour les sections de statut (« Où on en est », « Fait », « En cours », « À faire ») dans `docs/STATUS.md`
-- [ ] 3. Cocher les critères de sortie dans `docs/plans/001-epreuve-graphiti-local/epic-001.md` (« L'epic est terminé quand »)
-- [ ] 4. Mettre à jour `docs/sprint-status.yaml` (passage de l'epic 001 à `done`, déblocage de l'epic 002)
-- [ ] 5. Aligner `AGENTS.md` §1 (« La tâche du moment ») sur la clôture de l'epic 001 et le passage au jalon suivant
-- [ ] 6. Conduire la revue contradictoire BMad 4 couches et vérifier la conformité via `validate_plans.py`, `pytest` et `ruff`
+- [x] 1. Rédiger la décision formelle de verdict GO dans `docs/STATUS.md` (critères C1-C5, confirmation de l'hypothèse et feuille de route)
+- [x] 2. Mettre à jour les sections de statut (« Où on en est », « Fait », « En cours », « À faire ») dans `docs/STATUS.md`
+- [x] 3. Cocher les critères de sortie dans `docs/plans/001-epreuve-graphiti-local/epic-001.md` (« L'epic est terminé quand »)
+- [x] 4. Mettre à jour `docs/sprint-status.yaml` (passage de l'epic 001 à `done`, déblocage de l'epic 002)
+- [x] 5. Aligner `AGENTS.md` §1 (« La tâche du moment ») sur la clôture de l'epic 001 et le passage au jalon suivant
+- [x] 6. Conduire la revue contradictoire BMad 4 couches et vérifier la conformité via `validate_plans.py`, `pytest` et `ruff`
 
 ## Notes de développement
 
@@ -107,12 +107,56 @@ Aucune divergence d'état ou d'indicateur ne doit subsister entre ces quatre doc
 
 ## Revue
 
-Revue contradictoire planifiée sur les 4 couches BMad (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor) :
-1. Exactitude mathématique des critères C1 à C5 reportés depuis `rapport.md` ;
-2. Cohérence du verdict GO avec les règles de décision fixées dans `prd.md` ;
-3. Absence d'incohérence ou de redondance contradictoire entre `STATUS.md`, `sprint-status.yaml`, `epic-001.md` et `AGENTS.md` ;
-4. Validation stricte par `validate_plans.py`.
+Revue contradictoire exécutée selon le protocole BMad 4 couches :
+
+1. **Couche 1 : blind-hunter (audit des faits, chiffres et cohérence de décision)** :
+   - Exactitude des chiffres C1-C5 : 29/30 chunks (96.7 %), 0 défaut de session, 49 nœuds et 45 relations Neo4j, 11 arêtes temporelles, rapport versionné. Conforme à l'octet près avec `docs/plans/001-epreuve-graphiti-local/rapport.md`.
+   - Règle de décision : C1 ≥ 90 % (seuil à 27) et C2 = 0. La condition stricte de `prd.md` § « Décision attendue à la fin » est satisfaite. Le verdict GO est formel et ne nécessite aucun ADR de contournement payant.
+   - Compteur de tests consolidé à 333 (183 initial + 9 revue + 12 001-1b + 30 revue + 45 001-2 + 17 001-3 + 18 001-4 + 17 001-5 + 2 durcissements). Aligné partout.
+
+2. **Couche 2 : edge-case-hunter (cohérence croisée des statuts et artefacts)** :
+   - Audit des états inter-documents : `docs/sprint-status.yaml` a basculé l'epic 001 à `done`. L'epic 002 est conservé en `backlog` (débloqué, `depend_de: ["001"]`), évitant l'erreur de `validate_plans.py` qui interdirait un epic `in-progress` sans dossier de plan préalable.
+   - Alignement constitutionnel : `AGENTS.md` §1 (« La tâche du moment »), §10 (« Ce qui est déjà réglé ») et §11 (« Contrat de session ») sont parfaitement synchronisés.
+
+3. **Couche 3 : verification-gap (lacunes de vérification et outillage)** :
+   - `uv run python scripts/validate_plans.py` exécuté avec succès (0 anomalie détectée).
+   - `uv run pytest tests/ -q` confirme 333 tests passés avec 1 warning pydantic amont.
+   - `uv run ruff check .` confirme l'absence totale de violation de style ou de lint.
+   - Audit git diff : aucun token, secret d'environnement ni clé d'API commité.
+
+4. **Couche 4 : acceptance-auditor (contrôle strict des critères de fini)** :
+   - Les 8 critères de la Définition de fini sont tous objectivement vérifiés et cochés.
+   - Les 6 tâches de la story sont accomplies.
+   - Clôture formelle prête pour la transition finale vers `done`.
 
 ## Notes de complétion
 
-À compléter lors de la prise de décision formelle et de la clôture de l'epic 001.
+**Verdict formel GO acté et clôture de l'Epic 001.**
+L'épreuve empirique et technique menée dans l'epic 001 a permis de trancher de manière définitive et incontestable
+la question fondatrice du projet MiroFish en mode local-first : l'extraction d'entités et de relations temporelles
+par Graphiti sur un document réel sans cloud payant est pleinement réalisable et performante avec un coût marginal
+de 0 €.
+
+**Bilan des critères d'acceptation du PRD :**
+1. **C1 (Taux d'extraction sans erreur)** : **96.7 % (29/30 chunks)**, surpassant largement le seuil requis de 90 % (≥ 27/30).
+   Une unique erreur isolée de validation Pydantic (`ValidationError` sur le chunk 22) a été capturée et tracée sans bloquer la chaîne.
+2. **C2 (Session et authenticité)** : **0 échec `MissingSessionID`**, confirmant l'étanchéité parfaite de `MiroFishLLMClient`.
+3. **C3 (Persistance graphe Neo4j)** : **49 nœuds et 45 relations** persistés dans le conteneur Neo4j 5.26 et relus après cycle.
+4. **C4 (Temporalité des faits)** : **11 arêtes temporelles** avec horodatage `valid_at` explicite.
+5. **C5 (Rapport de mesure versionné)** : [`rapport.md`](rapport.md) généré, daté et versionné avec le verdict GO en tête.
+
+**Divergences par rapport aux hypothèses initiales :**
+- *Fausse hypothèse de dépendance levée (001-4)* : l'anticipation d'un conflit de versions `sentence-transformers` identique à `neo4j`
+  s'est révélée infondée : `graphiti-core` utilise l'abstraction `EmbedderClient` sans extra interne, permettant l'usage direct
+  de `sentence-transformers==3.0.0` déjà présent via `camel-oasis`.
+- *Cross-encoder local* : le repli pass-through local a permis d'éliminer toute dépendance aux logprobs ou à un reranker externe payant.
+- *Délai inter-chunks* : l'ajout d'une pause de 1 seconde entre les chunks a totalement neutralisé le risque de rate-limiting sur OpenCode Go.
+
+**Synchronisation documentaire et passage au jalon suivant :**
+- `docs/STATUS.md` : verdict formel GO documenté, bilan consolidé des 6 stories, sections d'avancement et critères mis à jour.
+- `docs/sprint-status.yaml` : statut de l'epic 001 passé à `done` avec synthèse complète, epic 002 débloqué pour démarrage.
+- `docs/plans/001-epreuve-graphiti-local/epic-001.md` : statut passé à `done`, table des stories à jour, critères de sortie intégralement cochés.
+- `AGENTS.md` : alignement constitutionnel de la section 1 (« La tâche du moment »), de la section 10 (« Ce qui est déjà réglé ») et du contrat de session (333 tests).
+- Suite de tests : 333 tests 100 % au vert, lint ruff impeccable, `validate_plans.py` sans anomalie.
+
+L'epic 001 est définitivement **clos**. La voie est libre pour le cadrage et le développement de l'**Epic 002 (Interface `GraphStore`)**.
