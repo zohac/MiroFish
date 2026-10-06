@@ -125,10 +125,21 @@ epics:
     # Zéro dépendance vers zep_cloud (prouvé par AST). Suite de tests unitaires
     # complète (test_graph_store_contract.py) avec FakeGraphStore. Revue BMad à
     # 4 couches validée (7 correctifs appliqués). 341 tests verts (+8).
-    # Story 002-2 (in-progress) : implémentation de ZepGraphStore
-    # encapsulant le SDK Zep Cloud, retries, pagination par curseurs
-    # et conversion stricte vers les modèles neutres. Cadrage et
-    # story-002-2.md posés.
+    # Story 002-2 (DONE) : implémentation complète de ZepGraphStore
+    # (backend/app/utils/graph_store/zep_store.py) encapsulant les 14 méthodes
+    # de GraphStore, la pagination par curseurs, la réconciliation et la
+    # traduction exhaustive des exceptions vers GraphStoreError. 68 tests
+    # unitaires hermétiques (backend/tests/test_zep_graph_store.py). Revue BMad à
+    # 4 couches validée (6 patchs appliqués). 409 tests verts (+68).
+    # Story 002-3 (DONE) : factory centralisée get_graph_store()
+    # (backend/app/utils/graph_store/factory.py) avec résolution de priorité,
+    # normalisation insensible à la casse et tolérance aux espaces, aiguillage
+    # ZEP_BACKEND ('cloud' par défaut, réservation 'graphiti' Epic 003),
+    # validation stricte dans Config.validate(), et mécanisme d'override
+    # étanche (set_graph_store_override avec contrôle de type, override_graph_store).
+    # 33 tests unitaires hermétiques (backend/tests/test_graph_store_factory.py).
+    # Revue BMad à 4 couches validée (7 patchs appliqués). 442 tests verts (+33).
+
 
   - id: "003"
     slug: chemin-de-lecture-graphiti
