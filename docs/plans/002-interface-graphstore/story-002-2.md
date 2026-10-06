@@ -2,7 +2,7 @@
 id: "002-2"
 epic: "002"
 titre: "Implémentation de ZepGraphStore et encapsulation du SDK Zep"
-statut: in-progress
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -45,41 +45,41 @@ Cette story crée `backend/app/utils/graph_store/zep_store.py` et la suite de te
 
 ## Définition de fini
 
-- [ ] La classe `ZepGraphStore(GraphStore)` est implémentée dans `backend/app/utils/graph_store/zep_store.py`
-- [ ] Les 14 méthodes abstraites de `GraphStore` sont implémentées et typées sans fuite de types Zep
-- [ ] La pagination par curseurs est intégrée de façon transparente pour `get_all_nodes`, `get_all_edges` et `get_graph_data`
-- [ ] La politique de retry et de réconciliation de création est encapsulée dans `create_graph` et les lectures
-- [ ] Toutes les erreurs du SDK Zep et de `httpx` sont traduites en exceptions de la hiérarchie `GraphStoreError`
-- [ ] `add_text_batch` et `wait_for_batch` gèrent la soumission par lots et le suivi asynchrone
-- [ ] `add_episode` et `wait_for_episodes` gèrent l'ingestion unitaire et le polling avec gestion de timeout
-- [ ] `search` prend en charge les périmètres (`edges`, `nodes`, `hybrid`) et le paramètre optionnel `reranker`
-- [ ] `backend/app/utils/graph_store/__init__.py` exporte `ZepGraphStore`
-- [ ] Une suite de tests unitaires complète et hermétique `backend/tests/test_zep_graph_store.py` teste chaque méthode avec mocks SDK
-- [ ] 100 % des tests existants (341 tests) restent au vert (`uv run pytest tests/ -q`)
-- [ ] `uv run ruff check .` et `uv run python scripts/validate_plans.py` passent sans avertissement
+- [x] La classe `ZepGraphStore(GraphStore)` est implémentée dans `backend/app/utils/graph_store/zep_store.py`
+- [x] Les 14 méthodes abstraites de `GraphStore` sont implémentées et typées sans fuite de types Zep
+- [x] La pagination par curseurs est intégrée de façon transparente pour `get_all_nodes`, `get_all_edges` et `get_graph_data`
+- [x] La politique de retry et de réconciliation de création est encapsulée dans `create_graph` et les lectures
+- [x] Toutes les erreurs du SDK Zep et de `httpx` sont traduites en exceptions de la hiérarchie `GraphStoreError`
+- [x] `add_text_batch` et `wait_for_batch` gèrent la soumission par lots et le suivi asynchrone
+- [x] `add_episode` et `wait_for_episodes` gèrent l'ingestion unitaire et le polling avec gestion de timeout
+- [x] `search` prend en charge les périmètres (`edges`, `nodes`, `hybrid`) et le paramètre optionnel `reranker`
+- [x] `backend/app/utils/graph_store/__init__.py` exporte `ZepGraphStore`
+- [x] Une suite de tests unitaires complète et hermétique `backend/tests/test_zep_graph_store.py` teste chaque méthode avec mocks SDK
+- [x] 100 % des tests existants (341 tests) restent au vert (`uv run pytest tests/ -q`)
+- [x] `uv run ruff check .` et `uv run python scripts/validate_plans.py` passent sans avertissement
 
 ## Tâches
 
-- [ ] Créer `backend/app/utils/graph_store/zep_store.py` avec `ZepGraphStore(GraphStore)`
-  - [ ] Gestion du client Zep (`get_zep_client`) et injection de client pour les tests
-  - [ ] Helper interne de traduction des exceptions Zep / httpx vers `GraphStoreError`
-  - [ ] Implémentation du cycle de vie (`create_graph` avec réconciliation, `delete_graph`, `get_graph_data`, `get_graph_info`)
-  - [ ] Implémentation de l'ontologie (`set_ontology`)
-  - [ ] Implémentation de l'ingestion par lots (`add_text_batch`, `wait_for_batch`)
-  - [ ] Implémentation de l'ingestion unitaire (`add_episode`, `wait_for_episodes`)
-  - [ ] Implémentation des lectures paginées et parcours (`get_all_nodes`, `get_all_edges`, `get_node`, `get_node_edges`)
-  - [ ] Implémentation de la recherche sémantique (`search` avec support de `reranker` et scopes)
-- [ ] Exposer `ZepGraphStore` dans `backend/app/utils/graph_store/__init__.py`
-- [ ] Créer la suite de tests `backend/tests/test_zep_graph_store.py`
-  - [ ] Test d'initialisation et configuration de clé API
-  - [ ] Tests du cycle de vie (`create_graph`, `delete_graph`, `get_graph_data`, `get_graph_info`)
-  - [ ] Tests de traduction des exceptions (404 -> `GraphNotFoundError`, 502/503 -> `GraphConnectionError`, timeout -> `GraphTimeoutError`)
-  - [ ] Tests d'ingestion par lots (`add_text_batch`, `wait_for_batch`)
-  - [ ] Tests d'ingestion d'épisodes (`add_episode`, `wait_for_episodes`)
-  - [ ] Tests de lecture (`get_all_nodes`, `get_all_edges`, `get_node`, `get_node_edges`)
-  - [ ] Tests de recherche avec conversion en `GraphSearchResult` et gestion du `reranker`
-- [ ] Valider la non-régression globale (`uv run pytest tests/ -q`)
-- [ ] Contrôler `ruff check .` et `validate_plans.py`
+- [x] Créer `backend/app/utils/graph_store/zep_store.py` avec `ZepGraphStore(GraphStore)`
+  - [x] Gestion du client Zep (`get_zep_client`) et injection de client pour les tests
+  - [x] Helper interne de traduction des exceptions Zep / httpx vers `GraphStoreError`
+  - [x] Implémentation du cycle de vie (`create_graph` avec réconciliation, `delete_graph`, `get_graph_data`, `get_graph_info`)
+  - [x] Implémentation de l'ontologie (`set_ontology`)
+  - [x] Implémentation de l'ingestion par lots (`add_text_batch`, `wait_for_batch`)
+  - [x] Implémentation de l'ingestion unitaire (`add_episode`, `wait_for_episodes`)
+  - [x] Implémentation des lectures paginées et parcours (`get_all_nodes`, `get_all_edges`, `get_node`, `get_node_edges`)
+  - [x] Implémentation de la recherche sémantique (`search` avec support de `reranker` et scopes)
+- [x] Exposer `ZepGraphStore` dans `backend/app/utils/graph_store/__init__.py`
+- [x] Créer la suite de tests `backend/tests/test_zep_graph_store.py`
+  - [x] Test d'initialisation et configuration de clé API
+  - [x] Tests du cycle de vie (`create_graph`, `delete_graph`, `get_graph_data`, `get_graph_info`)
+  - [x] Tests de traduction des exceptions (404 -> `GraphNotFoundError`, 502/503 -> `GraphConnectionError`, timeout -> `GraphTimeoutError`)
+  - [x] Tests d'ingestion par lots (`add_text_batch`, `wait_for_batch`)
+  - [x] Tests d'ingestion d'épisodes (`add_episode`, `wait_for_episodes`)
+  - [x] Tests de lecture (`get_all_nodes`, `get_all_edges`, `get_node`, `get_node_edges`)
+  - [x] Tests de recherche avec conversion en `GraphSearchResult` et gestion du `reranker`
+- [x] Valider la non-régression globale (`uv run pytest tests/ -q`)
+- [x] Contrôler `ruff check .` et `validate_plans.py`
 
 ## Notes de développement
 
@@ -93,16 +93,33 @@ Cette story crée `backend/app/utils/graph_store/zep_store.py` et la suite de te
 - **Rétrocompatibilité du format de données de l'API** :
   `get_graph_data` garantit la présence de `graph_id`, `node_count`, `edge_count` au premier niveau ainsi que
   `statistics`, répondant aux besoins conjoints de `api/graph.py` et du frontend Vue.
+- **Gestion des hiérarchies d'exceptions Python** :
+  En Python 3, `TimeoutError` hérite de `OSError`. Dans le helper `_translate_error`, la détection de
+  `(httpx.TimeoutException, TimeoutError)` doit impérativement précéder celle de `(ConnectError, NetworkError, OSError)`,
+  faute de quoi les délais dépassés se traduisaient indûment en `GraphConnectionError`.
 
 ## Revue
 
-Revue contradictoire planifiée sur les 4 couches BMad (*Blind Hunter*, *Edge Case Hunter*, *Verification Gap*, *Acceptance Auditor*) :
-1. Couverture exhaustive des 14 méthodes de l'interface `GraphStore` ;
-2. Traduction rigoureuse de toutes les erreurs du SDK et de HTTPX vers la hiérarchie `GraphStoreError` ;
-3. Absence totale de fuite de types Zep dans les signatures et retours publics ;
-4. Herméticité absolue des tests unitaires (aucun appel réseau externe, mocks complets) ;
-5. Non-régression totale sur le filet existant (341 tests verts).
+Revue contradictoire menée par 4 couches indépendantes (*Blind Hunter*, *Edge Case Hunter*, *Verification Gap*, *Acceptance Auditor*).
+Bilan du triage : 0 `decision-needed`, 6 `patch`, 0 `defer`, 1 rejeté.
+
+### Constats de revue retenus (Patch)
+
+- [x] [Review][Patch] Préservation des métadonnées temporelles et des épisodes dans `search()` : extraire `valid_at`, `invalid_at`, `expired_at`, `created_at` et `episodes` lors de la construction des `GraphEdge` et `created_at` pour les `GraphNode` [`backend/app/utils/graph_store/zep_store.py:912-940`]
+- [x] [Review][Patch] Support des types d'entités sous forme de chaînes et garde contre dictionnaires incomplets dans `set_ontology()` : supporter la syntaxe `{"entity_types": ["Person", "Org"]}` et vérifier la présence de `"name"` [`backend/app/utils/graph_store/zep_store.py:308-335`]
+- [x] [Review][Patch] Validation défensive des paramètres dans `wait_for_episodes()` et `wait_for_batch()` : valider `graph_id` non vide dans `wait_for_episodes()`, rejeter les `batch` invalides (`None` ou sans `batch_id`), et exiger un `timeout > 0` [`backend/app/utils/graph_store/zep_store.py:628`, `L670`]
+- [x] [Review][Patch] Traduction de `TypeError` en `GraphValidationError` dans `_translate_error()` : capturer `(ValueError, TypeError)` pour éviter qu'un type de paramètre incorrect ne soit qualifié à tort d'"Erreur inattendue" [`backend/app/utils/graph_store/zep_store.py:121`]
+- [x] [Review][Patch] Validation stricte des identifiants contre les chaînes constituées uniquement d'espaces : utiliser `if not graph_id or not graph_id.strip():` sur l'ensemble des méthodes publiques de `ZepGraphStore` [`backend/app/utils/graph_store/zep_store.py:180-874`]
+- [x] [Review][Patch] Extension des tests unitaires hermétiques pour couvrir les nouveaux cas de garde : ajouter les tests pour la préservation temporelle dans `search()`, l'ontologie compacte, la validation de `wait_for_episodes()` / `wait_for_batch()`, et le chemin nominal de `get_node_edges()` [`backend/tests/test_zep_graph_store.py`]
+
+### Rejets documentés
+
+- `[Review][Reject] get_node initialise related_nodes à []` : Rejeté car conforme au contrat `GraphStore` et nécessaire pour éviter N requêtes HTTP consécutives sur Zep Cloud (délégation volontaire de l'assemblage de voisinage aux appelants comme `zep_entity_reader.py`).
 
 ## Notes de complétion
 
-Cette section sera complétée à l'issue de l'implémentation et de la revue contradictoire.
+- `ZepGraphStore` est implémenté dans `backend/app/utils/graph_store/zep_store.py` et exporté dans `backend/app/utils/graph_store/__init__.py`.
+- Les 14 méthodes du contrat `GraphStore` encapsulent l'intégralité des opérations Zep (création avec réconciliation, suppression, ontologie dynamique Pydantic, ingestion unitaire et par lots, polling asynchrone, parcours paginé par curseurs et recherche sémantique/hybride avec reranker).
+- 68 tests unitaires hermétiques mockant le SDK Zep Cloud ont été écrits dans `backend/tests/test_zep_graph_store.py`.
+- La revue contradictoire BMad (4 couches) a permis d'identifier et d'appliquer 6 patchs de robustesse (préservation temporelle dans `search`, ontologie compacte avec fallback `source_targets`, validation des identifiants et délais, capture de `TypeError`).
+- Le filet de tests global passe de 341 à 409 tests, tous au vert (`uv run pytest tests/ -q`). Aucun avertissement lint (`ruff check`), structure de planification validée par script.

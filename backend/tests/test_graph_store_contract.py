@@ -521,13 +521,12 @@ def test_exception_hierarchy():
 def test_architectural_purity_no_zep_imports_in_base_modules():
     """Vérifie par analyse AST qu'aucun import zep_cloud n'existe dans base.py, errors.py et __init__.py."""
     package_dir = Path(__file__).parent.parent / "app" / "utils" / "graph_store"
-    files_to_check = [
-        package_dir / "__init__.py",
+    base_files_to_check = [
         package_dir / "base.py",
         package_dir / "errors.py",
     ]
 
-    for file_path in files_to_check:
+    for file_path in base_files_to_check:
         assert file_path.exists(), f"Le fichier {file_path} doit exister."
         tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
         for node in ast.walk(tree):
@@ -541,3 +540,20 @@ def test_architectural_purity_no_zep_imports_in_base_modules():
                 assert "zep" not in mod.lower(), (
                     f"Import Zep interdit dans {file_path.name}: from {mod} import ..."
                 )
+
+    # Vérification que __init__.py n'importe pas directement le SDK zep_cloud
+    init_file = package_dir / "__init__.py"
+    assert init_file.exists()
+    tree = ast.parse(init_file.read_text(encoding="utf-8"), filename=str(init_file))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                assert "zep_cloud" not in alias.name.lower(), (
+                    f"Import zep_cloud direct interdit dans __init__.py: import {alias.name}"
+                )
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            assert "zep_cloud" not in mod.lower(), (
+                f"Import zep_cloud direct interdit dans __init__.py: from {mod} import ..."
+            )
+
