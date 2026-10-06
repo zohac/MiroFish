@@ -62,24 +62,18 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | 001-1 | Vérifier le conflit `graphiti-core` vs `camel-oasis` | `done` | [`story-001-1.md`](story-001-1.md) |
 | 001-1b | Poser l'`override-dependencies` — **décidé par l'ADR 0010, précisé par l'ADR 0011** | `done` | [`story-001-1b.md`](story-001-1b.md) |
 | 001-2 | Neo4j 5.26 + APOC en local, avec volumes nommés — **premier test comportemental du driver forcé** | `done` | [`story-001-2.md`](story-001-2.md) |
-| 001-3 | Client LLM Graphiti portant l'en-tête de session | `backlog` | — |
-| 001-4 | Embedder local `sentence-transformers` | `backlog` | — |
+| 001-3 | Client LLM Graphiti portant l'en-tête de session | `done` | [`story-001-3.md`](story-001-3.md) |
+| 001-4 | Embedder local Sentence-Transformers pour Graphiti | `backlog` | [`story-001-4.md`](story-001-4.md) |
 | 001-5 | Script de mesure reproductible + rapport versionné | `backlog` | — |
 | 001-6 | Verdict go / no-go documenté | `backlog` | — |
 
-> **Pourquoi 001-3 et 001-4 n'ont pas de contenu détaillé ici** : leurs
-> critères Given/When/Then sont dans le tableau ci-dessous. Le fichier
-> `story-<n>.md` sera créé au moment où la story démarre — c'est la règle :
-> un fichier par story **réellement démarrée**, pas imaginée. Le script de
-> validation impose l'inverse, lui : une story `in-progress` ou au-delà **doit**
-> avoir un fichier et être citée dans ce document.
->
-> `001-2` a eu son fichier alors qu'elle était `backlog` : c'était le premier
-> test comportemental du driver forcé, et ses choix — version du serveur figée,
-> compose séparé, surface à exercer — méritaient d'être écrits **avant** de la
-> démarrer, pas pendant. Elle est aujourd'hui `review`, donc la règle est
-> respectée ; l'antériorité est notée ici parce que l'index a brièvement annoncé
-> un fichier pour une story qui n'avait pas commencé.
+> **Pourquoi 001-4 a son fichier dès le backlog** : le cadrage initial
+> anticipait un blocage par conflit de versions `sentence-transformers`
+> identique à Neo4j. L'investigation de `graphiti-core 0.30.2` a démontré
+> qu'aucun extra n'est requis et qu'aucun conflit n'existe (`EmbedderClient`
+> abstrait et `sentence-transformers==3.0.0` déjà installé via `camel-oasis`).
+> Le fichier [`story-001-4.md`](story-001-4.md) formalise cette levée
+> d'hypothèse et cadre l'adaptateur local avant démarrage.
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
@@ -87,7 +81,7 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 | 001-1b | Given l'ADR 0010 et l'ADR 0011, when on ajoute `override-dependencies = ["neo4j>=5.26.0,<6.0.0"]` dans `backend/pyproject.toml`, then `uv lock` résout · `uv sync --frozen` réussit · `oasis`, `neo4j` et `graphiti_core` s'importent dans cet ordre · les tests passent · **le geste est réversible** : retirer l'override puis `git checkout backend/pyproject.toml backend/uv.lock` ramène l'arbre à l'état initial, et `uv lock` **échoue à nouveau** sans l'override — c'est bien la preuve du conflit, pas une restauration du lock · *mesuré, en revue* : `neo4j 5.28.6` lockée, lock revenu au sha `1b41b865…` après `git checkout`, `mesurer-001-1.sh` rejoué sur **les deux** arbres, les deux sorties versionnées dans [`mesures-001-1b.md`](mesures-001-1b.md) |
 | 001-2 | Given un `docker-compose.neo4j.yml` séparé et un serveur **figé** sur `neo4j:5.26.31-community`, when il démarre, then le healthcheck Bolt passe au vert · une écriture puis une relecture passent par `neo4j 5.28.6` sous le pin `camel-oasis`, sans workaround · un nœud survit à l'arrêt puis au redémarrage · les quatre symboles de la surface de l'ADR 0011 sont **exercés**, dont la hiérarchie d'exceptions prouvé par un `ClientError` réel · le verdict est écrit et l'écart driver/serveur consigné — **premier test comportemental du driver forcé** ; s'il casse, l'ADR 0010 est supersédé — ⚠️ **mesuré, et le driver tient** : 17/17 contrôles, deux fois, **l'ADR 0010 n'est pas supersédé**. Écart 5.28.6 / 5.26.31 gardé par un test. APOC : `graphiti-core` s'en passe — **gardé par un test** —, `camel-oasis` en a besoin, et la dérogation est **restreinte aux quatre procédures que `camel` appelle**, pas `apoc.*` — dont `apoc.meta.data`, lecture **sandboxed** qu'il faut débrider aussi, mesuré · **revue à quatre couches** : 28 correctifs, dont six garde-fous qui ne pouvaient pas échouer, et un C3 qui ne tenait que par coïncidence — **rejoué sur le code corrigé** |
 | 001-3 | Given un appel d'extraction, when l'hôte est `opencode.ai`, then aucun `MissingSessionID` · given un autre endpoint, then aucun en-tête ajouté |
-| 001-4 | Given l'embedder local, when un texte est encodé, then les dimensions sont stables · l'extraction fonctionne sans API d'embeddings — ⚠️ **bloquée par le même conflit que `neo4j`** (`sentence-transformers==3.0.0` vs `>=3.2.1`) : arbitrage propre à faire, l'ADR 0010 ne la couvre pas |
+| 001-4 | Given l'embedder local sous-classant `EmbedderClient`, when un texte est encodé (unitaire ou lot), then les dimensions sont stables (384) · l'extraction Graphiti fonctionne sans clé OpenAI ni appel réseau · faux conflit levé : `sentence-transformers==3.0.0` déjà présent, aucun override `pyproject.toml` requis |
 | 001-5 | Given le rapport AN n° 2506, when le script est lancé, then 30 chunks sont traités · le rapport contient appels, latences, retries, erreurs exactes · il est commité |
 | 001-6 | Given C1 à C5, when le verdict est écrit, then il est dans `docs/STATUS.md` · un no-go déclenche un ADR · un go fait passer 002 en `in-progress` |
 
@@ -122,4 +116,4 @@ en tête du rapport**, pas en annexe. Quelqu'un doit pouvoir ouvrir
 - [ ] Verdict go / no-go écrit dans [`docs/STATUS.md`](../../STATUS.md)
 - [ ] Un no-go a produit un ADR ; un go a fait passer l'epic 002 en `in-progress`
 - [ ] `rapport.md` est versionné, le script est rejouable, aucune histoire en suspens
-- [ ] Les tests existants restent verts — **279** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue)
+- [ ] Les tests existants restent verts — **296** (183 à l'écriture de l'epic, +9 de revue, +12 par la 001-1b, +30 par sa revue, +45 par la 001-2 et sa revue, +17 par la 001-3 et sa revue)
