@@ -40,10 +40,9 @@ la factory `ZEP_BACKEND` sans réécrire les services métiers.
 **Epic 002 — Interface `GraphStore` + `ZepGraphStore` + factory `ZEP_BACKEND`** (ADR 0001).
 Plan : [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md)
 
-L'epic 002 a été cadré et démarré :
-- PRD, architecture et contrat d'ingénierie posés dans `docs/plans/002-interface-graphstore/` ;
-- Objectif : découpler les 10 fichiers consommateurs du SDK `zep-cloud` derrière l'interface `GraphStore` et sa factory ;
-- Prochaine action : démarrer la story **002-1** (définition de l'interface `GraphStore` et des modèles neutres).
+L'epic 002 avance :
+- **Story 002-1 (done)** : Interface abstraite pure `GraphStore` (14 méthodes), modèles neutres immutables (`GraphNode`, `GraphEdge`, `GraphSearchResult`, `EpisodeRecord`, `BatchSubmissionRecord`, `GraphInfo`) et exceptions agnostiques (`GraphStoreError`) posés dans `backend/app/utils/graph_store/`. Zéro dépendance vers `zep_cloud` validée par AST. Revue contradictoire BMad validée (7 patchs appliqués). Filet de tests à 341 tests verts (+8).
+- **Prochaine action** : implémenter la story **002-2** (`ZepGraphStore` encapsulant le SDK Zep Cloud, retries et pagination).
 
 ### Bilan consolidé de l'Epic 001 — Épreuve Graphiti local (Verdict GO — Clos)
 

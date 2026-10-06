@@ -118,6 +118,13 @@ epics:
       - "Factory get_graph_store() pilotée par ZEP_BACKEND (défaut 'cloud')"
       - "0 import direct du SDK Zep dans les services et routes API"
       - "100 % des tests existants restent verts (333 tests)"
+    # Story 002-1 (DONE) : interface abstraite pure GraphStore (14 méthodes),
+    # modèles neutres immutables (GraphNode, GraphEdge, GraphSearchResult,
+    # EpisodeRecord, BatchSubmissionRecord, GraphInfo) et hiérarchie d'exceptions
+    # agnostiques GraphStoreError posés dans backend/app/utils/graph_store/.
+    # Zéro dépendance vers zep_cloud (prouvé par AST). Suite de tests unitaires
+    # complète (test_graph_store_contract.py) avec FakeGraphStore. Revue BMad à
+    # 4 couches validée (7 correctifs appliqués). 341 tests verts (+8).
 
   - id: "003"
     slug: chemin-de-lecture-graphiti

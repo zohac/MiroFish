@@ -56,7 +56,7 @@ Les contrats JSON de l'API HTTP (`/api/graph/*`) restent strictement identiques 
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 002-1 | Définition de l'interface `GraphStore`, des modèles de données neutres et des exceptions | `backlog` | — |
+| 002-1 | Définition de l'interface `GraphStore`, des modèles de données neutres et des exceptions | `done` | [`story-002-1.md`](story-002-1.md) |
 | 002-2 | Implémentation de `ZepGraphStore` et encapsulation du SDK Zep | `backlog` | — |
 | 002-3 | Factory `get_graph_store()` et configuration `ZEP_BACKEND` | `backlog` | — |
 | 002-4 | Refactoring de l'ingestion (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) | `backlog` | — |
@@ -96,7 +96,7 @@ Les contrats JSON de l'API HTTP (`/api/graph/*`) restent strictement identiques 
 
 ## L'epic est terminé quand
 
-- [ ] L'interface `GraphStore`, ses modèles de données et ses exceptions sont posés et testés (Story 002-1)
+- [x] L'interface `GraphStore`, ses modèles de données et ses exceptions sont posés et testés (Story 002-1)
 - [ ] `ZepGraphStore` est pleinement implémenté, encapsule le SDK Zep et est testé (Story 002-2)
 - [ ] `get_graph_store()` aiguille correctement selon `ZEP_BACKEND` et supporte les tests (Story 002-3)
 - [ ] Les services d'ingestion et d'écriture consomment `GraphStore` (Story 002-4)
