@@ -125,6 +125,10 @@ epics:
     # Zéro dépendance vers zep_cloud (prouvé par AST). Suite de tests unitaires
     # complète (test_graph_store_contract.py) avec FakeGraphStore. Revue BMad à
     # 4 couches validée (7 correctifs appliqués). 341 tests verts (+8).
+    # Story 002-2 (in-progress) : implémentation de ZepGraphStore
+    # encapsulant le SDK Zep Cloud, retries, pagination par curseurs
+    # et conversion stricte vers les modèles neutres. Cadrage et
+    # story-002-2.md posés.
 
   - id: "003"
     slug: chemin-de-lecture-graphiti

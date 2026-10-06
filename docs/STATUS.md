@@ -42,7 +42,7 @@ Plan : [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/p
 
 L'epic 002 avance :
 - **Story 002-1 (done)** : Interface abstraite pure `GraphStore` (14 méthodes), modèles neutres immutables (`GraphNode`, `GraphEdge`, `GraphSearchResult`, `EpisodeRecord`, `BatchSubmissionRecord`, `GraphInfo`) et exceptions agnostiques (`GraphStoreError`) posés dans `backend/app/utils/graph_store/`. Zéro dépendance vers `zep_cloud` validée par AST. Revue contradictoire BMad validée (7 patchs appliqués). Filet de tests à 341 tests verts (+8).
-- **Prochaine action** : implémenter la story **002-2** (`ZepGraphStore` encapsulant le SDK Zep Cloud, retries et pagination).
+- **Story 002-2 (in-progress)** : Implémentation de `ZepGraphStore` et encapsulation du SDK Zep Cloud (cadrage posé dans [`story-002-2.md`](plans/002-interface-graphstore/story-002-2.md), 14 méthodes à implémenter, pagination, retries et traduction systématique des erreurs).
 
 ### Bilan consolidé de l'Epic 001 — Épreuve Graphiti local (Verdict GO — Clos)
 
