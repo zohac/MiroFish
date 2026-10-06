@@ -16,9 +16,19 @@ from .errors import (
     GraphTimeoutError,
     GraphValidationError,
 )
+from .factory import (
+    get_graph_store,
+    override_graph_store,
+    set_graph_store_override,
+)
+from .zep_store import ZepGraphStore
 
 __all__ = [
     "GraphStore",
+    "ZepGraphStore",
+    "get_graph_store",
+    "set_graph_store_override",
+    "override_graph_store",
     "GraphNode",
     "GraphEdge",
     "GraphSearchResult",
@@ -31,3 +41,4 @@ __all__ = [
     "GraphTimeoutError",
     "GraphValidationError",
 ]
+

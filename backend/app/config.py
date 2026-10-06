@@ -30,6 +30,7 @@ class Config:
     LLM_MODEL_NAME = os.environ.get('LLM_MODEL_NAME', 'gpt-4o-mini')
     
     # Zep配置
+    ZEP_BACKEND = os.environ.get('ZEP_BACKEND', 'cloud')
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
     
     # Graphiti 配置 —— 知识图谱本地化（ADR 0001，epic 001）
@@ -84,8 +85,15 @@ class Config:
         errors: list[str] = []
         if not cls.LLM_API_KEY:
             errors.append("LLM_API_KEY 未配置")
-        if not cls.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY 未配置")
+        backend_raw = cls.ZEP_BACKEND if cls.ZEP_BACKEND is not None else "cloud"
+        if not isinstance(backend_raw, str) or not backend_raw.strip():
+            errors.append(f"ZEP_BACKEND 无效配置，不能为空。支持的值：'cloud', 'graphiti'，当前值：{backend_raw!r}")
+        else:
+            backend = backend_raw.lower().strip()
+            if backend not in ("cloud", "graphiti"):
+                errors.append(f"ZEP_BACKEND 不受支持：'{backend}'。支持的值：'cloud', 'graphiti'")
+            elif backend == "cloud" and not cls.ZEP_API_KEY:
+                errors.append("ZEP_API_KEY 未配置")
         if os.environ.get("ZEP_API_URL"):
             errors.append("ZEP_API_URL 不受支持；MiroFish 仅连接 Zep Cloud")
         if cls.DEBUG:
