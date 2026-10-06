@@ -4,7 +4,7 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas un second saisie.
 
-> Dernière mise à jour : **3 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **6 octobre 2026** · branche `local-first`
 
 ---
 
@@ -103,9 +103,19 @@ Fichiers : [`story-001-2.md`](plans/001-epreuve-graphiti-local/story-001-2.md),
 [`verifier-001-2.sh`](plans/001-epreuve-graphiti-local/verifier-001-2.sh),
 [`mesure-001-2-compose.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-compose.txt),
 [`mesure-001-2-sans-apoc.txt`](plans/001-epreuve-graphiti-local/mesure-001-2-sans-apoc.txt).
-**279 tests verts**, 235 + 44 de la 001-2 (41 dans ses deux fichiers de tests,
-plus 2 ajouts de la revue de code, plus `test_script_compiles[verifier_driver_neo4j.py]`
-auto-paramétré par la découverte de scripts).
+
+### La story 001-3 est `done` — Client LLM Graphiti avec en-tête de session (C2 validé et relu)
+
+> `MiroFishLLMClient` hérite de `OpenAIGenericClient` dans `backend/app/utils/graphiti_llm_client.py`.
+> Les `default_headers` injectent automatiquement `x-opencode-session` et `User-Agent: mirofish/0.1.0`
+> vers OpenCode Go sans polluer les autres fournisseurs (neutralité préservée même si `base_url=None`),
+> le mode `json_object` est actif par défaut, les balises `<think>` des modèles de raisonnement
+> sont nettoyées et `LLM_REASONING_EFFORT` est relayé via `extra_body`.
+> Sonde de vérification fiabilisée (`backend/scripts/verifier_llm_graphiti.py`) et critère C2 prouvé
+> (0 échec `MissingSessionID`). Revue de code contradictoire passée (4 couches, 6 correctifs appliqués).
+> Fichier : [`story-001-3.md`](plans/001-epreuve-graphiti-local/story-001-3.md).
+
+**296 tests verts**, 279 + 17 de la 001-3 (tests unitaires hermétiques et sonde mockée).
 
 **`graphiti-core` envoie une télémétrie par défaut — elle est coupée.**
 `posthog 7.62.1` entre dans le lock avec `graphiti-core`, et la bibliothèque
@@ -165,26 +175,10 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 ## Prochain pas
 
-1. **Démarrer la 001-3** (en-tête de session), puis la **001-4** (embedder) — les
-   deux autres risques de l'épreuve. La 001-2 est close ; 001-4 reste **bloquée
-   par le même conflit** que le driver (`sentence-transformers==3.0.0` contre
-   `>=3.2.1`),
-   avec son propre arbitrage : l'ADR 0010 ne couvre que `neo4j`, et un test
-   (`backend/tests/test_pyproject_override.py`) refuse qu'on l'élargisse en
-   silence. Deux choses que la 001-2 laisse à la 001-5, et qu'il faut y lire :
-   `CALL db.indexes()` **n'existe pas** sur un 5.x — donc la remise à zéro par
-   `build_indices_and_constraints(delete_existing=True)` échouerait ; et le
-   chemin `oasis` (celui de `agent_graph.py`) reste **non exercé**, la story
-   ayant volontairement mesuré le nôtre et pas le sien.
-2. La 001-5 aura le serveur prêt, avec les volumes en place.
+1. **Démarrer la 001-4** (embedder local `sentence-transformers`) — le dernier
+   verrou technique avant l'épreuve de mesure (001-5).
+2. La 001-5 aura le serveur prêt, avec les volumes en place et les clients branchés.
 3. L'épreuve elle-même, et son verdict.
-
-> La 001-1b a été relue par quatre couches indépendantes avant d'être passée en
-> `done`. Cinq de leurs findings invalidaient des affirmations écrites dans la
-> story — dont deux qui résistaient à l'examen le plus simple : `uv sync
-> --frozen` ne vérifie pas le lock, et les tests de cohérence lock lisaient le
-> lock que `uv run` venait de réécrire. Le compte rendu est dans
-> [`story-001-1b.md`](plans/001-epreuve-graphiti-local/story-001-1b.md) § Revue.
 
 ## Questions ouvertes
 
@@ -201,7 +195,7 @@ l'extraction sur un modèle payant ponctuel, moins cher que des crédits Zep.
 
 | | |
 |---|---|
-| Tests | **279**, tous verts, **sans `.env`** (+44 par la 001-2 et sa revue ; 235 avant ; 204 après la 001-1b ; 192 ; 183 avant les neuf tests de revue du 3 octobre) |
+| Tests | **296**, tous verts, **sans `.env`** (+17 par la 001-3 ; 279 avant) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

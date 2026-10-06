@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-05
+mis_a_jour: 2026-10-06
 
 epics:
   - id: "001"
@@ -72,8 +72,15 @@ epics:
     # rejouable à la main.
     # 001-2 relue par 4 couches : 28 correctifs, dont six garde-fous morts et un C3
     # qui ne tenait que par coïncidence. 279 tests (+45). Mesures rejouées.
-    # Reste 001-3 (en-tête de session) puis 001-4 (embedder), bloquée par le même
-    # conflit que le driver.
+    # Story 001-3 (DONE) : MiroFishLLMClient implémenté, validé et relu.
+    # OpenAIGenericClient sous-classé avec injection de default_headers
+    # (x-opencode-session, User-Agent), neutralité préservée (base_url=None), mode
+    # structured_output_mode="json_object" par défaut, filtrage des balises <think>
+    # et transmission de LLM_REASONING_EFFORT via extra_body. Sonde de
+    # vérification autonome fiabilisée (scripts/verifier_llm_graphiti.py). Critère C2
+    # validé (0 échec MissingSessionID). Revue 4 couches passée (6 correctifs).
+    # 296 tests (+17).
+    # Reste 001-4 (embedder), bloquée par le même conflit que le driver.
     # Le détail des stories vit dans docs/plans/001-epreuve-graphiti-local/ :
     # epic-001.md pour l'index, story-001-<n>.md pour une story démarrée.
     # Ici on ne garde que l'agrégat d'epic (ADR 0007).

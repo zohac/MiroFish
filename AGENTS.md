@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé **validé à l'exécution** (001-2) |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — driver forcé (001-2) et client LLM session (001-3) validés |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -37,55 +37,24 @@ reproductible.**
 > du driver `neo4j` est posé dans `backend/pyproject.toml`, avec
 > `graphiti-core==0.30.2` **sans extra** et le lock régénéré et commité.
 > `neo4j 5.28.6` résolue — la version que l'ADR 0011 avait consignée, sans écart.
-> Le protocole de mesure de la 001-1 **reste rejouable sur les deux arbres** : il
-> normalise `pyproject.toml` dans l'état qu'il veut mesurer, puis restaure
-> l'octet initial, et refuse un arbre ambigu au lieu de le deviner. Les deux
-> sorties de mesure sont versionnées. Fichiers :
-> [`story-001-1.md`](docs/plans/001-epreuve-graphiti-local/story-001-1.md),
-> [`story-001-1b.md`](docs/plans/001-epreuve-graphiti-local/story-001-1b.md).
 >
 > **La story 001-2 est `done`** : c'est le **premier test comportemental** du
 > driver forcé. Il est **passé**, puis **relu**, puis **rejoué sur le code
 > corrigé**. `neo4j 5.28.6`, forcé contre le pin `==5.23.0` de `camel-oasis`,
-> tient contact avec un vrai serveur `Neo4j 5.26.31 community` — écriture,
-> relecture après arrêt puis redémarrage (le critère C3, pour la moitié qui ne
-> dépend pas de l'extraction), et toute la surface de l'ADR 0011 **exercée** :
-> 17 contrôles, deux fois. **L'ADR 0010 n'est pas supersédé**, sa règle 2 est
-> confirmée par la mesure. Le compose d'épreuve est **séparé**
-> (`docker-compose.neo4j.yml`), tag figé sur `5.26.31-community`, volume nommé,
-> healthcheck qui interroge le Bolt.
+> tient contact avec un vrai serveur `Neo4j 5.26.31 community` — 17 contrôles,
+> deux fois. Le compose d'épreuve est **séparé** (`docker-compose.neo4j.yml`).
 >
-> **APOC a deux réponses, pas une** — et c'est le point le plus utile de la
-> story : `graphiti-core 0.30.2` s'en passe (zéro occurrence dans le paquet,
-> mesurée **et gardée par un test**), mais **`camel-oasis` en a besoin**
-> (`apoc.meta.data()` au `__init__` de son `Neo4jGraph`, `apoc.merge.node` à
-> l'écriture). Le plugin reste donc installé, pour `camel` et non pour Graphiti,
-> et la dérogation est **restreinte aux quatre procédures que `camel` appelle**
-> plutôt qu'ouverte à `apoc.*` — dont `apoc.meta.data`, une **lecture
-> sandboxed** qu'il faut débrider quand même : la mesure l'a imposé contre
-> l'intuition, en rejouant le protocole sur une liste qui l'omettait.
-> `architecture.md` §4 est corrigé : il prescrivait APOC en recopiant le fork de
-> référence, sans dire pourquoi.
+> **La story 001-3 est `done`** : le client LLM Graphiti (`MiroFishLLMClient`
+> sous-classant `OpenAIGenericClient`) injecte automatiquement `x-opencode-session`
+> et `User-Agent: mirofish/0.1.0` vers OpenCode Go, conserve une neutralité stricte
+> pour les autres fournisseurs, active `structured_output_mode="json_object"` par
+> défaut et relaie `LLM_REASONING_EFFORT` via `extra_body`. Sonde autonome
+> (`backend/scripts/verifier_llm_graphiti.py`) et critère C2 validé (0 échec
+> `MissingSessionID`). Revue de code contradictoire passée (4 couches, 6 correctifs
+> appliqués dont filtrage `<think>`, neutralité `base_url=None`, robustesse `choices=[]`
+> et sonde mockée fiabilisée).
 >
-> **Une revue de code à quatre couches a trouvé six garde-fous qui ne pouvaient
-> pas échouer** — celui du secret, celui de la dérogation, celui du healthcheck,
-> et deux sur l'identifiant de conteneur — et un critère **C3 qui ne tenait que
-> par coïncidence** de forme du graphe de vérification. Les 28 correctifs sont
-> appliqués, chacun vérifié, **six par mutation** sur le vrai fichier puis
-> restauration à l'octet initial. La sonde des procédures écrit désormais sur son
-> propre nœud, et les trois transactions sont **comparées** à leur valeur
-> attendue au lieu d'être comptées comme vertes à l'aveugle.
->
-> Trois trouvailles à connaître avant la 001-5 : `Neo4jError` et `DriverError`
-> sont des branches **sœurs** sous `GqlError`, pas une chaîne ; `graphiti-core`
-> appelle `CALL db.indexes()`, qui **n'existe pas** sur un 5.x (hors chemin
-> d'écriture, mais la remise à zéro de la 001-5 doit le savoir) ; et
-> `apoc.merge.*` est refusé par défaut même plugin installé, sans quoi `camel`
-> accuse une installation qui est présente.
->
-> **279 tests verts.** Cinq points de la revue de 001-1 et six dettes
-> contractées par l'override sont dans
-> [`deferred-work.md`](docs/deferred-work.md).
+> **296 tests verts.** Prochaine étape : story **001-4** (embedder local).
 
 ---
 
@@ -113,7 +82,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**279 tests** — il doit grossir, jamais rétrécir.
+**296 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -179,7 +148,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  279 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  296 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -338,7 +307,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 279 tests
+cd backend && uv run pytest tests/ -q                  # 296 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -383,10 +352,10 @@ Variables d'environnement utiles :
 |---|---|---|
 | Routes HTTP | `backend/app/api/` | `graph.py`, `simulation.py`, `report.py` |
 | Métier | `backend/app/services/` | construction graphe, personas, simulation, rapport |
-| Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `ontology.py`, `locale.py` |
+| Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `graphiti_llm_client.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 279 tests |
+| Tests | `backend/tests/` | pytest — 296 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -395,6 +364,7 @@ Variables d'environnement utiles :
 | Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
 | Épreuve du graphe | `docker-compose.neo4j.yml` | Neo4j seul, séparé — `5.26.31-community`, volumes nommés |
 | Vérification du driver | `backend/scripts/verifier_driver_neo4j.py` | test comportemental de l'override (001-2), 17 contrôles |
+| Vérification du LLM | `backend/scripts/verifier_llm_graphiti.py` | test de session & structured output Graphiti (001-3) |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |
@@ -547,7 +517,7 @@ travail sans mémoire :
 5. l'ADR concerné (§9).
 
 **Environnement** — avant de modifier quoi que ce soit :
-`cd backend && uv run pytest tests/ -q` doit afficher 279 passed. Sinon, on
+`cd backend && uv run pytest tests/ -q` doit afficher 296 passed. Sinon, on
 corrige avant de commencer, pas après.
 
 **À la fin** — tests verts, lint vert, structure validée, commit explicatif,
