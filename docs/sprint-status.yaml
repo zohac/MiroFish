@@ -145,6 +145,9 @@ epics:
     # GraphStoreError(RuntimeError) et GraphTimeoutError(TimeoutError). Revue BMad
     # 4 couches validée (8 patchs appliqués). 10 tests unitaires avec MockIngestionStore
     # (tests/test_graph_builder_refactor.py). 452 tests verts (+10). Clôture (done).
+    # Story 002-5 (IN-PROGRESS) : refactoring des flux de lecture et d'interrogation
+    # (backend/app/services/zep_entity_reader.py, oasis_profile_generator.py,
+    # zep_tools.py, api/graph.py). Cadrage posé dans story-002-5.md.
 
 
   - id: "003"

@@ -60,7 +60,7 @@ Les contrats JSON de l'API HTTP (`/api/graph/*`) restent strictement identiques 
 | 002-2 | Implémentation de `ZepGraphStore` et encapsulation du SDK Zep | `done` | [`story-002-2.md`](story-002-2.md) |
 | 002-3 | Factory `get_graph_store()` et configuration `ZEP_BACKEND` | `done` | [`story-002-3.md`](story-002-3.md) |
 | 002-4 | Refactoring de l'ingestion (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) | `done` | [`story-002-4.md`](story-002-4.md) |
-| 002-5 | Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`) | `backlog` | — |
+| 002-5 | Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`) | `in-progress` | [`story-002-5.md`](story-002-5.md) |
 | 002-6 | Validation de l'isolation, tests de non-régression et clôture de l'epic 002 | `backlog` | — |
 
 | Story | Critères d'acceptation (résumé) |

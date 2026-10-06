@@ -43,8 +43,10 @@ Plan : [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/p
 L'epic 002 avance :
 - **Story 002-1 (done)** : Interface abstraite pure `GraphStore` (14 méthodes), modèles neutres immutables (`GraphNode`, `GraphEdge`, `GraphSearchResult`, `EpisodeRecord`, `BatchSubmissionRecord`, `GraphInfo`) et exceptions agnostiques (`GraphStoreError`) posés dans `backend/app/utils/graph_store/`. Zéro dépendance vers `zep_cloud` validée par AST. Revue contradictoire BMad validée (7 patchs appliqués). Filet de tests à 341 tests verts (+8).
 - **Story 002-2 (done)** : Implémentation `ZepGraphStore` encapsulant 100 % des appels au SDK Zep Cloud, pagination unifiée, retries, conversion bidirectionnelle des modèles et mapping d'exceptions. Filet de tests à 409 tests verts (+68).
+- **Story 002-3 (done)** : Factory `get_graph_store()`, configuration `ZEP_BACKEND` (`cloud` par défaut, `graphiti` réservé), validation de configuration et support d'override pour tests. 33 tests hermétiques.
 - **Story 002-4 (done)** : Refactoring complet des flux d'ingestion et d'écriture (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) pour basculer sur l'interface `GraphStore` et éliminer tout import direct de `zep_cloud` et `utils.zep`. Revue contradictoire BMad 4 couches validée (8 patchs appliqués). Filet de tests porté à 452 tests verts (+10).
-- **Story 002-5 (à faire)** : Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`).
+- **Story 002-5 (in-progress)** : Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`). Cadrage rédigé, tâches définies.
+- **Story 002-6 (à faire)** : Validation de l'isolation, tests de non-régression et clôture de l'epic 002.
 
 
 ### Bilan consolidé de l'Epic 001 — Épreuve Graphiti local (Verdict GO — Clos)
