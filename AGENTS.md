@@ -4,7 +4,7 @@ Constitution du dépôt. Elle vaut pour toute contribution, humaine ou agent.
 En cas de conflit entre ce fichier et une demande ponctuelle : **ce fichier
 gagne**, et on le corrige explicitement dans un commit dédié.
 
-> Révision : 3 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
+> Révision : 7 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
 
 ---
 
@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 (Interface GraphStore) démarré (Epic 001 clos, Verdict GO) |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 (Interface GraphStore) clos (470 tests verts), Epic 003 prêt à démarrer |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -34,11 +34,14 @@ reproductible.**
 ### La tâche du moment
 
 > **L'epic 001 (« Épreuve Graphiti local ») est intégralement clos avec un VERDICT GO validé.**
-> Les 6 stories ont été menées à bien, testées et revues (333 tests verts).
+> Les 6 stories ont été menées à bien, testées et revues.
 >
-> **L'epic 002 (« Interface GraphStore ») est cadré et ouvert.**
-> Plan complet posé dans [`docs/plans/002-interface-graphstore/`](docs/plans/002-interface-graphstore/prd.md) (`prd.md`, `architecture.md`, `epic-002.md`).
-> Prochaine étape : démarrage de la story **002-1** (recensement des contrats d'utilisation et interface formelle `GraphStore`).
+> **L'epic 002 (« Interface GraphStore ») est intégralement clos avec succès (6/6 stories done).**
+> Les stories 002-1 à 002-6 sont validées (470 tests verts). L'isolation totale est prouvée par AST
+> (0 import direct de Zep dans services/ et api/, 0 bifurcation conditionnelle) et les critères C1 à C6 sont satisfaits.
+>
+> **Prochaine étape : Epic 003 (« GraphitiGraphStore »)** : implémentation de l'écriture
+> et adaptation du chemin de lecture sur Graphiti et Neo4j.
 
 ---
 
@@ -66,7 +69,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**315 tests** — il doit grossir, jamais rétrécir.
+**470 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -132,7 +135,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  315 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  470 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -291,7 +294,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 315 tests
+cd backend && uv run pytest tests/ -q                  # 470 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -339,7 +342,7 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `graphiti_llm_client.py`, `graphiti_embedder.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 315 tests |
+| Tests | `backend/tests/` | pytest — 470 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |

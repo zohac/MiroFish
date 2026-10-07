@@ -4,22 +4,26 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas un second saisie.
 
-> Dernière mise à jour : **6 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **7 octobre 2026** · branche `local-first`
 
 ---
 
 ## Où on en est
 
-L'**épreuve Graphiti local (Epic 001) est validée avec succès (Verdict GO)** :
-le modèle gratuit `space-bunny` sur OpenCode Go, combiné à l'embedder local
-Sentence-Transformers (`all-MiniLM-L6-v2`) et à Neo4j 5.26, extrait des entités
-et relations exploitables (96.7 % de succès sur 30 chunks, 0 échec de session,
-49 nœuds et 45 relations persistés). Le point de rupture technique et économique
-est levé à un coût marginal de 0 €. L'Epic 001 est **clos**.
+L'**épreuve Graphiti local (Epic 001)** a été validée avec succès (**Verdict GO**).
 
-Le **prochain jalon est l'Epic 002 (Interface `GraphStore`)** : introduire
-l'interface abstraite du store de graphe, encapsuler `ZepGraphStore` et poser
-la factory `ZEP_BACKEND` sans réécrire les services métiers.
+L'**interface `GraphStore` (Epic 002) est intégralement close (6 stories terminées et validées)** :
+l'abstraction du store de graphe (`GraphStore`) est posée avec ses modèles de données neutres immutables
+et sa hiérarchie d'exceptions agnostiques. L'implémentation existante `ZepGraphStore` est encapsulée, la factory
+`get_graph_store()` (pilotée par `ZEP_BACKEND`, défaut `'cloud'`) est en place avec support d'override, et
+l'intégralité des flux d'ingestion/écriture et d'interrogation/lecture a été migrée sans régression.
+Une suite de tests d'isolation permanente (`test_graph_store_isolation.py`) garantit par analyse AST
+**0 import direct** du SDK Zep dans les services et routes API, et **0 bifurcation conditionnelle** `if zep else graphiti`
+dans le code applicatif. Le filet global atteint **470 tests verts** (100 % passants). L'Epic 002 est **clos**.
+
+Le **prochain jalon est l'Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** :
+implémenter le second backend réel connectant Graphiti et Neo4j derrière l'interface `GraphStore`,
+sans dépendre de l'ontologie dynamique Zep (ADR 0001, ADR 0003).
 
 ## Fait
 
@@ -34,19 +38,23 @@ la factory `ZEP_BACKEND` sans réécrire les services métiers.
 | 8 ADR — + pnpm (Node), version figée dans `packageManager` | `docs/decisions/0008` |
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `docs/sprint-status.yaml`, `.github/workflows/ci.yml` |
 | Épreuve Graphiti local (Epic 001) : 6 stories validées, verdict GO documenté | [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/rapport.md) |
+| Interface `GraphStore` (Epic 002) : 6 stories validées, ZepGraphStore, factory, refactoring services/api, tests AST d'isolation (470 tests verts) | [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md) |
 
 ## En cours
 
-**Epic 002 — Interface `GraphStore` + `ZepGraphStore` + factory `ZEP_BACKEND`** (ADR 0001).
-Plan : [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md)
+**Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
+Phase de cadrage et préparation du plan d'ingénierie.
 
-L'epic 002 avance :
-- **Story 002-1 (done)** : Interface abstraite pure `GraphStore` (14 méthodes), modèles neutres immutables (`GraphNode`, `GraphEdge`, `GraphSearchResult`, `EpisodeRecord`, `BatchSubmissionRecord`, `GraphInfo`) et exceptions agnostiques (`GraphStoreError`) posés dans `backend/app/utils/graph_store/`. Zéro dépendance vers `zep_cloud` validée par AST. Revue contradictoire BMad validée (7 patchs appliqués). Filet de tests à 341 tests verts (+8).
-- **Story 002-2 (done)** : Implémentation `ZepGraphStore` encapsulant 100 % des appels au SDK Zep Cloud, pagination unifiée, retries, conversion bidirectionnelle des modèles et mapping d'exceptions. Filet de tests à 409 tests verts (+68).
-- **Story 002-3 (done)** : Factory `get_graph_store()`, configuration `ZEP_BACKEND` (`cloud` par défaut, `graphiti` réservé), validation de configuration et support d'override pour tests. 33 tests hermétiques.
-- **Story 002-4 (done)** : Refactoring complet des flux d'ingestion et d'écriture (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) pour basculer sur l'interface `GraphStore` et éliminer tout import direct de `zep_cloud` et `utils.zep`. Revue contradictoire BMad 4 couches validée (8 patchs appliqués). Filet de tests porté à 452 tests verts (+10).
-- **Story 002-5 (in-progress)** : Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`). Cadrage rédigé, tâches définies.
-- **Story 002-6 (à faire)** : Validation de l'isolation, tests de non-régression et clôture de l'epic 002.
+### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
+
+L'epic 002 est intégralement achevé. Ses 6 stories ont été implémentées, testées et validées :
+- **Story 002-1 (done)** : Interface abstraite pure `GraphStore` (14 méthodes), modèles neutres immutables (`GraphNode`, `GraphEdge`, `GraphSearchResult`, `EpisodeRecord`, `BatchSubmissionRecord`, `GraphInfo`) et exceptions agnostiques (`GraphStoreError`) posés dans `backend/app/utils/graph_store/`. Zéro dépendance vers `zep_cloud` validée par AST. Filet de tests porté à 341 tests verts (+8).
+- **Story 002-2 (done)** : Implémentation `ZepGraphStore` encapsulant 100 % des appels au SDK Zep Cloud, pagination unifiée, retries, conversion bidirectionnelle des modèles et mapping d'exceptions. Filet de tests porté à 409 tests verts (+68).
+- **Story 002-3 (done)** : Factory `get_graph_store()`, configuration `ZEP_BACKEND` (`cloud` par défaut, `graphiti` réservé), validation de configuration et support d'override hermétique pour les tests (`override_graph_store`). 33 tests unitaires.
+- **Story 002-4 (done)** : Refactoring complet des flux d'ingestion et d'écriture (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) pour basculer sur l'interface `GraphStore` et éliminer tout import direct de `zep_cloud` et `utils.zep`. Filet de tests porté à 452 tests verts (+10).
+- **Story 002-5 (done)** : Refactoring complet des flux de lecture et d'interrogation (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`). Découplage complet de `zep_cloud` et `utils.zep` via `GraphStore` et `get_graph_store()`. Filet de tests porté à 464 tests verts (+12).
+- **Story 002-6 (done)** : Suite de tests d'isolation permanente (`test_graph_store_isolation.py`), validation AST de l'absence totale d'import Zep direct dans `services/` et `api/`, validation formelle des critères de sortie C1 à C6 du PRD, non-régression absolue avec **470 tests verts** et clôture de l'Epic 002.
+
 
 
 ### Bilan consolidé de l'Epic 001 — Épreuve Graphiti local (Verdict GO — Clos)
@@ -224,14 +232,14 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 Échantillon : les 30 premiers chunks du rapport n° 2506 de l'Assemblée
 nationale (URL et sha256 dans le PRD de l'epic 001).
 
-**Règle de décision** : tous les critères critiques étant validés, la décision est un
+**Règle de décision** : tous les critères critiques étant validés, la décision a été un
 **GO formel** pour engager le remplacement de Zep par Graphiti + Neo4j derrière
-l'interface `GraphStore` (Epic 002).
+l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 002-1** : Recensement des besoins et définition formelle de l'interface `GraphStore` et des dataclasses neutres.
-2. Implémenter `ZepGraphStore` (story 002-2).
+1. **Cadrer et démarrer l'Epic 003** (`GraphitiGraphStore`) : écriture et adaptation du chemin de lecture sans dépendance à l'ontologie dynamique Zep.
+2. Démarrer la Story 003-1 : implémentation de `GraphitiGraphStore` branché sur Neo4j et `graphiti-core`.
 
 ## Questions ouvertes
 
@@ -248,7 +256,7 @@ l'interface `GraphStore` (Epic 002).
 
 | | |
 |---|---|
-| Tests | **333**, tous verts, **sans `.env`** (+18 par la 001-5 et sa revue ; 315 avant) |
+| Tests | **470**, tous verts, **sans `.env`** (filet de tests post-Epic 002 ; 333 avant Epic 002) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

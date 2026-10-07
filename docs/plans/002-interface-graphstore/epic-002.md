@@ -1,6 +1,6 @@
 # Epic 002 — Interface GraphStore
 
-- **Statut** : `in-progress` · **Dépend de** : 001 · **Bloque** : 003, 004
+- **Statut** : `done` · **Dépend de** : 001 · **Bloque** : 003, 004
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 
 > On abstrait avant de bifurquer. Le plan complet du projet est dans
@@ -60,8 +60,8 @@ Les contrats JSON de l'API HTTP (`/api/graph/*`) restent strictement identiques 
 | 002-2 | Implémentation de `ZepGraphStore` et encapsulation du SDK Zep | `done` | [`story-002-2.md`](story-002-2.md) |
 | 002-3 | Factory `get_graph_store()` et configuration `ZEP_BACKEND` | `done` | [`story-002-3.md`](story-002-3.md) |
 | 002-4 | Refactoring de l'ingestion (`graph_builder.py`, `zep_graph_memory_updater.py`, `simulation_runner.py`) | `done` | [`story-002-4.md`](story-002-4.md) |
-| 002-5 | Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`) | `in-progress` | [`story-002-5.md`](story-002-5.md) |
-| 002-6 | Validation de l'isolation, tests de non-régression et clôture de l'epic 002 | `backlog` | — |
+| 002-5 | Refactoring de la lecture (`zep_entity_reader.py`, `oasis_profile_generator.py`, `zep_tools.py`, `api/graph.py`) | `done` | [`story-002-5.md`](story-002-5.md) |
+| 002-6 | Validation de l'isolation, tests de non-régression et clôture de l'epic 002 | `done` | [`story-002-6.md`](story-002-6.md) |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
@@ -100,6 +100,6 @@ Les contrats JSON de l'API HTTP (`/api/graph/*`) restent strictement identiques 
 - [x] `ZepGraphStore` est pleinement implémenté, encapsule le SDK Zep et est testé (Story 002-2)
 - [x] `get_graph_store()` aiguille correctement selon `ZEP_BACKEND` et supporte les tests (Story 002-3)
 - [x] Les services d'ingestion et d'écriture consomment `GraphStore` (Story 002-4)
-- [ ] Les services de lecture, outils et routes API consomment `GraphStore` (Story 002-5)
-- [ ] Zéro import direct du SDK Zep dans `services/` et `api/` prouvé par test d'isolation (Story 002-6)
-- [ ] Les 333 tests existants restent 100 % au vert et le filet global a grossi (Story 002-6)
+- [x] Les services de lecture, outils et routes API consomment `GraphStore` (Story 002-5)
+- [x] Zéro import direct du SDK Zep dans `services/` et `api/` prouvé par test d'isolation (Story 002-6)
+- [x] Les 333 tests existants restent 100 % au vert et le filet global a grossi (Story 002-6, 470 tests verts)

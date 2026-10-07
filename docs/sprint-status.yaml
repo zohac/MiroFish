@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-06
+mis_a_jour: 2026-10-07
 
 epics:
   - id: "001"
@@ -105,7 +105,7 @@ epics:
   - id: "002"
     slug: interface-graphstore
     titre: "Interface GraphStore — ZepGraphStore + factory ZEP_BACKEND"
-    statut: in-progress
+    statut: done
     plan: docs/plans/002-interface-graphstore
     depend_de: ["001"]
     pourquoi: >-
@@ -145,9 +145,20 @@ epics:
     # GraphStoreError(RuntimeError) et GraphTimeoutError(TimeoutError). Revue BMad
     # 4 couches validée (8 patchs appliqués). 10 tests unitaires avec MockIngestionStore
     # (tests/test_graph_builder_refactor.py). 452 tests verts (+10). Clôture (done).
-    # Story 002-5 (IN-PROGRESS) : refactoring des flux de lecture et d'interrogation
+    # Story 002-5 (DONE) : refactoring des flux de lecture et d'interrogation
     # (backend/app/services/zep_entity_reader.py, oasis_profile_generator.py,
-    # zep_tools.py, api/graph.py). Cadrage posé dans story-002-5.md.
+    # zep_tools.py, api/graph.py). Découplage total de zep_cloud et utils.zep
+    # au profit de GraphStore et get_graph_store(). Préservation rétrocompatible
+    # des properties d'accès et conversion neutre vers les structures métier.
+    # Revue BMad 4 couches validée (4 patchs appliqués). 12 tests hermétiques avec MockReaderStore
+    # (tests/test_graph_reader_refactor.py). 464 tests verts (+12). Clôture (done).
+    # Story 002-6 (DONE) : suite de tests d'isolation permanente
+    # (backend/tests/test_graph_store_isolation.py), contrôle syntaxique AST
+    # garantissant 0 import direct du SDK Zep dans app/services/ et app/api/,
+    # 0 bifurcation conditionnelle dans la logique métier, validation des critères
+    # C1 à C6 du PRD, non-régression absolue (470 tests verts) et clôture formelle
+    # de l'Epic 002.
+
 
 
   - id: "003"
