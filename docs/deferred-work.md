@@ -129,3 +129,10 @@ Reste un constat, qui ne se corrige pas dans une story :
   *Ce qui reste à faire, hors revue : décider si la constitution doit gagner un
   contrôle outillé de la transition, puisqu'elle admet elle-même que la règle
   n'est pas appliquée.*
+
+## Deferred from: code review of story-002-5.md (2026-10-07)
+
+Revue contradictoire menée sur les flux de lecture et d'interrogation du graphe (Story 002-5) :
+
+- **`zep_entity_reader.py:203` et `zep_tools.py:716` — Repli sur `target_graph_id = "default"` en cas d'absence de `graph_id`.** Les signatures amont historiques de `get_node_edges(node_uuid)` et `get_node_detail(node_uuid)` ne prenaient pas de `graph_id`. Dans un store partitionné (Graphiti / Neo4j), requêter `"default"` échouerait si la partition n'existe pas. *Différé : casser ces signatures impacterait les appelants amont ; la refonte globale des signatures de lecture est planifiée dans l'Epic 003.*
+- **`zep_entity_reader.py:388-398` — Boucle séquentielle N+1 `store.get_node` dans `get_entity_with_context`.** Pour chaque relation connectée à une entité, `get_node` est appelé séquentiellement. *Différé : code hérité du comportement amont, sans régression introduite. L'optimisation par requête de voisinage groupée sera traitée avec l'introduction du GraphitiGraphStore en Epic 003.*

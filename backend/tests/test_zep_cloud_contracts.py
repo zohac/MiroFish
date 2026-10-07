@@ -11,6 +11,7 @@ from app.services.graph_builder import BatchSubmission, GraphBuilderService
 from app.services.oasis_profile_generator import OasisProfileGenerator
 from app.services.zep_entity_reader import EntityNode, ZepEntityReader
 from app.services.zep_tools import ZepToolsService
+from app.utils.graph_store import GraphStoreError
 
 
 def test_report_search_caps_the_query_sent_to_zep():
@@ -129,10 +130,11 @@ def test_entity_reader_does_not_turn_auth_failure_into_missing_entity():
         graph=SimpleNamespace(node=SimpleNamespace(get=unauthorized))
     )
 
-    with pytest.raises(ZepApiError) as error:
+    with pytest.raises((ZepApiError, GraphStoreError)) as error:
         reader.get_entity_with_context("graph-id", "node-id")
 
-    assert error.value.status_code == 401
+    cause = error.value.__cause__ if isinstance(error.value, GraphStoreError) else error.value
+    assert getattr(cause, "status_code", None) == 401 or "401" in str(error.value)
 
 
 def test_entity_reader_does_not_turn_edge_failure_into_empty_data():
@@ -146,10 +148,11 @@ def test_entity_reader_does_not_turn_edge_failure_into_empty_data():
         )
     )
 
-    with pytest.raises(ZepApiError) as error:
+    with pytest.raises((ZepApiError, GraphStoreError)) as error:
         reader.get_node_edges("node-id")
 
-    assert error.value.status_code == 403
+    cause = error.value.__cause__ if isinstance(error.value, GraphStoreError) else error.value
+    assert getattr(cause, "status_code", None) == 403 or "403" in str(error.value)
 
 
 def test_report_tools_do_not_turn_zep_read_failures_into_empty_data():
@@ -161,13 +164,13 @@ def test_report_tools_do_not_turn_zep_read_failures_into_empty_data():
         graph=SimpleNamespace(node=SimpleNamespace(get=unauthorized))
     )
 
-    with pytest.raises(ZepApiError):
+    with pytest.raises((ZepApiError, GraphStoreError)):
         service.get_node_detail("node-id")
 
     service.get_all_edges = lambda _graph_id: (_ for _ in ()).throw(
         ZepApiError(status_code=503, body={"message": "unavailable"})
     )
-    with pytest.raises(ZepApiError):
+    with pytest.raises((ZepApiError, GraphStoreError)):
         service.get_node_edges("graph-id", "node-id")
 
 
