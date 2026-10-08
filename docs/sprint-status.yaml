@@ -181,6 +181,15 @@ epics:
     # dans la factory get_graph_store() et export dans __init__.py. Suite de 23 tests unitaires
     # hermétiques (test_graphiti_graph_store.py). Revue BMad 4 couches validée (5 patchs appliqués).
     # Filet porté à 494 tests verts (+24).
+    # Story 003-2 (DONE) : implémentation du cycle de vie (create_graph,
+    # delete_graph, set_ontology) et de l'ingestion d'épisodes (add_episode,
+    # add_text_batch, wait_for_batch, wait_for_episodes) avec partitionnement
+    # strict par group_id = graph_id (Critère C2, NFR-3). Validation de l'isolation
+    # étanche entre graphes, normalisation ISO 8601 UTC des timestamps (gestion 'Z' et 'z'),
+    # optimisation d'index Cypher :Episodic, gestion des erreurs et 27 nouveaux
+    # tests unitaires hermétiques dans test_graphiti_graph_store.py (50 tests sur le
+    # fichier). Revue BMad 4 couches validée (5 patchs appliqués). Filet porté à
+    # 521 tests verts (+27).
 
   - id: "004"
     slug: bascule-sans-zep

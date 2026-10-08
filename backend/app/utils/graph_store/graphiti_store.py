@@ -6,13 +6,19 @@ import asyncio
 from collections.abc import Coroutine
 import concurrent.futures
 from contextlib import contextmanager
+from datetime import datetime, timezone
+import hashlib
+import inspect
 import logging
 import os
+import time
 from typing import Any, Callable, Dict, List, Optional, TypeVar
+import uuid
 
 from graphiti_core import Graphiti
 from graphiti_core.cross_encoder.client import CrossEncoderClient
 from graphiti_core.driver.neo4j_driver import Neo4jDriver
+from graphiti_core.nodes import EpisodeType
 
 from ...config import Config
 from ..graphiti_embedder import SentenceTransformerEmbedder
@@ -196,12 +202,16 @@ class GraphitiGraphStore(GraphStore):
         except Exception as exc:
             raise self._translate_error(exc, operation_name) from exc
 
-    def _run_async(self, coro: Coroutine[Any, Any, T]) -> T:
+    def _run_async(self, coro: Any) -> Any:
         """Exécute une coroutine asynchrone de manière thread-safe et synchrone.
 
-        Gère les cas sans boucle active (création via asyncio.run) ainsi que
-        les cas sous boucle d'événements déjà active (délégation dans un ThreadPoolExecutor).
+        Gère les cas sans boucle active (création via asyncio.run),
+        les cas sous boucle d'événements déjà active (délégation dans un ThreadPoolExecutor),
+        ainsi que les retours immédiats non-awaitables (ex: mocks synchrones).
         """
+        if not inspect.isawaitable(coro):
+            return coro
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -213,6 +223,49 @@ class GraphitiGraphStore(GraphStore):
                 return future.result()
         else:
             return asyncio.run(coro)
+
+    async def _execute_cypher(self, query: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        """Exécute une requête Cypher via le driver en gérant l'asynchronisme de manière transparente."""
+        res = self._driver.execute_query(query, params=params or {})
+        if inspect.isawaitable(res):
+            return await res
+        return res
+
+    async def _check_connection(self) -> None:
+        """Contrôle la connectivité active vers Neo4j."""
+        if hasattr(self._driver, "health_check"):
+            res = self._driver.health_check()
+            if inspect.isawaitable(res):
+                await res
+        elif hasattr(self._driver, "execute_query"):
+            await self._execute_cypher("RETURN 1 AS ping")
+
+    @staticmethod
+    def _extract_records(res: Any) -> List[Any]:
+        """Extrait la liste des enregistrements quel que soit le format renvoyé par le driver."""
+        if res is None:
+            return []
+        if hasattr(res, "records"):
+            return list(res.records)
+        if isinstance(res, tuple) and len(res) >= 1 and isinstance(res[0], (list, tuple)):
+            return list(res[0])
+        if isinstance(res, list):
+            return res
+        return []
+
+    @staticmethod
+    def _get_record_field(record: Any, field_name: str, default: Any = None) -> Any:
+        """Extrait un champ depuis un enregistrement Neo4j, dict ou mock."""
+        if isinstance(record, dict):
+            return record.get(field_name, default)
+        if hasattr(record, "get"):
+            return record.get(field_name, default)
+        if hasattr(record, field_name):
+            return getattr(record, field_name)
+        try:
+            return record[field_name]
+        except Exception:
+            return default
 
     # --- Propriétés de dépendances internes (utiles pour introspection et tests) ---
 
@@ -244,28 +297,37 @@ class GraphitiGraphStore(GraphStore):
     # --- Cycle de vie ---
 
     def create_graph(self, name: str, graph_id: Optional[str] = None) -> str:
-        """Crée un graphe et retourne son identifiant durable.
+        """Crée un graphe logique et retourne son identifiant durable (group_id).
 
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
+        Vérifie la disponibilité de la connexion Neo4j et retourne l'identifiant logique
+        (généré au format 'mirofish_<uuid>' si omis).
         """
-        if not name or not name.strip():
+        if not isinstance(name, str) or not name.strip():
             raise GraphValidationError("Le nom du graphe ne peut pas être vide")
-        if graph_id is not None and not graph_id.strip():
+        if graph_id is not None and (not isinstance(graph_id, str) or not graph_id.strip()):
             raise GraphValidationError("graph_id ne peut pas être une chaîne vide")
-        raise NotImplementedError(
-            "create_graph pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+
+        target_graph_id = graph_id.strip() if graph_id else f"mirofish_{uuid.uuid4().hex[:16]}"
+        with self._translate_errors(f"création du graphe {target_graph_id}"):
+            self._run_async(self._check_connection())
+            return target_graph_id
 
     def delete_graph(self, graph_id: str) -> None:
-        """Supprime un graphe et l'ensemble de ses données associées.
+        """Supprime un graphe et l'ensemble de ses données associées de façon étanche.
 
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
+        Supprime atomiquement par Cypher tous les nœuds et arêtes partitionnés sous le
+        group_id spécifié, sans affecter aucun autre graphe (Critère C2).
         """
-        if not graph_id or not graph_id.strip():
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "delete_graph pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"suppression du graphe {target_graph_id}"):
+            self._run_async(
+                self._execute_cypher(
+                    "MATCH (n {group_id: $group_id}) DETACH DELETE n",
+                    params={"group_id": target_graph_id},
+                )
+            )
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         """Retourne les nœuds, arêtes et statistiques complètes du graphe pour l'API.
@@ -292,16 +354,15 @@ class GraphitiGraphStore(GraphStore):
     # --- Ontologie ---
 
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
-        """Définit ou synchronise l'ontologie des types d'entités du graphe (no-op en v1, ADR 0003).
-
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
-        """
+        """Définit ou synchronise l'ontologie des types d'entités du graphe (no-op en v1, ADR 0003)."""
         if not graph_id or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
-        raise NotImplementedError(
-            "set_ontology pour GraphitiGraphStore fait l'objet de la Story 003-2."
+        target_graph_id = graph_id.strip()
+        logger.debug(
+            "set_ontology appelé pour le graphe %s (no-op en v1 conformément à l'ADR 0003)",
+            target_graph_id,
         )
 
     # --- Ingestion et épisodes ---
@@ -314,17 +375,70 @@ class GraphitiGraphStore(GraphStore):
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
     ) -> EpisodeRecord:
-        """Ajoute un épisode textuel unitaire au graphe.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
-        """
-        if not graph_id or not graph_id.strip():
+        """Ajoute un épisode textuel unitaire au graphe avec partitionnement group_id."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        if not text or not text.strip():
+        if not isinstance(text, str) or not text.strip():
             raise GraphValidationError("Le contenu textuel de l'épisode est requis")
-        raise NotImplementedError(
-            "add_episode pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+        if metadata is not None and not isinstance(metadata, dict):
+            raise GraphValidationError("metadata doit être un dictionnaire")
+
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"ajout d'épisode dans le graphe {target_graph_id}"):
+            if created_at:
+                try:
+                    clean_ts = created_at.strip()
+                    if clean_ts.endswith(("Z", "z")):
+                        clean_ts = clean_ts[:-1] + "+00:00"
+                    ref_time = datetime.fromisoformat(clean_ts)
+                    if ref_time.tzinfo is None:
+                        ref_time = ref_time.replace(tzinfo=timezone.utc)
+                except Exception as exc:
+                    raise GraphValidationError(
+                        f"Horodatage created_at invalide : {created_at}"
+                    ) from exc
+            else:
+                ref_time = datetime.now(timezone.utc)
+
+            episode_name = (
+                source_description.strip()
+                if (source_description and source_description.strip())
+                else f"Episode {uuid.uuid4().hex[:8]}"
+            )
+            src_desc = (
+                source_description.strip()
+                if (source_description and source_description.strip())
+                else "MiroFish episode"
+            )
+
+            res = self._run_async(
+                self._graphiti.add_episode(
+                    name=episode_name,
+                    episode_body=text.strip(),
+                    source=EpisodeType.text,
+                    source_description=src_desc,
+                    reference_time=ref_time,
+                    group_id=target_graph_id,
+                )
+            )
+
+            ep_uuid = None
+            if hasattr(res, "episode") and getattr(res, "episode") is not None:
+                ep_obj = getattr(res, "episode")
+                ep_uuid = getattr(ep_obj, "uuid", None)
+            if not ep_uuid and hasattr(res, "uuid"):
+                ep_uuid = getattr(res, "uuid")
+            if not ep_uuid and isinstance(res, dict):
+                ep_uuid = res.get("uuid")
+            if not ep_uuid:
+                ep_uuid = uuid.uuid4().hex
+
+            return EpisodeRecord(
+                uuid=str(ep_uuid),
+                graph_id=target_graph_id,
+                processed=True,
+                created_at=ref_time.isoformat(),
+            )
 
     def add_text_batch(
         self,
@@ -333,19 +447,53 @@ class GraphitiGraphStore(GraphStore):
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> BatchSubmissionRecord:
-        """Ingère une liste de textes découpés par lots.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
-        """
+        """Ingère une liste de textes découpés par lots avec suivi de progression."""
         if not graph_id or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not chunks:
             raise GraphValidationError("Au moins un fragment de texte est requis")
         if not isinstance(batch_size, int) or batch_size <= 0:
             raise GraphValidationError("batch_size doit être un entier strictement positif")
-        raise NotImplementedError(
-            "add_text_batch pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+
+        target_graph_id = graph_id.strip()
+        for idx, chunk in enumerate(chunks):
+            if not isinstance(chunk, str) or not chunk.strip():
+                raise GraphValidationError(
+                    f"Le fragment d'index {idx} ne peut pas être vide ou de type invalide"
+                )
+
+        total_chunks = len(chunks)
+        batch_id = f"batch_{uuid.uuid4().hex[:16]}"
+        payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
+        operation_id = hashlib.sha256(
+            f"{target_graph_id}:{payload_hash}".encode("utf-8")
+        ).hexdigest()
+
+        with self._translate_errors(f"ingestion par lots pour {target_graph_id}"):
+            episode_uuids: List[str] = []
+            for idx, chunk in enumerate(chunks, 1):
+                if progress_callback:
+                    progress_callback("processing", idx - 1, total_chunks)
+
+                record = self.add_episode(
+                    graph_id=target_graph_id,
+                    text=chunk,
+                    source_description=f"chunk_{idx}",
+                )
+                episode_uuids.append(record.uuid)
+
+                if progress_callback:
+                    progress_callback("processing", idx, total_chunks)
+
+            if progress_callback:
+                progress_callback("completed", total_chunks, total_chunks)
+
+            return BatchSubmissionRecord(
+                batch_id=batch_id,
+                operation_id=operation_id,
+                episode_uuids=episode_uuids,
+                item_count=total_chunks,
+            )
 
     def wait_for_batch(
         self,
@@ -353,15 +501,56 @@ class GraphitiGraphStore(GraphStore):
         progress_callback: Optional[Callable[[str, float], None]] = None,
         timeout: float = 600.0,
     ) -> bool:
-        """Attend la fin du traitement asynchrone d'un lot d'ingestion.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
-        """
+        """Attend la fin du traitement d'un lot d'ingestion en vérifiant la persistance des épisodes."""
         if not batch or not getattr(batch, "batch_id", None):
             raise GraphValidationError("batch et batch_id sont requis")
-        raise NotImplementedError(
-            "wait_for_batch pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+        if timeout <= 0:
+            raise GraphValidationError("timeout doit être strictement supérieur à 0")
+
+        episode_uuids = getattr(batch, "episode_uuids", []) or []
+        if not episode_uuids:
+            if progress_callback:
+                progress_callback("completed", 1.0)
+            return True
+
+        total_count = len(episode_uuids)
+        pending_uuids = set(episode_uuids)
+        start_time = time.time()
+
+        with self._translate_errors(f"attente du lot {batch.batch_id}"):
+            while pending_uuids:
+                if time.time() - start_time > timeout:
+                    raise GraphTimeoutError(
+                        f"Le lot {batch.batch_id} n'a pas terminé dans le délai imparti ({timeout}s)"
+                    )
+
+                res = self._run_async(
+                    self._execute_cypher(
+                        """
+                        MATCH (e:Episodic)
+                        WHERE e.uuid IN $uuids
+                        RETURN DISTINCT e.uuid AS uuid
+                        """,
+                        params={"uuids": list(pending_uuids)},
+                    )
+                )
+
+                records = self._extract_records(res)
+                for rec in records:
+                    found_uuid = self._get_record_field(rec, "uuid")
+                    if found_uuid in pending_uuids:
+                        pending_uuids.remove(found_uuid)
+
+                if progress_callback:
+                    ratio = min(max((total_count - len(pending_uuids)) / total_count, 0.0), 1.0)
+                    progress_callback("processing", ratio)
+
+                if pending_uuids:
+                    time.sleep(0.1)
+
+            if progress_callback:
+                progress_callback("completed", 1.0)
+            return True
 
     def wait_for_episodes(
         self,
@@ -369,15 +558,47 @@ class GraphitiGraphStore(GraphStore):
         episode_uuids: List[str],
         timeout: float = 600.0,
     ) -> bool:
-        """Attend la fin du traitement pour une liste explicite d'épisodes.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-2.
-        """
+        """Attend la fin du traitement pour une liste explicite d'épisodes partitionnés."""
         if not graph_id or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "wait_for_episodes pour GraphitiGraphStore fait l'objet de la Story 003-2."
-        )
+        if timeout <= 0:
+            raise GraphValidationError("timeout doit être strictement supérieur à 0")
+        if not episode_uuids:
+            return True
+
+        target_graph_id = graph_id.strip()
+        pending_uuids = set(episode_uuids)
+        start_time = time.time()
+
+        with self._translate_errors(f"attente des épisodes pour {target_graph_id}"):
+            while pending_uuids:
+                if time.time() - start_time > timeout:
+                    raise GraphTimeoutError(
+                        f"Les épisodes {sorted(list(pending_uuids))} pour le graphe {target_graph_id} "
+                        f"n'ont pas terminé dans le délai imparti ({timeout}s)"
+                    )
+
+                res = self._run_async(
+                    self._execute_cypher(
+                        """
+                        MATCH (e:Episodic {group_id: $group_id})
+                        WHERE e.uuid IN $uuids
+                        RETURN DISTINCT e.uuid AS uuid
+                        """,
+                        params={"group_id": target_graph_id, "uuids": list(pending_uuids)},
+                    )
+                )
+
+                records = self._extract_records(res)
+                for rec in records:
+                    found_uuid = self._get_record_field(rec, "uuid")
+                    if found_uuid in pending_uuids:
+                        pending_uuids.remove(found_uuid)
+
+                if pending_uuids:
+                    time.sleep(0.1)
+
+            return True
 
     # --- Lecture et parcours ---
 

@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 clos, Epic 003 en cours (Story 003-1 done, 494 tests verts) |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 clos, Epic 003 en cours (Stories 003-1 et 003-2 done, 521 tests verts) |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -42,7 +42,7 @@ reproductible.**
 >
 > **L'epic 003 (« GraphitiGraphStore ») est en cours.**
 > Dossier de plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](docs/plans/003-chemin-de-lecture-graphiti/prd.md) (`prd.md`, `architecture.md`, `epic-003.md`).
-> Story 003-1 validée (squelette `GraphitiGraphStore`, injection, async bridge et factory active — 494 tests verts). Prochaine étape : story **003-2** (cycle de vie et partitionnement `group_id`).
+> Stories 003-1 et 003-2 validées (squelette `GraphitiGraphStore`, write pipeline, cycle de vie et partitionnement `group_id`, revue BMad — 521 tests verts). Prochaine étape : story **003-3** (lecture Cypher, voisinage et recherche hybride temporelle).
 
 ---
 
