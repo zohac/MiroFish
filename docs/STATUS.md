@@ -23,7 +23,7 @@ dans le code applicatif. Le filet global atteint **470 tests verts** (100 % pass
 
 L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en cours :
 - **Story 003-1 (done)** : squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, constructeur à injection de dépendances, résolution de variables d'environnement, passerelle synchrone/asynchrone thread-safe `_run_async`, activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). Suite de 23 tests unitaires hermétiques (`test_graphiti_graph_store.py`). Filet porté à **494 tests verts** (+24).
-- Prochaine étape : Story **003-2** (cycle de vie et ingestion d'épisodes avec partitionnement `group_id`).
+- **Story 003-2 (in-progress)** : implémentation du cycle de vie (`create_graph`, `delete_graph`, `set_ontology`) et de l'ingestion d'épisodes (`add_episode`, `add_text_batch`, `wait_for_*`) avec partitionnement strict par `group_id = graph_id`. Cadrage rédigé.
 
 ## Fait
 
@@ -45,7 +45,7 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en 
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
 Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Story 003-1 achevée, relue et validée (494 tests verts). Prêt pour le démarrage de la story 003-2.
+Story 003-1 achevée, relue et validée (494 tests verts). Story 003-2 en cours (cadrage validé).
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
