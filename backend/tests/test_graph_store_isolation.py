@@ -71,6 +71,11 @@ def _collect_imported_modules(tree: ast.AST) -> List[str]:
         elif isinstance(node, ast.ImportFrom):
             if node.module:
                 imported.append(node.module)
+                for alias in node.names:
+                    imported.append(f"{node.module}.{alias.name}")
+            else:
+                for alias in node.names:
+                    imported.append(alias.name)
     return imported
 
 
@@ -125,10 +130,11 @@ def test_api_layer_has_zero_direct_zep_imports():
 
 
 def test_graph_store_core_has_zero_vendor_imports():
-    """Vérifie que le cœur abstrait (base.py, errors.py) ne dépend d'aucun SDK externe."""
+    """Vérifie que le cœur abstrait (base.py, errors.py, factory.py) ne dépend d'aucun SDK externe."""
     core_files = [
         GRAPH_STORE_DIR / "base.py",
         GRAPH_STORE_DIR / "errors.py",
+        GRAPH_STORE_DIR / "factory.py",
     ]
 
     for file_path in core_files:
@@ -143,13 +149,13 @@ def test_graph_store_core_has_zero_vendor_imports():
 
 
 def test_no_conditional_backend_branching_in_business_logic():
-    """Vérifie l'absence de bifurcations 'if zep else graphiti' dans les services (Critère C5)."""
-    service_files = _find_python_files(SERVICES_DIR)
+    """Vérifie l'absence de bifurcations 'if zep else graphiti' dans les services et l'API (Critère C5)."""
+    checked_files = _find_python_files(SERVICES_DIR) + _find_python_files(API_DIR)
 
     suspicious_keywords = {"zep_backend", "graphiti", "cloud"}
     branching_violations: List[str] = []
 
-    for file_path in service_files:
+    for file_path in checked_files:
         content = file_path.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(file_path))
 
@@ -161,15 +167,25 @@ def test_no_conditional_backend_branching_in_business_logic():
                     branching_violations.append(
                         f"{file_path.name}:{getattr(node, 'lineno', '?')} : bifurcation suspecte sur backend"
                     )
+            elif isinstance(node, getattr(ast, "Match", ())):
+                subject_dump = ast.dump(node.subject).lower()
+                if "backend" in subject_dump and any(kw in subject_dump for kw in suspicious_keywords):
+                    branching_violations.append(
+                        f"{file_path.name}:{getattr(node, 'lineno', '?')} : match/case suspect sur backend"
+                    )
 
     assert not branching_violations, (
-        "Bifurcations conditionnelles interdites détectées dans services/ (AGENTS.md §2.1) :\n"
+        "Bifurcations conditionnelles interdites détectées dans services/ et api/ (AGENTS.md §2.1) :\n"
         + "\n".join(branching_violations)
     )
 
 
-def test_factory_contract_and_default_resolution():
+def test_factory_contract_and_default_resolution(monkeypatch):
     """Vérifie le contrat d'instanciation de get_graph_store() (Critère C3)."""
+    # Isolation hermétique de l'environnement (AGENTS.md §2.2)
+    monkeypatch.delenv("ZEP_BACKEND", raising=False)
+    monkeypatch.setattr(Config, "ZEP_BACKEND", None, raising=False)
+
     # 1. Résolution par défaut (cloud)
     store = get_graph_store(api_key="fake-test-key")
     assert isinstance(store, ZepGraphStore)
@@ -226,18 +242,23 @@ def test_all_prd_exit_criteria_are_met():
     }
     assert expected_methods.issubset(abstract_methods), "C1 : toutes les méthodes requises doivent être abstraites"
 
-    # C2 : ZepGraphStore implémente 100 % de l'interface
+    # C2 : ZepGraphStore implémente 100 % de l'interface (aucune méthode abstraite non implémentée)
     for method in expected_methods:
-        assert hasattr(ZepGraphStore, method), f"C2 : ZepGraphStore doit implémenter {method}"
+        method_func = getattr(ZepGraphStore, method, None)
+        assert method_func is not None, f"C2 : ZepGraphStore doit posséder la méthode {method}"
+        assert getattr(method_func, "__isabstractmethod__", False) is False, (
+            f"C2 : {method} dans ZepGraphStore doit être concrètement implémentée et non abstraite"
+        )
 
     # C3 : Factory opérationnelle
     assert callable(get_graph_store), "C3 : get_graph_store doit être appelable"
 
-    # C4 : 0 import direct dans services et api (vérifié par test_services_layer_has_zero_direct_zep_imports)
-    assert True
+    # C4 : 0 import direct dans services et api
+    test_services_layer_has_zero_direct_zep_imports()
+    test_api_layer_has_zero_direct_zep_imports()
 
-    # C5 : 0 bifurcation conditionnelle (vérifié par test_no_conditional_backend_branching_in_business_logic)
-    assert True
+    # C5 : 0 bifurcation conditionnelle dans services et api
+    test_no_conditional_backend_branching_in_business_logic()
 
     # C6 : Préservation des exceptions neutres
     assert issubclass(GraphNotFoundError, GraphStoreError)

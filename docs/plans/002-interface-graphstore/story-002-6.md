@@ -76,6 +76,18 @@ La **Story 002-6** constitue le jalon de validation finale et de clôture formel
   - [x] Mettre à jour `AGENTS.md`
   - [x] Finaliser `story-002-6.md` (statut `done`, notes de complétion)
 
+### Review Findings
+
+- [x] [Review][Patch] Élargir la détection AST des modules interdits aux alias et sous-modules dans ImportFrom [backend/tests/test_graph_store_isolation.py:64-83]
+- [x] [Review][Patch] Inclure factory.py dans le test d'absence de dépendances propriétaires du cœur GraphStore [backend/tests/test_graph_store_isolation.py:127-143]
+- [x] [Review][Patch] Étendre le contrôle AST de non-bifurcation à la couche API et supporter ast.Match [backend/tests/test_graph_store_isolation.py:146-169]
+- [x] [Review][Patch] Remplacer les assertions tautologiques et hasattr par des vérifications réelles dans le test récapitulatif C1-C6 [backend/tests/test_graph_store_isolation.py:229-241]
+- [x] [Review][Patch] Garantir l'herméticité environnementale de test_factory_contract_and_default_resolution avec monkeypatch [backend/tests/test_graph_store_isolation.py:172-176]
+
+#### Rejected
+
+- [Imports directs ZepGraphStore dans les setters de compatibilité] : rejeté (`false`) — relève de la compatibilité des stories 002-4/002-5 antérieures pour les tests amonts mockant `client` ; `ZepGraphStore` est un adaptateur de `utils/graph_store`, non un module interdit direct.
+
 ## Notes de développement
 
 - **Analyse AST ciblée** :
