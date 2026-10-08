@@ -63,7 +63,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 |---|---|---|---|
 | 003-1 | Squelette de `GraphitiGraphStore`, initialisation des dépendances et activation dans la factory | `done` | [`story-003-1.md`](story-003-1.md) |
 | 003-2 | Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` | `done` | [`story-003-2.md`](story-003-2.md) |
-| 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `backlog` | — |
+| 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `in-progress` | [`story-003-3.md`](story-003-3.md) |
 | 003-4 | Adaptation du chemin de lecture (`zep_entity_reader.py`) pour les entités génériques Graphiti | `backlog` | — |
 | 003-5 | Tests d'intégration réels avec Neo4j local, validation des critères C1-C6 et clôture de l'Epic 003 | `backlog` | — |
 

@@ -24,7 +24,7 @@ dans le code applicatif. Le filet global atteint **470 tests verts** (100 % pass
 L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en cours :
 - **Story 003-1 (done)** : squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, constructeur à injection de dépendances, résolution de variables d'environnement, passerelle synchrone/asynchrone thread-safe `_run_async`, activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). Suite de 23 tests unitaires hermétiques (`test_graphiti_graph_store.py`). Filet porté à **494 tests verts** (+24).
 - **Story 003-2 (done)** : implémentation du cycle de vie (`create_graph`, `delete_graph`, `set_ontology`) et de l'ingestion d'épisodes (`add_episode`, `add_text_batch`, `wait_for_batch`, `wait_for_episodes`) avec partitionnement strict par `group_id = graph_id` (Critère C2, NFR-3). Validation de l'isolation étanche entre graphes, normalisation ISO 8601 UTC ('Z'/'z'), optimisation Cypher indexé `:Episodic` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). 27 nouveaux tests unitaires dans `test_graphiti_graph_store.py` (50 tests sur le fichier). Filet porté à **521 tests verts** (+27).
-- **Story 003-3 (backlog)** : implémentation de la lecture Cypher (`get_all_nodes`, `get_all_edges`), des parcours de voisinage (`get_node`, `get_node_edges`) et de la recherche hybride temporelle (`search`).
+- **Story 003-3 (in-progress)** : implémentation de la lecture Cypher (`get_all_nodes`, `get_all_edges`), des parcours de voisinage (`get_node`, `get_node_edges`) et de la recherche hybride temporelle (`search`).
 
 ## Fait
 
@@ -47,7 +47,7 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en 
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
 Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Stories 003-1 et 003-2 achevées, relues et validées (521 tests verts). Prochaine étape : Story 003-3.
+Stories 003-1 et 003-2 achevées, relues et validées (521 tests verts). En cours : Story 003-3 (cadrée, implémentation de la lecture Cypher et recherche hybride).
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
