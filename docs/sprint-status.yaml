@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-07
+mis_a_jour: 2026-10-08
 
 epics:
   - id: "001"
@@ -164,7 +164,8 @@ epics:
   - id: "003"
     slug: chemin-de-lecture-graphiti
     titre: "GraphitiGraphStore — écriture et chemin de lecture (ADR 0003)"
-    statut: backlog
+    statut: in-progress
+    plan: docs/plans/003-chemin-de-lecture-graphiti
     depend_de: ["001", "002"]
     pourquoi: >-
       Sans ontologie custom, Graphiti ne pose que le label Entity, et

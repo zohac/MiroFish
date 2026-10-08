@@ -4,7 +4,7 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas un second saisie.
 
-> Dernière mise à jour : **7 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **8 octobre 2026** · branche `local-first`
 
 ---
 
@@ -21,9 +21,9 @@ Une suite de tests d'isolation permanente (`test_graph_store_isolation.py`) gara
 **0 import direct** du SDK Zep dans les services et routes API, et **0 bifurcation conditionnelle** `if zep else graphiti`
 dans le code applicatif. Le filet global atteint **470 tests verts** (100 % passants). L'Epic 002 est **clos**.
 
-Le **prochain jalon est l'Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** :
-implémenter le second backend réel connectant Graphiti et Neo4j derrière l'interface `GraphStore`,
-sans dépendre de l'ontologie dynamique Zep (ADR 0001, ADR 0003).
+L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est désormais **ouvert et cadré** :
+dossier de plan complet posé dans [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md)
+(`prd.md`, `architecture.md`, `epic-003.md`). Prochaine étape : lancement de la Story **003-1**.
 
 ## Fait
 
@@ -43,7 +43,8 @@ sans dépendre de l'ontologie dynamique Zep (ADR 0001, ADR 0003).
 ## En cours
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
-Phase de cadrage et préparation du plan d'ingénierie.
+Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
+Cadrage validé (`prd.md`, `architecture.md`, `epic-003.md`). Prêt pour le démarrage de la story 003-1.
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
@@ -238,8 +239,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Cadrer et démarrer l'Epic 003** (`GraphitiGraphStore`) : écriture et adaptation du chemin de lecture sans dépendance à l'ontologie dynamique Zep.
-2. Démarrer la Story 003-1 : implémentation de `GraphitiGraphStore` branché sur Neo4j et `graphiti-core`.
+1. **Démarrer la Story 003-1** : Squelette de `GraphitiGraphStore`, initialisation des dépendances (Neo4j, LLM session, embedder local) et activation dans la factory `get_graph_store`.
+2. Implémenter l'écriture et le partitionnement `group_id` (story 003-2).
 
 ## Questions ouvertes
 

@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 (Interface GraphStore) clos (470 tests verts), Epic 003 prêt à démarrer |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 clos (470 tests verts), Epic 003 cadré et ouvert |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -40,8 +40,9 @@ reproductible.**
 > Les stories 002-1 à 002-6 sont validées (470 tests verts). L'isolation totale est prouvée par AST
 > (0 import direct de Zep dans services/ et api/, 0 bifurcation conditionnelle) et les critères C1 à C6 sont satisfaits.
 >
-> **Prochaine étape : Epic 003 (« GraphitiGraphStore »)** : implémentation de l'écriture
-> et adaptation du chemin de lecture sur Graphiti et Neo4j.
+> **L'epic 003 (« GraphitiGraphStore ») est cadré et ouvert.**
+> Dossier de plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](docs/plans/003-chemin-de-lecture-graphiti/prd.md) (`prd.md`, `architecture.md`, `epic-003.md`).
+> Prochaine étape : démarrage de la story **003-1** (squelette `GraphitiGraphStore`, initialisation dépendances et activation factory).
 
 ---
 
