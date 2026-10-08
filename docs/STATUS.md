@@ -21,9 +21,9 @@ Une suite de tests d'isolation permanente (`test_graph_store_isolation.py`) gara
 **0 import direct** du SDK Zep dans les services et routes API, et **0 bifurcation conditionnelle** `if zep else graphiti`
 dans le code applicatif. Le filet global atteint **470 tests verts** (100 % passants). L'Epic 002 est **clos**.
 
-L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est désormais **ouvert et cadré** :
-dossier de plan complet posé dans [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md)
-(`prd.md`, `architecture.md`, `epic-003.md`). Prochaine étape : lancement de la Story **003-1**.
+L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en cours :
+- **Story 003-1 (done)** : squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, constructeur à injection de dépendances, résolution de variables d'environnement, passerelle synchrone/asynchrone thread-safe `_run_async`, activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). Suite de 23 tests unitaires hermétiques (`test_graphiti_graph_store.py`). Filet porté à **494 tests verts** (+24).
+- Prochaine étape : Story **003-2** (cycle de vie et ingestion d'épisodes avec partitionnement `group_id`).
 
 ## Fait
 
@@ -39,12 +39,13 @@ dossier de plan complet posé dans [`docs/plans/003-chemin-de-lecture-graphiti/`
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `docs/sprint-status.yaml`, `.github/workflows/ci.yml` |
 | Épreuve Graphiti local (Epic 001) : 6 stories validées, verdict GO documenté | [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/rapport.md) |
 | Interface `GraphStore` (Epic 002) : 6 stories validées, ZepGraphStore, factory, refactoring services/api, tests AST d'isolation (470 tests verts) | [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md) |
+| Squelette `GraphitiGraphStore` (Story 003-1) : contrat 14 méthodes, injection, async bridge, factory active, revue BMad (494 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-1.md) |
 
 ## En cours
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
 Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Cadrage validé (`prd.md`, `architecture.md`, `epic-003.md`). Prêt pour le démarrage de la story 003-1.
+Story 003-1 achevée, relue et validée (494 tests verts). Prêt pour le démarrage de la story 003-2.
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
@@ -239,8 +240,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 003-1** : Squelette de `GraphitiGraphStore`, initialisation des dépendances (Neo4j, LLM session, embedder local) et activation dans la factory `get_graph_store`.
-2. Implémenter l'écriture et le partitionnement `group_id` (story 003-2).
+1. **Démarrer la Story 003-2** : Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` (`create_graph`, `delete_graph`, `add_episode`, `add_text_batch`, `set_ontology`).
+2. Implémenter la lecture Cypher et recherche hybride temporelle (story 003-3).
 
 ## Questions ouvertes
 
@@ -257,7 +258,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **470**, tous verts, **sans `.env`** (filet de tests post-Epic 002 ; 333 avant Epic 002) |
+| Tests | **491**, tous verts, **sans `.env`** (filet de tests post-Story 003-1 ; 470 avant Epic 003) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

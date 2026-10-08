@@ -21,11 +21,14 @@ from .factory import (
     override_graph_store,
     set_graph_store_override,
 )
+from .graphiti_store import GraphitiGraphStore, LocalPassthroughCrossEncoder
 from .zep_store import ZepGraphStore
 
 __all__ = [
     "GraphStore",
     "ZepGraphStore",
+    "GraphitiGraphStore",
+    "LocalPassthroughCrossEncoder",
     "get_graph_store",
     "set_graph_store_override",
     "override_graph_store",

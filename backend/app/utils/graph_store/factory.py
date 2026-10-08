@@ -8,6 +8,7 @@ from app.config import Config
 
 from .base import GraphStore
 from .errors import GraphValidationError
+from .graphiti_store import GraphitiGraphStore
 from .zep_store import ZepGraphStore
 
 _store_override: Optional[GraphStore] = None
@@ -70,9 +71,7 @@ def get_graph_store(
     if selected_backend == "cloud":
         return ZepGraphStore(api_key=normalized_api_key)
     elif selected_backend == "graphiti":
-        raise NotImplementedError(
-            "Le backend 'graphiti' (GraphitiGraphStore) fait l'objet de l'Epic 003."
-        )
+        return GraphitiGraphStore()
     else:
         raise GraphValidationError(
             f"Backend de graphe non supporté : '{selected_backend}'. Valeurs autorisées : 'cloud', 'graphiti'."

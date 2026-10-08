@@ -163,18 +163,34 @@ class TestGraphStoreFactoryResolution:
             get_graph_store(backend=123)  # type: ignore[arg-type]
         assert "invalide" in str(exc_info.value)
 
-    def test_graphiti_backend_raises_not_implemented_error(self):
-        """Le backend 'graphiti' lève NotImplementedError avec mention de l'Epic 003."""
-        with pytest.raises(NotImplementedError) as exc_info:
-            get_graph_store(backend="graphiti")
-        assert "Epic 003" in str(exc_info.value)
-        assert "graphiti" in str(exc_info.value).lower()
+    def test_graphiti_backend_returns_graphiti_graph_store(self):
+        """Le backend 'graphiti' instancie et retourne GraphitiGraphStore."""
+        from unittest.mock import patch
+
+        with patch("app.utils.graph_store.factory.GraphitiGraphStore") as mock_cls:
+            mock_instance = mock_cls.return_value
+            store = get_graph_store(backend="graphiti")
+            assert store is mock_instance
+            mock_cls.assert_called_once_with()
 
     def test_graphiti_backend_case_and_whitespace(self):
         """Le backend 'graphiti' fonctionne aussi avec majuscules et espaces."""
-        with pytest.raises(NotImplementedError) as exc_info:
-            get_graph_store(backend="  GRAPHITI  ")
-        assert "Epic 003" in str(exc_info.value)
+        from unittest.mock import patch
+
+        with patch("app.utils.graph_store.factory.GraphitiGraphStore") as mock_cls:
+            mock_instance = mock_cls.return_value
+            store = get_graph_store(backend="  GRAPHITI  ")
+            assert store is mock_instance
+            mock_cls.assert_called_once_with()
+
+    def test_graphiti_backend_without_password_raises_validation_error(self, monkeypatch):
+        """Sans mock et sans NEO4J_PASSWORD, get_graph_store('graphiti') lève GraphValidationError."""
+        monkeypatch.delenv("NEO4J_PASSWORD", raising=False)
+        monkeypatch.setattr(Config, "NEO4J_PASSWORD", None, raising=False)
+
+        with pytest.raises(GraphValidationError) as exc_info:
+            get_graph_store(backend="graphiti")
+        assert "NEO4J_PASSWORD" in str(exc_info.value)
 
     @pytest.mark.parametrize("invalid_backend", ["neo4j", "memgraph", "redis", "unknown", "", "   "])
     def test_invalid_backend_raises_graph_validation_error(self, invalid_backend):
@@ -206,11 +222,16 @@ class TestGraphStorePriority:
 
     def test_env_used_when_config_is_none(self, monkeypatch):
         """os.environ est utilisé quand Config.ZEP_BACKEND est None."""
+        from unittest.mock import patch
+
         monkeypatch.setattr(Config, "ZEP_BACKEND", None)
         monkeypatch.setenv("ZEP_BACKEND", "graphiti")
 
-        with pytest.raises(NotImplementedError):
-            get_graph_store()
+        with patch("app.utils.graph_store.factory.GraphitiGraphStore") as mock_cls:
+            mock_instance = mock_cls.return_value
+            store = get_graph_store()
+            assert store is mock_instance
+            mock_cls.assert_called_once_with()
 
 
 class TestGraphStoreOverride:
@@ -353,15 +374,19 @@ class TestGraphStorePackageExports:
     """Tests vérifiant l'exposition publique des symboles du package graph_store."""
 
     def test_factory_functions_exported_in_package(self):
-        """get_graph_store, set_graph_store_override et override_graph_store sont exportés."""
+        """get_graph_store, set_graph_store_override, override_graph_store, GraphitiGraphStore sont exportés."""
         import app.utils.graph_store as gs
 
         assert hasattr(gs, "get_graph_store")
         assert hasattr(gs, "set_graph_store_override")
         assert hasattr(gs, "override_graph_store")
+        assert hasattr(gs, "GraphitiGraphStore")
+        assert hasattr(gs, "LocalPassthroughCrossEncoder")
         assert "get_graph_store" in gs.__all__
         assert "set_graph_store_override" in gs.__all__
         assert "override_graph_store" in gs.__all__
+        assert "GraphitiGraphStore" in gs.__all__
+        assert "LocalPassthroughCrossEncoder" in gs.__all__
 
     def test_invalid_backend_in_config_raises_graph_validation_error(self, monkeypatch):
         """Une valeur invalide dans Config.ZEP_BACKEND lève GraphValidationError."""

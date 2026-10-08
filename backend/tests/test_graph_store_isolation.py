@@ -50,6 +50,10 @@ FORBIDDEN_VENDOR_MODULES: Set[str] = {
     "utils.zep",
     "app.utils.zep_paging",
     "utils.zep_paging",
+    "graphiti_core",
+    "neo4j",
+    "app.utils.graph_store.graphiti_store",
+    "app.utils.graph_store.zep_store",
 }
 
 
@@ -195,10 +199,12 @@ def test_factory_contract_and_default_resolution(monkeypatch):
     with pytest.raises(GraphValidationError):
         get_graph_store(backend="unknown_backend")
 
-    # 3. Réservation explicite de graphiti (Epic 003)
-    with pytest.raises(NotImplementedError) as exc_info:
-        get_graph_store(backend="graphiti")
-    assert "Epic 003" in str(exc_info.value)
+    # 3. Activation de graphiti (Epic 003)
+    from unittest.mock import patch
+    with patch("app.utils.graph_store.factory.GraphitiGraphStore") as mock_graphiti_cls:
+        g_store = get_graph_store(backend="graphiti")
+        assert g_store is mock_graphiti_cls.return_value
+        mock_graphiti_cls.assert_called_once_with()
 
     # 4. Mécanisme d'override étanche
     class FakeIsolatedStore(GraphStore):

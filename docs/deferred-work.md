@@ -136,3 +136,9 @@ Revue contradictoire menée sur les flux de lecture et d'interrogation du graphe
 
 - **`zep_entity_reader.py:203` et `zep_tools.py:716` — Repli sur `target_graph_id = "default"` en cas d'absence de `graph_id`.** Les signatures amont historiques de `get_node_edges(node_uuid)` et `get_node_detail(node_uuid)` ne prenaient pas de `graph_id`. Dans un store partitionné (Graphiti / Neo4j), requêter `"default"` échouerait si la partition n'existe pas. *Différé : casser ces signatures impacterait les appelants amont ; la refonte globale des signatures de lecture est planifiée dans l'Epic 003.*
 - **`zep_entity_reader.py:388-398` — Boucle séquentielle N+1 `store.get_node` dans `get_entity_with_context`.** Pour chaque relation connectée à une entité, `get_node` est appelé séquentiellement. *Différé : code hérité du comportement amont, sans régression introduite. L'optimisation par requête de voisinage groupée sera traitée avec l'introduction du GraphitiGraphStore en Epic 003.*
+
+## Deferred from: code review of story-003-1.md (2026-10-08)
+
+Revue contradictoire menée sur le squelette et l'initialisation de GraphitiGraphStore (Story 003-1) :
+
+- **`backend/app/utils/graph_store/graphiti_store.py:110` — Absence de méthode de fermeture explicite du pool de connexions (`close()`) sur `GraphStore` et `GraphitiGraphStore`.** Ni l'interface abstraite `GraphStore` (`base.py`) ni `ZepGraphStore` ne définissent de méthode `close()` ou de context manager pour libérer les ressources réseau sous-jacentes. Dans `GraphitiGraphStore`, le pool de connexions du driver Neo4j reste alloué jusqu'au garbage collection du processus. *Différé : l'ajout d'une méthode de cycle de vie relève d'une évolution de l'interface commune `GraphStore` partagée avec l'ensemble des backends (Epic 003 ou Epic 005).*

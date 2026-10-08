@@ -171,6 +171,16 @@ epics:
       Sans ontologie custom, Graphiti ne pose que le label Entity, et
       zep_entity_reader.py:262 filtre tout. Le chemin de lecture est le vrai
       travail ; l'ontologie est une v2.
+    # Story 003-1 (DONE) : classe GraphitiGraphStore et LocalPassthroughCrossEncoder
+    # implémentées dans backend/app/utils/graph_store/graphiti_store.py. Les 14 méthodes
+    # du contrat GraphStore sont formellement déclarées avec signatures strictes.
+    # Constructeur avec support complet d'injection de dépendances (driver, llm_client,
+    # embedder, cross_encoder, graphiti) et validation des variables d'environnement
+    # (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD). Passerelle synchrone / asynchrone thread-safe
+    # _run_async implémentée avec gestion des boucles actives. Activation de ZEP_BACKEND='graphiti'
+    # dans la factory get_graph_store() et export dans __init__.py. Suite de 23 tests unitaires
+    # hermétiques (test_graphiti_graph_store.py). Revue BMad 4 couches validée (5 patchs appliqués).
+    # Filet porté à 494 tests verts (+24).
 
   - id: "004"
     slug: bascule-sans-zep

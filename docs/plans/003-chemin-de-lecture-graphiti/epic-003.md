@@ -61,7 +61,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 003-1 | Squelette de `GraphitiGraphStore`, initialisation des dépendances et activation dans la factory | `in-progress` | [`story-003-1.md`](story-003-1.md) |
+| 003-1 | Squelette de `GraphitiGraphStore`, initialisation des dépendances et activation dans la factory | `done` | [`story-003-1.md`](story-003-1.md) |
 | 003-2 | Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` | `backlog` | — |
 | 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `backlog` | — |
 | 003-4 | Adaptation du chemin de lecture (`zep_entity_reader.py`) pour les entités génériques Graphiti | `backlog` | — |
@@ -87,6 +87,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 | [`docs/LOCAL-FIRST.md` §12](../../LOCAL-FIRST.md) | Audit des pièges du fork `tt-a1i` et points de rupture Graphiti |
 | `backend/app/utils/graph_store/base.py` | Contrat formel de l'interface `GraphStore` et DTOs neutres |
 | `backend/app/utils/graph_store/factory.py` | Factory `get_graph_store()` |
+| `backend/app/utils/graph_store/graphiti_store.py` | Implémentation `GraphitiGraphStore` et `LocalPassthroughCrossEncoder` |
 | `backend/app/utils/graphiti_llm_client.py` | Client LLM avec compatibilité session OpenCode Go |
 | `backend/app/utils/graphiti_embedder.py` | Embedder local SentenceTransformers |
 
@@ -101,7 +102,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 
 ## L'epic est terminé quand
 
-- [ ] `GraphitiGraphStore` est initialisé avec driver Neo4j, LLM session et embedder local (Story 003-1)
+- [x] `GraphitiGraphStore` est initialisé avec driver Neo4j, LLM session et embedder local (Story 003-1)
 - [ ] Le cycle de vie et l'ingestion d'épisodes sont implémentés avec isolation par `group_id` (Story 003-2)
 - [ ] La lecture Cypher, les requêtes de voisinage et la recherche hybride temporelle sont opérationnelles (Story 003-3)
 - [ ] Le chemin de lecture (`zep_entity_reader.py`) traite avec succès les entités Graphiti (Story 003-4)

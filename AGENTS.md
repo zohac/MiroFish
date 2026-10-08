@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 clos (470 tests verts), Epic 003 cadré et ouvert |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | 🟡 en cours — Epic 002 clos, Epic 003 en cours (Story 003-1 done, 494 tests verts) |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -40,9 +40,9 @@ reproductible.**
 > Les stories 002-1 à 002-6 sont validées (470 tests verts). L'isolation totale est prouvée par AST
 > (0 import direct de Zep dans services/ et api/, 0 bifurcation conditionnelle) et les critères C1 à C6 sont satisfaits.
 >
-> **L'epic 003 (« GraphitiGraphStore ») est cadré et ouvert.**
+> **L'epic 003 (« GraphitiGraphStore ») est en cours.**
 > Dossier de plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](docs/plans/003-chemin-de-lecture-graphiti/prd.md) (`prd.md`, `architecture.md`, `epic-003.md`).
-> Prochaine étape : démarrage de la story **003-1** (squelette `GraphitiGraphStore`, initialisation dépendances et activation factory).
+> Story 003-1 validée (squelette `GraphitiGraphStore`, injection, async bridge et factory active — 494 tests verts). Prochaine étape : story **003-2** (cycle de vie et partitionnement `group_id`).
 
 ---
 
@@ -70,7 +70,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**470 tests** — il doit grossir, jamais rétrécir.
+**494 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -136,7 +136,7 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
   `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  470 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  494 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -295,7 +295,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 470 tests
+cd backend && uv run pytest tests/ -q                  # 494 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -343,7 +343,7 @@ Variables d'environnement utiles :
 | Clients & helpers | `backend/app/utils/` | `zep.py`, `zep_paging.py`, `llm_client.py`, `llm_compat.py`, `graphiti_llm_client.py`, `graphiti_embedder.py`, `ontology.py`, `locale.py` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 470 tests |
+| Tests | `backend/tests/` | pytest — 494 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
