@@ -24,7 +24,7 @@ reproductible.**
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002, 003 et 004 clos (632 tests verts) |
-| Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
+| Environnement Docker de référence (Docker-first) | 🔄 en cours — epic 005 (cadrage PRD, architecture, hub) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -48,7 +48,7 @@ reproductible.**
 > Dossier de plan : [`docs/plans/004-bascule-sans-zep/`](docs/plans/004-bascule-sans-zep/prd.md) (`prd.md`, `architecture.md`, `epic-004.md`, `rapport-qualification-epic-004.md`).
 > Les stories 004-1 à 004-5 sont validées (paramétrabilité universelle LLM, levée des gardes ZEP_API_KEY, ingestion/graphe e2e, personas et simulation e2e, banc de qualification globale local-first et revues BMad — 632 tests verts).
 >
-> **Prochaine étape : Epic 005 (« Environnement Docker de référence — Docker-first »).**
+> **En cours : Epic 005 (« Environnement Docker de référence — Docker-first ») — dossier de plan cadré ([`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) : `prd.md`, `architecture.md`, `epic-005.md`).**
 
 ---
 

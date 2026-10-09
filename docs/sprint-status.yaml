@@ -266,13 +266,14 @@ epics:
 
   - id: "005"
     slug: docker-local
-    titre: "Docker local — Neo4j dans le compose, image qui démarre tout"
-    statut: backlog
-    depend_de: ["003"]
+    titre: "Environnement Docker de référence — Docker-first"
+    statut: in-progress
+    plan: docs/plans/005-docker-local
+    depend_de: ["001", "002", "003", "004"]
     pourquoi: >-
       Une seule commande doit lancer backend + frontend + Neo4j, avec volumes
-      persistants. Piège connu : uv sync --frozen impose de régénérer le
-      lock avant de construire.
+      persistants et isolation stricte. ADR 0006 : un seul environnement de
+      référence reproductible sans divergence avec l'hôte.
 
   - id: "006"
     slug: migration-donnees-zep

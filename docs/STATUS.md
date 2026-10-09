@@ -54,7 +54,8 @@ L'**Epic 004 (Construire un graphe en local sans clé Zep) est intégralement cl
 
 ## En cours
 
-**Epic 005 — Environnement Docker de référence (Docker-first)** (ADR 0006).
+**Epic 005 — Environnement Docker de référence (Docker-first)** (ADR 0006).  
+Dossier de plan cadré ([`docs/plans/005-docker-local/`](plans/005-docker-local/prd.md) : `prd.md`, `architecture.md`, `epic-005.md`).  
 Intégration unifiée de MiroFish sous Docker : backend + frontend + Neo4j dans un `docker-compose.yml` unique, reproductible et prêt pour la production.
 
 ### Bilan consolidé de l'Epic 004 — Construire un graphe en local sans clé Zep (Clos — 632 tests verts)
