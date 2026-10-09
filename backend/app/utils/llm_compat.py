@@ -35,7 +35,10 @@ def _requires_session_header(base_url: Optional[str]) -> bool:
     """Indique si l'hôte cible attend des en-têtes de session OpenCode."""
     if not base_url:
         return False
-    normalized_url = base_url if "://" in base_url else f"https://{base_url}"
+    url_str = str(base_url).strip()
+    if not url_str:
+        return False
+    normalized_url = url_str if "://" in url_str else f"https://{url_str}"
     host = (urlparse(normalized_url).hostname or "").lower()
     return host == _SESSION_HEADER_HOST or host.endswith(f".{_SESSION_HEADER_HOST}")
 
@@ -51,7 +54,7 @@ def llm_request_headers(base_url: Optional[str] = None) -> Dict[str, str]:
     """
     if base_url is None:
         base_url = os.environ.get("LLM_BASE_URL")
-    base_url = base_url or ""
+    base_url = (base_url or "").strip()
     headers: Dict[str, str] = {"User-Agent": _USER_AGENT}
 
     if _requires_session_header(base_url):

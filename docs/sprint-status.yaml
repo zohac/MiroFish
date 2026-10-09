@@ -231,7 +231,7 @@ epics:
     # alignement de la résolution des paramètres entre LLMClient et MiroFishLLMClient,
     # neutralité stricte prouvée (x-opencode-session émis UNIQUEMENT pour opencode.ai
     # et ses sous-domaines, en-têtes neutres pour les tiers OpenAI, DeepSeek, Groq, Ollama),
-    # et suite de tests unitaires dédiée. Filet global porté à 571 tests verts (+9).
+    # et suite de tests unitaires dédiée. Filet global porté à 577 tests verts (+15, revue BMad validée).
 
   - id: "005"
     slug: docker-local

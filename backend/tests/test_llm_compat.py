@@ -83,6 +83,27 @@ def test_url_sans_scheme_tiers_reste_neutre():
     assert "x-opencode-session" not in headers
 
 
+@pytest.mark.parametrize(
+    "lookalike_url",
+    [
+        "https://notopencode.ai/v1",
+        "https://fake-opencode.ai/v1",
+        "notopencode.ai/v1",
+        "https://opencode.ai.attacker.com/v1",
+    ],
+)
+def test_lookalike_host_is_not_given_a_session_header(lookalike_url):
+    """Vérifie qu'un domaine ressemblant ou trompeur ne reçoit jamais l'en-tête de session."""
+    headers = llm_request_headers(lookalike_url)
+    assert "x-opencode-session" not in headers
+
+
+def test_url_avec_espaces_opencode_injecte_session():
+    """Vérifie qu'une URL avec espaces parasites est correctement nettoyée."""
+    headers = llm_request_headers("  opencode.ai/zen/go/v1  ")
+    assert "x-opencode-session" in headers
+
+
 def test_completion_kwargs_avec_effort_explicite():
     """Vérifie qu'un niveau d'effort passé explicitement en argument l'emporte."""
     assert llm_completion_kwargs("low") == {"reasoning_effort": "low"}

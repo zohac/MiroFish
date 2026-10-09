@@ -7,7 +7,6 @@ Ces tests vérifient :
 - La levée d'erreur si aucune clé n'est fournie
 """
 
-from unittest.mock import MagicMock, patch
 import pytest
 
 from app.config import Config
@@ -24,8 +23,8 @@ def clean_llm_env(monkeypatch):
     monkeypatch.setenv("LLM_MODEL_NAME", "gpt-4o-mini")
 
 
-def test_llm_client_initialisation_par_defaut():
-    """Vérifie l'initialisation de LLMClient depuis Config."""
+def test_llm_client_initialisation_depuis_environnement():
+    """Vérifie l'initialisation de LLMClient depuis les variables d'environnement."""
     client = LLMClient()
     assert client.api_key == "test-key-env"
     assert client.base_url == "https://api.openai.com/v1"
@@ -33,6 +32,22 @@ def test_llm_client_initialisation_par_defaut():
     # Fournisseur OpenAI par défaut : aucun en-tête OpenCode
     assert "x-opencode-session" not in client.client.default_headers
     assert client.client.default_headers.get("User-Agent") == "mirofish/0.1.0"
+
+
+def test_llm_client_initialisation_depuis_config_strict(monkeypatch):
+    """Vérifie l'initialisation de LLMClient depuis Config quand l'environnement est vide."""
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("LLM_MODEL_NAME", raising=False)
+    monkeypatch.setattr(Config, "LLM_API_KEY", "config-key-unique")
+    monkeypatch.setattr(Config, "LLM_BASE_URL", "https://api.openai.com/v1")
+    monkeypatch.setattr(Config, "LLM_MODEL_NAME", "gpt-4o-mini")
+
+    client = LLMClient()
+    assert client.api_key == "config-key-unique"
+    assert client.base_url == "https://api.openai.com/v1"
+    assert client.model == "gpt-4o-mini"
+    assert "x-opencode-session" not in client.client.default_headers
 
 
 def test_llm_client_avec_endpoint_opencode(monkeypatch):

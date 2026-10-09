@@ -48,7 +48,7 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture) est inté
 
 **Epic 004 — Construire un graphe en local sans clé Zep** (ADR 0001, ADR 0003).
 Preuve finale de bout en bout de l'application : documents → graphe Graphiti → personas → simulation → rapport, sans `ZEP_API_KEY`.
-- **Story 004-1 (done)** : Paramétrabilité universelle du LLM via `.env` (compatible OpenAI, gratuit ou payant). `Config.LLM_REASONING_EFFORT` déclaré et exposé, résolution des paramètres homogénéisée entre `LLMClient` et `MiroFishLLMClient`, neutralité stricte prouvée (aucun en-tête OpenCode vers OpenAI, DeepSeek, Groq ou Ollama), transmission propre de `reasoning_effort` et suite de tests unitaires dédiée (+9 tests). Filet global porté à **571 tests verts**.
+- **Story 004-1 (done)** : Paramétrabilité universelle du LLM via `.env` (compatible OpenAI, gratuit ou payant). `Config.LLM_REASONING_EFFORT` déclaré et exposé, résolution des paramètres homogénéisée entre `LLMClient` et `MiroFishLLMClient`, neutralité stricte prouvée (aucun en-tête OpenCode vers OpenAI, DeepSeek, Groq ou Ollama), robustesse aux espaces parasites, transmission propre de `reasoning_effort` et suite de tests unitaires dédiée (+15 tests, revue BMad validée). Filet global porté à **577 tests verts**.
 
 ### Bilan consolidé de l'Epic 003 — GraphitiGraphStore et chemin de lecture (Clos — 562 tests verts)
 
