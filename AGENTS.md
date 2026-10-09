@@ -23,7 +23,7 @@ reproductible.**
 | LLM branché sur l'endpoint gratuit (OpenCode Go) | ✅ fait, testé |
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
-| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002 et 003 clos (562 tests verts) |
+| Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002, 003 et 004 clos (632 tests verts) |
 | Environnement Docker de référence (Docker-first) | ❌ à faire — epic 005 |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
@@ -44,12 +44,11 @@ reproductible.**
 > Dossier de plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](docs/plans/003-chemin-de-lecture-graphiti/prd.md) (`prd.md`, `architecture.md`, `epic-003.md`, `rapport-validation-integration.md`).
 > Les stories 003-1 à 003-5 sont validées (squelette `GraphitiGraphStore`, write pipeline, cycle de vie, lecture Cypher, voisinage, recherche hybride, adaptation `zep_entity_reader.py`, banc d'intégration réelle contre Neo4j et revues BMad — 562 tests verts).
 >
-> **Chantier en cours : Epic 004 (« Construire un graphe en local sans clé Zep »).**
-> Story 004-1 validée (paramétrabilité universelle LLM via `.env`, neutralité d'hôte stricte et revue BMad 4 couches validée — 577 tests verts).
-> Story 004-2 validée (levée des gardes ZEP_API_KEY dans l'API et les services métiers, revue BMad 4 couches validée — 601 tests verts).
-> Story 004-3 validée (ingestion et construction de graphe de bout en bout avec `GraphitiGraphStore`, banc d'ingestion réelle Neo4j validé et revue BMad — 614 tests verts).
-> Story 004-4 validée (extraction d'entités, génération de personas Reddit/Twitter et configuration de simulation sans Zep, banc d'épreuve Neo4j validé et revue BMad — 624 tests verts).
-> Prochaine étape : Story 004-5 (banc de test de qualification local-first et clôture de l'Epic 004).
+> **L'epic 004 (« Construire un graphe en local sans clé Zep ») est intégralement clos avec succès (5/5 stories done).**
+> Dossier de plan : [`docs/plans/004-bascule-sans-zep/`](docs/plans/004-bascule-sans-zep/prd.md) (`prd.md`, `architecture.md`, `epic-004.md`, `rapport-qualification-epic-004.md`).
+> Les stories 004-1 à 004-5 sont validées (paramétrabilité universelle LLM, levée des gardes ZEP_API_KEY, ingestion/graphe e2e, personas et simulation e2e, banc de qualification globale local-first et revues BMad — 632 tests verts).
+>
+> **Prochaine étape : Epic 005 (« Environnement Docker de référence — Docker-first »).**
 
 ---
 
@@ -77,7 +76,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**624 tests** — il doit grossir, jamais rétrécir.
+**632 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -302,7 +301,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 624 tests
+cd backend && uv run pytest tests/ -q                  # 632 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -351,7 +350,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 624 tests |
+| Tests | `backend/tests/` | pytest — 632 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -365,6 +364,7 @@ Variables d'environnement utiles :
 | Validation intégration | `backend/scripts/verifier_integration_graphiti.py` | test d'intégration réelle Graphiti + Neo4j local (003-5), critères C1-C6 |
 | Vérification ingestion | `backend/scripts/verifier_ingestion_graphiti.py` | test d'ingestion et construction de graphe local (004-3), critère C3 |
 | Vérification personas | `backend/scripts/verifier_personas_simulation_graphiti.py` | test d'extraction d'entités, personas et simulation (004-4), critère C4 |
+| Qualification globale | `backend/scripts/verifier_qualification_local_first.py` | test de qualification globale local-first et clôture Epic 004 (004-5), critères C1-C5 |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |

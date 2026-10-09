@@ -1,6 +1,6 @@
 # PRD — Epic 004 : Construire un graphe et simuler en local sans clé Zep (ADR 0001, ADR 0004)
 
-- **Statut** : `in-progress` · **Dépend de** : 001, 002, 003 · **Bloque** : 005, 006, 007
+- **Statut** : `done` · **Dépend de** : 001, 002, 003 · **Bloque** : 005, 006, 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 
 > L'Epic 001 a prouvé la viabilité de la chaîne Graphiti + Neo4j 5.26 + OpenCode Go à coût marginal nul.

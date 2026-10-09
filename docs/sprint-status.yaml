@@ -218,7 +218,7 @@ epics:
   - id: "004"
     slug: bascule-sans-zep
     titre: "Construire un graphe en local sans clé Zep"
-    statut: in-progress
+    statut: done
     plan: docs/plans/004-bascule-sans-zep
     depend_de: ["003"]
     pourquoi: >-
@@ -256,6 +256,12 @@ epics:
     # validé avec succès (critère C4 formellement satisfait : 4 personas >= 3, formats valides).
     # Suite de 10 nouveaux tests unitaires hermétiques (test_personas_simulation_graphiti.py,
     # test_verifier_personas_protocol.py). Revue BMad 4 couches validée avec 4 patchs appliqués. Filet global porté à 624 tests verts (+10).
+    # Story 004-5 (DONE) : banc de qualification globale local-first (backend/scripts/verifier_qualification_local_first.py)
+    # validant l'intégralité du cycle local-first sans clé Zep (100 % des critères C1 à C5 satisfaits) :
+    # 0 blocage API (C1), paramétrabilité universelle LLM et neutralité d'hôte (C2), graphe Neo4j réel construit (6 nœuds, 4 arêtes, C3),
+    # 6 personas Reddit JSON et Twitter CSV OASIS conformes et config de simulation complète (C4),
+    # filet étendu à 632 tests unitaires et d'intégration hermétiques au vert (+8 tests, test_verifier_qualification_protocol.py et revue BMad 5 patchs) (C5).
+    # Rapport de qualification consigné (rapport-qualification-epic-004.md) avec VERDICT GO. Epic 004 clos avec succès (5/5 stories done).
 
 
   - id: "005"
