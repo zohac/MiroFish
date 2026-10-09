@@ -50,6 +50,7 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture) est inté
 Preuve finale de bout en bout de l'application : documents → graphe Graphiti → personas → simulation → rapport, sans `ZEP_API_KEY`.
 - **Story 004-1 (done)** : Paramétrabilité universelle du LLM via `.env` (compatible OpenAI, gratuit ou payant). `Config.LLM_REASONING_EFFORT` déclaré et exposé, résolution des paramètres homogénéisée entre `LLMClient` et `MiroFishLLMClient`, neutralité stricte prouvée (aucun en-tête OpenCode vers OpenAI, DeepSeek, Groq ou Ollama), robustesse aux espaces parasites, transmission propre de `reasoning_effort` et suite de tests unitaires dédiée (+15 tests, revue BMad validée). Filet global porté à **577 tests verts**.
 - **Story 004-2 (done)** : Levée des gardes `ZEP_API_KEY` dans les routes API et les services métiers. Méthode helper centralisée `Config.requires_zep_api_key()` introduite (fail-closed), gardes bloquants inconditionnels supprimés dans `backend/app/api/graph.py` (`/build`, `/data`, `/delete`) et `backend/app/api/simulation.py` (`/entities`, `/entities/<uuid>`, `/entities/by-type`) au profit d'un contrôle conditionnel au mode `cloud`. Services métiers (`GraphBuilderService`, `ZepEntityReader`, `OasisProfileGenerator`, `ZepGraphMemoryUpdater`, `ZepToolsService`) alignés et documentés pour opérer sans clé en mode `graphiti`. Suite de 24 tests unitaires et d'API dédiée (`test_zep_api_key_guards.py`). Filet global porté à **601 tests verts** (+24 tests, revue BMad validée).
+- **Story 004-3 (done)** : Ingestion et construction de graphe de bout en bout avec `GraphitiGraphStore` et `GraphBuilderService`. Tâche asynchrone `/api/graph/build` validée de bout en bout avec transitions d'état du projet (`GRAPH_COMPLETED`), `TaskManager` et route de restitution `GET /api/graph/data/<graph_id>`. Banc d'ingestion réelle contre Neo4j local validé (`scripts/verifier_ingestion_graphiti.py`) avec critère C3 formellement satisfait (6 nœuds ≥ 5, 4 arêtes ≥ 3). Suite de 13 tests unitaires et de non-régression (`test_graph_builder_e2e.py`, `test_verifier_ingestion_graphiti.py`, revue BMad validée avec 5 patchs). Filet global porté à **614 tests verts** (+13 tests).
 
 ### Bilan consolidé de l'Epic 003 — GraphitiGraphStore et chemin de lecture (Clos — 562 tests verts)
 
@@ -252,8 +253,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 004-2** : Levée des gardes `ZEP_API_KEY` dans les routes API `/api/graph/` et `/api/simulation/` et les services associés lorsque `ZEP_BACKEND='graphiti'`.
-2. **Poursuivre avec la Story 004-3** : Pipeline d'ingestion et construction de graphe local sans clé Zep.
+1. **Démarrer la Story 004-4** : Génération des personas et configuration de simulation en local avec `GraphitiGraphStore` et `ZepEntityReader`.
+2. **Poursuivre avec la Story 004-5** : Exécution de simulation multi-agents et génération de rapport en mode local-first.
 
 ## Questions ouvertes
 
@@ -270,7 +271,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **571**, tous verts, **sans `.env`** (filet de tests post-Story 004-1 ; 562 avant Epic 004) |
+| Tests | **614**, tous verts, **sans `.env`** (filet de tests post-Story 004-3 ; 562 avant Epic 004) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

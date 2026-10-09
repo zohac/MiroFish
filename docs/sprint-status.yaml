@@ -239,6 +239,14 @@ epics:
     # GraphBuilderService, ZepEntityReader, OasisProfileGenerator, ZepGraphMemoryUpdater et
     # ZepToolsService s'instancient sans clé en mode graphiti. Suite de 24 tests unitaires et
     # d'API dédiée (test_zep_api_key_guards.py). Filet global porté à 601 tests verts (+24, revue BMad validée).
+    # Story 004-3 (DONE) : ingestion et construction de graphe de bout en bout avec
+    # GraphitiGraphStore et GraphBuilderService. Tâche asynchrone /api/graph/build validée
+    # de bout en bout avec transitions d'état du projet (GRAPH_COMPLETED), TaskManager et
+    # route de restitution GET /api/graph/data/<graph_id>. Banc d'ingestion réelle contre Neo4j
+    # local validé (scripts/verifier_ingestion_graphiti.py) avec critère C3 formellement
+    # satisfait (6 nœuds >= 5, 4 arêtes >= 3). Suite de 13 tests unitaires et de non-régression
+    # (test_graph_builder_e2e.py, test_verifier_ingestion_graphiti.py). Revue BMad validée (5 patchs).
+    # Filet global porté à 614 tests verts (+13).
 
   - id: "005"
     slug: docker-local
