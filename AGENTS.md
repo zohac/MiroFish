@@ -42,7 +42,7 @@ reproductible.**
 >
 > **L'epic 003 (« GraphitiGraphStore ») est en cours.**
 > Dossier de plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](docs/plans/003-chemin-de-lecture-graphiti/prd.md) (`prd.md`, `architecture.md`, `epic-003.md`).
-> Stories 003-1, 003-2, 003-3 et 003-4 validées (squelette `GraphitiGraphStore`, write pipeline, cycle de vie, lecture Cypher, voisinage, recherche hybride, adaptation `zep_entity_reader.py` et revues BMad — 555 tests verts). Prochaine story : **003-5** (validation d'intégration de bout en bout et clôture de l'Epic 003).
+> Stories 003-1, 003-2, 003-3 et 003-4 validées (squelette `GraphitiGraphStore`, write pipeline, cycle de vie, lecture Cypher, voisinage, recherche hybride, adaptation `zep_entity_reader.py` et revues BMad — 555 tests verts). Story en cours : **003-5** (validation d'intégration de bout en bout et clôture de l'Epic 003).
 
 ---
 

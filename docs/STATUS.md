@@ -50,7 +50,7 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en 
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
 Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Stories 003-1, 003-2, 003-3 et 003-4 achevées, relues et validées (555 tests verts). Prochaine story : **Story 003-5** (validation d'intégration de bout en bout et clôture de l'Epic 003).
+Stories 003-1, 003-2, 003-3 et 003-4 achevées, relues et validées (555 tests verts). En cours : **Story 003-5** (validation d'intégration de bout en bout et clôture de l'Epic 003).
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
