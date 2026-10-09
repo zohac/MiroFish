@@ -247,6 +247,16 @@ epics:
     # satisfait (6 nœuds >= 5, 4 arêtes >= 3). Suite de 13 tests unitaires et de non-régression
     # (test_graph_builder_e2e.py, test_verifier_ingestion_graphiti.py). Revue BMad validée (5 patchs).
     # Filet global porté à 614 tests verts (+13).
+    # Story 004-4 (DONE) : extraction d'entités, génération de personas et configuration
+    # de simulation sans Zep. ZepEntityReader extrait les entités typées et arêtes sans Zep,
+    # OasisProfileGenerator produit les profils personas Reddit JSON et Twitter CSV conformes
+    # aux spécifications OASIS, et SimulationConfigGenerator génère simulation_config.json.
+    # Route /api/simulation/create et méthode prepare_simulation opérationnelles sans clé Zep.
+    # Banc de vérification réelle contre Neo4j local (scripts/verifier_personas_simulation_graphiti.py)
+    # validé avec succès (critère C4 formellement satisfait : 4 personas >= 3, formats valides).
+    # Suite de 10 nouveaux tests unitaires hermétiques (test_personas_simulation_graphiti.py,
+    # test_verifier_personas_protocol.py). Revue BMad 4 couches validée avec 4 patchs appliqués. Filet global porté à 624 tests verts (+10).
+
 
   - id: "005"
     slug: docker-local

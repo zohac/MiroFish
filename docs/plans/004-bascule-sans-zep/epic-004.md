@@ -73,7 +73,7 @@ L'application MiroFish bloque encore l'utilisateur si `ZEP_API_KEY` est absente 
 | 004-1 | Paramétrabilité universelle du LLM et consolidation de `llm_compat.py` | `done` | [`story-004-1.md`](story-004-1.md) |
 | 004-2 | Levée des gardes `ZEP_API_KEY` dans les routes API et les services métiers | `done` | [`story-004-2.md`](story-004-2.md) |
 | 004-3 | Ingestion et construction de graphe de bout en bout avec `GraphitiGraphStore` | `done` | [`story-004-3.md`](story-004-3.md) |
-| 004-4 | Extraction d'entités, génération de personas et configuration de simulation sans Zep | `backlog` | [`story-004-4.md`](story-004-4.md) |
+| 004-4 | Extraction d'entités, génération de personas et configuration de simulation sans Zep | `done` | [`story-004-4.md`](story-004-4.md) |
 | 004-5 | Banc de test de qualification local-first et clôture de l'Epic 004 | `backlog` | [`story-004-5.md`](story-004-5.md) |
 
 | Story | Critères d'acceptation (résumé) |
