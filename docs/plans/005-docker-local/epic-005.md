@@ -70,7 +70,7 @@ L'application MiroFish dispose aujourd'hui d'un `docker-compose.yml` qui pointe 
 |---|---|---|---|
 | 005-1 | Dockerfiles dédiés backend et frontend construits depuis les sources locales | `done` | `story-005-1.md` |
 | 005-2 | `docker-compose.yml` unifié avec Neo4j, Backend, Frontend et Healthchecks | `done` | `story-005-2.md` |
-| 005-3 | Validation du filet global de tests (664 tests) et outillage sous Docker | `backlog` | `story-005-3.md` |
+| 005-3 | Validation du filet global de tests (664 tests) et outillage sous Docker | `done` | `story-005-3.md` |
 | 005-4 | Persistance des données Neo4j et cycle de vie des volumes | `backlog` | `story-005-4.md` |
 | 005-5 | Banc de qualification Docker de référence et clôture de l'Epic 005 | `backlog` | `story-005-5.md` |
 
@@ -78,7 +78,7 @@ L'application MiroFish dispose aujourd'hui d'un `docker-compose.yml` qui pointe 
 |---|---|
 | 005-1 | Given le code source du dépôt, when `docker build` est lancé pour le backend et le frontend, then les dépendances sont installées via `uv sync --locked` et `pnpm install --frozen-lockfile` ; les images sont générées sans erreur et sans secret inclus. |
 | 005-2 | Given le fichier `docker-compose.yml`, when `docker compose up -d` est exécuté, then les 3 services `neo4j`, `backend` et `frontend` démarrent sur `mirofish_network` ; `backend` attend que Neo4j soit `healthy` ; les ports hôtes sont exposés sans conflit. |
-| 005-3 | Given la stack Docker démarrée, when `docker compose run --rm backend uv run pytest tests/ -q` est exécuté, then 100 % des 664 tests passent au vert dans le conteneur ; `ruff check` et `validate_plans.py` s'exécutent sans erreur. |
+| 005-3 | Given la stack Docker démarrée, when `docker compose run --rm backend uv run pytest tests/ -q` est exécuté, then 100 % des tests (671 tests) passent au vert dans le conteneur ; `ruff check` et `validate_plans.py` s'exécutent sans erreur. |
 | 005-4 | Given un graphe créé dans Neo4j sous Docker, when un cycle `docker compose down && docker compose up -d` (sans `-v`) est exécuté, then les nœuds et arêtes du graphe sont 100 % préservés dans le volume `neo4j_data`. |
 | 005-5 | Given l'environnement Docker unifié opérationnel, when le script de qualification e2e est lancé dans le conteneur backend, then le pipeline complet s'exécute avec code retour 0 ; l'inspection des images confirme 0 secret ; l'Epic 005 est clos. |
 

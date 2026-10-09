@@ -290,6 +290,13 @@ epics:
     # Zéro secret en clair, injection sécurisée via env_file pour backend.
     # Suite de 13 nouveaux tests unitaires hermétiques (test_docker_compose_config.py).
     # Revue BMad 4 couches validée. Filet global porté à 664 tests verts (+13).
+    # Story 005-3 (DONE) : validation du filet global de tests (671 tests, 668 passants + 3 skipped
+    # sous Docker, 671 passants sur hôte) et de l'outillage de qualité (ruff check ., validate_plans.py)
+    # dans le conteneur de référence mirofish-backend:local. Inclusion des artefacts de gouvernance/docs
+    # et de l'exception !.env.example dans .dockerignore (racine et backend). Adaptation de test_pyproject_override.py
+    # pour environnement conteneurisé sans .git et test de repli dédié. Suite de 7 nouveaux tests unitaires
+    # hermétiques (test_docker_tooling_parity.py, test_pyproject_override.py). Revue BMad 4 couches validée
+    # (6 patchs appliqués). Filet global porté à 671 tests verts (+7).
 
   - id: "006"
     slug: migration-donnees-zep

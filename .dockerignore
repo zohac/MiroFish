@@ -1,6 +1,7 @@
 # Secrets et environnements sensibles (AGENTS.md §2.4, NFR-1)
 .env
 .env.*
+!.env.example
 *.env
 *.pem
 *.key

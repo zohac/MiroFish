@@ -29,9 +29,12 @@ COPY backend/pyproject.toml backend/uv.lock ./backend/
 # Installation des dépendances verrouillées (--locked garantit la conformité stricte au lockfile)
 RUN cd backend && uv sync --locked
 
-# Copie du code source backend et des ressources partagées (locales)
-COPY backend/ ./backend/
+# Copie du code source backend, des ressources partagées et des fichiers de documentation/gouvernance
+COPY docs/ ./docs/
 COPY locales/ ./locales/
+COPY AGENTS.md .env.example docker-compose.yml docker-compose.neo4j.yml .dockerignore ./
+COPY frontend/Dockerfile frontend/.dockerignore frontend/vite.config.js ./frontend/
+COPY backend/ ./backend/
 
 WORKDIR /app/backend
 

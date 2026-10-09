@@ -27,7 +27,7 @@ négatifs les rejouent sur des copies mutées : un garde-fou qu'on n'a jamais vu
 > interpréteur direct. On compare donc les octets **de l'index git** à
 > `UV_FROZEN=1`, dans un interpréteur séparé, sans résolution possible.
 """
-
+import os
 import re
 import subprocess
 import sys
@@ -424,18 +424,55 @@ def test_committed_lock_agrees_with_committed_pyproject():
     # découpage d'une exigence : une seconde implémentation ici dériverait, et
     # c'est précisément le défaut que ce test doit pouvoir voir.
     script = (
-        "import sys, tomllib, subprocess\n"
+        "import os, sys, tomllib, subprocess, shutil\n"
+        "from pathlib import Path\n"
         f"sys.path.insert(0, {str(BACKEND / 'tests')!r})\n"
         "import test_pyproject_override as helpers\n"
-        f"pyproject = tomllib.loads(subprocess.run(['git', 'show', ':{PYPROJECT.relative_to(REPO)}'],"
-        "capture_output=True, check=True).stdout.decode())\n"
-        f"lock = tomllib.loads(subprocess.run(['git', 'show', ':{LOCK_REL}'],"
-        "capture_output=True, check=True).stdout.decode())\n"
+        f"repo = Path({str(REPO)!r})\n"
+        "has_git = (repo / '.git').exists() and shutil.which('git') is not None\n"
+        "if has_git:\n"
+        "    try:\n"
+        f"        raw_pyproject = subprocess.run(['git', 'show', ':{PYPROJECT.relative_to(REPO)}'], cwd=repo, capture_output=True, check=True).stdout.decode()\n"
+        f"        raw_lock = subprocess.run(['git', 'show', ':{LOCK_REL}'], cwd=repo, capture_output=True, check=True).stdout.decode()\n"
+        "    except Exception:\n"
+        f"        raw_pyproject = Path({str(PYPROJECT)!r}).read_text(encoding='utf-8')\n"
+        f"        raw_lock = Path({str(LOCK)!r}).read_text(encoding='utf-8')\n"
+        "else:\n"
+        f"    raw_pyproject = Path({str(PYPROJECT)!r}).read_text(encoding='utf-8')\n"
+        f"    raw_lock = Path({str(LOCK)!r}).read_text(encoding='utf-8')\n"
+        "pyproject = tomllib.loads(raw_pyproject)\n"
+        "lock = tomllib.loads(raw_lock)\n"
         "declared = helpers.overrides_of(pyproject)\n"
         "problems = helpers.manifest_problems(lock, declared)\n"
         "print('MATCH' if not problems else 'DRIFT ' + ' | '.join(problems))\n"
     )
-    env = {"UV_FROZEN": "1", "PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(Path.home())}
+    env = dict(os.environ)
+    env["UV_FROZEN"] = "1"
+    done = subprocess.run(
+        [sys.executable, "-c", script], cwd=REPO, env=env, capture_output=True, text=True
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "MATCH", done.stdout.strip()
+
+
+def test_committed_lock_agrees_with_committed_pyproject_fallback_without_git():
+    """Vérifie que la comparaison pyproject/lock fonctionne via le fallback direct sur fichiers quand git est absent."""
+    script = (
+        "import os, sys, tomllib, subprocess\n"
+        "from pathlib import Path\n"
+        f"sys.path.insert(0, {str(BACKEND / 'tests')!r})\n"
+        "import test_pyproject_override as helpers\n"
+        "has_git = False\n"
+        f"raw_pyproject = Path({str(PYPROJECT)!r}).read_text(encoding='utf-8')\n"
+        f"raw_lock = Path({str(LOCK)!r}).read_text(encoding='utf-8')\n"
+        "pyproject = tomllib.loads(raw_pyproject)\n"
+        "lock = tomllib.loads(raw_lock)\n"
+        "declared = helpers.overrides_of(pyproject)\n"
+        "problems = helpers.manifest_problems(lock, declared)\n"
+        "print('MATCH' if not problems else 'DRIFT ' + ' | '.join(problems))\n"
+    )
+    env = dict(os.environ)
+    env["UV_FROZEN"] = "1"
     done = subprocess.run(
         [sys.executable, "-c", script], cwd=REPO, env=env, capture_output=True, text=True
     )
