@@ -1,8 +1,8 @@
-"""Tests unitaires hermétiques pour GraphitiGraphStore (Stories 003-1 et 003-2).
+"""Tests unitaires hermétiques pour GraphitiGraphStore (Stories 003-1, 003-2 et 003-3).
 
 Valide l'instanciation, le respect du contrat d'interface GraphStore (14 méthodes),
-la validation de configuration et d'environnement, le cross-encoder local,
-la passerelle d'exécution synchrone/asynchrone thread-safe et la traduction des erreurs.
+la validation de configuration et d'environnement, le cycle de vie, l'ingestion d'épisodes,
+la lecture Cypher, les parcours de voisinage, l'agrégation API et la recherche hybride.
 """
 
 from __future__ import annotations
@@ -260,59 +260,6 @@ class TestGraphitiGraphStoreContract:
         with pytest.raises(GraphValidationError):
             store_with_mocks.search(graph_id="g1", query="test", scope="invalid_scope")
 
-    def test_remaining_stubs_for_story_003_3_raise_not_implemented_error(self, store_with_mocks):
-        """Les méthodes de lecture et recherche (Story 003-3) lèvent NotImplementedError explicite."""
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_all_nodes(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_all_edges(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_node(graph_id="g-1", node_uuid="n-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_node_edges(graph_id="g-1", node_uuid="n-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_graph_data(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_graph_info(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.search(graph_id="g-1", query="test")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_all_edges(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_node(graph_id="g-1", node_uuid="n-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_node_edges(graph_id="g-1", node_uuid="n-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_graph_data(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.get_graph_info(graph_id="g-1")
-        assert "003-3" in str(exc.value)
-
-        with pytest.raises(NotImplementedError) as exc:
-            store_with_mocks.search(graph_id="g-1", query="test")
-        assert "003-3" in str(exc.value)
 
 
 class TestLocalPassthroughCrossEncoder:
@@ -874,3 +821,659 @@ class TestGraphitiStrictPartitioningIsolation:
         store_with_mocks.wait_for_episodes("group_A", ["ep-x"])
         params = mock_dependencies["driver"].execute_query.call_args.kwargs["params"]
         assert params["group_id"] == "group_A"
+
+    def test_get_all_nodes_strictly_bound_to_group_id(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_all_nodes filtre strictement sur group_id = graph_id en Cypher (Critère C2)."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        store_with_mocks.get_all_nodes("sim-iso-nodes")
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert "n.group_id = $group_id" in call_args[0][0]
+        assert call_args[1]["params"]["group_id"] == "sim-iso-nodes"
+
+    def test_get_all_edges_strictly_bound_to_group_id(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_all_edges filtre source et target sur group_id = graph_id en Cypher (Critère C2)."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        store_with_mocks.get_all_edges("sim-iso-edges")
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        cypher = call_args[0][0]
+        assert "source.group_id = $group_id" in cypher
+        assert "target.group_id = $group_id" in cypher
+        assert call_args[1]["params"]["group_id"] == "sim-iso-edges"
+
+    def test_get_node_strictly_bound_to_group_id(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_node contraint la recherche au group_id cible (Critère C2)."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        store_with_mocks.get_node("sim-iso-node", "node-uuid-1")
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert "group_id: $group_id" in call_args[0][0]
+        assert call_args[1]["params"]["group_id"] == "sim-iso-node"
+        assert call_args[1]["params"]["node_uuid"] == "node-uuid-1"
+
+    def test_get_node_edges_strictly_bound_to_group_id(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_node_edges contraint le nœud et ses voisins au group_id cible (Critère C2)."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        store_with_mocks.get_node_edges("sim-iso-neighbors", "node-uuid-1")
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        cypher = call_args[0][0]
+        assert "n:Entity {uuid: $node_uuid, group_id: $group_id}" in cypher
+        assert "neighbor:Entity {group_id: $group_id}" in cypher
+        assert call_args[1]["params"]["group_id"] == "sim-iso-neighbors"
+
+    def test_search_strictly_bound_to_group_id(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """search transmet obligatoirement group_ids=[graph_id] et filtre en Cypher (Critère C2)."""
+        mock_dependencies["graphiti"].search = MagicMock(return_value=[])
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+
+        store_with_mocks.search("sim-iso-search", "energie", scope="hybrid")
+        mock_dependencies["graphiti"].search.assert_called_once_with(
+            query="energie", group_ids=["sim-iso-search"], num_results=10
+        )
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert call_args[1]["params"]["group_id"] == "sim-iso-search"
+
+
+class TestGraphitiGraphStoreNodesReading:
+    """Tests unitaires de la lecture des nœuds dans GraphitiGraphStore (Story 003-3)."""
+
+    def test_get_all_nodes_success_with_attributes_and_labels(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_all_nodes convertit fidèlement les enregistrements Cypher en GraphNode neutres."""
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[
+                {
+                    "uuid": "node-1",
+                    "name": "Jean Dupont",
+                    "summary": "Député rapporteur de la loi climat.",
+                    "labels": ["Entity", "Politician"],
+                    "created_at": "2026-10-06T10:00:00+00:00",
+                    "attributes": {"circonscription": "Paris 1ère", "age": 45},
+                },
+                {
+                    "uuid": "node-2",
+                    "name": "Ministère de l'Écologie",
+                    "summary": "Institution gouvernementale.",
+                    "labels": ["Entity", "Institution"],
+                    "created_at": None,
+                    "attributes": {},
+                },
+            ]
+        )
+
+        nodes = store_with_mocks.get_all_nodes("sim-climat-01")
+        assert len(nodes) == 2
+
+        n1 = nodes[0]
+        assert isinstance(n1, GraphNode)
+        assert n1.uuid == "node-1"
+        assert n1.name == "Jean Dupont"
+        assert n1.summary == "Député rapporteur de la loi climat."
+        assert n1.labels == ["Entity", "Politician"]
+        assert n1.get_entity_type() == "Politician"
+        assert n1.created_at == "2026-10-06T10:00:00+00:00"
+        assert n1.attributes == {"circonscription": "Paris 1ère", "age": 45}
+
+        n2 = nodes[1]
+        assert n2.uuid == "node-2"
+        assert n2.name == "Ministère de l'Écologie"
+        assert n2.get_entity_type() == "Institution"
+        assert n2.created_at is None
+
+        # Vérification de l'appel Cypher
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert "n.group_id = $group_id" in call_args[0][0]
+        assert call_args[1]["params"]["group_id"] == "sim-climat-01"
+
+    def test_get_all_nodes_empty_result(self, store_with_mocks, mock_dependencies):
+        """get_all_nodes retourne une liste vide si aucun nœud n'appartient au graphe."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        nodes = store_with_mocks.get_all_nodes("sim-empty")
+        assert nodes == []
+
+    def test_get_all_nodes_error_translation(self, store_with_mocks, mock_dependencies):
+        """get_all_nodes traduit les erreurs Neo4j en GraphStoreError."""
+        mock_dependencies["driver"].execute_query = MagicMock(
+            side_effect=RuntimeError("Database failure")
+        )
+        with pytest.raises(GraphStoreError) as exc:
+            store_with_mocks.get_all_nodes("sim-err")
+        assert "Database failure" in str(exc.value)
+
+
+class TestGraphitiGraphStoreEdgesReading:
+    """Tests unitaires de l'extraction des arêtes et temporalité dans GraphitiGraphStore (Story 003-3)."""
+
+    def test_get_all_edges_with_temporal_fields(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_all_edges extrait les 4 métadonnées temporelles et les convertit en GraphEdge (Critère C3)."""
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[
+                {
+                    "uuid": "edge-1",
+                    "source_node_uuid": "node-1",
+                    "target_node_uuid": "node-2",
+                    "source_node_name": "Jean Dupont",
+                    "target_node_name": "Commission",
+                    "relation_type": "MEMBRE_DE",
+                    "name": "MEMBRE_DE",
+                    "fact": "Jean Dupont est nommé membre de la Commission.",
+                    "fact_type": "MEMBRE_DE",
+                    "episodes": ["ep-101", "ep-102"],
+                    "created_at": "2026-10-06T10:00:00+00:00",
+                    "valid_at": "2026-10-06T10:00:00+00:00",
+                    "invalid_at": "2026-10-07T18:00:00+00:00",
+                    "expired_at": None,
+                    "attributes": {"confidence": 0.95},
+                }
+            ]
+        )
+
+        edges = store_with_mocks.get_all_edges("sim-climat-01", include_temporal=True)
+        assert len(edges) == 1
+
+        e = edges[0]
+        assert isinstance(e, GraphEdge)
+        assert e.uuid == "edge-1"
+        assert e.source_node_uuid == "node-1"
+        assert e.target_node_uuid == "node-2"
+        assert e.source_node_name == "Jean Dupont"
+        assert e.target_node_name == "Commission"
+        assert e.name == "MEMBRE_DE"
+        assert e.fact == "Jean Dupont est nommé membre de la Commission."
+        assert e.episodes == ["ep-101", "ep-102"]
+        assert e.created_at == "2026-10-06T10:00:00+00:00"
+        assert e.valid_at == "2026-10-06T10:00:00+00:00"
+        assert e.invalid_at == "2026-10-07T18:00:00+00:00"
+        assert e.expired_at is None
+        assert e.is_invalid is True
+        assert e.is_expired is False
+
+        # Vérification sérialisation avec temporalité
+        data = e.to_dict(include_temporal=True)
+        assert data["valid_at"] == "2026-10-06T10:00:00+00:00"
+        assert data["invalid_at"] == "2026-10-07T18:00:00+00:00"
+
+    def test_get_all_edges_without_temporal_fields(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_all_edges avec include_temporal=False omet les horodatages temporels."""
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[
+                {
+                    "uuid": "edge-2",
+                    "source_node_uuid": "node-A",
+                    "target_node_uuid": "node-B",
+                    "source_node_name": "A",
+                    "target_node_name": "B",
+                    "relation_type": "SUPPORTS",
+                    "name": "SUPPORTS",
+                    "fact": "A supporte B",
+                    "fact_type": "SUPPORTS",
+                    "episodes": [],
+                    "created_at": "2026-10-06T10:00:00+00:00",
+                    "valid_at": "2026-10-06T10:00:00+00:00",
+                    "invalid_at": None,
+                    "expired_at": None,
+                    "attributes": {},
+                }
+            ]
+        )
+
+        edges = store_with_mocks.get_all_edges("sim-climat-01", include_temporal=False)
+        assert len(edges) == 1
+        e = edges[0]
+        assert e.created_at is None
+        assert e.valid_at is None
+        assert e.invalid_at is None
+        assert e.expired_at is None
+
+    def test_get_all_edges_empty_result(self, store_with_mocks, mock_dependencies):
+        """get_all_edges retourne une liste vide si aucune arête n'existe."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        edges = store_with_mocks.get_all_edges("sim-no-edges")
+        assert edges == []
+
+
+class TestGraphitiGraphStoreNodeAndNeighborhood:
+    """Tests unitaires de récupération ponctuelle et parcours de voisinage (Story 003-3)."""
+
+    def test_get_node_existing_with_neighborhood_edges(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_node retourne le GraphNode enrichi de l'ensemble de ses arêtes incidentes."""
+        # 1er appel : MATCH (n:Entity {uuid: ...})
+        node_record = {
+            "uuid": "target-node-1",
+            "name": "Énergie Solaire",
+            "summary": "Filière renouvelable prioritaire.",
+            "labels": ["Entity", "Sector"],
+            "created_at": "2026-10-06T12:00:00+00:00",
+            "attributes": {"capacité_mw": 15000},
+        }
+
+        # 2ème appel : get_node_edges -> MATCH (n)-[r]-(neighbor)
+        edge_record = {
+            "uuid": "edge-solar-1",
+            "source_node_uuid": "target-node-1",
+            "target_node_uuid": "investor-node-2",
+            "source_node_name": "Énergie Solaire",
+            "target_node_name": "Fonds Vert",
+            "relation_type": "FINANCE_PAR",
+            "name": "FINANCE_PAR",
+            "fact": "La filière solaire est financée par le Fonds Vert.",
+            "fact_type": "FINANCE_PAR",
+            "episodes": ["ep-1"],
+            "created_at": "2026-10-06T12:00:00+00:00",
+            "valid_at": "2026-10-06T12:00:00+00:00",
+            "invalid_at": None,
+            "expired_at": None,
+            "attributes": {},
+        }
+
+        mock_dependencies["driver"].execute_query = MagicMock(
+            side_effect=[[node_record], [edge_record]]
+        )
+
+        node = store_with_mocks.get_node("sim-energy", "target-node-1")
+        assert node is not None
+        assert isinstance(node, GraphNode)
+        assert node.uuid == "target-node-1"
+        assert node.name == "Énergie Solaire"
+        assert len(node.related_edges) == 1
+        assert node.related_edges[0]["uuid"] == "edge-solar-1"
+        assert node.related_edges[0]["fact"] == "La filière solaire est financée par le Fonds Vert."
+
+    def test_get_node_not_found_returns_none(self, store_with_mocks, mock_dependencies):
+        """get_node retourne None si le nœud n'existe pas dans le graphe spécifié."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        node = store_with_mocks.get_node("sim-energy", "non-existent-uuid")
+        assert node is None
+
+    def test_get_node_edges_both_directions(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_node_edges collecte à la fois les arêtes entrantes et sortantes."""
+        edge_in = {
+            "uuid": "e-in",
+            "source_node_uuid": "other-node",
+            "target_node_uuid": "center-node",
+            "source_node_name": "Other",
+            "target_node_name": "Center",
+            "relation_type": "ATTAQUE",
+            "name": "ATTAQUE",
+            "fact": "Other attaque Center",
+            "fact_type": "ATTAQUE",
+            "episodes": [],
+            "created_at": None,
+            "valid_at": None,
+            "invalid_at": None,
+            "expired_at": None,
+            "attributes": {},
+        }
+        edge_out = {
+            "uuid": "e-out",
+            "source_node_uuid": "center-node",
+            "target_node_uuid": "ally-node",
+            "source_node_name": "Center",
+            "target_node_name": "Ally",
+            "relation_type": "ALLIE_AVEC",
+            "name": "ALLIE_AVEC",
+            "fact": "Center est allié avec Ally",
+            "fact_type": "ALLIE_AVEC",
+            "episodes": [],
+            "created_at": None,
+            "valid_at": None,
+            "invalid_at": None,
+            "expired_at": None,
+            "attributes": {},
+        }
+
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[edge_in, edge_out]
+        )
+
+        edges = store_with_mocks.get_node_edges("sim-scope", "center-node")
+        assert len(edges) == 2
+        assert edges[0].uuid == "e-in"
+        assert edges[1].uuid == "e-out"
+
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert "-[r]-(neighbor:Entity" in call_args[0][0]
+        assert call_args[1]["params"]["node_uuid"] == "center-node"
+        assert call_args[1]["params"]["group_id"] == "sim-scope"
+
+
+class TestGraphitiGraphStoreDataAndInfoAggregation:
+    """Tests unitaires de consolidation pour l'API et statistiques globales (Story 003-3)."""
+
+    def test_get_graph_data_structure_and_retrocompatibility(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_graph_data retourne un dictionnaire complet respectant le format API/frontend."""
+        nodes_record = [
+            {
+                "uuid": "n-1",
+                "name": "Alice",
+                "summary": "Chercheuse",
+                "labels": ["Entity", "Person"],
+                "created_at": "2026-10-06T10:00:00+00:00",
+                "attributes": {},
+            }
+        ]
+        edges_record = [
+            {
+                "uuid": "e-1",
+                "source_node_uuid": "n-1",
+                "target_node_uuid": "n-2",
+                "source_node_name": "Alice",
+                "target_node_name": "Labo",
+                "relation_type": "TRAVAILLE_POUR",
+                "name": "TRAVAILLE_POUR",
+                "fact": "Alice travaille pour Labo",
+                "fact_type": "TRAVAILLE_POUR",
+                "episodes": [],
+                "created_at": "2026-10-06T10:00:00+00:00",
+                "valid_at": "2026-10-06T10:00:00+00:00",
+                "invalid_at": None,
+                "expired_at": None,
+                "attributes": {},
+            }
+        ]
+
+        mock_dependencies["driver"].execute_query = MagicMock(
+            side_effect=[nodes_record, edges_record]
+        )
+
+        data = store_with_mocks.get_graph_data("sim-data-01")
+
+        assert data["graph_id"] == "sim-data-01"
+        assert len(data["nodes"]) == 1
+        assert len(data["edges"]) == 1
+        assert data["node_count"] == 1
+        assert data["edge_count"] == 1
+        assert data["statistics"] == {"node_count": 1, "edge_count": 1}
+
+        # Vérification du contenu des nœuds et arêtes sérialisés
+        assert data["nodes"][0]["name"] == "Alice"
+        assert data["edges"][0]["fact"] == "Alice travaille pour Labo"
+        assert data["edges"][0]["valid_at"] == "2026-10-06T10:00:00+00:00"
+
+    def test_get_graph_info_extracts_domain_entity_types(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """get_graph_info extrait les types d'entités réels en excluant les labels génériques."""
+        nodes_record = [
+            {
+                "uuid": "n-1",
+                "name": "Alpha",
+                "summary": "",
+                "labels": ["Entity", "Company", "Node"],
+                "created_at": None,
+                "attributes": {},
+            },
+            {
+                "uuid": "n-2",
+                "name": "Beta",
+                "summary": "",
+                "labels": ["Entity", "Government"],
+                "created_at": None,
+                "attributes": {},
+            },
+        ]
+        edges_record = []
+
+        mock_dependencies["driver"].execute_query = MagicMock(
+            side_effect=[nodes_record, edges_record]
+        )
+
+        info = store_with_mocks.get_graph_info("sim-info-01")
+        assert isinstance(info, GraphInfo)
+        assert info.graph_id == "sim-info-01"
+        assert info.node_count == 2
+        assert info.edge_count == 0
+        assert info.entity_types == ["Company", "Government"]
+
+
+class TestGraphitiGraphStoreSearch:
+    """Tests unitaires de la recherche hybride et sémantique (Story 003-3)."""
+
+    def test_search_edges_scope_invokes_graphiti_search_and_enriches_names(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """search avec scope='edges' interroge Graphiti, résout les noms et retourne GraphSearchResult."""
+        fake_edge = {
+            "uuid": "search-edge-1",
+            "source_node_uuid": "s-1",
+            "target_node_uuid": "t-1",
+            "name": "FINANCE",
+            "fact": "La banque finance le projet d'éoliennes.",
+            "fact_type": "FINANCE",
+            "created_at": "2026-10-06T10:00:00+00:00",
+            "valid_at": "2026-10-06T10:00:00+00:00",
+            "invalid_at": None,
+            "expired_at": None,
+            "episodes": ["ep-1"],
+            "attributes": {},
+        }
+        mock_dependencies["graphiti"].search = MagicMock(return_value=[fake_edge])
+
+        # Requête Cypher pour résoudre les noms s-1 et t-1
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[
+                {"uuid": "s-1", "name": "Banque Publique"},
+                {"uuid": "t-1", "name": "Projet Éolien"},
+            ]
+        )
+
+        res = store_with_mocks.search(
+            graph_id="sim-search-01",
+            query="financement éolien",
+            limit=5,
+            scope="edges",
+        )
+
+        assert isinstance(res, GraphSearchResult)
+        assert res.query == "financement éolien"
+        assert res.total_count == 1
+        assert res.facts == ["La banque finance le projet d'éoliennes."]
+        assert len(res.edges) == 1
+        assert res.edges[0].source_node_name == "Banque Publique"
+        assert res.edges[0].target_node_name == "Projet Éolien"
+        assert res.nodes == []
+
+        mock_dependencies["graphiti"].search.assert_called_once_with(
+            query="financement éolien",
+            group_ids=["sim-search-01"],
+            num_results=5,
+        )
+
+    def test_search_nodes_scope_executes_cypher_text_matching(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """search avec scope='nodes' exécute une recherche Cypher sur les nœuds du groupe."""
+        mock_dependencies["driver"].execute_query = MagicMock(
+            return_value=[
+                {
+                    "uuid": "node-turbine",
+                    "name": "Turbine Offshore",
+                    "summary": "Équipement éolien en mer.",
+                    "labels": ["Entity", "Technology"],
+                    "created_at": "2026-10-06T10:00:00+00:00",
+                    "attributes": {},
+                }
+            ]
+        )
+
+        res = store_with_mocks.search(
+            graph_id="sim-search-02",
+            query="turbine",
+            limit=10,
+            scope="nodes",
+        )
+
+        assert isinstance(res, GraphSearchResult)
+        assert res.query == "turbine"
+        assert res.total_count == 1
+        assert res.facts == []
+        assert res.edges == []
+        assert len(res.nodes) == 1
+        assert res.nodes[0].name == "Turbine Offshore"
+
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        assert "toLower(coalesce(n.name, '')) CONTAINS toLower($query)" in call_args[0][0]
+        assert call_args[1]["params"]["group_id"] == "sim-search-02"
+        assert call_args[1]["params"]["query"] == "turbine"
+
+    def test_search_hybrid_scope_combines_edges_facts_and_nodes(
+        self, store_with_mocks, mock_dependencies
+    ):
+        """search avec scope='hybrid' agrège facts, edges et nodes avec total_count combiné."""
+        fake_edge = {
+            "uuid": "e-hyb",
+            "source_node_uuid": "s-1",
+            "target_node_uuid": "t-1",
+            "name": "PRODUIT",
+            "fact": "Le réacteur produit 1 GW.",
+            "fact_type": "PRODUIT",
+            "episodes": [],
+        }
+        mock_dependencies["graphiti"].search = MagicMock(return_value=[fake_edge])
+
+        node_name_resolution = [{"uuid": "s-1", "name": "Réacteur"}, {"uuid": "t-1", "name": "Électricité"}]
+        node_search_result = [
+            {
+                "uuid": "n-reacteur",
+                "name": "Réacteur EPR",
+                "summary": "Centrale nucléaire.",
+                "labels": ["Entity", "Infrastructure"],
+                "created_at": None,
+                "attributes": {},
+            }
+        ]
+
+        mock_dependencies["driver"].execute_query = MagicMock(
+            side_effect=[node_name_resolution, node_search_result]
+        )
+
+        res = store_with_mocks.search(
+            graph_id="sim-hybrid",
+            query="réacteur",
+            limit=5,
+            scope="hybrid",
+        )
+
+        assert isinstance(res, GraphSearchResult)
+        assert len(res.facts) == 1
+        assert len(res.edges) == 1
+        assert len(res.nodes) == 1
+        assert res.total_count == 2  # 1 fact + 1 node
+
+    def test_search_error_translation(self, store_with_mocks, mock_dependencies):
+        """search traduit les erreurs internes en GraphStoreError."""
+        mock_dependencies["graphiti"].search = MagicMock(
+            side_effect=RuntimeError("Search backend failure")
+        )
+        with pytest.raises(GraphStoreError) as exc:
+            store_with_mocks.search(graph_id="sim-err", query="test")
+        assert "Search backend failure" in str(exc.value)
+
+
+class TestGraphitiReviewPatchesStory003_3:
+    """Tests unitaires hermétiques validant les correctifs de la revue BMad (Story 003-3)."""
+
+    def test_record_to_graph_node_filters_system_keys_and_embeddings(self):
+        """_record_to_graph_node exclut name_embedding, group_id, uuid etc. de attributes (Patch 1)."""
+        raw_record = {
+            "uuid": "n-emb",
+            "name": "Station",
+            "summary": "Centrale électrique",
+            "labels": ["Entity", "Infrastructure"],
+            "created_at": "2026-10-06T10:00:00+00:00",
+            "attributes": {
+                "uuid": "n-emb",
+                "name": "Station",
+                "name_embedding": [0.123, -0.456] * 192,
+                "group_id": "sim-emb",
+                "summary": "Centrale électrique",
+                "created_at": "2026-10-06T10:00:00+00:00",
+                "puissance_mw": 500,
+                "region": "Occitanie",
+            },
+        }
+        node = GraphitiGraphStore._record_to_graph_node(raw_record)
+        assert node.uuid == "n-emb"
+        assert node.name == "Station"
+        assert "name_embedding" not in node.attributes
+        assert "group_id" not in node.attributes
+        assert "uuid" not in node.attributes
+        assert node.attributes == {"puissance_mw": 500, "region": "Occitanie"}
+
+    def test_record_to_graph_edge_filters_system_keys_and_embeddings(self):
+        """_record_to_graph_edge exclut fact_embedding, group_id etc. de attributes (Patch 1)."""
+        raw_record = {
+            "uuid": "e-emb",
+            "source_node_uuid": "s-1",
+            "target_node_uuid": "t-1",
+            "name": "ALIMENTE",
+            "fact": "La station alimente la ville",
+            "attributes": {
+                "uuid": "e-emb",
+                "fact_embedding": [0.321, 0.654] * 192,
+                "group_id": "sim-emb",
+                "fact": "La station alimente la ville",
+                "tension_kv": 400,
+            },
+        }
+        edge = GraphitiGraphStore._record_to_graph_edge(raw_record)
+        assert edge.uuid == "e-emb"
+        assert "fact_embedding" not in edge.attributes
+        assert "group_id" not in edge.attributes
+        assert "fact" not in edge.attributes
+        assert edge.attributes == {"tension_kv": 400}
+
+    def test_record_to_graph_edge_handles_tuple_and_set_episodes(self):
+        """_record_to_graph_edge désérialise les épisodes sous forme de tuple ou set (Patch 2)."""
+        record_tuple = {
+            "uuid": "e-tup",
+            "episodes": ("ep-1", "ep-2"),
+        }
+        edge_tup = GraphitiGraphStore._record_to_graph_edge(record_tuple)
+        assert edge_tup.episodes == ["ep-1", "ep-2"]
+
+        record_single = {
+            "uuid": "e-single",
+            "episodes": "ep-lone",
+        }
+        edge_single = GraphitiGraphStore._record_to_graph_edge(record_single)
+        assert edge_single.episodes == ["ep-lone"]
+
+    def test_search_rejects_boolean_limit(self, store_with_mocks):
+        """search rejette explicitement limit=True ou False avec GraphValidationError (Patch 4)."""
+        with pytest.raises(GraphValidationError) as exc:
+            store_with_mocks.search(graph_id="g1", query="energie", limit=True)
+        assert "limit doit être un entier strictement positif" in str(exc.value)
+
+        with pytest.raises(GraphValidationError) as exc:
+            store_with_mocks.search(graph_id="g1", query="energie", limit=False)
+        assert "limit doit être un entier strictement positif" in str(exc.value)
+
+    def test_search_nodes_uses_coalesce_in_cypher(self, store_with_mocks, mock_dependencies):
+        """search avec scope='nodes' inclut coalesce(..., '') dans la requête Cypher (Patch 3)."""
+        mock_dependencies["driver"].execute_query = MagicMock(return_value=[])
+        store_with_mocks.search(graph_id="g1", query="eolien", scope="nodes")
+        call_args = mock_dependencies["driver"].execute_query.call_args
+        cypher = call_args[0][0]
+        assert "coalesce(n.name, '')" in cypher
+        assert "coalesce(n.summary, '')" in cypher
+

@@ -190,6 +190,15 @@ epics:
     # tests unitaires hermétiques dans test_graphiti_graph_store.py (50 tests sur le
     # fichier). Revue BMad 4 couches validée (5 patchs appliqués). Filet porté à
     # 521 tests verts (+27).
+    # Story 003-3 (DONE) : implémentation de la lecture Cypher (get_all_nodes,
+    # get_all_edges), des parcours de voisinage (get_node, get_node_edges),
+    # de l'agrégation pour l'API / frontend (get_graph_data, get_graph_info)
+    # et de la recherche hybride temporelle (search avec scopes edges, nodes,
+    # hybrid). Respect strict de la temporalité (valid_at, invalid_at, expired_at,
+    # created_at), résolution des noms de nœuds connectés, partitionnement étanche
+    # group_id = graph_id sur 100 % des requêtes Cypher et 24 nouveaux tests
+    # unitaires hermétiques dans test_graphiti_graph_store.py (74 tests sur le fichier).
+    # Revue BMad 4 couches validée (6 patchs appliqués). Filet global porté à 545 tests verts (+24).
 
   - id: "004"
     slug: bascule-sans-zep

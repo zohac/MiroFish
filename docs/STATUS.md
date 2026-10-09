@@ -24,7 +24,7 @@ dans le code applicatif. Le filet global atteint **470 tests verts** (100 % pass
 L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en cours :
 - **Story 003-1 (done)** : squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, constructeur à injection de dépendances, résolution de variables d'environnement, passerelle synchrone/asynchrone thread-safe `_run_async`, activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). Suite de 23 tests unitaires hermétiques (`test_graphiti_graph_store.py`). Filet porté à **494 tests verts** (+24).
 - **Story 003-2 (done)** : implémentation du cycle de vie (`create_graph`, `delete_graph`, `set_ontology`) et de l'ingestion d'épisodes (`add_episode`, `add_text_batch`, `wait_for_batch`, `wait_for_episodes`) avec partitionnement strict par `group_id = graph_id` (Critère C2, NFR-3). Validation de l'isolation étanche entre graphes, normalisation ISO 8601 UTC ('Z'/'z'), optimisation Cypher indexé `:Episodic` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). 27 nouveaux tests unitaires dans `test_graphiti_graph_store.py` (50 tests sur le fichier). Filet porté à **521 tests verts** (+27).
-- **Story 003-3 (in-progress)** : implémentation de la lecture Cypher (`get_all_nodes`, `get_all_edges`), des parcours de voisinage (`get_node`, `get_node_edges`) et de la recherche hybride temporelle (`search`).
+- **Story 003-3 (done)** : implémentation de la lecture Cypher (`get_all_nodes`, `get_all_edges`), des parcours de voisinage (`get_node`, `get_node_edges`), de l'agrégation API (`get_graph_data`, `get_graph_info`) et de la recherche hybride temporelle (`search` avec scopes `edges`, `nodes`, `hybrid`). Préservation intégrale de la temporalité (C3, NFR-4), résolution des noms de nœuds connectés, partitionnement étanche `group_id` sur toutes les requêtes Cypher et revue contradictoire BMad 4 couches validée (6 patchs appliqués). 24 nouveaux tests unitaires dans `test_graphiti_graph_store.py` (74 tests sur le fichier). Filet porté à **545 tests verts** (+24).
 
 ## Fait
 
@@ -42,12 +42,13 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en 
 | Interface `GraphStore` (Epic 002) : 6 stories validées, ZepGraphStore, factory, refactoring services/api, tests AST d'isolation (470 tests verts) | [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md) |
 | Squelette `GraphitiGraphStore` (Story 003-1) : contrat 14 méthodes, injection, async bridge, factory active, revue BMad (494 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-1.md) |
 | Cycle de vie et ingestion `GraphitiGraphStore` (Story 003-2) : partitionnement `group_id`, write pipeline, revue BMad, 50 tests (521 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-2.md) |
+| Lecture Cypher et recherche `GraphitiGraphStore` (Story 003-3) : lecture, voisinage, agrégation, recherche hybride, 74 tests, revue BMad (545 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-3.md) |
 
 ## En cours
 
 **Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
 Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Stories 003-1 et 003-2 achevées, relues et validées (521 tests verts). En cours : Story 003-3 (cadrée, implémentation de la lecture Cypher et recherche hybride).
+Stories 003-1, 003-2 et 003-3 achevées, relues et validées (540 tests verts). En cours : Story 003-4 (adaptation du chemin de lecture `zep_entity_reader.py` pour les entités génériques Graphiti).
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
@@ -242,8 +243,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 003-2** : Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` (`create_graph`, `delete_graph`, `add_episode`, `add_text_batch`, `set_ontology`).
-2. Implémenter la lecture Cypher et recherche hybride temporelle (story 003-3).
+1. **Démarrer la Story 003-4** : Adaptation du chemin de lecture (`zep_entity_reader.py`) pour exploiter les entités portant le label générique `:Entity` de Graphiti sans ontologie custom (ADR 0003).
+2. Clôturer l'Epic 003 avec les tests d'intégration réels sur Neo4j local (Story 003-5).
 
 ## Questions ouvertes
 
@@ -260,7 +261,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **491**, tous verts, **sans `.env`** (filet de tests post-Story 003-1 ; 470 avant Epic 003) |
+| Tests | **545**, tous verts, **sans `.env`** (filet de tests post-Story 003-3 ; 470 avant Epic 003) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

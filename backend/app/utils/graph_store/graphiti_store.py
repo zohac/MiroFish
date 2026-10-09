@@ -57,6 +57,35 @@ class LocalPassthroughCrossEncoder(CrossEncoderClient):
 class GraphitiGraphStore(GraphStore):
     """Magasin de graphe de connaissances s'appuyant sur Graphiti et Neo4j en local."""
 
+    # Clés réservées Neo4j / Graphiti à exclure des dictionnaires attributes (Patch 1)
+    _NODE_SYSTEM_KEYS = {
+        "uuid",
+        "name",
+        "name_embedding",
+        "summary",
+        "group_id",
+        "created_at",
+        "labels",
+    }
+    _EDGE_SYSTEM_KEYS = {
+        "uuid",
+        "source_uuid",
+        "target_uuid",
+        "source_node_uuid",
+        "target_node_uuid",
+        "name",
+        "fact",
+        "fact_type",
+        "fact_embedding",
+        "group_id",
+        "episodes",
+        "created_at",
+        "valid_at",
+        "invalid_at",
+        "expired_at",
+        "relation_type",
+    }
+
     def __init__(
         self,
         uri: Optional[str] = None,
@@ -330,26 +359,50 @@ class GraphitiGraphStore(GraphStore):
             )
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
-        """Retourne les nœuds, arêtes et statistiques complètes du graphe pour l'API.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Retourne les nœuds, arêtes et statistiques complètes du graphe pour l'API."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "get_graph_data pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"récupération des données du graphe {target_graph_id}"):
+            nodes = self.get_all_nodes(target_graph_id)
+            edges = self.get_all_edges(target_graph_id, include_temporal=True)
+
+            nodes_data = [n.to_dict() for n in nodes]
+            edges_data = [e.to_dict(include_temporal=True) for e in edges]
+
+            return {
+                "graph_id": target_graph_id,
+                "nodes": nodes_data,
+                "edges": edges_data,
+                "node_count": len(nodes_data),
+                "edge_count": len(edges_data),
+                "statistics": {
+                    "node_count": len(nodes_data),
+                    "edge_count": len(edges_data),
+                },
+            }
 
     def get_graph_info(self, graph_id: str) -> GraphInfo:
-        """Retourne un résumé synthétique (comptages et types d'entités).
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Retourne un résumé synthétique (comptages et types d'entités)."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "get_graph_info pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"récupération des informations du graphe {target_graph_id}"):
+            nodes = self.get_all_nodes(target_graph_id)
+            edges = self.get_all_edges(target_graph_id, include_temporal=False)
+
+            entity_types: set[str] = set()
+            for node in nodes:
+                for label in node.labels:
+                    if label and isinstance(label, str) and label not in ["Entity", "Node"]:
+                        entity_types.add(label)
+
+            return GraphInfo(
+                graph_id=target_graph_id,
+                node_count=len(nodes),
+                edge_count=len(edges),
+                entity_types=sorted(list(entity_types)),
+            )
 
     # --- Ontologie ---
 
@@ -600,57 +653,257 @@ class GraphitiGraphStore(GraphStore):
 
             return True
 
+    # --- Helpers de conversion Cypher -> DTO neutres ---
+
+    @classmethod
+    def _record_to_graph_node(cls, record: Any) -> GraphNode:
+        """Convertit un enregistrement Cypher ou dictionnaire en GraphNode neutre."""
+        uuid_val = cls._get_record_field(record, "uuid", "") or ""
+        name_val = cls._get_record_field(record, "name", "") or ""
+        summary_val = cls._get_record_field(record, "summary", "") or ""
+        raw_labels = cls._get_record_field(record, "labels", []) or []
+        labels_list = (
+            [str(l) for l in raw_labels if l]
+            if isinstance(raw_labels, (list, tuple, set))
+            else []
+        )
+        raw_attrs = cls._get_record_field(record, "attributes", {}) or {}
+        attributes = (
+            {k: v for k, v in raw_attrs.items() if k not in cls._NODE_SYSTEM_KEYS}
+            if isinstance(raw_attrs, dict)
+            else {}
+        )
+        raw_created_at = cls._get_record_field(record, "created_at", None)
+        created_at_str = str(raw_created_at) if raw_created_at is not None else None
+
+        return GraphNode(
+            uuid=str(uuid_val),
+            name=str(name_val),
+            labels=labels_list,
+            summary=str(summary_val),
+            attributes=attributes,
+            created_at=created_at_str,
+            related_edges=[],
+            related_nodes=[],
+        )
+
+    @classmethod
+    def _record_to_graph_edge(
+        cls, record: Any, include_temporal: bool = True
+    ) -> GraphEdge:
+        """Convertit un enregistrement Cypher ou dictionnaire en GraphEdge neutre."""
+        uuid_val = cls._get_record_field(record, "uuid", "") or ""
+        src_uuid = cls._get_record_field(record, "source_node_uuid", "") or ""
+        tgt_uuid = cls._get_record_field(record, "target_node_uuid", "") or ""
+        src_name = cls._get_record_field(record, "source_node_name", "") or ""
+        tgt_name = cls._get_record_field(record, "target_node_name", "") or ""
+        rel_type = cls._get_record_field(record, "relation_type", "") or ""
+        name_val = cls._get_record_field(record, "name", "") or rel_type or "RELATES_TO"
+        fact_val = cls._get_record_field(record, "fact", "") or ""
+        fact_type = cls._get_record_field(record, "fact_type", "") or name_val
+
+        raw_episodes = cls._get_record_field(record, "episodes", [])
+        if raw_episodes and isinstance(raw_episodes, (list, tuple, set)):
+            episodes_list = [str(e) for e in raw_episodes]
+        elif raw_episodes:
+            episodes_list = [str(raw_episodes)]
+        else:
+            episodes_list = []
+
+        raw_attrs = cls._get_record_field(record, "attributes", {}) or {}
+        attributes = (
+            {k: v for k, v in raw_attrs.items() if k not in cls._EDGE_SYSTEM_KEYS}
+            if isinstance(raw_attrs, dict)
+            else {}
+        )
+
+        raw_created_at = cls._get_record_field(record, "created_at", None)
+        raw_valid_at = cls._get_record_field(record, "valid_at", None)
+        raw_invalid_at = cls._get_record_field(record, "invalid_at", None)
+        raw_expired_at = cls._get_record_field(record, "expired_at", None)
+
+        if include_temporal:
+            created_at_str = str(raw_created_at) if raw_created_at is not None else None
+            valid_at_str = str(raw_valid_at) if raw_valid_at is not None else None
+            invalid_at_str = str(raw_invalid_at) if raw_invalid_at is not None else None
+            expired_at_str = str(raw_expired_at) if raw_expired_at is not None else None
+        else:
+            created_at_str = None
+            valid_at_str = None
+            invalid_at_str = None
+            expired_at_str = None
+
+        return GraphEdge(
+            uuid=str(uuid_val),
+            name=str(name_val),
+            fact=str(fact_val),
+            source_node_uuid=str(src_uuid),
+            target_node_uuid=str(tgt_uuid),
+            fact_type=str(fact_type),
+            source_node_name=str(src_name),
+            target_node_name=str(tgt_name),
+            attributes=attributes,
+            episodes=episodes_list,
+            created_at=created_at_str,
+            valid_at=valid_at_str,
+            invalid_at=invalid_at_str,
+            expired_at=expired_at_str,
+        )
+
     # --- Lecture et parcours ---
 
     def get_all_nodes(self, graph_id: str) -> List[GraphNode]:
-        """Récupère tous les nœuds d'un graphe.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Récupère tous les nœuds d'un graphe partitionné par group_id."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "get_all_nodes pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"récupération de tous les nœuds de {target_graph_id}"):
+            res = self._run_async(
+                self._execute_cypher(
+                    """
+                    MATCH (n:Entity)
+                    WHERE n.group_id = $group_id
+                    RETURN n.uuid AS uuid,
+                           n.name AS name,
+                           n.summary AS summary,
+                           labels(n) AS labels,
+                           n.created_at AS created_at,
+                           properties(n) AS attributes
+                    """,
+                    params={"group_id": target_graph_id},
+                )
+            )
+            records = self._extract_records(res)
+            return [self._record_to_graph_node(rec) for rec in records]
 
     def get_all_edges(
         self, graph_id: str, include_temporal: bool = True
     ) -> List[GraphEdge]:
-        """Récupère toutes les arêtes d'un graphe avec ou sans champs temporels.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Récupère toutes les arêtes d'un graphe avec ou sans champs temporels."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        raise NotImplementedError(
-            "get_all_edges pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"récupération de toutes les arêtes de {target_graph_id}"):
+            res = self._run_async(
+                self._execute_cypher(
+                    """
+                    MATCH (source:Entity)-[r]->(target:Entity)
+                    WHERE source.group_id = $group_id
+                      AND target.group_id = $group_id
+                    RETURN r.uuid AS uuid,
+                           source.uuid AS source_node_uuid,
+                           target.uuid AS target_node_uuid,
+                           source.name AS source_node_name,
+                           target.name AS target_node_name,
+                           type(r) AS relation_type,
+                           r.name AS name,
+                           r.fact AS fact,
+                           r.fact_type AS fact_type,
+                           r.episodes AS episodes,
+                           r.created_at AS created_at,
+                           r.valid_at AS valid_at,
+                           r.invalid_at AS invalid_at,
+                           r.expired_at AS expired_at,
+                           properties(r) AS attributes
+                    """,
+                    params={"group_id": target_graph_id},
+                )
+            )
+            records = self._extract_records(res)
+            return [
+                self._record_to_graph_edge(rec, include_temporal=include_temporal)
+                for rec in records
+            ]
 
     def get_node(self, graph_id: str, node_uuid: str) -> Optional[GraphNode]:
-        """Récupère un nœud spécifique par son identifiant unique.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Récupère un nœud spécifique par son identifiant unique et son voisinage."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        if not node_uuid or not node_uuid.strip():
+        if not isinstance(node_uuid, str) or not node_uuid.strip():
             raise GraphValidationError("node_uuid est requis")
-        raise NotImplementedError(
-            "get_node pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        target_node_uuid = node_uuid.strip()
+        with self._translate_errors(
+            f"récupération du nœud {target_node_uuid} dans {target_graph_id}"
+        ):
+            res = self._run_async(
+                self._execute_cypher(
+                    """
+                    MATCH (n:Entity {uuid: $node_uuid, group_id: $group_id})
+                    RETURN n.uuid AS uuid,
+                           n.name AS name,
+                           n.summary AS summary,
+                           labels(n) AS labels,
+                           n.created_at AS created_at,
+                           properties(n) AS attributes
+                    """,
+                    params={
+                        "node_uuid": target_node_uuid,
+                        "group_id": target_graph_id,
+                    },
+                )
+            )
+            records = self._extract_records(res)
+            if not records:
+                return None
+
+            base_node = self._record_to_graph_node(records[0])
+            edges = self.get_node_edges(target_graph_id, target_node_uuid)
+            related_edges = [e.to_dict(include_temporal=True) for e in edges]
+
+            return GraphNode(
+                uuid=base_node.uuid,
+                name=base_node.name,
+                labels=base_node.labels,
+                summary=base_node.summary,
+                attributes=base_node.attributes,
+                created_at=base_node.created_at,
+                related_edges=related_edges,
+                related_nodes=[],
+            )
 
     def get_node_edges(self, graph_id: str, node_uuid: str) -> List[GraphEdge]:
-        """Récupère toutes les arêtes connectées à un nœud (entrantes et sortantes).
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Récupère toutes les arêtes connectées à un nœud (entrantes et sortantes)."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        if not node_uuid or not node_uuid.strip():
+        if not isinstance(node_uuid, str) or not node_uuid.strip():
             raise GraphValidationError("node_uuid est requis")
-        raise NotImplementedError(
-            "get_node_edges pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+        target_graph_id = graph_id.strip()
+        target_node_uuid = node_uuid.strip()
+        with self._translate_errors(
+            f"récupération des arêtes du nœud {target_node_uuid} dans {target_graph_id}"
+        ):
+            res = self._run_async(
+                self._execute_cypher(
+                    """
+                    MATCH (n:Entity {uuid: $node_uuid, group_id: $group_id})-[r]-(neighbor:Entity {group_id: $group_id})
+                    RETURN DISTINCT r.uuid AS uuid,
+                           startNode(r).uuid AS source_node_uuid,
+                           endNode(r).uuid AS target_node_uuid,
+                           startNode(r).name AS source_node_name,
+                           endNode(r).name AS target_node_name,
+                           type(r) AS relation_type,
+                           r.name AS name,
+                           r.fact AS fact,
+                           r.fact_type AS fact_type,
+                           r.episodes AS episodes,
+                           r.created_at AS created_at,
+                           r.valid_at AS valid_at,
+                           r.invalid_at AS invalid_at,
+                           r.expired_at AS expired_at,
+                           properties(r) AS attributes
+                    """,
+                    params={
+                        "node_uuid": target_node_uuid,
+                        "group_id": target_graph_id,
+                    },
+                )
+            )
+            records = self._extract_records(res)
+            return [
+                self._record_to_graph_edge(rec, include_temporal=True)
+                for rec in records
+            ]
 
     # --- Recherche ---
 
@@ -662,20 +915,141 @@ class GraphitiGraphStore(GraphStore):
         scope: str = "edges",
         reranker: Optional[str] = None,
     ) -> GraphSearchResult:
-        """Effectue une recherche sémantique / hybride sur les arêtes ou les nœuds.
-
-        Note: L'implémentation complète fait l'objet de la Story 003-3.
-        """
-        if not graph_id or not graph_id.strip():
+        """Effectue une recherche sémantique / hybride sur les arêtes ou les nœuds."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        if not query or not query.strip():
+        if not isinstance(query, str) or not query.strip():
             raise GraphValidationError("Le texte de recherche query est requis")
-        if not isinstance(limit, int) or limit <= 0:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise GraphValidationError("limit doit être un entier strictement positif")
         if scope not in ("edges", "nodes", "hybrid"):
             raise GraphValidationError(
                 f"Périmètre de recherche invalide : '{scope}'. Valeurs acceptées : 'edges', 'nodes', 'hybrid'."
             )
-        raise NotImplementedError(
-            "search pour GraphitiGraphStore fait l'objet de la Story 003-3."
-        )
+
+        target_graph_id = graph_id.strip()
+        norm_query = query.strip()
+        norm_limit = limit
+
+        with self._translate_errors(f"recherche dans le graphe {target_graph_id}"):
+            facts: List[str] = []
+            edges: List[GraphEdge] = []
+            nodes: List[GraphNode] = []
+
+            # 1. Recherche d'arêtes / faits si scope in ("edges", "hybrid")
+            if scope in ("edges", "hybrid"):
+                raw_edges = self._run_async(
+                    self._graphiti.search(
+                        query=norm_query,
+                        group_ids=[target_graph_id],
+                        num_results=norm_limit,
+                    )
+                )
+                raw_edge_list = self._extract_records(raw_edges)
+
+                # Résolution des noms de nœuds associés si nécessaire
+                node_uuids = set()
+                for re in raw_edge_list:
+                    src = self._get_record_field(re, "source_node_uuid") or getattr(
+                        re, "source_node_uuid", None
+                    )
+                    tgt = self._get_record_field(re, "target_node_uuid") or getattr(
+                        re, "target_node_uuid", None
+                    )
+                    if src:
+                        node_uuids.add(str(src))
+                    if tgt:
+                        node_uuids.add(str(tgt))
+
+                node_name_map: Dict[str, str] = {}
+                if node_uuids:
+                    res_names = self._run_async(
+                        self._execute_cypher(
+                            """
+                            MATCH (n:Entity)
+                            WHERE n.uuid IN $uuids AND n.group_id = $group_id
+                            RETURN n.uuid AS uuid, n.name AS name
+                            """,
+                            params={"uuids": list(node_uuids), "group_id": target_graph_id},
+                        )
+                    )
+                    for rec in self._extract_records(res_names):
+                        u = self._get_record_field(rec, "uuid")
+                        nm = self._get_record_field(rec, "name")
+                        if u and nm:
+                            node_name_map[str(u)] = str(nm)
+
+                for re in raw_edge_list:
+                    edge = self._record_to_graph_edge(re, include_temporal=True)
+                    if (
+                        (not edge.source_node_name and edge.source_node_uuid in node_name_map)
+                        or (not edge.target_node_name and edge.target_node_uuid in node_name_map)
+                    ):
+                        edge = GraphEdge(
+                            uuid=edge.uuid,
+                            name=edge.name,
+                            fact=edge.fact,
+                            source_node_uuid=edge.source_node_uuid,
+                            target_node_uuid=edge.target_node_uuid,
+                            fact_type=edge.fact_type,
+                            source_node_name=node_name_map.get(
+                                edge.source_node_uuid, edge.source_node_name
+                            ),
+                            target_node_name=node_name_map.get(
+                                edge.target_node_uuid, edge.target_node_name
+                            ),
+                            attributes=edge.attributes,
+                            episodes=edge.episodes,
+                            created_at=edge.created_at,
+                            valid_at=edge.valid_at,
+                            invalid_at=edge.invalid_at,
+                            expired_at=edge.expired_at,
+                        )
+
+                    edges.append(edge)
+                    if edge.fact:
+                        facts.append(edge.fact)
+
+            # 2. Recherche de nœuds si scope in ("nodes", "hybrid")
+            if scope in ("nodes", "hybrid"):
+                res_nodes = self._run_async(
+                    self._execute_cypher(
+                        """
+                        MATCH (n:Entity {group_id: $group_id})
+                        WHERE toLower(coalesce(n.name, '')) CONTAINS toLower($query)
+                           OR toLower(coalesce(n.summary, '')) CONTAINS toLower($query)
+                        RETURN n.uuid AS uuid,
+                               n.name AS name,
+                               n.summary AS summary,
+                               labels(n) AS labels,
+                               n.created_at AS created_at,
+                               properties(n) AS attributes
+                        LIMIT $limit
+                        """,
+                        params={
+                            "group_id": target_graph_id,
+                            "query": norm_query,
+                            "limit": norm_limit,
+                        },
+                    )
+                )
+                records = self._extract_records(res_nodes)
+                nodes = [self._record_to_graph_node(rec) for rec in records]
+
+            # Calcul du total_count
+            if scope == "hybrid":
+                total_count = len(facts) + len(nodes)
+            elif facts:
+                total_count = len(facts)
+            elif nodes:
+                total_count = len(nodes)
+            else:
+                total_count = len(edges)
+
+            return GraphSearchResult(
+                facts=facts,
+                nodes=nodes,
+                edges=edges,
+                query=norm_query,
+                total_count=total_count,
+            )

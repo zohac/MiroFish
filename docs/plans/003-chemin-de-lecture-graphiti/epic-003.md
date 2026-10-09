@@ -63,7 +63,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 |---|---|---|---|
 | 003-1 | Squelette de `GraphitiGraphStore`, initialisation des dépendances et activation dans la factory | `done` | [`story-003-1.md`](story-003-1.md) |
 | 003-2 | Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` | `done` | [`story-003-2.md`](story-003-2.md) |
-| 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `in-progress` | [`story-003-3.md`](story-003-3.md) |
+| 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `done` | [`story-003-3.md`](story-003-3.md) |
 | 003-4 | Adaptation du chemin de lecture (`zep_entity_reader.py`) pour les entités génériques Graphiti | `backlog` | — |
 | 003-5 | Tests d'intégration réels avec Neo4j local, validation des critères C1-C6 et clôture de l'Epic 003 | `backlog` | — |
 
@@ -83,7 +83,10 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 | [`architecture.md`](architecture.md) | Schémas de composants, requêtes Cypher et flux de données |
 | [ADR 0001](../../decisions/0001-remplacement-de-zep-par-graphiti.md) | Choix de Graphiti + Neo4j derrière l'interface unifiée |
 | [ADR 0003](../../decisions/0003-ontologie-differee-en-v2.md) | Décision de différer l'ontologie dynamique en v2 et prioriser le chemin de lecture |
+| [ADR 0004](../../decisions/0004-session-llm-opencode-go.md) | Endpoint LLM gratuit OpenCode Go avec session |
+| [ADR 0007](../../decisions/0007-une-story-un-fichier.md) | Une story = un fichier markdown |
 | [ADR 0010](../../decisions/0010-override-driver-neo4j.md) | Arbitrage du driver Neo4j 5.26 |
+| [ADR 0011](../../decisions/0011-format-2-et-sections-francais.md) | Format 2 des stories et sections obligatoires en français |
 | [`docs/LOCAL-FIRST.md` §12](../../LOCAL-FIRST.md) | Audit des pièges du fork `tt-a1i` et points de rupture Graphiti |
 | `backend/app/utils/graph_store/base.py` | Contrat formel de l'interface `GraphStore` et DTOs neutres |
 | `backend/app/utils/graph_store/factory.py` | Factory `get_graph_store()` |
@@ -104,6 +107,6 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 
 - [x] `GraphitiGraphStore` est initialisé avec driver Neo4j, LLM session et embedder local (Story 003-1)
 - [x] Le cycle de vie et l'ingestion d'épisodes sont implémentés avec isolation par `group_id` (Story 003-2)
-- [ ] La lecture Cypher, les requêtes de voisinage et la recherche hybride temporelle sont opérationnelles (Story 003-3)
+- [x] La lecture Cypher, les requêtes de voisinage et la recherche hybride temporelle sont opérationnelles (Story 003-3)
 - [ ] Le chemin de lecture (`zep_entity_reader.py`) traite avec succès les entités Graphiti (Story 003-4)
 - [ ] Les tests d'intégration réels sur Neo4j local passent et les 470 tests existants restent verts (Story 003-5)
