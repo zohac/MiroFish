@@ -274,6 +274,14 @@ epics:
       Une seule commande doit lancer backend + frontend + Neo4j, avec volumes
       persistants et isolation stricte. ADR 0006 : un seul environnement de
       référence reproductible sans divergence avec l'hôte.
+    # Story 005-1 (DONE) : Dockerfiles spécialisés pour le backend (backend/Dockerfile,
+    # python:3.11-slim, uv 0.9.26, gcc/python3-dev pour compilation C/psutil, uv sync --locked,
+    # locales partagées) et pour le frontend (frontend/Dockerfile, node:20-slim, corepack pnpm@10.23.0,
+    # pnpm --dir frontend install --frozen-lockfile, locales partagées). Fichiers .dockerignore
+    # consolidés à 3 niveaux (racine, backend, frontend) garantissant 0 secret et 0 artefact hôte.
+    # Images mirofish-backend:local et mirofish-frontend:local construites avec succès via docker build
+    # et validées en exécution réelle. Suite de 19 tests unitaires hermétiques (test_docker_build_config.py)
+    # validée. Revue BMad 4 couches validée. Filet global porté à 651 tests verts (+19).
 
   - id: "006"
     slug: migration-donnees-zep

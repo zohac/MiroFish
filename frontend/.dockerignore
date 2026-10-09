@@ -1,0 +1,20 @@
+# Secrets et environnements sensibles (AGENTS.md §2.4, NFR-1)
+.env
+.env.*
+*.env
+
+# Contrôle de version et IDEs
+.git
+.gitignore
+.DS_Store
+.idea
+.vscode
+
+# Dépendances locales et builds
+node_modules
+dist
+.vite
+
+# Fichiers temporaires et logs
+*.log
+*.tmp

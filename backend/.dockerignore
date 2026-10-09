@@ -7,18 +7,13 @@
 
 # Contrôle de version et IDEs
 .git
-.github
 .gitignore
-.cursor
 .DS_Store
 .idea
 .vscode
 
-# Dépendances et environnements locaux
-node_modules
-frontend/node_modules
+# Environnements virtuels
 .venv
-backend/.venv
 */.venv
 .python-version
 
@@ -32,12 +27,10 @@ __pycache__
 .ruff_cache
 .coverage
 htmlcov
-frontend/dist
-frontend/.vite
 
 # Fichiers temporaires et logs
 *.log
 *.tmp
-backend/uploads/documents/*.pdf
-backend/simulations/*
-!backend/simulations/.gitkeep
+uploads/documents/*.pdf
+simulations/*
+!simulations/.gitkeep
