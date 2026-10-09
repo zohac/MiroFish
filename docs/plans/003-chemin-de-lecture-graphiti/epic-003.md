@@ -108,5 +108,5 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 - [x] `GraphitiGraphStore` est initialisé avec driver Neo4j, LLM session et embedder local (Story 003-1)
 - [x] Le cycle de vie et l'ingestion d'épisodes sont implémentés avec isolation par `group_id` (Story 003-2)
 - [x] La lecture Cypher, les requêtes de voisinage et la recherche hybride temporelle sont opérationnelles (Story 003-3)
-- [ ] Le chemin de lecture (`zep_entity_reader.py`) traite avec succès les entités Graphiti (Story 003-4)
+- [x] Le chemin de lecture (`zep_entity_reader.py`) traite avec succès les entités Graphiti (Story 003-4)
 - [ ] Les tests d'intégration réels sur Neo4j local passent et les 470 tests existants restent verts (Story 003-5)

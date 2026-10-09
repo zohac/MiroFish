@@ -48,10 +48,23 @@ class EntityNode:
         }
     
     def get_entity_type(self) -> Optional[str]:
-        """获取实体类型（排除默认的Entity标签）"""
+        """获取实体类型（解析顺序：自定义标签 > 属性 entity_type/type/category > 默认 Entity > None）"""
         for label in self.labels:
-            if label not in ["Entity", "Node"]:
-                return label
+            if label and isinstance(label, str) and label.strip() and label.strip() not in ["Entity", "Node"]:
+                return label.strip()
+
+        if self.attributes and isinstance(self.attributes, dict):
+            attr_type = (
+                self.attributes.get("entity_type")
+                or self.attributes.get("type")
+                or self.attributes.get("category")
+            )
+            if attr_type and isinstance(attr_type, str) and attr_type.strip():
+                return attr_type.strip()
+
+        if any(isinstance(l, str) and l.strip() in ["Entity", "Node"] for l in self.labels):
+            return "Entity"
+
         return None
 
 
@@ -136,12 +149,25 @@ class ZepEntityReader:
 
         nodes_data = []
         for node in nodes:
+            if isinstance(node, dict):
+                uuid = node.get("uuid", "")
+                name = node.get("name") or ""
+                labels = list(node.get("labels") or [])
+                summary = node.get("summary") or ""
+                attributes = dict(node.get("attributes") or {})
+            else:
+                uuid = getattr(node, "uuid", "")
+                name = getattr(node, "name", "") or ""
+                labels = list(getattr(node, "labels", None) or [])
+                summary = getattr(node, "summary", "") or ""
+                attributes = dict(getattr(node, "attributes", None) or {})
+
             nodes_data.append({
-                "uuid": node.uuid,
-                "name": node.name or "",
-                "labels": list(node.labels),
-                "summary": node.summary or "",
-                "attributes": dict(node.attributes),
+                "uuid": uuid,
+                "name": name,
+                "labels": labels,
+                "summary": summary,
+                "attributes": attributes,
             })
 
         logger.info(f"共获取 {len(nodes_data)} 个节点")
@@ -231,9 +257,12 @@ class ZepEntityReader:
         """
         筛选出符合预定义实体类型的节点
         
-        筛选逻辑：
-        - 如果节点的Labels只有一个"Entity"，说明这个实体不符合我们预定义的类型，跳过
-        - 如果节点的Labels包含除"Entity"和"Node"之外的标签，说明符合预定义类型，保留
+        筛选逻辑（ADR 0003 & GraphStore agnostique）：
+        - 优先匹配自定义标签（排除 "Entity" 和 "Node"）
+        - 其次匹配属性中的实体类型（entity_type / type / category）
+        - 再次匹配默认的 "Entity" 标签（支持 Graphiti 本地无动态本体场景）
+        - 如果指定了 defined_entity_types，则仅保留匹配预定义类型的节点
+        - 如果未指定 defined_entity_types（None 或空），保留图谱中所有有效实体
         
         Args:
             graph_id: 图谱ID
@@ -260,33 +289,57 @@ class ZepEntityReader:
         entity_types_found = set()
         
         for node in all_nodes:
-            labels = node.get("labels", [])
+            labels = node.get("labels") or []
+            attributes = node.get("attributes") or {}
             
-            # 筛选逻辑：Labels必须包含除"Entity"和"Node"之外的标签
-            custom_labels = [l for l in labels if l not in ["Entity", "Node"]]
+            # 1. Custom labels spécifiques (compatibilité ontologie Zep Cloud)
+            custom_labels = [
+                l.strip() for l in labels
+                if isinstance(l, str) and l.strip() and l.strip() not in ["Entity", "Node"]
+            ]
             
-            if not custom_labels:
-                # 只有默认标签，跳过
+            # 2. Détermination des types candidats
+            if custom_labels:
+                candidate_types = list(custom_labels)
+            else:
+                attr_type = (
+                    attributes.get("entity_type")
+                    or attributes.get("type")
+                    or attributes.get("category")
+                )
+                if attr_type and isinstance(attr_type, str) and attr_type.strip():
+                    candidate_types = [attr_type.strip()]
+                elif any(isinstance(l, str) and l.strip() in ["Entity", "Node"] for l in labels):
+                    candidate_types = ["Entity"]
+                else:
+                    candidate_types = []
+            
+            # Si aucun type ne peut être attribué au nœud, on l'ignore
+            if not candidate_types:
                 continue
             
-            # 如果指定了预定义类型，检查是否匹配
+            # 3. Filtrage selon defined_entity_types (si spécifié)
             if defined_entity_types:
-                matching_labels = [l for l in custom_labels if l in defined_entity_types]
-                if not matching_labels:
-                    continue
-                entity_type = matching_labels[0]
+                matching_types = [t for t in candidate_types if t in defined_entity_types]
+                if not matching_types:
+                    matching_labels = [l for l in labels if l in defined_entity_types]
+                    if not matching_labels:
+                        continue
+                    entity_type = matching_labels[0]
+                else:
+                    entity_type = matching_types[0]
             else:
-                entity_type = custom_labels[0]
+                entity_type = candidate_types[0]
             
             entity_types_found.add(entity_type)
             
             # 创建实体节点对象
             entity = EntityNode(
                 uuid=node["uuid"],
-                name=node["name"],
+                name=node.get("name") or "",
                 labels=labels,
-                summary=node["summary"],
-                attributes=node["attributes"],
+                summary=node.get("summary") or "",
+                attributes=attributes,
             )
             
             # 获取相关边和节点

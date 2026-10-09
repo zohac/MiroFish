@@ -32,10 +32,28 @@ class GraphNode:
         }
 
     def get_entity_type(self) -> Optional[str]:
-        """Retourne le type d'entité spécifique (hors Entity/Node génériques)."""
+        """Retourne le type d'entité résolu selon la chaîne de priorité :
+        1. Labels spécifiques d'ontologie (hors 'Entity' et 'Node').
+        2. Attributs explicites ('entity_type', 'type', 'category').
+        3. Repli générique 'Entity' si le nœud porte le label 'Entity' ou 'Node'.
+        4. None si aucun label ni attribut de type n'existe.
+        """
         for label in self.labels:
-            if label not in ["Entity", "Node"]:
-                return label
+            if label and isinstance(label, str) and label.strip() and label.strip() not in ["Entity", "Node"]:
+                return label.strip()
+
+        if self.attributes and isinstance(self.attributes, dict):
+            attr_type = (
+                self.attributes.get("entity_type")
+                or self.attributes.get("type")
+                or self.attributes.get("category")
+            )
+            if attr_type and isinstance(attr_type, str) and attr_type.strip():
+                return attr_type.strip()
+
+        if any(isinstance(l, str) and l.strip() in ["Entity", "Node"] for l in self.labels):
+            return "Entity"
+
         return None
 
     def to_text(self) -> str:

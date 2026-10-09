@@ -254,19 +254,29 @@ def test_zep_entity_reader_handles_not_found_cleanly():
 
 
 def test_zep_entity_reader_filter_defined_entities():
-    """Vérifie le filtrage d'entités avec labels personnalisés."""
+    """Vérifie le filtrage d'entités avec labels personnalisés et sans filtre (Story 003-4)."""
     store = MockReaderStore()
     node_generic = GraphNode(uuid="n-gen", name="Generic", labels=["Entity", "Node"])
     node_student = GraphNode(uuid="n-stu", name="Bob", labels=["Entity", "Student"])
     store.nodes["graph-filter"] = [node_generic, node_student]
 
     reader = ZepEntityReader(store=store)
-    filtered = reader.filter_defined_entities("graph-filter")
 
-    assert filtered.total_count == 2
-    assert filtered.filtered_count == 1
-    assert filtered.entities[0].name == "Bob"
-    assert "Student" in filtered.entity_types
+    # 1. Sans filtre de type : toutes les entités valides sont conservées
+    filtered_all = reader.filter_defined_entities("graph-filter")
+    assert filtered_all.total_count == 2
+    assert filtered_all.filtered_count == 2
+    assert "Student" in filtered_all.entity_types
+    assert "Entity" in filtered_all.entity_types
+
+    # 2. Avec filtre ciblé : seul le type demandé est retenu
+    filtered_student = reader.filter_defined_entities(
+        "graph-filter", defined_entity_types=["Student"]
+    )
+    assert filtered_student.total_count == 2
+    assert filtered_student.filtered_count == 1
+    assert filtered_student.entities[0].name == "Bob"
+    assert filtered_student.entity_types == {"Student"}
 
 
 def test_zep_tools_service_delegates_to_injected_store():

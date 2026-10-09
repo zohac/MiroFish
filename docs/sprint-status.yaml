@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-08
+mis_a_jour: 2026-10-09
 
 epics:
   - id: "001"
@@ -199,6 +199,13 @@ epics:
     # group_id = graph_id sur 100 % des requêtes Cypher et 24 nouveaux tests
     # unitaires hermétiques dans test_graphiti_graph_store.py (74 tests sur le fichier).
     # Revue BMad 4 couches validée (6 patchs appliqués). Filet global porté à 545 tests verts (+24).
+    # Story 003-4 (DONE) : adaptation de la lecture d'entités (zep_entity_reader.py,
+    # EntityNode, GraphNode) pour supporter le typage agnostique et les entités
+    # génériques Graphiti (:Entity). Levée du filtrage aveugle qui rejetait 100 % des nœuds
+    # Graphiti, chaîne de résolution ordonnée de get_entity_type (labels spécifiques > attributs > Entity),
+    # filtrage filter_defined_entities avec ou sans defined_entity_types, compatibilité avec
+    # simulation_config_generator et oasis_profile_generator. 10 nouveaux tests unitaires hermétiques
+    # dédiés (test_zep_entity_reader_graphiti.py). Revue BMad validée (3 patchs appliqués). Filet global porté à 555 tests verts (+10).
 
   - id: "004"
     slug: bascule-sans-zep

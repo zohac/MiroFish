@@ -316,11 +316,14 @@ def test_graph_node_model():
     with pytest.raises(FrozenInstanceError):
         node.name = "Jean Modifié"  # type: ignore
 
-    # get_entity_type extrait le premier label spécifique
+    # get_entity_type extrait le premier label spécifique, ou attribut, ou Entity par défaut
     assert node.get_entity_type() == "Politician"
 
     generic_node = GraphNode(uuid="n-generic", name="Inconnu", labels=["Entity", "Node"])
-    assert generic_node.get_entity_type() is None
+    assert generic_node.get_entity_type() == "Entity"
+
+    attr_node = GraphNode(uuid="n-attr", name="Acteur", labels=["Entity"], attributes={"entity_type": "Student"})
+    assert attr_node.get_entity_type() == "Student"
 
     empty_node = GraphNode(uuid="n-empty", name="Vide")
     assert empty_node.get_entity_type() is None
