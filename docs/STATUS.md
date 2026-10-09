@@ -59,6 +59,7 @@ Dossier de plan cadré ([`docs/plans/005-docker-local/`](plans/005-docker-local/
 Intégration unifiée de MiroFish sous Docker : backend + frontend + Neo4j dans un `docker-compose.yml` unique, reproductible et prêt pour la production.
 
 - **Story 005-1 (done)** : Dockerfiles dédiés backend (`backend/Dockerfile`, Python 3.11, `uv sync --locked`) et frontend (`frontend/Dockerfile`, Node 20, `pnpm install --frozen-lockfile`) construits avec succès depuis les sources locales. Fichiers `.dockerignore` consolidés (0 secret, 0 artefact hôte). Suite de 19 tests unitaires hermétiques (`test_docker_build_config.py`). Filet global porté à **651 tests verts**.
+- **Story 005-2 (backlog)** : Cadrage et rédaction finalisés pour l'unification de `docker-compose.yml` avec absorption de Neo4j (APOC, heap borné, healthcheck Bolt), orchestration conditionnelle (`condition: service_healthy`) et réseau `mirofish_network`.
 
 ### Bilan consolidé de l'Epic 004 — Construire un graphe en local sans clé Zep (Clos — 632 tests verts)
 
