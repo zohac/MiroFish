@@ -59,7 +59,8 @@ Dossier de plan cadré ([`docs/plans/005-docker-local/`](plans/005-docker-local/
 Intégration unifiée de MiroFish sous Docker : backend + frontend + Neo4j dans un `docker-compose.yml` unique, reproductible et prêt pour la production.
 
 - **Story 005-1 (done)** : Dockerfiles dédiés backend (`backend/Dockerfile`, Python 3.11, `uv sync --locked`) et frontend (`frontend/Dockerfile`, Node 20, `pnpm install --frozen-lockfile`) construits avec succès depuis les sources locales. Fichiers `.dockerignore` consolidés (0 secret, 0 artefact hôte). Suite de 19 tests unitaires hermétiques (`test_docker_build_config.py`). Filet global porté à **651 tests verts**.
-- **Story 005-2 (backlog)** : Cadrage et rédaction finalisés pour l'unification de `docker-compose.yml` avec absorption de Neo4j (APOC, heap borné, healthcheck Bolt), orchestration conditionnelle (`condition: service_healthy`) et réseau `mirofish_network`.
+- **Story 005-2 (done)** : `docker-compose.yml` unifié orchestrant les 3 services (`neo4j:5.26.31-community` avec APOC débridé, heap 512m/1G, volumes nommés `neo4j_data`/`neo4j_logs` et healthcheck Bolt `cypher-shell` ; `backend` Flask Python 3.11 sur `bolt://neo4j:7687` avec healthcheck HTTP `/health` ; `frontend` Vue 3 avec port paramétrable et proxy dynamique vers `BACKEND_URL`) sur réseau bridge `mirofish_network` avec ordonnancement strict (`condition: service_healthy`). Zéro secret en clair, injection sécurisée via `env_file` pour backend. Suite de 13 nouveaux tests unitaires hermétiques (`test_docker_compose_config.py`). Filet global porté à **664 tests verts** (+13).
+- **Story 005-3 (backlog)** : Validation du filet global de tests (664 tests) et outillage CLI dans le conteneur backend sous Docker.
 
 ### Bilan consolidé de l'Epic 004 — Construire un graphe en local sans clé Zep (Clos — 632 tests verts)
 
@@ -289,7 +290,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **614**, tous verts, **sans `.env`** (filet de tests post-Story 004-3 ; 562 avant Epic 004) |
+| Tests | **664**, tous verts, **sans `.env`** (filet de tests post-Story 005-2 ; 651 après Story 005-1, 632 avant Epic 005) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

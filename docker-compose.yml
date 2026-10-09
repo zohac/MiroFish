@@ -1,14 +1,109 @@
+# ==============================================================================
+# MiroFish - Environnement Docker de Référence (Epic 005 / Story 005-2)
+# ==============================================================================
+# Topologie multi-services unifiée :
+#   - neo4j    : Base de données graphe locale (Neo4j 5.26.31-community + APOC)
+#   - backend  : API Flask, GraphitiGraphStore, agents OASIS (Python 3.11 / uv)
+#   - frontend : Interface web utilisateur (Vue 3 / Vite / pnpm)
+# ==============================================================================
+
+name: mirofish
+
 services:
-  mirofish:
-    image: ghcr.io/666ghj/mirofish:latest
-    # 加速镜像（如拉取缓慢可替换上方地址）
-    # image: ghcr.nju.edu.cn/666ghj/mirofish:latest
-    container_name: mirofish
-    env_file:
-      - .env
+  # ----------------------------------------------------------------------------
+  # 1. Base de données graphe Neo4j
+  # ----------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:5.26.31-community
+    container_name: mirofish-neo4j
     ports:
-      - "3000:3000"
-      - "5001:5001"
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-password}"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.meta.data,apoc.merge.*,apoc.create.*"
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          cypher-shell -u neo4j -p "$${NEO4J_AUTH#neo4j/}"
+          -a bolt://localhost:7687 "RETURN 1 AS sonde" > /dev/null || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+    networks:
+      - mirofish_network
+
+  # ----------------------------------------------------------------------------
+  # 2. Serveur Backend Flask & Graphiti
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: mirofish-backend:local
+    container_name: mirofish-backend
+    ports:
+      - "${FLASK_PORT:-5001}:5001"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NEO4J_URI: "bolt://neo4j:7687"
+      FLASK_PORT: "5001"
     volumes:
       - ./backend/uploads:/app/backend/uploads
+      - ./backend/simulations:/app/backend/simulations
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5001/health\")' || exit 1"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - mirofish_network
+
+  # ----------------------------------------------------------------------------
+  # 3. Interface Frontend Vue 3 / Vite
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: mirofish-frontend:local
+    container_name: mirofish-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      BACKEND_URL: "http://backend:5001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mirofish_network
+
+# ------------------------------------------------------------------------------
+# Réseau et Volumes partagés
+# ------------------------------------------------------------------------------
+networks:
+  mirofish_network:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:

@@ -142,3 +142,9 @@ Revue contradictoire menée sur les flux de lecture et d'interrogation du graphe
 Revue contradictoire menée sur le squelette et l'initialisation de GraphitiGraphStore (Story 003-1) :
 
 - **`backend/app/utils/graph_store/graphiti_store.py:110` — Absence de méthode de fermeture explicite du pool de connexions (`close()`) sur `GraphStore` et `GraphitiGraphStore`.** Ni l'interface abstraite `GraphStore` (`base.py`) ni `ZepGraphStore` ne définissent de méthode `close()` ou de context manager pour libérer les ressources réseau sous-jacentes. Dans `GraphitiGraphStore`, le pool de connexions du driver Neo4j reste alloué jusqu'au garbage collection du processus. *Différé : l'ajout d'une méthode de cycle de vie relève d'une évolution de l'interface commune `GraphStore` partagée avec l'ensemble des backends (Epic 003 ou Epic 005).*
+
+## Deferred from: code review of story-005-2.md (2026-10-09)
+
+Revue contradictoire menée sur l'environnement unifié `docker-compose.yml` (Story 005-2) :
+
+- **`frontend/src/api/index.js:6` — `baseURL` absolu `http://localhost:5001` contournant le proxy interne Vite.** Axios initialise une instance avec `baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'`, ce qui fait partir les requêtes du navigateur directement vers le port hôte au lieu d'utiliser le proxy relatif `/api` géré par Vite (`http://backend:5001`). Si l'utilisateur accède à MiroFish depuis une IP distante ou avec un `FLASK_PORT` alternatif sans configurer `VITE_API_BASE_URL`, les appels API échouent. *Différé : code hérité du dépôt amont, à traiter globalement lors de la qualification e2e de l'environnement Docker de référence (Story 005-5).*

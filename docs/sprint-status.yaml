@@ -282,10 +282,14 @@ epics:
     # Images mirofish-backend:local et mirofish-frontend:local construites avec succès via docker build
     # et validées en exécution réelle. Suite de 19 tests unitaires hermétiques (test_docker_build_config.py)
     # validée. Revue BMad 4 couches validée. Filet global porté à 651 tests verts (+19).
-    # Story 005-2 (BACKLOG) : docker-compose.yml unifié avec Neo4j (absorption de docker-compose.neo4j.yml,
-    # 5.26.31-community, APOC débridé, healthcheck Bolt), Backend (Flask, Python 3.11, variables réseau),
-    # Frontend (Vue 3, port configurable) orchestrés par healthchecks (condition: service_healthy)
-    # sur réseau dédié mirofish_network et volumes nommés.
+    # Story 005-2 (DONE) : docker-compose.yml unifié orchestrant les 3 services
+    # (neo4j:5.26.31-community avec APOC débridé, heap 512m/1G, volumes nommés neo4j_data/neo4j_logs
+    # et healthcheck Bolt cypher-shell ; backend Flask Python 3.11 sur bolt://neo4j:7687 avec healthcheck
+    # HTTP /health ; frontend Vue 3 avec port paramétrable et target proxy dynamique vers BACKEND_URL)
+    # sur réseau bridge mirofish_network avec ordonnancement strict (condition: service_healthy).
+    # Zéro secret en clair, injection sécurisée via env_file pour backend.
+    # Suite de 13 nouveaux tests unitaires hermétiques (test_docker_compose_config.py).
+    # Revue BMad 4 couches validée. Filet global porté à 664 tests verts (+13).
 
   - id: "006"
     slug: migration-donnees-zep

@@ -225,18 +225,16 @@ def test_le_patch_du_serveur_est_fige():
     )
 
 
-def test_le_compose_est_separe_de_celui_de_l_application():
-    """`docker-compose.yml` ne doit pas mentionner Neo4j.
+def test_le_compose_unifie_absorbe_neo4j_selon_epic_005():
+    """`docker-compose.yml` unifié absorbe Neo4j dans l'environnement de référence.
 
-    Le compose de l'application pointe l'image **amont** (AGENTS.md §2.9) : y
-    ajouter un service `neo4j` ferait dépendre le test comportemental du driver
-    forcé d'un environnement qui n'est pas le nôtre. C'est la raison du fichier
-    séparé, écrite dans les notes de la story.
+    Depuis l'Epic 005 (Story 005-2, ADR 0006, AGENTS.md §2.9), `docker-compose.yml`
+    est le compose de référence unifié intégrant `neo4j`, `backend` et `frontend`.
+    `docker-compose.neo4j.yml` reste le compose d'épreuve isolé.
     """
     compose_app = (REPO / "docker-compose.yml").read_text(encoding="utf-8")
-    assert "neo4j" not in compose_app.lower(), (
-        "docker-compose.yml mentionne neo4j : le serveur d'épreuve doit rester "
-        "dans docker-compose.neo4j.yml, séparé de l'image amont"
+    assert "neo4j:" in compose_app, (
+        "docker-compose.yml unifié doit contenir le service neo4j conformément à l'Epic 005"
     )
 
 
