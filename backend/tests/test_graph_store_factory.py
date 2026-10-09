@@ -113,6 +113,7 @@ def clean_factory_state(monkeypatch):
     set_graph_store_override(None)
     monkeypatch.delenv("ZEP_BACKEND", raising=False)
     monkeypatch.setattr(Config, "ZEP_BACKEND", "cloud")
+    monkeypatch.setattr(Config, "ZEP_API_KEY", getattr(Config, "ZEP_API_KEY", None) or "test-mock-zep-api-key")
     yield
     set_graph_store_override(None)
 

@@ -397,8 +397,9 @@ class TestGraphitiErrorTranslation:
 class TestGraphitiFactoryAndOverrideIntegration:
     """Tests d'intégration de GraphitiGraphStore avec la factory et le mécanisme d'override."""
 
-    def test_factory_with_graphiti_override(self, store_with_mocks):
+    def test_factory_with_graphiti_override(self, store_with_mocks, monkeypatch):
         """set_graph_store_override et override_graph_store fonctionnent avec GraphitiGraphStore."""
+        monkeypatch.setattr(Config, "ZEP_API_KEY", getattr(Config, "ZEP_API_KEY", None) or "test-mock-zep-api-key")
         assert get_graph_store(backend="cloud") is not store_with_mocks
 
         with override_graph_store(store_with_mocks):
