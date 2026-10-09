@@ -54,6 +54,43 @@ class LocalPassthroughCrossEncoder(CrossEncoderClient):
         return [(p, max(0.0, 1.0 - (i * 0.001))) for i, p in enumerate(passages)]
 
 
+class _AsyncLoopRunner:
+    """Runner maintenant un event loop asyncio dédié dans un thread d'arrière-plan pour isoler les drivers asynchrones."""
+
+    def __init__(self) -> None:
+        import threading
+
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(
+            target=self._run_loop,
+            daemon=True,
+            name="GraphitiAsyncLoopRunner",
+        )
+        self._thread.start()
+
+    def _run_loop(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        try:
+            self._loop.run_forever()
+        finally:
+            self._loop.close()
+
+    def run(self, coro: Any) -> Any:
+        if not inspect.isawaitable(coro):
+            return coro
+        if not self._loop.is_running():
+            if inspect.iscoroutine(coro):
+                coro.close()
+            raise RuntimeError("Event loop is stopped or closed")
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result()
+
+    def stop(self) -> None:
+        if self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join(timeout=1.0)
+
+
 class GraphitiGraphStore(GraphStore):
     """Magasin de graphe de connaissances s'appuyant sur Graphiti et Neo4j en local."""
 
@@ -109,6 +146,8 @@ class GraphitiGraphStore(GraphStore):
             cross_encoder: Instance personnalisée ou mockée du cross-encoder (ex: LocalPassthroughCrossEncoder).
             graphiti: Instance personnalisée ou mockée de Graphiti.
         """
+        self._async_runner = _AsyncLoopRunner()
+
         # 1. Enforcer l'interdiction de télémétrie posthog (AGENTS.md, config.py)
         if "GRAPHITI_TELEMETRY_ENABLED" not in os.environ:
             os.environ["GRAPHITI_TELEMETRY_ENABLED"] = (
@@ -177,6 +216,18 @@ class GraphitiGraphStore(GraphStore):
             except Exception as exc:
                 raise self._translate_error(exc, "initialisation du moteur Graphiti") from exc
 
+    def close(self) -> None:
+        """Libère les ressources du runner asynchrone."""
+        if hasattr(self, "_async_runner"):
+            self._async_runner.stop()
+
+    def __del__(self) -> None:
+        """Nettoyage défensif lors du ramasse-miettes."""
+        try:
+            self.close()
+        except Exception:
+            pass
+
     @staticmethod
     def _translate_error(error: Exception, operation_name: str) -> GraphStoreError:
         """Traduit une exception Graphiti, Neo4j ou système vers la hiérarchie GraphStoreError."""
@@ -234,24 +285,18 @@ class GraphitiGraphStore(GraphStore):
     def _run_async(self, coro: Any) -> Any:
         """Exécute une coroutine asynchrone de manière thread-safe et synchrone.
 
-        Gère les cas sans boucle active (création via asyncio.run),
-        les cas sous boucle d'événements déjà active (délégation dans un ThreadPoolExecutor),
-        ainsi que les retours immédiats non-awaitables (ex: mocks synchrones).
+        Toutes les coroutines s'exécutent sur la boucle d'événements dédiée de l'instance,
+        garantissant la stabilité du pool de connexions du driver Neo4j asynchrone.
         """
         if not inspect.isawaitable(coro):
             return coro
 
         try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop is not None and loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, coro)
-                return future.result()
-        else:
-            return asyncio.run(coro)
+            return self._async_runner.run(coro)
+        except Exception:
+            if inspect.iscoroutine(coro):
+                coro.close()
+            raise
 
     async def _execute_cypher(self, query: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """Exécute une requête Cypher via le driver en gérant l'asynchronisme de manière transparente."""
@@ -798,7 +843,7 @@ class GraphitiGraphStore(GraphStore):
                            type(r) AS relation_type,
                            r.name AS name,
                            r.fact AS fact,
-                           r.fact_type AS fact_type,
+                           coalesce(properties(r).fact_type, r.name, type(r), '') AS fact_type,
                            r.episodes AS episodes,
                            r.created_at AS created_at,
                            r.valid_at AS valid_at,
@@ -885,7 +930,7 @@ class GraphitiGraphStore(GraphStore):
                            type(r) AS relation_type,
                            r.name AS name,
                            r.fact AS fact,
-                           r.fact_type AS fact_type,
+                           coalesce(properties(r).fact_type, r.name, type(r), '') AS fact_type,
                            r.episodes AS episodes,
                            r.created_at AS created_at,
                            r.valid_at AS valid_at,

@@ -1,6 +1,6 @@
 # Epic 003 — GraphitiGraphStore : écriture et chemin de lecture (ADR 0003)
 
-- **Statut** : `in-progress` · **Dépend de** : 001, 002 · **Bloque** : 004, 005
+- **Statut** : `done` · **Dépend de** : 001, 002 · **Bloque** : 004, 005
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 
 > L'Epic 001 a prouvé que la chaîne locale Graphiti + Neo4j 5.26 + OpenCode Go fonctionne sans frais.
@@ -65,7 +65,7 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 | 003-2 | Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement `group_id` | `done` | [`story-003-2.md`](story-003-2.md) |
 | 003-3 | Implémentation de la lecture Cypher, des parcours de voisinage et de la recherche hybride temporelle | `done` | [`story-003-3.md`](story-003-3.md) |
 | 003-4 | Adaptation du chemin de lecture (`zep_entity_reader.py`) pour les entités génériques Graphiti | `done` | [`story-003-4.md`](story-003-4.md) |
-| 003-5 | Tests d'intégration réels avec Neo4j local, validation des critères C1-C6 et clôture de l'Epic 003 | `in-progress` | [`story-003-5.md`](story-003-5.md) |
+| 003-5 | Tests d'intégration réels avec Neo4j local, validation des critères C1-C6 et clôture de l'Epic 003 | `done` | [`story-003-5.md`](story-003-5.md) |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
@@ -109,4 +109,4 @@ comportement pour le frontend restent strictement identiques, que le backend soi
 - [x] Le cycle de vie et l'ingestion d'épisodes sont implémentés avec isolation par `group_id` (Story 003-2)
 - [x] La lecture Cypher, les requêtes de voisinage et la recherche hybride temporelle sont opérationnelles (Story 003-3)
 - [x] Le chemin de lecture (`zep_entity_reader.py`) traite avec succès les entités Graphiti (Story 003-4)
-- [ ] Les tests d'intégration réels sur Neo4j local passent et les 470 tests existants restent verts (Story 003-5)
+- [x] Les tests d'intégration réels sur Neo4j local passent et les 470 tests existants restent verts (Story 003-5)

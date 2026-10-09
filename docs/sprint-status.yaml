@@ -164,7 +164,7 @@ epics:
   - id: "003"
     slug: chemin-de-lecture-graphiti
     titre: "GraphitiGraphStore — écriture et chemin de lecture (ADR 0003)"
-    statut: in-progress
+    statut: done
     plan: docs/plans/003-chemin-de-lecture-graphiti
     depend_de: ["001", "002"]
     pourquoi: >-
@@ -206,15 +206,32 @@ epics:
     # filtrage filter_defined_entities avec ou sans defined_entity_types, compatibilité avec
     # simulation_config_generator et oasis_profile_generator. 10 nouveaux tests unitaires hermétiques
     # dédiés (test_zep_entity_reader_graphiti.py). Revue BMad validée (3 patchs appliqués). Filet global porté à 555 tests verts (+10).
+    # Story 003-5 (DONE) : banc d'intégration réelle (backend/scripts/verifier_integration_graphiti.py)
+    # validé sur l'instance Neo4j locale (docker-compose.neo4j.yml). 100 % des 14 méthodes du contrat
+    # GraphStore exercées avec succès (C1), partitionnement multi-tenant étanche prouvé (0 fuite, C2),
+    # métadonnées temporelles préservées (C3), extraction ZepEntityReader opérationnelle sur graphe réel (C4),
+    # instanciation transparente via factory (C5), filet étendu à 562 tests unitaires et d'intégration
+    # hermétiques verts (+7 tests, test_verifier_integration_graphiti.py, test_graphiti_graph_store.py) (C6).
+    # Runner thread-safe _AsyncLoopRunner intégré dans GraphitiGraphStore. Revue BMad validée (2 patchs appliqués).
+    # Rapport de validation versionné avec VERDICT GO. Epic 003 intégralement clos avec succès (5/5 stories done).
 
   - id: "004"
     slug: bascule-sans-zep
     titre: "Construire un graphe en local sans clé Zep"
-    statut: backlog
+    statut: in-progress
+    plan: docs/plans/004-bascule-sans-zep
     depend_de: ["003"]
     pourquoi: >-
       Preuve finale : documents → graphe → personas → simulation → rapport,
-      sans ZEP_API_KEY. C'est la définition de « local-first ».
+      sans ZEP_API_KEY. C'est la définition de « local-first ». Paramétrabilité
+      universelle du LLM via .env (endpoint, modèle, clé, effort de raisonnement)
+      avec OpenCode Go space-bunny-free en environnement de référence.
+    # Story 004-1 (DONE) : paramétrabilité universelle du LLM via .env (endpoint,
+    # modèle, clé, effort de raisonnement). Intégration de LLM_REASONING_EFFORT dans Config,
+    # alignement de la résolution des paramètres entre LLMClient et MiroFishLLMClient,
+    # neutralité stricte prouvée (x-opencode-session émis UNIQUEMENT pour opencode.ai
+    # et ses sous-domaines, en-têtes neutres pour les tiers OpenAI, DeepSeek, Groq, Ollama),
+    # et suite de tests unitaires dédiée. Filet global porté à 571 tests verts (+9).
 
   - id: "005"
     slug: docker-local

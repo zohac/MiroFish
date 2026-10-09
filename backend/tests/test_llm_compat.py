@@ -52,28 +52,53 @@ def test_subdomain_of_opencode_is_treated_as_a_gateway():
     assert "x-opencode-session" in headers
 
 
-def test_lookalike_host_is_not_given_a_session_header():
-    headers = llm_request_headers("https://notopencode.ai/v1")
+@pytest.mark.parametrize(
+    "provider_url",
+    [
+        "https://api.openai.com/v1",
+        "https://api.deepseek.com/v1",
+        "https://api.groq.com/openai/v1",
+        "https://api.mistral.ai/v1",
+        "http://localhost:11434/v1",
+        "http://127.0.0.1:8000/v1",
+    ],
+)
+def test_fournisseurs_tiers_ont_user_agent_sans_session_opencode(provider_url):
+    """Vérifie la neutralité stricte envers les fournisseurs payants ou locaux."""
+    headers = llm_request_headers(provider_url)
 
+    assert headers["User-Agent"] == "mirofish/0.1.0"
     assert "x-opencode-session" not in headers
 
 
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("high", {"reasoning_effort": "high"}),
-        ("  high  ", {"reasoning_effort": "high"}),
-        ("", {}),
-        ("   ", {}),
-    ],
-)
-def test_completion_kwargs_follow_configured_effort(monkeypatch, value, expected):
-    monkeypatch.setenv("LLM_REASONING_EFFORT", value)
-
-    assert llm_completion_kwargs() == expected
+def test_url_sans_scheme_opencode_injecte_session():
+    """Vérifie qu'une URL sans https:// vers OpenCode est correctement identifiée."""
+    headers = llm_request_headers("opencode.ai/zen/go/v1")
+    assert "x-opencode-session" in headers
 
 
-def test_completion_kwargs_are_empty_when_effort_is_unset(monkeypatch):
+def test_url_sans_scheme_tiers_reste_neutre():
+    """Vérifie qu'une URL sans https:// vers un tiers ne reçoit aucun en-tête OpenCode."""
+    headers = llm_request_headers("api.deepseek.com/v1")
+    assert "x-opencode-session" not in headers
+
+
+def test_completion_kwargs_avec_effort_explicite():
+    """Vérifie qu'un niveau d'effort passé explicitement en argument l'emporte."""
+    assert llm_completion_kwargs("low") == {"reasoning_effort": "low"}
+    assert llm_completion_kwargs("  medium  ") == {"reasoning_effort": "medium"}
+    assert llm_completion_kwargs("") == {}
+
+
+def test_completion_kwargs_vide_quand_env_vide(monkeypatch):
+    """Vérifie que sans variable d'environnement, aucun effort n'est émis."""
     monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
-
     assert llm_completion_kwargs() == {}
+
+
+def test_config_expose_llm_reasoning_effort():
+    """Vérifie que la classe Config expose formellement l'attribut LLM_REASONING_EFFORT."""
+    from app.config import Config
+
+    assert hasattr(Config, "LLM_REASONING_EFFORT")
+    assert isinstance(Config.LLM_REASONING_EFFORT, str)

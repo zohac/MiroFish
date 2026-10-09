@@ -1478,3 +1478,34 @@ class TestGraphitiReviewPatchesStory003_3:
         assert "coalesce(n.name, '')" in cypher
         assert "coalesce(n.summary, '')" in cypher
 
+
+class TestGraphitiReviewPatchesStory003_5:
+    """Tests unitaires hermétiques validant les correctifs de la revue BMad (Story 003-5)."""
+
+    def test_store_close_stops_async_runner_and_closes_loop(self, store_with_mocks):
+        """close() arrête le thread d'arrière-plan et ferme la boucle d'événements."""
+        runner = store_with_mocks._async_runner
+        assert runner._thread.is_alive()
+        assert runner._loop.is_running()
+
+        store_with_mocks.close()
+
+        assert not runner._thread.is_alive()
+        assert not runner._loop.is_running()
+        assert runner._loop.is_closed()
+
+        # Idempotence : un second appel ne lève pas d'erreur
+        store_with_mocks.close()
+
+    def test_run_async_raises_after_close(self, store_with_mocks):
+        """_run_async rejette les coroutines avec RuntimeError si le store a été fermé."""
+        store_with_mocks.close()
+
+        async def dummy_coro():
+            return 42
+
+        with pytest.raises(RuntimeError) as exc:
+            store_with_mocks._run_async(dummy_coro())
+        assert "stopped or closed" in str(exc.value)
+
+

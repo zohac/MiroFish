@@ -1,10 +1,11 @@
-"""
-LLM客户端封装
-统一使用OpenAI格式调用
+"""Client LLM MiroFish.
+
+Appels unifiés au format OpenAI compatible.
 """
 
 import json
 import logging
+import os
 import re
 from typing import Optional, Dict, Any, List
 from openai import OpenAI
@@ -67,7 +68,6 @@ def _is_response_format_unsupported(error: Exception) -> bool:
 
 def _clean_chat_text(content: str) -> str:
     """Remove common reasoning wrappers and an outer Markdown JSON fence."""
-
     cleaned = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
     cleaned = cleaned.lstrip("\ufeff")
     cleaned = re.sub(r'^```(?:json)?\s*\n?', '', cleaned, flags=re.IGNORECASE)
@@ -98,9 +98,9 @@ class LLMClient:
         base_url: Optional[str] = None,
         model: Optional[str] = None
     ):
-        self.api_key = api_key or Config.LLM_API_KEY
-        self.base_url = base_url or Config.LLM_BASE_URL
-        self.model = model or Config.LLM_MODEL_NAME
+        self.api_key = api_key or os.environ.get("LLM_API_KEY") or Config.LLM_API_KEY
+        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or Config.LLM_BASE_URL
+        self.model = model or os.environ.get("LLM_MODEL_NAME") or Config.LLM_MODEL_NAME
         
         if not self.api_key:
             raise ValueError("LLM_API_KEY 未配置")

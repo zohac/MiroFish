@@ -21,11 +21,12 @@ Une suite de tests d'isolation permanente (`test_graph_store_isolation.py`) gara
 **0 import direct** du SDK Zep dans les services et routes API, et **0 bifurcation conditionnelle** `if zep else graphiti`
 dans le code applicatif. Le filet global atteint **470 tests verts** (100 % passants). L'Epic 002 est **clos**.
 
-L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en cours :
+L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture) est intégralement clos avec succès (5/5 stories terminées et validées)** :
 - **Story 003-1 (done)** : squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, constructeur à injection de dépendances, résolution de variables d'environnement, passerelle synchrone/asynchrone thread-safe `_run_async`, activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). Suite de 23 tests unitaires hermétiques (`test_graphiti_graph_store.py`). Filet porté à **494 tests verts** (+24).
 - **Story 003-2 (done)** : implémentation du cycle de vie (`create_graph`, `delete_graph`, `set_ontology`) et de l'ingestion d'épisodes (`add_episode`, `add_text_batch`, `wait_for_batch`, `wait_for_episodes`) avec partitionnement strict par `group_id = graph_id` (Critère C2, NFR-3). Validation de l'isolation étanche entre graphes, normalisation ISO 8601 UTC ('Z'/'z'), optimisation Cypher indexé `:Episodic` et revue contradictoire BMad 4 couches validée (5 patchs appliqués). 27 nouveaux tests unitaires dans `test_graphiti_graph_store.py` (50 tests sur le fichier). Filet porté à **521 tests verts** (+27).
 - **Story 003-3 (done)** : implémentation de la lecture Cypher (`get_all_nodes`, `get_all_edges`), des parcours de voisinage (`get_node`, `get_node_edges`), de l'agrégation API (`get_graph_data`, `get_graph_info`) et de la recherche hybride temporelle (`search` avec scopes `edges`, `nodes`, `hybrid`). Préservation intégrale de la temporalité (C3, NFR-4), résolution des noms de nœuds connectés, partitionnement étanche `group_id` sur toutes les requêtes Cypher et revue contradictoire BMad 4 couches validée (6 patchs appliqués). 24 nouveaux tests unitaires dans `test_graphiti_graph_store.py` (74 tests sur le fichier). Filet porté à **545 tests verts** (+24).
 - **Story 003-4 (done)** : adaptation de la lecture d'entités (`zep_entity_reader.py`, `EntityNode`, `GraphNode`) pour supporter le typage agnostique et les entités génériques Graphiti (`:Entity`). Levée du filtrage aveugle qui ignorait 100 % des nœuds Graphiti, chaîne de résolution déterministe de `get_entity_type()` (labels spécifiques > attributs `entity_type`/`type`/`category` > `Entity`), filtrage `filter_defined_entities()` avec ou sans `defined_entity_types`, compatibilité validée avec `simulation_config_generator` et `oasis_profile_generator`, revue BMad validée (3 patchs appliqués). 10 tests unitaires hermétiques dédiés (`test_zep_entity_reader_graphiti.py`). Filet porté à **555 tests verts** (+10).
+- **Story 003-5 (done)** : banc d'intégration réelle (`backend/scripts/verifier_integration_graphiti.py`) validé contre le conteneur Neo4j local (`docker-compose.neo4j.yml`). 100 % des 14 méthodes exercées avec succès (C1), partitionnement multi-tenant étanche prouvé sans fuite (C2), métadonnées temporelles préservées (C3), extraction `ZepEntityReader` validée sur le graphe réel (C4), factory opérationnelle sans clé Zep (C5), filet global porté à **562 tests verts** (+7 tests, dont 2 tests unitaires hermétiques issus de la revue BMad). Rapport de validation versionné ([`rapport-validation-integration.md`](plans/003-chemin-de-lecture-graphiti/rapport-validation-integration.md)) avec **VERDICT GO**. L'Epic 003 est **clos**.
 
 ## Fait
 
@@ -41,16 +42,22 @@ L'**Epic 003 (`GraphitiGraphStore` — écriture et chemin de lecture)** est en 
 | Constitution, suivi, CI + lint ruff | `AGENTS.md`, `docs/sprint-status.yaml`, `.github/workflows/ci.yml` |
 | Épreuve Graphiti local (Epic 001) : 6 stories validées, verdict GO documenté | [`docs/plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/rapport.md) |
 | Interface `GraphStore` (Epic 002) : 6 stories validées, ZepGraphStore, factory, refactoring services/api, tests AST d'isolation (470 tests verts) | [`docs/plans/002-interface-graphstore/`](plans/002-interface-graphstore/prd.md) |
-| Squelette `GraphitiGraphStore` (Story 003-1) : contrat 14 méthodes, injection, async bridge, factory active, revue BMad (494 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-1.md) |
-| Cycle de vie et ingestion `GraphitiGraphStore` (Story 003-2) : partitionnement `group_id`, write pipeline, revue BMad, 50 tests (521 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-2.md) |
-| Lecture Cypher et recherche `GraphitiGraphStore` (Story 003-3) : lecture, voisinage, agrégation, recherche hybride, 74 tests, revue BMad (545 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-3.md) |
-| Adaptation lecture Graphiti (Story 003-4) : typage agnostique, filter_defined_entities, non-rejet :Entity, revue BMad (555 tests verts) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/story-003-4.md) |
+| `GraphitiGraphStore` complet (Epic 003) : 5 stories validées, write/read pipeline, recherche hybride, reader agnostique, banc d'intégration réelle Neo4j (562 tests verts, Verdict GO) | [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/rapport-validation-integration.md) |
 
 ## En cours
 
-**Epic 003 — `GraphitiGraphStore` : écriture et chemin de lecture** (ADR 0001, ADR 0003).
-Plan : [`docs/plans/003-chemin-de-lecture-graphiti/`](plans/003-chemin-de-lecture-graphiti/prd.md).
-Stories 003-1, 003-2, 003-3 et 003-4 achevées, relues et validées (555 tests verts). En cours : **Story 003-5** (validation d'intégration de bout en bout et clôture de l'Epic 003).
+**Epic 004 — Construire un graphe en local sans clé Zep** (ADR 0001, ADR 0003).
+Preuve finale de bout en bout de l'application : documents → graphe Graphiti → personas → simulation → rapport, sans `ZEP_API_KEY`.
+- **Story 004-1 (done)** : Paramétrabilité universelle du LLM via `.env` (compatible OpenAI, gratuit ou payant). `Config.LLM_REASONING_EFFORT` déclaré et exposé, résolution des paramètres homogénéisée entre `LLMClient` et `MiroFishLLMClient`, neutralité stricte prouvée (aucun en-tête OpenCode vers OpenAI, DeepSeek, Groq ou Ollama), transmission propre de `reasoning_effort` et suite de tests unitaires dédiée (+9 tests). Filet global porté à **571 tests verts**.
+
+### Bilan consolidé de l'Epic 003 — GraphitiGraphStore et chemin de lecture (Clos — 562 tests verts)
+
+L'epic 003 est intégralement achevé. Ses 5 stories ont été implémentées, testées et validées :
+- **Story 003-1 (done)** : Squelette de `GraphitiGraphStore`, déclaration formelle des 14 méthodes du contrat `GraphStore`, injection de dépendances, résolution des variables d'environnement, passerelle thread-safe `_run_async` avec runner d'arrière-plan `_AsyncLoopRunner` et activation de `ZEP_BACKEND='graphiti'` dans la factory `get_graph_store()`. 23 tests unitaires hermétiques (494 tests verts).
+- **Story 003-2 (done)** : Implémentation du cycle de vie et de l'ingestion d'épisodes avec partitionnement strict par `group_id = graph_id` (C2). Normalisation ISO 8601 UTC des timestamps et optimisation d'index Cypher. 27 nouveaux tests unitaires (521 tests verts).
+- **Story 003-3 (done)** : Implémentation de la lecture Cypher, des parcours de voisinage, de l'agrégation API et de la recherche hybride temporelle (`search` avec scopes `edges`, `nodes`, `hybrid`). Préservation intégrale de la temporalité (C3). 24 nouveaux tests unitaires (545 tests verts).
+- **Story 003-4 (done)** : Adaptation du lecteur d'entités `zep_entity_reader.py` pour supporter le typage agnostique et les entités génériques Graphiti (`:Entity`). Résolution ordonnée de type `get_entity_type()` et filtrage préservant 100 % des nœuds valides. 10 nouveaux tests unitaires (555 tests verts).
+- **Story 003-5 (done)** : Banc d'intégration réelle (`verifier_integration_graphiti.py`) validé contre l'instance Neo4j locale (`docker-compose.neo4j.yml`). 100 % des 14 méthodes exercées avec succès (C1), partitionnement multi-tenant étanche sans fuite (C2), métadonnées temporelles préservées (C3), extraction `ZepEntityReader` validée sur le graphe réel (C4), factory opérationnelle (C5), filet étendu à 562 tests verts (+7 tests) (C6), revue BMad validée avec 2 patchs appliqués et verdict GO consigné dans [`rapport-validation-integration.md`](plans/003-chemin-de-lecture-graphiti/rapport-validation-integration.md). Epic 003 clos.
 
 ### Bilan consolidé de l'Epic 002 — Interface `GraphStore` (Clos — 470 tests verts)
 
@@ -218,8 +225,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 | Epic | Titre | Dépend de |
 |---|---|---|
-| 003 | `GraphitiGraphStore` : écriture et chemin de lecture | 001, 002 |
-| 004 | Construire un graphe sans clé Zep — la preuve finale | 003 |
+| 004 | Construire un graphe sans clé Zep — la preuve finale (en cours) | 003 |
 | 005 | Docker local : Neo4j dans le compose — **le compose d'épreuve existe déjà**, il s'y substituera | 003 |
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette | 003 |
 | 007 | Ontologie dynamique (v2) | 003 |
@@ -245,8 +251,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 003-4** : Adaptation du chemin de lecture (`zep_entity_reader.py`) pour exploiter les entités portant le label générique `:Entity` de Graphiti sans ontologie custom (ADR 0003).
-2. Clôturer l'Epic 003 avec les tests d'intégration réels sur Neo4j local (Story 003-5).
+1. **Démarrer la Story 004-2** : Levée des gardes `ZEP_API_KEY` dans les routes API `/api/graph/` et `/api/simulation/` et les services associés lorsque `ZEP_BACKEND='graphiti'`.
+2. **Poursuivre avec la Story 004-3** : Pipeline d'ingestion et construction de graphe local sans clé Zep.
 
 ## Questions ouvertes
 
@@ -263,7 +269,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **545**, tous verts, **sans `.env`** (filet de tests post-Story 003-3 ; 470 avant Epic 003) |
+| Tests | **571**, tous verts, **sans `.env`** (filet de tests post-Story 004-1 ; 562 avant Epic 004) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |
