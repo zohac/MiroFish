@@ -81,6 +81,19 @@ class Config:
     REPORT_AGENT_TEMPERATURE = float(os.environ.get('REPORT_AGENT_TEMPERATURE', '0.5'))
     
     @classmethod
+    def requires_zep_api_key(cls) -> bool:
+        """Indique si le backend de graphe actif exige une clé ZEP_API_KEY.
+
+        Seul le mode 'graphiti' opère en 100% local-first sans clé Zep.
+        Tout autre mode (y compris 'cloud' par défaut ou valeur non supportée)
+        exige impérativement une clé Zep (comportement fail-closed).
+        """
+        backend_raw = cls.ZEP_BACKEND if cls.ZEP_BACKEND is not None else "cloud"
+        if isinstance(backend_raw, str):
+            return backend_raw.lower().strip() != "graphiti"
+        return True
+
+    @classmethod
     def validate(cls) -> list[str]:
         """验证必要配置"""
         errors: list[str] = []
@@ -93,7 +106,7 @@ class Config:
             backend = backend_raw.lower().strip()
             if backend not in ("cloud", "graphiti"):
                 errors.append(f"ZEP_BACKEND 不受支持：'{backend}'。支持的值：'cloud', 'graphiti'")
-            elif backend == "cloud" and not cls.ZEP_API_KEY:
+            elif cls.requires_zep_api_key() and not cls.ZEP_API_KEY:
                 errors.append("ZEP_API_KEY 未配置")
         if os.environ.get("ZEP_API_URL"):
             errors.append("ZEP_API_URL 不受支持；MiroFish 仅连接 Zep Cloud")

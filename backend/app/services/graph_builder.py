@@ -41,6 +41,14 @@ class GraphBuilderService:
         api_key: Optional[str] = None,
         store: Optional[GraphStore] = None,
     ):
+        """Initialise le service de construction de graphe.
+
+        Args:
+            api_key: Clé d'API Zep Cloud optionnelle (si omise, utilise Config.ZEP_API_KEY).
+                Strictement superflue lorsque ZEP_BACKEND='graphiti'.
+            store: Instance explicite de GraphStore (injection pour tests ou overrides).
+                Si None, résolue dynamiquement via get_graph_store(api_key=...).
+        """
         self.api_key = api_key or Config.ZEP_API_KEY
         if store is not None:
             self.store = store

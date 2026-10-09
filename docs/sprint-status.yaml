@@ -232,6 +232,13 @@ epics:
     # neutralité stricte prouvée (x-opencode-session émis UNIQUEMENT pour opencode.ai
     # et ses sous-domaines, en-têtes neutres pour les tiers OpenAI, DeepSeek, Groq, Ollama),
     # et suite de tests unitaires dédiée. Filet global porté à 577 tests verts (+15, revue BMad validée).
+    # Story 004-2 (DONE) : levée des gardes ZEP_API_KEY dans les routes API et les services
+    # métiers. Helper Config.requires_zep_api_key() posé, gardes bloquants 500 levés dans
+    # api/graph.py (/build, /data, /delete) et api/simulation.py (/entities, /entities/<uuid>,
+    # /entities/by-type) lorsque ZEP_BACKEND='graphiti', et non-régression Zep Cloud préservée.
+    # GraphBuilderService, ZepEntityReader, OasisProfileGenerator, ZepGraphMemoryUpdater et
+    # ZepToolsService s'instancient sans clé en mode graphiti. Suite de 24 tests unitaires et
+    # d'API dédiée (test_zep_api_key_guards.py). Filet global porté à 601 tests verts (+24, revue BMad validée).
 
   - id: "005"
     slug: docker-local

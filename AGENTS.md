@@ -46,7 +46,8 @@ reproductible.**
 >
 > **Chantier en cours : Epic 004 (« Construire un graphe en local sans clé Zep »).**
 > Story 004-1 validée (paramétrabilité universelle LLM via `.env`, neutralité d'hôte stricte et revue BMad 4 couches validée — 577 tests verts).
-> Prochaine étape : Story 004-2 (levée des gardes ZEP_API_KEY dans l'API et les services).
+> Story 004-2 validée (levée des gardes ZEP_API_KEY dans l'API et les services métiers, revue BMad 4 couches validée — 601 tests verts).
+> Prochaine étape : Story 004-3 (ingestion et construction de graphe de bout en bout avec `GraphitiGraphStore`).
 
 ---
 
@@ -74,7 +75,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**577 tests** — il doit grossir, jamais rétrécir.
+**601 tests** — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -299,7 +300,7 @@ cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 577 tests
+cd backend && uv run pytest tests/ -q                  # 601 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -348,7 +349,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 577 tests |
+| Tests | `backend/tests/` | pytest — 601 tests |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
