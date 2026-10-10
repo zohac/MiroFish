@@ -267,7 +267,7 @@ epics:
   - id: "005"
     slug: docker-local
     titre: "Environnement Docker de référence — Docker-first"
-    statut: in-progress
+    statut: done
     plan: docs/plans/005-docker-local
     depend_de: ["001", "002", "003", "004"]
     pourquoi: >-
@@ -304,6 +304,14 @@ epics:
     # et réinitialisation complète lors de down -v. Préservation des montages bind (backend/uploads
     # et backend/simulations). Suite de 12 nouveaux tests unitaires hermétiques (test_docker_volume_persistence.py).
     # Revue BMad 4 couches validée (6 patchs appliqués). Filet global porté à 684 tests verts (+13).
+    # Story 005-5 (DONE) : sonde d'orchestration de qualification Docker (backend/scripts/verifier_qualification_docker.py)
+    # validant l'intégralité des 5 critères de sortie C1 à C5 du PRD de l'Epic 005. Stack démarrée en 6.2s (<= 60s, C1),
+    # filet complet de tests au vert (C2), persistance des volumes prouvée (C3), pipeline e2e local-first sans Zep
+    # validé dans le conteneur backend avec code retour 0 (6 entités Neo4j, 4 arêtes, 6 personas OASIS, C4), 0 secret
+    # dans les calques d'images Docker via docker history et CI 100 % conforme (C5). Suite de 26 tests unitaires
+    # hermétiques (test_verifier_qualification_docker.py). Revue BMad 4 couches validée (5 patchs appliqués).
+    # Rapport de qualification final versionné (rapport-qualification-epic-005.md) avec VERDICT GO.
+    # Filet global porté à 711 tests verts (+27). Epic 005 intégralement clos avec succès (5/5 stories done).
 
   - id: "006"
     slug: migration-donnees-zep

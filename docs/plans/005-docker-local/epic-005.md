@@ -1,6 +1,6 @@
 # Epic 005 — Environnement Docker de référence (Docker-first)
 
-- **Statut** : `in-progress` · **Dépend de** : 001, 002, 003, 004 · **Bloque** : 006, 007
+- **Statut** : `done` · **Dépend de** : 001, 002, 003, 004 · **Bloque** : 006, 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 
 > L'Epic 001 a prouvé la faisabilité de la chaîne Graphiti + Neo4j 5.26 + OpenCode Go en conteneur isolé.  
@@ -12,7 +12,8 @@
 
 **Artefacts de ce dossier** — [`prd.md`](prd.md) (quoi, pourquoi, critères chiffrés) ·
 [`architecture.md`](architecture.md) (comment, modèles et flux de données) · ce fichier (le contrat
-d'ingénierie) · `story-005-<n>.md` (une story démarrée = un fichier markdown).
+d'ingénierie) · `story-005-<n>.md` (une story démarrée = un fichier markdown) ·
+[`rapport-qualification-epic-005.md`](rapport-qualification-epic-005.md) (qualification finale et verdict GO).
 
 ---
 
@@ -72,7 +73,7 @@ L'application MiroFish dispose aujourd'hui d'un `docker-compose.yml` qui pointe 
 | 005-2 | `docker-compose.yml` unifié avec Neo4j, Backend, Frontend et Healthchecks | `done` | `story-005-2.md` |
 | 005-3 | Validation du filet global de tests (664 tests) et outillage sous Docker | `done` | `story-005-3.md` |
 | 005-4 | Persistance des données Neo4j et cycle de vie des volumes | `done` | `story-005-4.md` |
-| 005-5 | Banc de qualification Docker de référence et clôture de l'Epic 005 | `backlog` | `story-005-5.md` |
+| 005-5 | Banc de qualification Docker de référence et clôture de l'Epic 005 | `done` | `story-005-5.md` |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|

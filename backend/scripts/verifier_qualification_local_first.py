@@ -305,6 +305,9 @@ def run_qualification_protocol(
             cross_encoder=cross_encoder,
         )
 
+        if hasattr(store, "_driver") and hasattr(store._driver, "build_indices_and_constraints"):
+            store._run_async(store._driver.build_indices_and_constraints(delete_existing=False))
+
         override_graph_store(store)
 
         # Création d'un projet pour le test

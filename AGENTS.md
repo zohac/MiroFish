@@ -24,7 +24,7 @@ reproductible.**
 | Cadre de travail : constitution, ADR, CI, suivi | ✅ fait |
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002, 003 et 004 clos (632 tests verts) |
-| Environnement Docker de référence (Docker-first) | 🔄 en cours — epic 005 (cadrage PRD, architecture, hub) |
+| Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -48,7 +48,11 @@ reproductible.**
 > Dossier de plan : [`docs/plans/004-bascule-sans-zep/`](docs/plans/004-bascule-sans-zep/prd.md) (`prd.md`, `architecture.md`, `epic-004.md`, `rapport-qualification-epic-004.md`).
 > Les stories 004-1 à 004-5 sont validées (paramétrabilité universelle LLM, levée des gardes ZEP_API_KEY, ingestion/graphe e2e, personas et simulation e2e, banc de qualification globale local-first et revues BMad — 632 tests verts).
 >
-> **En cours : Epic 005 (« Environnement Docker de référence — Docker-first ») — dossier de plan cadré ([`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) : `prd.md`, `architecture.md`, `epic-005.md`).**
+> **L'epic 005 (« Environnement Docker de référence — Docker-first ») est intégralement clos avec succès (5/5 stories done).**
+> Dossier de plan : [`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) (`prd.md`, `architecture.md`, `epic-005.md`, `rapport-qualification-epic-005.md`).
+> Les stories 005-1 à 005-5 sont validées (Dockerfiles spécialisés locaux, `docker-compose.yml` unifié avec healthchecks, outillage et parité CI sous Docker, persistance Neo4j sur volume nommé, banc de qualification finale Docker avec VERDICT GO et 0 secret — 711 tests verts).
+>
+> **Prochaine étape : Arbitrage et démarrage de l'Epic 006 (Migration des données Zep) ou Epic 007 (Ontologie dynamique v2).**
 
 ---
 
@@ -212,42 +216,32 @@ Règles :
 - `docs/STATUS.md` est la vue humaine, alimentée du YAML. Pas de second
   saisie.
 
-### 2.9 Docker d'abord — mais pas encore exécutable
+### 2.9 Docker d'abord — environnement de référence opérationnel
 
-**Docker est l'environnement de référence cible** (ADR 0006). Un seul
+**Docker est l'environnement de référence actif** (ADR 0006, Epic 005 clos). Un seul
 environnement reproductible, pas deux qui divergent.
 
-> ⚠️ **L'epic 005 n'est pas fait.** Aujourd'hui, le `docker-compose.yml`
-> pointe l'image **amont** `ghcr.io/666ghj/mirofish:latest` — sans aucune de
-> nos modifications — ne contient pas Neo4j, et son service s'appelle
-> `mirofish`, pas `backend`. Les commandes Docker de la §3 sont écrites pour
-> après l'epic 005 : lancées maintenant, elles échouent ou font tourner le
-> code amont. **Tant que l'epic 005 n'est pas fait, on travaille en local,
-> et c'est un choix assumé.**
->
-> **Une exception, et elle est assumée aussi : Neo4j tourne déjà sous Docker.**
-> `docker-compose.neo4j.yml` est un compose **séparé** (story 001-2), qui ne sert
-> qu'à l'épreuve du graphe. Il ne contient pas notre code — c'est un serveur de
-> base de données, pas un environnement d'application — donc il ne crée pas le
-> second environnement que la règle interdit. L'epic 005 l'absorbera dans
-> l'environnement de référence, et là `docker compose up` lancera vraiment tout.
+> ✅ **L'epic 005 est intégralement réalisé.** Le fichier `docker-compose.yml`
+> unifie désormais les 3 services construits localement :
+> - `neo4j` : instance Neo4j 5.26.31 Community avec APOC débridé, volume nommé persistant `neo4j_data` et healthcheck Bolt.
+> - `backend` : service Flask API, Graphiti, SentenceTransformerEmbedder et moteurs de simulation OASIS (Python 3.11-slim, `uv sync --locked`).
+> - `frontend` : service Vue 3 + Vite avec target proxy dynamique vers `http://backend:5001`.
 >
 > ```bash
-> # L'épreuve du graphe — utilisable aujourd'hui, depuis la racine du dépôt
-> docker compose -f docker-compose.neo4j.yml up -d --wait   # démarre et attend le Bolt
-> docker compose -f docker-compose.neo4j.yml ps              # état + healthcheck
-> docker compose -f docker-compose.neo4j.yml logs -f neo4j  # logs
-> docker compose -f docker-compose.neo4j.yml down            # garde le volume
+> # Cycle standard de l'application
+> docker compose up -d                      # démarre les 3 services avec healthchecks
+> docker compose ps                         # état + healthchecks
+> docker compose logs -f backend            # logs backend
+> docker compose down                       # arrête les conteneurs en conservant les volumes
 > ```
 >
-> Le mot de passe vient de `.env` (`NEO4J_PASSWORD`), **jamais** du compose.
-> `down -v` détruit le graphe — ne le lancer que sciemment.
+> Le mot de passe vient de `.env` (`NEO4J_PASSWORD`), **jamais** du compose ni des images.
+> `down -v` détruit le volume du graphe — ne le lancer que sciemment.
 
-Ce qui restera vrai quand Docker sera prêt :
+Règles d'or de l'environnement de référence :
 
-- Toute commande passe par `docker compose`. Un `uv run` ou un `pnpm run` en
-  local crée un **second** environnement, qui divergera.
-- Le mode sans Docker reste un **secours explicite**. On ne mélange pas les
+- Toute commande d'exécution et de validation passe préférentiellement par `docker compose`.
+- Le mode sans Docker reste un **secours de développement local explicite**. On ne mélange pas les
   deux dans une même session.
 - Le code est **monté en volume** en développement ; l'image reste la
   référence des dépendances.
@@ -293,35 +287,33 @@ validateur exige désormais les titres français. **Ne pas la recopier.**
 
 ## 3. Commandes
 
-### Aujourd'hui — local (l'epic 005 n'est pas fait)
+### Environnement de référence — Docker (ADR 0006, Epic 005)
 
 ```bash
-# Bootstrap, une fois par poste
+docker compose up -d                                         # backend :5001, frontend :3000, Neo4j :7687/:7474
+docker compose ps                                            # état + healthchecks
+docker compose logs -f backend                               # logs en direct
+docker compose run --rm backend uv run pytest tests/ -q      # 711 tests dans le conteneur
+docker compose run --rm backend uv run ruff check .          # linting dans le conteneur
+docker compose run --rm backend uv run python scripts/verifier_qualification_docker.py # qualification complète
+docker compose down                                          # arrêt en conservant les volumes
+```
+
+### Mode secours local (sans Docker)
+
+```bash
+# Bootstrap local hôte
 cd backend && uv sync && cd ..
 pnpm install && pnpm --dir frontend install
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 684 tests
+cd backend && uv run pytest tests/ -q                  # 711 tests
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
 # Application
 pnpm dev                                              # backend :5001, frontend :3000
 pnpm build                                            # build frontend
-```
-
-Le document de test de l'épreuve est dans `backend/uploads/documents/`, qui est
-**gitignoré** : sur un autre poste il est absent. Le retélécharger depuis
-l'URL et le vérifier au sha256 donnés dans le PRD de l'epic 001.
-
-### Après l'epic 005 — Docker
-
-```bash
-docker compose up -d                      # backend, frontend, Neo4j
-docker compose ps                         # état + healthchecks
-docker compose logs -f backend            # logs
-docker compose run --rm backend uv run pytest tests/ -q
-docker compose run --rm backend bash
 ```
 
 Ports : backend `5001` · frontend `3000` (3001, 3002 si occupés) · Neo4j
@@ -366,10 +358,11 @@ Variables d'environnement utiles :
 | Vérification personas | `backend/scripts/verifier_personas_simulation_graphiti.py` | test d'extraction d'entités, personas et simulation (004-4), critère C4 |
 | Qualification globale | `backend/scripts/verifier_qualification_local_first.py` | test de qualification globale local-first et clôture Epic 004 (004-5), critères C1-C5 |
 | Persistance Neo4j Docker | `backend/scripts/verifier_persistance_neo4j_docker.py` | test de persistance et cycle de vie des volumes (005-4), critère C3 |
+| Qualification Docker | `backend/scripts/verifier_qualification_docker.py` | banc d'orchestration de qualification Docker et clôture Epic 005 (005-5), critères C1-C5 |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |
-| Docker | `Dockerfile`, `docker-compose.yml` | image amont, 1 service — **à étendre** (epic 005) |
+| Docker | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` | stack unifiée 3 services (neo4j, backend, frontend), images spécialisées locales |
 
 ---
 

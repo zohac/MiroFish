@@ -59,6 +59,7 @@ services:
     environment:
       NEO4J_URI: "bolt://neo4j:7687"
       FLASK_PORT: "5001"
+      ZEP_BACKEND: "${ZEP_BACKEND:-graphiti}"
     volumes:
       - ./backend/uploads:/app/backend/uploads
       - ./backend/simulations:/app/backend/simulations
