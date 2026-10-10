@@ -318,3 +318,132 @@ async def test_sonde_verifier_client_graphiti_mock():
 
     exit_code = await verifier_client_graphiti(mock=True)
     assert exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_response_resilient_echo_schema_json():
+    """Vérifie que si le LLM renvoie le schéma JSON brut au lieu d'une instance, il y a repli sur les valeurs par défaut."""
+    from graphiti_core.prompts.extract_nodes import ExtractedEntities
+
+    mock_async_openai = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps(
+        {
+            "$defs": {
+                "ExtractedEntity": {
+                    "properties": {
+                        "name": {"type": "string"},
+                        "entity_type_id": {"type": "integer"},
+                        "episode_indices": {"type": "array"},
+                    },
+                    "required": ["name", "entity_type_id"],
+                    "title": "ExtractedEntity",
+                    "type": "object",
+                }
+            },
+            "properties": {
+                "extracted_entities": {
+                    "items": {"$ref": "#/$defs/ExtractedEntity"},
+                    "type": "array",
+                }
+            },
+            "required": ["extracted_entities"],
+            "title": "ExtractedEntities",
+            "type": "object",
+        }
+    )
+    mock_response.choices = [mock_choice]
+    mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    client = MiroFishLLMClient(client=mock_async_openai)
+    messages = [Message(role="user", content="Extraction sur texte vide")]
+
+    result = await client.generate_response(messages, response_model=ExtractedEntities)
+    assert "extracted_entities" in result
+    assert result["extracted_entities"] == []
+    # Vérification que ExtractedEntities valide sans erreur
+    validated = ExtractedEntities(**result)
+    assert validated.extracted_entities == []
+
+
+@pytest.mark.asyncio
+async def test_generate_response_normalise_donnees_encapsulees_properties():
+    """Vérifie qu'un dictionnaire encapsulé dans properties est désencapsulé avec succès."""
+    from graphiti_core.prompts.extract_nodes import ExtractedEntities
+
+    mock_async_openai = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps(
+        {
+            "properties": {
+                "extracted_entities": [
+                    {"name": "Keova", "entity_type_id": 3, "episode_indices": [0]}
+                ]
+            }
+        }
+    )
+    mock_response.choices = [mock_choice]
+    mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    client = MiroFishLLMClient(client=mock_async_openai)
+    messages = [Message(role="user", content="Extraction Keova")]
+
+    result = await client.generate_response(messages, response_model=ExtractedEntities)
+    validated = ExtractedEntities(**result)
+    assert len(validated.extracted_entities) == 1
+    assert validated.extracted_entities[0].name == "Keova"
+
+
+@pytest.mark.asyncio
+async def test_generate_response_normalise_liste_directe():
+    """Vérifie qu'une liste brute retournée par le modèle est encapsulée dans le champ unique du modèle."""
+    from graphiti_core.prompts.extract_nodes import ExtractedEntities
+
+    mock_async_openai = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps(
+        [
+            {"name": "Sophie Jouan", "entity_type_id": 1, "episode_indices": [0]}
+        ]
+    )
+    mock_response.choices = [mock_choice]
+    mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    client = MiroFishLLMClient(client=mock_async_openai)
+    messages = [Message(role="user", content="Extraction Sophie")]
+
+    result = await client.generate_response(messages, response_model=ExtractedEntities)
+    validated = ExtractedEntities(**result)
+    assert len(validated.extracted_entities) == 1
+    assert validated.extracted_entities[0].name == "Sophie Jouan"
+
+
+@pytest.mark.asyncio
+async def test_generate_response_normalise_alias_entities():
+    """Vérifie que la clé 'entities' est automatiquement renommée en 'extracted_entities'."""
+    from graphiti_core.prompts.extract_nodes import ExtractedEntities
+
+    mock_async_openai = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps(
+        {
+            "entities": [
+                {"name": "Ménopause", "entity_type_id": 4, "episode_indices": [0]}
+            ]
+        }
+    )
+    mock_response.choices = [mock_choice]
+    mock_async_openai.chat.completions.create = AsyncMock(return_value=mock_response)
+
+    client = MiroFishLLMClient(client=mock_async_openai)
+    messages = [Message(role="user", content="Extraction Ménopause")]
+
+    result = await client.generate_response(messages, response_model=ExtractedEntities)
+    validated = ExtractedEntities(**result)
+    assert len(validated.extracted_entities) == 1
+    assert validated.extracted_entities[0].name == "Ménopause"
+
