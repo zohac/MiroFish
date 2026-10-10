@@ -16,7 +16,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-09
+mis_a_jour: 2026-10-10
 
 epics:
   - id: "001"
@@ -297,6 +297,13 @@ epics:
     # pour environnement conteneurisé sans .git et test de repli dédié. Suite de 7 nouveaux tests unitaires
     # hermétiques (test_docker_tooling_parity.py, test_pyproject_override.py). Revue BMad 4 couches validée
     # (6 patchs appliqués). Filet global porté à 671 tests verts (+7).
+    # Story 005-4 (DONE) : sonde de vérification autonome de persistance des données
+    # Neo4j et cycle de vie des volumes (backend/scripts/verifier_persistance_neo4j_docker.py).
+    # Preuve formelle de conformité au critère C3 du PRD : 100 % des nœuds et arêtes créés sont
+    # préservés après un cycle docker compose down && docker compose up -d (sans -v). Preuve de purge
+    # et réinitialisation complète lors de down -v. Préservation des montages bind (backend/uploads
+    # et backend/simulations). Suite de 12 nouveaux tests unitaires hermétiques (test_docker_volume_persistence.py).
+    # Revue BMad 4 couches validée (6 patchs appliqués). Filet global porté à 684 tests verts (+13).
 
   - id: "006"
     slug: migration-donnees-zep

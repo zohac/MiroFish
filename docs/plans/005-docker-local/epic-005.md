@@ -71,7 +71,7 @@ L'application MiroFish dispose aujourd'hui d'un `docker-compose.yml` qui pointe 
 | 005-1 | Dockerfiles dédiés backend et frontend construits depuis les sources locales | `done` | `story-005-1.md` |
 | 005-2 | `docker-compose.yml` unifié avec Neo4j, Backend, Frontend et Healthchecks | `done` | `story-005-2.md` |
 | 005-3 | Validation du filet global de tests (664 tests) et outillage sous Docker | `done` | `story-005-3.md` |
-| 005-4 | Persistance des données Neo4j et cycle de vie des volumes | `backlog` | `story-005-4.md` |
+| 005-4 | Persistance des données Neo4j et cycle de vie des volumes | `done` | `story-005-4.md` |
 | 005-5 | Banc de qualification Docker de référence et clôture de l'Epic 005 | `backlog` | `story-005-5.md` |
 
 | Story | Critères d'acceptation (résumé) |
