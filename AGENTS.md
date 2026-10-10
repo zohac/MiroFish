@@ -52,7 +52,9 @@ reproductible.**
 > Dossier de plan : [`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) (`prd.md`, `architecture.md`, `epic-005.md`, `rapport-qualification-epic-005.md`).
 > Les stories 005-1 à 005-5 sont validées (Dockerfiles spécialisés locaux, `docker-compose.yml` unifié avec healthchecks, outillage et parité CI sous Docker, persistance Neo4j sur volume nommé, banc de qualification finale Docker avec VERDICT GO et 0 secret — 711 tests verts).
 >
-> **Prochaine étape : Arbitrage et démarrage entre l'Epic 006 (Migration des données Zep), l'Epic 007 (Ontologie dynamique v2) et l'Epic 008 (Support complet de la langue française).**
+> **L'epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est en cours de cadrage et réalisation.**
+> Dossier de plan : [`docs/plans/006-migration-donnees-zep/`](docs/plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).
+> Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), et outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €) avec purge optionnelle sécurisée (`purger_graphes_zep.py`).
 
 ---
 

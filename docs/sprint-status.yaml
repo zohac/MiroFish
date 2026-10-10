@@ -316,13 +316,22 @@ epics:
   - id: "006"
     slug: migration-donnees-zep
     titre: "Migrer un graphe Zep existant — ou acter qu'on jette"
-    statut: backlog
-    depend_de: ["003"]
+    statut: in-progress
+    plan: docs/plans/006-migration-donnees-zep
+    depend_de: ["003", "004", "005"]
     pourquoi: >-
       Question ouverte (LOCAL-FIRST.md §11, point 3) : le graphe Zep courant
-      contient-il quelque chose qui vaille la peine d'être conservé ? La
-      réponse change le périmètre, donc l'epic reste ouvert tant qu'elle
-      n'est pas tranchée.
+      contient-il quelque chose qui vaille la peine d'être conservé ?
+      Permettre l'audit d'un compte Zep Cloud, formaliser l'arbre de décision
+      (migrer vs jeter), outiller la migration directe vers Neo4j local sans coût LLM,
+      et fournir un script de purge sécurisé.
+    criteres_de_sortie:
+      - "Sonde d'audit autonome auditer_graphes_zep.py recensant 100 % des graphes d'un compte"
+      - "Pipeline ETL migrer_zep_vers_graphiti.py transférant 100 % des nœuds et arêtes sans perte"
+      - "Préservation rigoureuse des horodatages temporels valid_at et invalid_at"
+      - "Relecture validée par GraphitiGraphStore et génération de personas OASIS"
+      - "Outil de purge purger_graphes_zep.py pour nettoyage sécurisé de Zep Cloud"
+      - "Filet de tests hermétiques au vert sans appel externe"
 
   - id: "007"
     slug: ontologie-dynamique

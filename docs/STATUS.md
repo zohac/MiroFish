@@ -62,9 +62,9 @@ L'**Epic 005 (Environnement Docker de référence — Docker-first, ADR 0006) es
 
 ## En cours / Prochaine étape
 
-Docker est désormais l'environnement de référence actif et opérationnel (ADR 0006).  
-Les chantiers suivants en backlog sont débloqués et prêts pour arbitrage :
-- **Epic 006** : Migrer un graphe Zep existant — ou acter qu'on jette (arbitrage selon `LOCAL-FIRST.md` §11).
+L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette »)** est en cours :
+Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
+Chantiers en backlog pour la suite :
 - **Epic 007** : Ontologie dynamique (v2).
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
@@ -261,7 +261,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 | Epic | Titre | Dépend de |
 |---|---|---|
-| 006 | Migrer le graphe Zep existant — ou acter qu'on jette | 003 |
+| 006 | Migrer le graphe Zep existant — ou acter qu'on jette (en cours) | 003, 004, 005 |
 | 007 | Ontologie dynamique (v2) | 003 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
@@ -286,8 +286,9 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Arbitrage du prochain epic** : choisir entre l'Epic 006 (migration données Zep), l'Epic 007 (ontologie v2) et l'Epic 008 (support complet de la langue française).
-2. **Si l'Epic 008 est retenu en priorité** : démarrer la Story 008-1 (création de `locales/fr.json` et tests de parité de clés).
+1. **Démarrer la Story 006-1** : Outil d'audit et d'inventaire d'un compte Zep Cloud (`auditer_graphes_zep.py`) et tests unitaires avec mocks hermétiques.
+2. **Poursuivre avec la Story 006-2** : Pipeline ETL de transformation et injection directe Cypher dans Neo4j (`migrer_zep_vers_graphiti.py`).
+3. **Poursuivre avec la Story 006-3** : Validation de relecture `GraphStore`, personas OASIS sur graphe migré et outil de purge Zep Cloud (`purger_graphes_zep.py`).
 
 ## Questions ouvertes
 
