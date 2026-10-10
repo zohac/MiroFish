@@ -2,7 +2,7 @@
 id: "006-2"
 epic: "006"
 titre: "Pipeline ETL de transformation et injection directe Cypher dans Neo4j (migrer_zep_vers_graphiti.py)"
-statut: in-progress
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -18,49 +18,65 @@ format: "2"
 
 ## Définition de fini
 
-- [ ] Script ETL autonome `backend/scripts/migrer_zep_vers_graphiti.py` implémenté avec CLI complète (`--graph-id`, `--api-key`, `--neo4j-uri`, `--neo4j-user`, `--neo4j-password`, `--batch-size`, `--mock`, `--output-report`, `--quiet`).
-- [ ] Module de transformation (`ZepToGraphitiTransformer`) assurant la conversion sans perte des structures Zep vers les dictionnaires Cypher Neo4j :
+- [x] Script ETL autonome `backend/scripts/migrer_zep_vers_graphiti.py` implémenté avec CLI complète (`--graph-id`, `--api-key`, `--neo4j-uri`, `--neo4j-user`, `--neo4j-password`, `--batch-size`, `--mock`, `--output-report`, `--quiet`).
+- [x] Module de transformation (`ZepToGraphitiTransformer`) assurant la conversion sans perte des structures Zep vers les dictionnaires Cypher Neo4j :
   - Nœuds : label `:Entity`, propriété `group_id = target_graph_id`, conservation de `uuid`, `name`, `summary`, `created_at`, et injection des attributs avec préservation de `entity_type`.
   - Relations : type `RELATES_TO`, conservation de `uuid`, `source_node_uuid`, `target_node_uuid`, `name`, `fact`, `fact_type`, `created_at`, et injection des attributs.
-- [ ] Préservation rigoureuse de la temporalité : normalisation et validation des champs `valid_at`, `invalid_at`, `expired_at` au format ISO 8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`), satisfaisant à 100 % le critère C3 du PRD.
-- [ ] Module d'injection transactionnelle directe dans Neo4j (`Neo4jDirectLoader`) exécutant des requêtes Cypher `UNWIND` par lots paramétrables (`--batch-size`, défaut 100) sous isolation étanche `group_id = target_graph_id` garantissant l'idempotence (`MERGE`) (critère C2, NFR-2).
-- [ ] Opération d'ETL à coût marginal nul (0 €) : 0 requête LLM, 0 appel à un embedder distant ou local pendant toute la migration (NFR-1).
-- [ ] Mode `--mock` hors-ligne déterministe simulant l'extraction et l'injection d'un graphe représentatif sans nécessiter de compte Zep actif ni d'instance Neo4j en ligne.
-- [ ] Émission d'un compte-rendu de migration structuré (nombre de nœuds extraits/injectés, nombre d'arêtes extraites/injectées, durée, taux de fidélité, export optionnel JSON/Markdown).
-- [ ] Suite de tests unitaires hermétiques (`backend/tests/test_migrer_zep_vers_graphiti.py`) couvrant 100 % des branches (mode mock, mapping nœuds/arêtes, normalisation temporelle, requêtes Cypher `UNWIND`, erreurs réseau, CLI).
-- [ ] Conformité de l'outillage (`ruff check .`, `validate_plans.py`) et préservation du filet de tests ($\ge 734$ tests verts).
-- [ ] Revue contradictoire BMad (4 couches) réalisée et consignée.
+- [x] Préservation rigoureuse de la temporalité : normalisation et validation des champs `valid_at`, `invalid_at`, `expired_at` au format ISO 8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`), satisfaisant à 100 % le critère C3 du PRD.
+- [x] Module d'injection transactionnelle directe dans Neo4j (`Neo4jDirectLoader`) exécutant des requêtes Cypher `UNWIND` par lots paramétrables (`--batch-size`, défaut 100) sous isolation étanche `group_id = target_graph_id` garantissant l'idempotence (`MERGE`) (critère C2, NFR-2).
+- [x] Opération d'ETL à coût marginal nul (0 €) : 0 requête LLM, 0 appel à un embedder distant ou local pendant toute la migration (NFR-1).
+- [x] Mode `--mock` hors-ligne déterministe simulant l'extraction et l'injection d'un graphe représentatif sans nécessiter de compte Zep actif ni d'instance Neo4j en ligne.
+- [x] Émission d'un compte-rendu de migration structuré (nombre de nœuds extraits/injectés, nombre d'arêtes extraites/injectées, durée, taux de fidélité, export optionnel JSON/Markdown).
+- [x] Suite de tests unitaires hermétiques (`backend/tests/test_migrer_zep_vers_graphiti.py`) couvrant 100 % des branches (mode mock, mapping nœuds/arêtes, normalisation temporelle, requêtes Cypher `UNWIND`, erreurs réseau, CLI).
+- [x] Conformité de l'outillage (`ruff check .`, `validate_plans.py`) et préservation du filet de tests ($\ge 734$ tests verts, porté à 771 tests verts).
+- [x] Revue contradictoire BMad (4 couches) réalisée et consignée.
 
 ## Tâches
 
-- [ ] Concevoir l'architecture modulaire du script `backend/scripts/migrer_zep_vers_graphiti.py` avec dataclasses typées (`ZepNodeDTO`, `ZepEdgeDTO`, `MigrationResult`, `MigrationReport`).
-- [ ] Implémenter le module de transformation `ZepToGraphitiTransformer` (mapping schéma Graphiti, conversion de types, normalisation ISO 8601 UTC des timestamps).
-- [ ] Implémenter le chargeur direct Neo4j `Neo4jDirectLoader` exécutant les requêtes Cypher transactionnelles `UNWIND` par lots de nœuds et d'arêtes.
-- [ ] Implémenter le mode `--mock` hors-ligne générant un jeu de test complet et validant le flux ETL sans dépendance externe.
-- [ ] Implémenter la CLI complète avec gestion des arguments, lecture sécurisée des variables d'environnement (`ZEP_API_KEY`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`) et reporting d'exécution.
-- [ ] Écrire la suite de tests unitaires hermétiques `backend/tests/test_migrer_zep_vers_graphiti.py`.
-- [ ] Exécuter la suite de tests et vérifier la propreté du code via `ruff check .`.
-- [ ] Réaliser la revue contradictoire BMad (4 couches) et appliquer les correctifs.
-- [ ] Mettre à jour l'état de la story et synchroniser les référentiels.
+- [x] Concevoir l'architecture modulaire du script `backend/scripts/migrer_zep_vers_graphiti.py` avec dataclasses typées (`ZepNodeDTO`, `ZepEdgeDTO`, `MigrationResult`, `MigrationReport`).
+- [x] Implémenter le module de transformation `ZepToGraphitiTransformer` (mapping schéma Graphiti, conversion de types, normalisation ISO 8601 UTC des timestamps).
+- [x] Implémenter le chargeur direct Neo4j `Neo4jDirectLoader` exécutant les requêtes Cypher transactionnelles `UNWIND` par lots de nœuds et d'arêtes.
+- [x] Implémenter le mode `--mock` hors-ligne générant un jeu de test complet et validant le flux ETL sans dépendance externe.
+- [x] Implémenter la CLI complète avec gestion des arguments, lecture sécurisée des variables d'environnement (`ZEP_API_KEY`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`) et reporting d'exécution.
+- [x] Écrire la suite de tests unitaires hermétiques `backend/tests/test_migrer_zep_vers_graphiti.py`.
+- [x] Exécuter la suite de tests et vérifier la propreté du code via `ruff check .`.
+- [x] Réaliser la revue contradictoire BMad (4 couches) et appliquer les correctifs.
+- [x] Mettre à jour l'état de la story et synchroniser les référentiels.
+
+### Review Findings
+
+- [x] [Review][Patch] Garde booléenne dans normaliser_timestamp_utc [backend/scripts/migrer_zep_vers_graphiti.py:401]
+- [x] [Review][Patch] Repli robuste de target_graph_id si chaîne vide ou espaces [backend/scripts/migrer_zep_vers_graphiti.py:970]
+- [x] [Review][Patch] Validation de l'argument CLI --batch-size strictement positif [backend/scripts/migrer_zep_vers_graphiti.py:1075]
+- [x] [Review][Patch] Précision du comptage réel des arêtes injectées via Cypher RETURN count(r) [backend/scripts/migrer_zep_vers_graphiti.py:630,763]
+- [x] [Review][Patch] Tests unitaires associés (bool timestamps, batch-size invalide, target_graph_id avec espaces) [backend/tests/test_migrer_zep_vers_graphiti.py:102]
+
+#### Rejetés
+- [Review][Rejected] labels Zep non persistés comme attributs Neo4j : rejeté (conforme au schéma Graphiti :Entity et préservation de entity_type dans attributes).
 
 ## Notes de développement
 
 La Story 006-2 constitue le cœur technique de l'Epic 006 : le rapatriement structurel (ETL direct) des données hébergées sur Zep Cloud vers l'instance locale Neo4j, sans nécessiter de ré-ingestion coûteuse par LLM.
 Points d'attention d'architecture et de conception :
 1. **Coût marginal nul (0 €)** : Le pipeline n'appelle ni OpenAI, ni OpenCode Go, ni SentenceTransformerEmbedder. Il transfère les faits sémantiques et entités déjà extraits dans Zep directement sous forme de nœuds et relations Neo4j.
-2. **Compatibilité GraphitiGraphStore** : Pour que le graphe migré soit immédiatement interrogeable par l'application locale (Story 006-3), les nœuds doivent porter le label `:Entity` et la propriété `group_id = target_graph_id`, et les arêtes le type `RELATES_TO` avec la propriété `fact`.
-3. **Temporalité native** : Zep stocke `valid_at` et `invalid_at`. La transformation doit rigoureusement normaliser ces dates en chaînes ISO 8601 UTC afin que les filtres temporels de `GraphitiGraphStore` continuent de fonctionner à l'identique.
+2. **Compatibilité GraphitiGraphStore** : Pour que le graphe migré soit immédiatement interrogeable par l'application locale (Story 006-3), les nœuds portent le label `:Entity` et la propriété `group_id = target_graph_id`, et les arêtes le type `RELATES_TO` avec la propriété `fact`.
+3. **Temporalité native** : Zep stocke `valid_at`, `invalid_at` et `expired_at`. La méthode `normaliser_timestamp_utc` normalise rigoureusement ces dates en chaînes ISO 8601 UTC (`%Y-%m-%dT%H:%M:%SZ`) afin que les filtres temporels de `GraphitiGraphStore` continuent de fonctionner à l'identique.
 4. **Idempotence Cypher** : L'utilisation de `MERGE (n:Entity {uuid: row.uuid, group_id: $group_id})` et `MERGE (source)-[r:RELATES_TO {uuid: row.uuid}]->(target)` garantit qu'une migration interrompue ou rejouée ne crée aucun doublon.
-5. **Hermétisme et sécurité** : Aucun secret (`ZEP_API_KEY`, `NEO4J_PASSWORD`) ne doit fuiter dans les logs, traces d'erreurs ou sorties écran. Le mode `--mock` permet à la CI et aux développeurs hors-ligne d'exécuter et vérifier le pipeline sans infrastructure tierce.
+5. **Hermétisme et sécurité** : Aucun secret (`ZEP_API_KEY`, `NEO4J_PASSWORD`) ne fuite dans les logs, traces d'erreurs ou sorties écran grâce à `masquer_secret`. Le mode `--mock` permet à la CI et aux développeurs hors-ligne d'exécuter et vérifier le pipeline sans infrastructure tierce.
 
 ## Revue
 
-La revue contradictoire BMad sera consignée ici à l'issue de l'implémentation :
-- **Couche Contrat & Architecture** : vérification de la conformité aux exigences fonctionnelles FR-2, FR-3, FR-4 et aux critères C2 et C3 du PRD Epic 006.
-- **Couche Hermétisme & Sécurité** : vérification de l'étanchéité des tests sans appel réseau ni Neo4j réel, et absence de fuite de mots de passe ou clés API.
-- **Couche Tests & Qualité** : vérification de la couverture unitaire des branches de transformation, des cas limites (timestamps nuls, attributs vides) et du chargeur transactionnel.
-- **Couche Robustesse & CI** : validation des codes retours (0 en succès, 1 sur erreur), du partitionnement multi-tenant et de la conformité `ruff`.
+La revue contradictoire BMad (4 couches) a été menée avec succès :
+- **Couche Contrat & Architecture** : Le script `backend/scripts/migrer_zep_vers_graphiti.py` et ses classes associées (`ZepNodeDTO`, `ZepEdgeDTO`, `ZepToGraphitiTransformer`, `Neo4jDirectLoader`, `ZepToGraphitiMigrator`) respectent scrupuleusement les exigences FR-2, FR-3, FR-4 et les critères C2 et C3 du PRD Epic 006. L'isolation multi-tenant par `group_id` est totale et l'idempotence des requêtes Cypher `UNWIND` est garantie par `MERGE`.
+- **Couche Hermétisme & Sécurité** : La suite de tests `test_migrer_zep_vers_graphiti.py` est strictement hermétique (36 tests unitaires, 0 appel réseau externe, 0 clé requise en CI). Les secrets sont masqués via `masquer_secret` et ne transitent jamais dans les rapports ou les affichages console.
+- **Couche Tests & Qualité** : Couverture exhaustive des branches de transformation (nœuds, arêtes, attributs sérialisés en JSON pour respecter les types Neo4j, détection des arêtes orphelines, dates naïves et aware, timestamps Unix, booléens) et de la CLI. Le filet global de tests progresse de 734 à 771 tests verts (100 % passants).
+- **Couche Robustesse & CI** : Validation sans avertissement ni erreur par `ruff check .`, conformité stricte vérifiée par `scripts/validate_plans.py`, codes de retour UNIX 0 en succès et 1 sur anomalie. 5 patchs de revue BMad appliqués et validés (garde booléenne timestamp, repli d'espaces target_graph_id, validation batch-size <= 0, comptage précis merged_count Cypher, nouveaux tests unitaires).
 
 ## Notes de complétion
 
-À renseigner lors de la clôture de la story après implémentation, passage des tests et revue BMad.
+La Story 006-2 a été achevée avec succès.
+- Script autonome `backend/scripts/migrer_zep_vers_graphiti.py` opérationnel avec support complet du mode `--mock` déterministe et du mode réel connecté.
+- Transformation sans perte avec préservation garantie de la temporalité ISO 8601 UTC (`valid_at`, `invalid_at`, `expired_at`) et de la propriété `entity_type`.
+- Injection Cypher par lots transactionnels `UNWIND` avec `MERGE` idempotent et comptage précis via `RETURN count(r) AS merged_count`.
+- Suite de tests unitaires dédiée `backend/tests/test_migrer_zep_vers_graphiti.py` (36 tests passants).
+- Filet global porté à 771 tests passants, `ruff` sans reproche, `validate_plans.py` conforme.
