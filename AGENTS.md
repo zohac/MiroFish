@@ -52,7 +52,7 @@ reproductible.**
 > Dossier de plan : [`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) (`prd.md`, `architecture.md`, `epic-005.md`, `rapport-qualification-epic-005.md`).
 > Les stories 005-1 à 005-5 sont validées (Dockerfiles spécialisés locaux, `docker-compose.yml` unifié avec healthchecks, outillage et parité CI sous Docker, persistance Neo4j sur volume nommé, banc de qualification finale Docker avec VERDICT GO et 0 secret — 711 tests verts).
 >
-> **Prochaine étape : Arbitrage et démarrage de l'Epic 006 (Migration des données Zep) ou Epic 007 (Ontologie dynamique v2).**
+> **Prochaine étape : Arbitrage et démarrage entre l'Epic 006 (Migration des données Zep), l'Epic 007 (Ontologie dynamique v2) et l'Epic 008 (Support complet de la langue française).**
 
 ---
 

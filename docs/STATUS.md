@@ -63,9 +63,10 @@ L'**Epic 005 (Environnement Docker de référence — Docker-first, ADR 0006) es
 ## En cours / Prochaine étape
 
 Docker est désormais l'environnement de référence actif et opérationnel (ADR 0006).  
-Les chantiers suivants en backlog sont débloqués :
+Les chantiers suivants en backlog sont débloqués et prêts pour arbitrage :
 - **Epic 006** : Migrer un graphe Zep existant — ou acter qu'on jette (arbitrage selon `LOCAL-FIRST.md` §11).
 - **Epic 007** : Ontologie dynamique (v2).
+- **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
 ### Bilan consolidé de l'Epic 005 — Environnement Docker de référence (Clos — 711 tests verts)
 
@@ -260,10 +261,9 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 | Epic | Titre | Dépend de |
 |---|---|---|
-| 004 | Construire un graphe sans clé Zep — la preuve finale (en cours) | 003 |
-| 005 | Docker local : Neo4j dans le compose — **le compose d'épreuve existe déjà**, il s'y substituera | 003 |
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette | 003 |
 | 007 | Ontologie dynamique (v2) | 003 |
+| 008 | Support complet de la langue française (Localisation FR) | 005 |
 
 ---
 
@@ -286,8 +286,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 004-4** : Génération des personas et configuration de simulation en local avec `GraphitiGraphStore` et `ZepEntityReader`.
-2. **Poursuivre avec la Story 004-5** : Exécution de simulation multi-agents et génération de rapport en mode local-first.
+1. **Arbitrage du prochain epic** : choisir entre l'Epic 006 (migration données Zep), l'Epic 007 (ontologie v2) et l'Epic 008 (support complet de la langue française).
+2. **Si l'Epic 008 est retenu en priorité** : démarrer la Story 008-1 (création de `locales/fr.json` et tests de parité de clés).
 
 ## Questions ouvertes
 
@@ -304,10 +304,10 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **664**, tous verts, **sans `.env`** (filet de tests post-Story 005-2 ; 651 après Story 005-1, 632 avant Epic 005) |
+| Tests | **711**, tous verts, **sans `.env`** (filet de tests post-Epic 005 ; 684 après Story 005-4, 632 avant Epic 005) |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
-| Environnement de référence | Docker dès que l'epic 005 est fait (ADR 0006) — en attendant, on travaille en local, et c'est dit |
+| Environnement de référence | Docker opérationnel (ADR 0006, Epic 005 clos) — stack 3 services (`neo4j`, `backend`, `frontend`) unifiée |
 | Fork audités | 6 — 0 adopté |

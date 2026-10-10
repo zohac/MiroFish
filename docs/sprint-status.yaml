@@ -333,3 +333,22 @@ epics:
       Reportée en v2 par ADR 0003. Le chemin de lecture étant fait, le
       surcoût marginal de l'ontologie devient acceptable — mais seulement si
       la v1 a livré un graphe exploitable.
+
+  - id: "008"
+    slug: support-langue-francaise
+    titre: "Support complet de la langue française (Localisation FR)"
+    statut: backlog
+    plan: docs/plans/008-support-langue-francaise
+    depend_de: ["005"]
+    pourquoi: >-
+      Offrir une expérience 100 % francophone : dictionnaire de traduction
+      IHM complet (locales/fr.json), formats régionaux, et injection des consignes
+      linguistiques dans les prompts des agents LLM pour générer personas, simulations
+      et rapports en français.
+    criteres_de_sortie:
+      - "100 % des clés de locales/en.json traduites dans locales/fr.json (parité stricte vérifiée)"
+      - "Bascule dynamique et persistance de la langue 'fr' dans le frontend Vue 3"
+      - "Formats régionaux fr-FR appliqués aux dates et horodatages"
+      - "Prompts LLM enrichis avec l'instruction 'Veuillez répondre en français.'"
+      - "Personas et rapports de simulation rédigés en français par les agents"
+      - "Suite de tests unitaires d'intégrité et parité i18n au vert"
