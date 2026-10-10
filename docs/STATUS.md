@@ -300,7 +300,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Préparer l'implémentation de [009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md)** : story rédigée sur demande, toujours `backlog`. Constituer les fixtures annotées multi-domaines et contrôler le code courant sous Docker avant démarrage. Politique minimale : personnes et organisations admissibles, collectifs en `review`, exception marque/fiction reportée. Le verrou P0 utilise les consignes existantes sans attendre le brief complet de 009-2.
+1. **Implémenter [009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md)** : définition de prêt satisfaite, story toujours `backlog`, aucun code métier démarré. [Preuves](plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md) : 46 entités annotées/relues et contrôle Docker (822 réussis, 3 ignorés sur 825 collectés). Politique minimale : personnes et organisations admissibles, collectifs en `review`, exception marque/fiction reportée. Le verrou P0 utilise les consignes existantes sans attendre le brief complet de 009-2.
 2. **Préparer 009-2 puis 009-3** : arrêter par ADR le contrat de provenance commun aux deux stores et préciser les corrections humaines. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
 3. **Graphes migrés de l'Epic 006 clos** : appliquer la même barrière d'acteurs pendant 009-1 ; ne pas rouvrir la migration ni inventer une provenance absente.
 
@@ -319,7 +319,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **771 collectés : 768 réussis, 3 ignorés**, sous Docker sans `.env` ni réseau externe, le 10 octobre 2026 sur l'état initial `cb6e559` ([preuve et limites](plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)). Les 3 contrôles ignorés nécessitent Docker CLI dans le conteneur. Ce contrôle ne qualifie pas les changements 006 concurrents ; 711 est le jalon historique de l'Epic 005. |
+| Tests | **825 collectés : 822 réussis, 3 ignorés**, sous Docker sans `.env` ni réseau externe le 10 octobre 2026, code applicatif `701945c` et 25 nouveaux contrôles de fixtures ([preuve et limites](plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md)). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Les résultats de la reprise sur `cb6e559` restent datés dans la revue ; 711 est le jalon historique de l'Epic 005. |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

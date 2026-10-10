@@ -405,7 +405,9 @@ epics:
       SimulationBrief, la prévalidation avant lancement et la provenance des faits
       dans le rapport. La story 009-1 est rédigée et reste en backlog, sans code
       démarré ; sa politique minimale conserve les collectifs en review et reporte
-      l'exception marque/fiction. Fixtures et contrôle de référence requis avant code.
+      l'exception marque/fiction. Définition de prêt satisfaite le 10 octobre 2026 :
+      46 entités annotées et relues sur deux domaines, 25 tests d'intégrité ajoutés,
+      contrôle Docker consigné dans preparation-009-1.md. Aucun classifieur qualifié.
       Corrections humaines, validation/conflits documentaires et contrat de provenance
       à fixer avant les lots concernés. Le rapport source est rapproché dans une matrice
       de couverture incluant diagnostics de contexte et traces des événements.

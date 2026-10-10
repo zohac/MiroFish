@@ -3,7 +3,7 @@
 - **Statut** : `backlog` · **Dépend de** : 004, 005 · **Bloque** : 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
-- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) est rédigée à la demande de l'utilisateur et reste `backlog`, avec ses conditions de prêt ouvertes ; aucun code 009 démarré. Les autres noms de fichiers sont des emplacements futurs.
+- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) reste `backlog`, avec sa définition de prêt satisfaite : [fixtures relues et référence Docker](preparation-009-1.md). Aucun code métier 009 démarré. Les autres noms de fichiers sont des emplacements futurs.
 - **Rapport source fourni par l'utilisateur** : [matrice de couverture](couverture-rapport-audit.md), incluant diagnostics, contexte long et événements de simulation.
 
 > L'Epic 005 a scellé l'environnement Docker de référence autonome (711 tests verts, Verdict GO).  
@@ -68,7 +68,7 @@
 
 | Story | Dépend de | Exigences | Critères de sortie |
 |---|---|---|---|
-| 009-1 | 004 et 005 (`done`) ; politique minimale décrite dans la story, fixtures annotées et contrôle de référence requis avant code | FR-1, FR-2 ; NFR-1, NFR-3, NFR-4, NFR-5 | C1, C2, contribution C5 |
+| 009-1 | 004 et 005 (`done`) ; définition de prêt satisfaite, politique/fixtures/référence Docker consignées dans la story | FR-1, FR-2 ; NFR-1, NFR-3, NFR-4, NFR-5 | C1, C2, contribution C5 |
 | 009-2 | 009-1 ; validation/conflits, contexte long et extension du contrat spécifiés | FR-3, FR-4, FR-5 ; NFR-2, NFR-4, NFR-5 | C3, C4, contribution C5 |
 | 009-3 | 009-1, 009-2 ; politique de correction humaine fixée | FR-6 ; NFR-3, NFR-4 | C6, contribution C5 |
 | 009-4 | 009-2, 009-3 ; verrou de 009-1 opérationnel | FR-7 ; NFR-2, NFR-4, NFR-5 | C7, validation finale C1–C7 |
@@ -86,6 +86,7 @@ Le brief complet de 009-2 ne bloque pas le lot P0 : 009-1 utilise les consignes 
 | [`revue-coherence-2026-10-10.md`](revue-coherence-2026-10-10.md) | Constats sourcés, corrections, arbitrages et résultat des contrôles. |
 | [`rapport-audit-mirofish-local-first.md`](rapport-audit-mirofish-local-first.md) | Audit source ajouté pendant la reprise ; recommandations et exceptions de fiction à arbitrer, sans preuve reproductible des runs. |
 | [`couverture-rapport-audit.md`](couverture-rapport-audit.md) | Traçabilité des recommandations vers FR/NFR, critères et lots ; limites de couverture du plan. |
+| [`preparation-009-1.md`](preparation-009-1.md) | Fixtures, relecture des annotations, contrat d'entrée et preuve Docker de la définition de prêt de 009-1. |
 | [`backend/app/services/oasis_profile_generator.py`](../../../backend/app/services/oasis_profile_generator.py) | Entrées unitaires/par lots et choix du prompt selon le rôle. |
 | [`backend/app/services/simulation_manager.py`](../../../backend/app/services/simulation_manager.py) | Préparation, sélection persistée et invalidation des artefacts. |
 | [`backend/app/services/graph_builder.py`](../../../backend/app/services/graph_builder.py) | Découpage et soumission des lots documentaires. |

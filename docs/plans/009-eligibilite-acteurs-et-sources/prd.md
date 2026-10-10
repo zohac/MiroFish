@@ -116,7 +116,7 @@ Bâtir un sous-système **générique et agnostique** (0 règle propre à un cli
 
 ## 6. Conditions de préparation des stories
 
-- La [story 009-1 rédigée](story-009-1.md) traite le verrou P0 avec `simulation_requirement` existant comme contexte minimal ; elle ne dépend pas de la persistance complète du brief en 009-2. Politique minimale du lot : personnes et organisations seulement, collectifs en `review`, exception marque/fiction explicitement reportée. Fixtures annotées et contrôle de référence restent requis avant code.
+- La [story 009-1 rédigée](story-009-1.md) traite le verrou P0 avec `simulation_requirement` existant comme contexte minimal ; elle ne dépend pas de la persistance complète du brief en 009-2. Politique minimale du lot : personnes et organisations seulement, collectifs en `review`, exception marque/fiction explicitement reportée. Sa [définition de prêt est satisfaite](preparation-009-1.md) : 46 entités annotées et relues sur deux domaines, contrôle Docker consigné. Le classifieur reste à implémenter et qualifier.
 - Le filtrage syntaxique porte sur une valeur entière (URL, montant, date), jamais sur un mot isolé trouvé dans un nom d'acteur. Une décision LLM invalide ou de confiance insuffisante reste `review` et ne produit aucun profil.
 - Une correction humaine doit rester compatible avec un rôle d'acteur ; l'activation directe d'un produit/concept par simple changement de statut est interdite. Le protocole exact de requalification est à fixer dans 009-3.
 - 009-2 précède 009-3 et 009-4 pour le brief et la provenance. Les anciennes données non traçables restent utilisables avec un avertissement explicite ; une reconstruction éventuelle exige les documents originaux.

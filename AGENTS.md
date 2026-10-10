@@ -59,7 +59,7 @@ reproductible.**
 >
 > **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est en `backlog`, avec un plan revu le 10 octobre 2026.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages. La [story 009-1](docs/plans/009-eligibilite-acteurs-et-sources/story-009-1.md) est rédigée sur demande et reste `backlog` : politique minimale précisée, fixtures et contrôle de référence à constituer avant code. Aucun développement 009 démarré ; les documents ne valent pas qualification fonctionnelle.
+> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages. La [story 009-1](docs/plans/009-eligibilite-acteurs-et-sources/story-009-1.md) reste `backlog`, prête pour le développement : [46 entités annotées et relues, référence Docker contrôlée](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md). Aucun code métier 009 démarré ; le classifieur reste à implémenter et qualifier.
 
 ---
 
@@ -87,7 +87,8 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**800 tests collectés** (100 % passants au 10 octobre 2026) — il doit grossir, jamais rétrécir.
+**825 tests collectés** — il doit grossir, jamais rétrécir. Contrôle Docker du
+10 octobre 2026 : **822 réussis, 3 ignorés** ; [preuves et limites](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md).
 
 Règles de qualité des tests :
 
@@ -349,7 +350,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 800 collectés au 10 octobre 2026 (100 % passants) |
+| Tests | `backend/tests/` | pytest — 825 collectés au 10 octobre 2026 (822 réussis, 3 ignorés sous Docker) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |

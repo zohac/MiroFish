@@ -25,8 +25,8 @@ contournement du verrou P0 ; la révision humaine complète appartient à 009-3.
 - [x] Politique minimale du lot explicitée ci-dessous : personnes et organisations seulement, collectifs en `review`, exception marque/fiction reportée.
 - [x] Entrées existantes, mécanisme de secours des profils et réutilisation des préparations identifiés ; formats OASIS à préserver.
 - [x] Critères mesurables et stratégie de tests définis, avec séparation des tests hermétiques et de la mesure réelle.
-- [ ] Fixtures annotées multi-domaines constituées et relues avant le code métier ; cas et attentes minimales définis ci-dessous.
-- [ ] État de référence du code courant contrôlé sous Docker au démarrage du développement ; résultats, versions et tests ignorés consignés.
+- [x] Fixtures annotées multi-domaines constituées et relues : 46 entités, 23 par domaine, 8 acteurs attendus par domaine ; [preuves et empreintes](preparation-009-1.md).
+- [x] État de référence du code courant contrôlé sous Docker avant code métier : 822 réussis, 3 ignorés sur 825 collectés, lint et plans valides ; [versions, protocole et limites](preparation-009-1.md). Recontrôler si le code ou les dépendances changent avant implémentation.
 
 ### Critères d'acceptation
 
@@ -59,7 +59,7 @@ contournement du verrou P0 ; la révision humaine complète appartient à 009-3.
 
 ## Tâches
 
-- [ ] T1 — Constituer les deux fixtures et relire leurs annotations avant implémentation (AC2, AC5, AC11).
+- [x] T1 — Constituer les deux fixtures et relire leurs annotations avant implémentation (AC2, AC5, AC11) ; 46 entités annotées, 25 contrôles d'intégrité, [relecture consignée](preparation-009-1.md). Les comportements AC2/AC5/AC11 restent à implémenter et qualifier.
 - [ ] T2 — Ajouter `app/models/actor_eligibility.py` avec enums, validation commune et sérialisation testées (AC1, AC4, AC5).
 - [ ] T3 — Ajouter `app/services/actor_classifier.py` : filtrage syntaxique intégral, client LLM injecté/créé à la demande, réponse structurée validée et diagnostics par entité (AC2–AC5, AC13).
 - [ ] T4 — Protéger les entrées unitaires/par lots d'`OasisProfileGenerator`, choisir les prompts par rôle et séparer refus/erreur de persona (AC6–AC8).
@@ -178,16 +178,20 @@ existant du cache exigeant les fichiers des deux plateformes est distinct :
 
 ### Fixtures, tests et qualification
 
-Créer `backend/tests/fixtures/actor_eligibility/` avec deux jeux JSON synthétiques
-et versionnés : **logiciel de gestion** et **événement culturel public**. Chaque
-jeu contient au moins 10 entités, au moins une personne et une organisation
-attendues comme acteurs, ainsi qu'un produit, tarif, URL et concept attendus
-passifs. Ajouter les cas ambigus/collectifs, homonymes produit/organisation et noms
-composites. Annoter UUID, contexte, rôle/statut attendus et raison de l'annotation ;
-labels génériques et typés doivent être représentés.
+Les fixtures sont constituées dans `backend/tests/fixtures/actor_eligibility/` :
+[logiciel de gestion](../../../backend/tests/fixtures/actor_eligibility/logiciel_gestion.json)
+et [événement culturel public](../../../backend/tests/fixtures/actor_eligibility/evenement_culturel.json).
+Chacun des deux jeux synthétiques comporte 23 entités, dont 2 personnes et
+6 organisations attendues comme acteurs, 12 connaissances passives et 3 cas
+`review`. Ils couvrent tous les rôles, les vrais homonymes produit/organisation,
+les noms composites avec montant/date/durée, les collectifs, la fiction et les
+attributs hostiles. UUID, contexte, rôle/statut attendus et justification sont
+annotés ; labels génériques et typés représentés. Le [rapport de préparation](preparation-009-1.md)
+décrit leur contrat : `expected` et `tags` ne doivent pas être transmis au classifieur.
 
 | Suite prévue | Ce qu'elle démontre |
 |---|---|
+| `test_actor_eligibility_fixtures.py` (déjà ajouté) | 25 contrôles d'intégrité des jeux annotés ; ne démontre aucun comportement du classifieur. |
 | `test_actor_eligibility.py` | Matrice de validation, sérialisation, identité liée à l'entrée. |
 | `test_actor_classifier.py` | Syntaxe entière, messages, contexte, seuil/repli, isolation des erreurs et réponses injectées. |
 | `test_actor_eligibility_pipeline.py` | Gestionnaire/routes/générateur, deux domaines, modes de personas, zéro acteur, limites et non-mutation du graphe. |
@@ -239,13 +243,19 @@ protocole séparé et ne fait pas partie de pytest/CI.
 Revue du code à réaliser après implémentation. Examiner en priorité les chemins
 de contournement : secours après exception, mode sans LLM personas, générateur
 direct, artefacts historiques et démarrage. La relecture du présent contrat ne
-valide aucun comportement logiciel ni la mesure réelle C2.
+valide aucun comportement logiciel ni la mesure réelle C2. La relecture des
+46 annotations et les corrections de couverture sont consignées dans la
+[preuve de préparation](preparation-009-1.md).
 
 ## Notes de complétion
 
 Story rédigée le 10 octobre 2026 à la demande de l'utilisateur, au statut
 `backlog`. Aucun modèle, service ou test de fonctionnalité 009 n'est implémenté.
 La politique minimale reporte explicitement A02 (marque/fiction) et l'activation
-automatique des collectifs. Les conditions de prêt encore ouvertes et les tâches
-restent à satisfaire avant clôture. Compléter cette section avec résultats,
-divergences datées et preuves lors de l'exécution.
+automatique des collectifs. La définition de prêt est satisfaite le même jour :
+46 entités annotées et relues, 25 tests d'intégrité ajoutés, contrôle Docker final
+de 825 tests collectés (822 réussis, 3 ignorés), lint et plans valides. Voir
+[préparation et limites](preparation-009-1.md). T1 est réalisée ; T2 à T9 et toute
+la définition de fini restent ouvertes. La story demeure `backlog`, prête pour
+le développement métier, sans qualification C1/C2 revendiquée. Compléter cette
+section avec résultats, divergences datées et preuves lors de l'implémentation.
