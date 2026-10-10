@@ -58,7 +58,7 @@ from app.services.simulation_manager import (
 )
 from app.services.text_processor import TextProcessor
 from app.services.zep_entity_reader import ZepEntityReader
-from app.utils.graph_store.factory import override_graph_store
+from app.utils.graph_store.factory import override_graph_store, set_graph_store_override
 from app.utils.graph_store.graphiti_store import GraphitiGraphStore, LocalPassthroughCrossEncoder
 from app.utils.graphiti_embedder import SentenceTransformerEmbedder
 from app.utils.graphiti_llm_client import MiroFishLLMClient
@@ -215,6 +215,21 @@ def run_qualification_protocol(
     store: Optional[GraphitiGraphStore] = None
 
     try:
+        # Initialisation du store Neo4j (ou mock) pour l'ensemble du protocole
+        llm_client = DeterministicQualificationLLMClient() if use_mock_llm else MiroFishLLMClient()
+        embedder = SentenceTransformerEmbedder()
+        cross_encoder = LocalPassthroughCrossEncoder()
+        store = GraphitiGraphStore(
+            llm_client=llm_client,
+            embedder=embedder,
+            cross_encoder=cross_encoder,
+        )
+
+        if hasattr(store, "_driver") and hasattr(store._driver, "build_indices_and_constraints"):
+            store._run_async(store._driver.build_indices_and_constraints(delete_existing=False))
+
+        set_graph_store_override(store)
+
         # ----------------------------------------------------------------------
         # Étape 1 : Critère C1 — 0 blocage lié à ZEP_API_KEY
         # ----------------------------------------------------------------------
@@ -294,21 +309,6 @@ def run_qualification_protocol(
         print("\n[3/5] Validation du Critère C3 : Construction d'un graphe réel dans Neo4j local...")
         test_run_id = uuid.uuid4().hex[:8]
         created_gid = f"qualif-004-{test_run_id}"
-
-        # Initialisation du store Neo4j
-        llm_client = DeterministicQualificationLLMClient() if use_mock_llm else MiroFishLLMClient()
-        embedder = SentenceTransformerEmbedder()
-        cross_encoder = LocalPassthroughCrossEncoder()
-        store = GraphitiGraphStore(
-            llm_client=llm_client,
-            embedder=embedder,
-            cross_encoder=cross_encoder,
-        )
-
-        if hasattr(store, "_driver") and hasattr(store._driver, "build_indices_and_constraints"):
-            store._run_async(store._driver.build_indices_and_constraints(delete_existing=False))
-
-        override_graph_store(store)
 
         # Création d'un projet pour le test
         project = ProjectManager.create_project(
@@ -543,7 +543,7 @@ def run_qualification_protocol(
         if store:
             store.close()
 
-        override_graph_store(None)
+        set_graph_store_override(None)
 
         # Restauration de la configuration d'origine
         Config.ZEP_BACKEND = orig_zep_backend

@@ -87,6 +87,7 @@ def test_run_integration_validation_handles_connection_failure(monkeypatch):
     """Vérifie que le script retourne un rapport d'échec propre si Neo4j est inaccessible."""
     monkeypatch.setenv("NEO4J_URI", "bolt://invalid-host-unreachable:9999")
     monkeypatch.setenv("NEO4J_PASSWORD", "test-pass")
+    monkeypatch.setenv("LLM_API_KEY", "test-pass-llm")
 
     def _mock_fail(coro):
         if hasattr(coro, "close"):

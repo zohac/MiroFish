@@ -66,8 +66,14 @@ class MiroFishLLMClient(OpenAIGenericClient):
                 défaut, ou ``"json_schema"`` pour les fournisseurs stricts).
         """
         if config is None:
+            resolved_api_key = (
+                os.environ.get("LLM_API_KEY")
+                or Config.LLM_API_KEY
+                or os.environ.get("OPENAI_API_KEY")
+                or "mock-key"
+            )
             config = LLMConfig(
-                api_key=os.environ.get("LLM_API_KEY") or Config.LLM_API_KEY,
+                api_key=resolved_api_key,
                 base_url=os.environ.get("LLM_BASE_URL") or Config.LLM_BASE_URL,
                 model=os.environ.get("LLM_MODEL_NAME") or Config.LLM_MODEL_NAME,
             )
@@ -84,8 +90,13 @@ class MiroFishLLMClient(OpenAIGenericClient):
                 if target_base_url
                 else {"User-Agent": "mirofish/0.1.0"}
             )
+            api_key_for_client = (
+                config.api_key
+                or os.environ.get("OPENAI_API_KEY")
+                or "mock-key"
+            )
             client = AsyncOpenAI(
-                api_key=config.api_key,
+                api_key=api_key_for_client,
                 base_url=config.base_url,
                 default_headers=headers,
             )

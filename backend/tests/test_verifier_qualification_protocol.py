@@ -182,8 +182,13 @@ def test_run_qualification_protocol_success_with_mocked_neo4j(monkeypatch):
 
 def test_run_qualification_protocol_error_handling(monkeypatch):
     """Vérifie la gestion d'erreur lors d'une défaillance dans le protocole."""
-    mock_store = MagicMock()
+    from app.utils.graph_store.graphiti_store import GraphitiGraphStore
+
+    mock_store = MagicMock(spec=GraphitiGraphStore)
     mock_store._run_async.return_value = None
+    mock_store.get_graph_data.return_value = {
+        "nodes": [], "edges": [], "statistics": {"node_count": 0, "edge_count": 0}
+    }
     mock_store.create_graph.side_effect = RuntimeError("Erreur simulée de connexion Neo4j")
 
     monkeypatch.setattr("scripts.verifier_qualification_local_first.GraphitiGraphStore", lambda **kwargs: mock_store)
