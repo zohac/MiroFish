@@ -3,7 +3,7 @@
 - **Statut** : `backlog` · **Dépend de** : 004, 005 · **Bloque** : 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
-- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). Quatre lots proposés, aucune story démarrée ; les noms de fichiers de l'index sont des emplacements futurs.
+- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) est rédigée à la demande de l'utilisateur et reste `backlog`, avec ses conditions de prêt ouvertes ; aucun code 009 démarré. Les autres noms de fichiers sont des emplacements futurs.
 - **Rapport source fourni par l'utilisateur** : [matrice de couverture](couverture-rapport-audit.md), incluant diagnostics, contexte long et événements de simulation.
 
 > L'Epic 005 a scellé l'environnement Docker de référence autonome (711 tests verts, Verdict GO).  
@@ -52,14 +52,14 @@
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `backlog` | `story-009-1.md` |
+| 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `backlog` | [story-009-1.md](story-009-1.md) |
 | 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `backlog` | `story-009-2.md` |
 | 009-3 | Endpoints et interface de prévalidation des acteurs (`preview` & `review`) (Lot C - P1) | `backlog` | `story-009-3.md` |
 | 009-4 | Outils de provenance, rapport vérifiable et qualification globale (Lot D - P1) | `backlog` | `story-009-4.md` |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
-| 009-1 | Sur ≥ 20 entités de 2 domaines, 0 produit/URL/tarif/concept devenu profil, ≥ 2 acteurs attendus retenus par domaine ; sortie JSON validée, erreurs et faible confiance → `review` ; appels unitaires/par lots et mode sans LLM de personas soumis au verrou ; le rôle qualifié guide les prompts. Qualification du classifieur réel séparée des tests mockés. |
+| 009-1 | Sur ≥ 20 entités de 2 domaines, 0 produit/URL/tarif/concept devenu profil, ≥ 2 acteurs attendus retenus par domaine ; sortie JSON validée, erreurs et faible confiance → `review` ; appels unitaires/par lots, mode sans LLM de personas et profils de secours soumis au verrou ; le rôle qualifié guide les prompts. Préparations historiques/périmées refusées à la réutilisation et au démarrage. Qualification du classifieur réel séparée des tests mockés. |
 | 009-2 | ≥ 2 documents de ≥ 2 fragments séparés par source ; positions restituant exactement chaque fragment ; brief complet sauvegardé/transmis (horizon, déclencheur et références inclus), anciens projets lisibles. 1 contexte long > 50 000 caractères traité sans perte silencieuse du brief, diagnostics d'omissions/erreurs conservés. Métadonnées réellement persistées, lecture neutre, isolation par graphe ; origines simulées/héritées signalées. Statut de validation, conflits et ADR du contrat commun fixés avant code. |
 | 009-3 | 2 routes POST de sélection/révision avec simulation et révision valide ; parcours Vue de révision, parcours simple sans champs avancés obligatoires et blocage volontaire testés. Fichiers utilisés, diagnostics et conflits connus visibles. Arbitrages durables, UUID étranger et mutations concurrentes refusés ; profils/configurations périmés invalidés. |
 | 009-4 | UUID d'épisodes, sources et traces d'événements transmis au rapport ; 5 origines distinguées, 1 contradiction visible avec ses 2 sources, 0 citation inventée. Un post d'intention sans action enregistrée ne devient pas une action observée. Fixtures/sorties intermédiaires et mesure réelle consignées ; qualification globale C1–C7 sous Docker avec skips identifiés. |
@@ -68,12 +68,12 @@
 
 | Story | Dépend de | Exigences | Critères de sortie |
 |---|---|---|---|
-| 009-1 | 004 et 005 (`done`) ; politique minimale des rôles fixée avant démarrage | FR-1, FR-2 ; NFR-1, NFR-3, NFR-4, NFR-5 | C1, C2, contribution C5 |
+| 009-1 | 004 et 005 (`done`) ; politique minimale décrite dans la story, fixtures annotées et contrôle de référence requis avant code | FR-1, FR-2 ; NFR-1, NFR-3, NFR-4, NFR-5 | C1, C2, contribution C5 |
 | 009-2 | 009-1 ; validation/conflits, contexte long et extension du contrat spécifiés | FR-3, FR-4, FR-5 ; NFR-2, NFR-4, NFR-5 | C3, C4, contribution C5 |
 | 009-3 | 009-1, 009-2 ; politique de correction humaine fixée | FR-6 ; NFR-3, NFR-4 | C6, contribution C5 |
 | 009-4 | 009-2, 009-3 ; verrou de 009-1 opérationnel | FR-7 ; NFR-2, NFR-4, NFR-5 | C7, validation finale C1–C7 |
 
-Le brief complet de 009-2 ne bloque pas le lot P0 : 009-1 utilise les consignes existantes, puis 009-2 étend et teste leur transport. L'Epic 006 reste en cours indépendamment ; la qualification d'un graphe migré doit ensuite respecter la même barrière, sans exigence de provenance rétroactive impossible.
+Le brief complet de 009-2 ne bloque pas le lot P0 : 009-1 utilise les consignes existantes, puis 009-2 étend et teste leur transport. L'Epic 006 est désormais clos indépendamment ; la qualification d'un graphe migré doit respecter la même barrière, sans exigence de provenance rétroactive impossible.
 
 ---
 

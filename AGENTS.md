@@ -59,7 +59,7 @@ reproductible.**
 >
 > **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est en `backlog`, avec un plan revu le 10 octobre 2026.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages à fixer avant code. Aucune story 009 n'est démarrée ; cette revue ne vaut pas qualification fonctionnelle.
+> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages. La [story 009-1](docs/plans/009-eligibilite-acteurs-et-sources/story-009-1.md) est rédigée sur demande et reste `backlog` : politique minimale précisée, fixtures et contrôle de référence à constituer avant code. Aucun développement 009 démarré ; les documents ne valent pas qualification fonctionnelle.
 
 ---
 

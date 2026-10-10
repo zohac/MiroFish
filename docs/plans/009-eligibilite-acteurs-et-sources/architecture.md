@@ -101,7 +101,7 @@ class ActorEligibility:
     attributes: Dict[str, Any] = field(default_factory=dict)
 ```
 
-La validation de la sortie LLM impose des enums reconnus, une justification non vide et une confiance finie dans `[0, 1]`. Seuls les rôles d'acteurs autorisés peuvent porter `eligible`. La politique de `collective` reste à arbitrer : le rôle est conservé, mais laissé `review` dans le premier lot. Le rôle qualifié guide le prompt persona ; `original_type` reste une information du graphe et ne remplace pas ce rôle.
+La validation de la sortie LLM impose des enums reconnus, une justification non vide et une confiance finie dans `[0, 1]`. Seuls les rôles d'acteurs autorisés peuvent porter `eligible`. La [story 009-1](story-009-1.md) fixe la politique minimale du premier lot : `person` et `organization` admissibles, `collective` conservé en `review`, exception marque/fiction reportée. La politique élargie et les corrections humaines restent à spécifier en 009-3. Le rôle qualifié guide le prompt persona ; `original_type` reste une information du graphe et ne remplace pas ce rôle.
 
 ### 2.2 Documents sources et brief (`SourceDocument` & `SimulationBrief`)
 
@@ -326,7 +326,7 @@ Une correction du brief/graphe/sélection invalide les profils et configurations
 
 Une action présentée comme observée doit aussi renvoyer à une trace d'événement du run. [`action_logger.py`](../../../backend/scripts/action_logger.py) enregistre les actions dans `actions.jsonl`, avec tour, agent, type, arguments et résultat. La référence stable exacte est à définir en 009-4 selon les traces disponibles ; elle doit résoudre le bon run/la bonne plateforme et permettre de contrôler le résultat de l'action. Une intention exprimée dans un post ne démontre pas une autre action, même si ce post a été ingéré dans le graphe. Les entretiens synthétiques restent des contenus simulés.
 
-Ordre proposé : 009-1 ferme le verrou P0 avec les consignes déjà persistées ; 009-2 ajoute documents, brief complet, écriture/lecture de provenance et ADR ; 009-3 livre API **et IHM ciblée** avec révisions ; 009-4 ajoute les outils de citation, la distinction des origines et la qualification globale C1–C7. Les futures stories consignent leurs tests avant développement. Aucune story n'est créée pour les lots encore non démarrés.
+Ordre proposé : 009-1 ferme le verrou P0 avec les consignes déjà persistées ; 009-2 ajoute documents, brief complet, écriture/lecture de provenance et ADR ; 009-3 livre API **et IHM ciblée** avec révisions ; 009-4 ajoute les outils de citation, la distinction des origines et la qualification globale C1–C7. La story 009-1 est rédigée sur demande et reste `backlog` ; les autres lots vivent encore uniquement dans l'index. Chaque story consigne ses tests avant développement.
 
 ## 9. Contextes longs, diagnostics et conflits
 

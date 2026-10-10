@@ -403,9 +403,11 @@ epics:
       de simulations initialement rapportés restent à documenter. L'Epic 009 prévoit ActorEligibility (séparation étanche
       connaissances vs acteurs), la typologie SourceDocument, la persistance du
       SimulationBrief, la prévalidation avant lancement et la provenance des faits
-      dans le rapport. Le plan est révisé, aucune story démarrée ; arbitrages
-      de rôles, validation/conflits documentaires et contrat de provenance à fixer
-      avant les lots concernés. Le rapport source est rapproché dans une matrice
+      dans le rapport. La story 009-1 est rédigée et reste en backlog, sans code
+      démarré ; sa politique minimale conserve les collectifs en review et reporte
+      l'exception marque/fiction. Fixtures et contrôle de référence requis avant code.
+      Corrections humaines, validation/conflits documentaires et contrat de provenance
+      à fixer avant les lots concernés. Le rapport source est rapproché dans une matrice
       de couverture incluant diagnostics de contexte et traces des événements.
     criteres_de_sortie:
       - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"

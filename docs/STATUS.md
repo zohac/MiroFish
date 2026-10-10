@@ -274,7 +274,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 
 | Epic | Titre | Dépend de |
 |---|---|---|
-| 006 | Migrer le graphe Zep existant — ou acter qu'on jette (en cours) | 003, 004, 005 |
+| 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
 | 009 | Éligibilité des acteurs et fiabilisation des sources (`backlog`, plan revu, arbitrages ouverts) | 004, 005 |
 | 007 | Ontologie dynamique (v2) | 003, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
@@ -300,9 +300,9 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Préparer 009-1** : fixer la politique minimale des rôles (collectifs laissés `review` dans la cible proposée), constituer les fixtures multi-domaines et créer la story lors de son démarrage. Le verrou P0 peut utiliser les consignes existantes sans attendre le brief complet de 009-2.
+1. **Préparer l'implémentation de [009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md)** : story rédigée sur demande, toujours `backlog`. Constituer les fixtures annotées multi-domaines et contrôler le code courant sous Docker avant démarrage. Politique minimale : personnes et organisations admissibles, collectifs en `review`, exception marque/fiction reportée. Le verrou P0 utilise les consignes existantes sans attendre le brief complet de 009-2.
 2. **Préparer 009-2 puis 009-3** : arrêter par ADR le contrat de provenance commun aux deux stores et préciser les corrections humaines. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-3. **Epic 006, indépendamment** : poursuivre la story 006-3 déjà `in-progress`. Les stories 006-1 et 006-2 sont terminées ; aucun recommencement n'est requis.
+3. **Graphes migrés de l'Epic 006 clos** : appliquer la même barrière d'acteurs pendant 009-1 ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
 
