@@ -1508,4 +1508,59 @@ class TestGraphitiReviewPatchesStory003_5:
             store_with_mocks._run_async(dummy_coro())
         assert "stopped or closed" in str(exc.value)
 
+    def test_get_graph_data_serialise_objets_temporels_neo4j(self, store_with_mocks):
+        """Vérifie que les objets DateTime Neo4j et reference_time sont sérialisés sans TypeError."""
+        import json
+
+        class MockDateTime:
+            def isoformat(self):
+                return "2026-10-10T12:00:00+00:00"
+
+        node_record = {
+            "uuid": "node-1",
+            "name": "Keova",
+            "summary": "Platform",
+            "labels": ["Entity", "Product"],
+            "created_at": MockDateTime(),
+            "attributes": {
+                "reference_time": MockDateTime(),
+                "custom_date": MockDateTime(),
+                "price": 29,
+            },
+        }
+        edge_record = {
+            "uuid": "edge-1",
+            "source_node_uuid": "node-1",
+            "target_node_uuid": "node-2",
+            "source_node_name": "Keova",
+            "target_node_name": "Simon",
+            "relation_type": "FOUNDED_BY",
+            "name": "FOUNDED_BY",
+            "fact": "Keova founded by Simon",
+            "fact_type": "FOUNDED_BY",
+            "episodes": ["ep-1"],
+            "created_at": MockDateTime(),
+            "valid_at": MockDateTime(),
+            "invalid_at": None,
+            "expired_at": None,
+            "attributes": {
+                "reference_time": MockDateTime(),
+                "timestamp": MockDateTime(),
+            },
+        }
+
+        with patch.object(store_with_mocks, "get_all_nodes") as mock_nodes, \
+             patch.object(store_with_mocks, "get_all_edges") as mock_edges:
+            mock_nodes.return_value = [store_with_mocks._record_to_graph_node(node_record)]
+            mock_edges.return_value = [store_with_mocks._record_to_graph_edge(edge_record)]
+
+            data = store_with_mocks.get_graph_data("test_graph")
+
+            serialized = json.dumps(data)
+            assert "2026-10-10T12:00:00+00:00" in serialized
+            assert "reference_time" not in data["edges"][0]["attributes"]
+            assert "reference_time" not in data["nodes"][0]["attributes"]
+            assert data["edges"][0]["attributes"]["timestamp"] == "2026-10-10T12:00:00+00:00"
+
+
 

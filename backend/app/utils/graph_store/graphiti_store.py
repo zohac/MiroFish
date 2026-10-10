@@ -103,6 +103,7 @@ class GraphitiGraphStore(GraphStore):
         "group_id",
         "created_at",
         "labels",
+        "reference_time",
     }
     _EDGE_SYSTEM_KEYS = {
         "uuid",
@@ -121,6 +122,7 @@ class GraphitiGraphStore(GraphStore):
         "invalid_at",
         "expired_at",
         "relation_type",
+        "reference_time",
     }
 
     def __init__(
@@ -412,8 +414,8 @@ class GraphitiGraphStore(GraphStore):
             nodes = self.get_all_nodes(target_graph_id)
             edges = self.get_all_edges(target_graph_id, include_temporal=True)
 
-            nodes_data = [n.to_dict() for n in nodes]
-            edges_data = [e.to_dict(include_temporal=True) for e in edges]
+            nodes_data = [self._sanitize_attribute_value(n.to_dict()) for n in nodes]
+            edges_data = [self._sanitize_attribute_value(e.to_dict(include_temporal=True)) for e in edges]
 
             return {
                 "graph_id": target_graph_id,
@@ -701,6 +703,28 @@ class GraphitiGraphStore(GraphStore):
     # --- Helpers de conversion Cypher -> DTO neutres ---
 
     @classmethod
+    def _format_temporal(cls, val: Any) -> Optional[str]:
+        """Convertit une valeur temporelle Cypher (DateTime, datetime) en chaîne ISO-8601."""
+        if val is None:
+            return None
+        if hasattr(val, "isoformat") and callable(val.isoformat):
+            return val.isoformat()
+        return str(val)
+
+    @classmethod
+    def _sanitize_attribute_value(cls, val: Any) -> Any:
+        """Convertit récursivement les types temporels en représentations JSON sérialisables."""
+        if val is None:
+            return None
+        if hasattr(val, "isoformat") and callable(val.isoformat):
+            return val.isoformat()
+        if isinstance(val, dict):
+            return {str(k): cls._sanitize_attribute_value(v) for k, v in val.items()}
+        if isinstance(val, (list, tuple, set)):
+            return [cls._sanitize_attribute_value(x) for x in val]
+        return val
+
+    @classmethod
     def _record_to_graph_node(cls, record: Any) -> GraphNode:
         """Convertit un enregistrement Cypher ou dictionnaire en GraphNode neutre."""
         uuid_val = cls._get_record_field(record, "uuid", "") or ""
@@ -714,12 +738,16 @@ class GraphitiGraphStore(GraphStore):
         )
         raw_attrs = cls._get_record_field(record, "attributes", {}) or {}
         attributes = (
-            {k: v for k, v in raw_attrs.items() if k not in cls._NODE_SYSTEM_KEYS}
+            {
+                k: cls._sanitize_attribute_value(v)
+                for k, v in raw_attrs.items()
+                if k not in cls._NODE_SYSTEM_KEYS
+            }
             if isinstance(raw_attrs, dict)
             else {}
         )
         raw_created_at = cls._get_record_field(record, "created_at", None)
-        created_at_str = str(raw_created_at) if raw_created_at is not None else None
+        created_at_str = cls._format_temporal(raw_created_at)
 
         return GraphNode(
             uuid=str(uuid_val),
@@ -757,7 +785,11 @@ class GraphitiGraphStore(GraphStore):
 
         raw_attrs = cls._get_record_field(record, "attributes", {}) or {}
         attributes = (
-            {k: v for k, v in raw_attrs.items() if k not in cls._EDGE_SYSTEM_KEYS}
+            {
+                k: cls._sanitize_attribute_value(v)
+                for k, v in raw_attrs.items()
+                if k not in cls._EDGE_SYSTEM_KEYS
+            }
             if isinstance(raw_attrs, dict)
             else {}
         )
@@ -768,10 +800,10 @@ class GraphitiGraphStore(GraphStore):
         raw_expired_at = cls._get_record_field(record, "expired_at", None)
 
         if include_temporal:
-            created_at_str = str(raw_created_at) if raw_created_at is not None else None
-            valid_at_str = str(raw_valid_at) if raw_valid_at is not None else None
-            invalid_at_str = str(raw_invalid_at) if raw_invalid_at is not None else None
-            expired_at_str = str(raw_expired_at) if raw_expired_at is not None else None
+            created_at_str = cls._format_temporal(raw_created_at)
+            valid_at_str = cls._format_temporal(raw_valid_at)
+            invalid_at_str = cls._format_temporal(raw_invalid_at)
+            expired_at_str = cls._format_temporal(raw_expired_at)
         else:
             created_at_str = None
             valid_at_str = None
