@@ -62,7 +62,11 @@ L'**Epic 005 (Environnement Docker de référence — Docker-first, ADR 0006) es
 
 ## En cours / Prochaine étape
 
-L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette »)** est en cours :
+L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette »)** est en cours de réalisation :
+- **Story 006-1 (done)** : Sonde autonome d'audit et inventaire `backend/scripts/auditer_graphes_zep.py` implémentée avec CLI complète (`--api-key`, `--output-json`, `--output-report`, `--mock`, `--quiet`). Recensement exhaustif des métriques (nœuds, arêtes, épisodes), détection de corrélation avec les documents locaux dans `backend/uploads/documents/`, arbre de décision formel (« Migrer vs Jeter vs Purger ») et exports JSON/Markdown. 17 tests unitaires hermétiques (`test_auditer_graphes_zep.py`), revue BMad 4 couches validée (6 patches appliqués), 0 secret exposé. Filet global porté à **734 tests verts**.
+- **Story 006-2 (backlog)** : Pipeline ETL de transformation et injection directe Cypher dans Neo4j (`migrer_zep_vers_graphiti.py`).
+- **Story 006-3 (backlog)** : Validation de relecture GraphStore, personas OASIS et outil de purge Zep Cloud (`purger_graphes_zep.py`).
+
 Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
 Chantiers en backlog pour la suite :
 - **Epic 009** : Éligibilité des acteurs et fiabilisation des sources (cadré suite à l'audit du 10 octobre 2026). Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`).

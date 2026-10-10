@@ -332,6 +332,15 @@ epics:
       - "Relecture validée par GraphitiGraphStore et génération de personas OASIS"
       - "Outil de purge purger_graphes_zep.py pour nettoyage sécurisé de Zep Cloud"
       - "Filet de tests hermétiques au vert sans appel externe"
+    # Story 006-1 (DONE) : sonde d'audit autonome backend/scripts/auditer_graphes_zep.py
+    # implémentée avec CLI complète (--api-key, --output-json, --output-report, --mock, --quiet).
+    # Extraction et comptage exhaustifs des graphes distants, nœuds, arêtes et épisodes.
+    # Analyse de corrélation heuristique avec les documents sources locaux dans uploads/documents/.
+    # Arbre de décision formel (« Migrer vs Jeter vs Purger ») intégré avec export JSON normalisé
+    # et tableau récapitulatif Markdown. Zéro secret en clair dans les logs et sorties.
+    # Suite de 17 tests unitaires hermétiques (test_auditer_graphes_zep.py).
+    # Revue BMad 4 couches validée avec 6 patches appliqués. Filet global porté à 734 tests verts (+18).
+
 
   - id: "007"
     slug: ontologie-dynamique
