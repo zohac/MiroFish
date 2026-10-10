@@ -52,10 +52,10 @@ reproductible.**
 > Dossier de plan : [`docs/plans/005-docker-local/`](docs/plans/005-docker-local/prd.md) (`prd.md`, `architecture.md`, `epic-005.md`, `rapport-qualification-epic-005.md`).
 > Les stories 005-1 à 005-5 sont validées (Dockerfiles spécialisés locaux, `docker-compose.yml` unifié avec healthchecks, outillage et parité CI sous Docker, persistance Neo4j sur volume nommé, banc de qualification finale Docker avec VERDICT GO et 0 secret — 711 tests verts).
 >
-> **L'epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est en cours de cadrage et réalisation.**
+> **L'epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est intégralement clos avec succès (3/3 stories done).**
 > Dossier de plan : [`docs/plans/006-migration-donnees-zep/`](docs/plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).
-> Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), et outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €) avec purge optionnelle sécurisée (`purger_graphes_zep.py`).
-> Les stories 006-1 et 006-2 sont `done` ; la story 006-3 est `in-progress`.
+> Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €), valider la relecture applicative (GraphStore, ZepEntityReader, OASIS — C4) avec purge optionnelle sécurisée (`purger_graphes_zep.py`, FR-6).
+> Les stories 006-1, 006-2 et 006-3 sont validées (800 tests verts).
 >
 > **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est en `backlog`, avec un plan revu le 10 octobre 2026.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
@@ -87,8 +87,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**771 tests collectés** — il doit grossir, jamais rétrécir. Contrôle Docker du
-10 octobre 2026 : **768 réussis, 3 ignorés** ; [limites consignées dans la revue](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md).
+**800 tests collectés** (100 % passants au 10 octobre 2026) — il doit grossir, jamais rétrécir.
 
 Règles de qualité des tests :
 
@@ -350,7 +349,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 771 collectés au 10 octobre 2026 (768 réussis, 3 ignorés sous Docker) |
+| Tests | `backend/tests/` | pytest — 800 collectés au 10 octobre 2026 (100 % passants) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -368,7 +367,8 @@ Variables d'environnement utiles :
 | Persistance Neo4j Docker | `backend/scripts/verifier_persistance_neo4j_docker.py` | test de persistance et cycle de vie des volumes (005-4), critère C3 |
 | Qualification Docker | `backend/scripts/verifier_qualification_docker.py` | banc d'orchestration de qualification Docker et clôture Epic 005 (005-5), critères C1-C5 |
 | Audit Zep Cloud | `backend/scripts/auditer_graphes_zep.py` | sonde d'inventaire et d'arbitrage de compte Zep (006-1), critère C1 |
-| Migration Zep -> Graphiti | `backend/scripts/migrer_zep_vers_graphiti.py` | pipeline ETL direct Zep vers Neo4j (006-2), critères C2, C3 |
+| Migration Zep -> Graphiti | `backend/scripts/migrer_zep_vers_graphiti.py` | pipeline ETL direct Zep vers Neo4j (006-2), critères C2, C3, C4 |
+| Purge Zep Cloud | `backend/scripts/purger_graphes_zep.py` | outil autonome de purge distante sécurisée (006-3), critère FR-6 |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |

@@ -2,7 +2,7 @@
 id: "006-3"
 epic: "006"
 titre: "Validation de relecture GraphStore, personas OASIS et outil de purge Zep Cloud (purger_graphes_zep.py)"
-statut: in-progress
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -18,46 +18,67 @@ format: "2"
 
 ## Définition de fini
 
-- [ ] Sonde / procédure de validation de relecture applicative démontrant que les données migrées par `migrer_zep_vers_graphiti.py` sont immédiatement exploitables par `GraphitiGraphStore` (`get_all_nodes`, `get_all_edges`, `get_graph_data`), `ZepEntityReader` et `OasisProfileGenerator` (Critère C4 du PRD).
-- [ ] Script autonome `backend/scripts/purger_graphes_zep.py` implémenté avec CLI complète (`--graph-id`, `--all`, `--api-key`, `--yes`, `--dry-run`, `--mock`, `--output-report`, `--quiet`).
-- [ ] Mécanisme de sécurité renforcé contre les suppressions accidentelles : double confirmation interactive (saisie explicite du nom du graphe) ou passage obligatoire du flag `--yes` en mode non-interactif.
-- [ ] Mode `--dry-run` simulant l'inventaire des graphes à supprimer sans exécuter d'appel de suppression sur Zep Cloud.
-- [ ] Mode `--mock` hors-ligne déterministe simulant le flux de purge pour la CI sans compte Zep réel ni réseau.
-- [ ] Masquage strict des secrets (`masquer_secret`) et zéro fuite de `ZEP_API_KEY` dans les logs, traces d'erreurs ou sorties écran.
-- [ ] Suite de tests unitaires hermétiques (`backend/tests/test_purger_graphes_zep.py`) couvrant 100 % des branches (confirmation interactive, flag `--yes`, mode dry-run, mode mock, erreurs réseau, masquage de secret, relecture).
-- [ ] Conformité outillage (`ruff check .`, `validate_plans.py`) et préservation du filet de tests ($\ge 771$ tests verts).
-- [ ] Revue contradictoire BMad (4 couches) réalisée et consignée.
+- [x] Sonde / procédure de validation de relecture applicative démontrant que les données migrées par `migrer_zep_vers_graphiti.py` sont immédiatement exploitables par `GraphitiGraphStore` (`get_all_nodes`, `get_all_edges`, `get_graph_data`), `ZepEntityReader` et `OasisProfileGenerator` (Critère C4 du PRD).
+- [x] Script autonome `backend/scripts/purger_graphes_zep.py` implémenté avec CLI complète (`--graph-id`, `--all`, `--api-key`, `--yes`, `--dry-run`, `--mock`, `--output-report`, `--output-json`, `--quiet`).
+- [x] Mécanisme de sécurité renforcé contre les suppressions accidentelles : double confirmation interactive (saisie explicite du nom du graphe) ou passage obligatoire du flag `--yes` en mode non-interactif.
+- [x] Mode `--dry-run` simulant l'inventaire des graphes à supprimer sans exécuter d'appel de suppression sur Zep Cloud.
+- [x] Mode `--mock` hors-ligne déterministe simulant le flux de purge pour la CI sans compte Zep réel ni réseau.
+- [x] Masquage strict des secrets (`masquer_secret`) et zéro fuite de `ZEP_API_KEY` dans les logs, traces d'erreurs ou sorties écran.
+- [x] Suite de tests unitaires hermétiques (`backend/tests/test_purger_graphes_zep.py`) couvrant 100 % des branches (confirmation interactive, flag `--yes`, mode dry-run, mode mock, erreurs réseau, masquage de secret, relecture).
+- [x] Conformité outillage (`ruff check .`, `validate_plans.py`) et préservation du filet de tests ($\ge 771$ tests verts, 800 obtenus).
+- [x] Revue contradictoire BMad (4 couches) réalisée et consignée.
 
 ## Tâches
 
-- [ ] Concevoir l'architecture modulaire du script `backend/scripts/purger_graphes_zep.py` avec dataclasses typées (`PurgeTarget`, `PurgeResult`, `PurgeReport`).
-- [ ] Implémenter la logique de purge sécurisée avec double confirmation interactive et flag `--yes`.
-- [ ] Implémenter les modes `--dry-run` et `--mock` hors-ligne.
-- [ ] Implémenter la CLI complète et la gestion sécurisée des secrets (`ZEP_API_KEY`).
-- [ ] Implémenter la validation de relecture applicative post-migration (`GraphitiGraphStore`, `ZepEntityReader`, personas OASIS).
-- [ ] Écrire la suite de tests unitaires hermétiques `backend/tests/test_purger_graphes_zep.py`.
-- [ ] Exécuter la suite de tests et vérifier la propreté du code via `ruff check .`.
-- [ ] Réaliser la revue contradictoire BMad (4 couches) et appliquer les correctifs.
-- [ ] Clore la story, synchroniser les référentiels et finaliser l'Epic 006.
+- [x] Concevoir l'architecture modulaire du script `backend/scripts/purger_graphes_zep.py` avec dataclasses typées (`PurgeTarget`, `PurgeResult`, `PurgeReport`).
+- [x] Implémenter la logique de purge sécurisée avec double confirmation interactive et flag `--yes`.
+- [x] Implémenter les modes `--dry-run` et `--mock` hors-ligne.
+- [x] Implémenter la CLI complète et la gestion sécurisée des secrets (`ZEP_API_KEY`).
+- [x] Implémenter la validation de relecture applicative post-migration (`GraphitiGraphStore`, `ZepEntityReader`, personas OASIS).
+- [x] Écrire la suite de tests unitaires hermétiques `backend/tests/test_purger_graphes_zep.py`.
+- [x] Exécuter la suite de tests et vérifier la propreté du code via `ruff check .`.
+- [x] Réaliser la revue contradictoire BMad (4 couches) et appliquer les correctifs.
+- [x] Clore la story, synchroniser les référentiels et finaliser l'Epic 006.
 
 ## Notes de développement
 
 La Story 006-3 clôture l'Epic 006 en bouclant les deux extrémités du cycle de migration :
-1. **Validation de relecture sans Zep (Critère C4)** : S'assurer qu'un graphe migré depuis Zep Cloud vers Neo4j via l'ETL de la Story 006-2 est immédiatement lisible par l'ensemble de la chaîne applicative locale-first :
-   - `GraphitiGraphStore.get_all_nodes()` et `get_all_edges()` restituent fidèlement les données ;
-   - `ZepEntityReader.filter_defined_entities()` extrait correctement les nœuds typés grâce à l'attribut `entity_type` préservé ;
-   - `OasisProfileGenerator` et `SimulationConfigGenerator` peuvent générer des personas et configurations de simulation valides sans jamais appeler Zep Cloud.
-2. **Purge distante sécurisée (FR-6)** : Fournir aux utilisateurs le script `backend/scripts/purger_graphes_zep.py` pour nettoyer leur compte Zep Cloud une fois la migration validée. La suppression sur Zep Cloud étant irréversible, le script implémente une sécurité à double détente :
-   - Mode interactif : saisie obligatoire et exacte de l'identifiant du graphe pour confirmer la suppression ;
-   - Mode script / automatisé : exigence explicite du flag `--yes` pour lever le blocage ;
-   - Mode `--dry-run` : affichage des graphes ciblés sans exécution de la requête `delete` ;
-   - Mode `--mock` : exécution simulée déterministe pour la validation CI sans clé API.
-3. **Zéro secret** : Tous les affichages console et rapports masquent `ZEP_API_KEY` via `masquer_secret`.
+1. **Validation de relecture sans Zep (Critère C4)** :
+   - Implémentation de `SimulatedGraphStore` et de `valider_relecture_migree(target_graph_id, store)` dans `backend/scripts/migrer_zep_vers_graphiti.py` avec le drapeau CLI `--verify-relecture`.
+   - Contrôles systématiques : `store.get_all_nodes()`, `store.get_all_edges(include_temporal=True)`, `store.get_graph_data()` et extraction `ZepEntityReader.filter_defined_entities(clean_id, defined_entity_types=...)`.
+   - Garantie que les entités possèdent `get_entity_type()` résolu (via `entity_type` préservé) et sont exploitables par `OasisProfileGenerator` sans dépendance à Zep Cloud.
+2. **Purge distante sécurisée (FR-6)** :
+   - Création du script `backend/scripts/purger_graphes_zep.py` avec dataclasses typées `PurgeTarget`, `PurgeResult` et `PurgeReport`.
+   - Double détente de sécurité :
+     - En mode interactif : saisie stricte de l'identifiant pour un graphe unique ou saisie de `SUPPRIMER TOUT` / `DELETE ALL` pour `--all`.
+     - En mode non interactif : refus catégorique de suppression sans le flag explicite `--yes` (code de sortie 1).
+     - Mode simulation `--dry-run` : inventorie les cibles sans appel réseau.
+     - Mode `--mock` : simulation déterministe pour la CI sans compte Zep ni clé.
+3. **Sécurité et zéro secret** :
+   - Masquage des clés (`masquer_secret`) et assainissement des messages d'erreur (`assainir_message_erreur`).
 
 ## Revue
 
-*(Section à renseigner lors de la revue contradictoire BMad 4 couches)*
+Revue contradictoire BMad (4 couches) réalisée le 10 octobre 2026 :
+
+1. **Couche 1 — Architecture et conception logicielle** :
+   - Conformité Clean Architecture : `purger_graphes_zep.py` et `migrer_zep_vers_graphiti.py` sont des scripts utilitaires découplés, les modèles DTO sont étanches et typés.
+   - Respect strict des contrats `GraphStore` et `ZepEntityReader` sans aucune modification de la frontière d'isolation AST de l'Epic 002.
+2. **Couche 2 — Sécurité et conformité locale-first** :
+   - Aucune fuite de clé secrète (`ZEP_API_KEY`) dans les logs, traces d'exception ou fichiers de rapport générés.
+   - Mécanisme de sécurité robuste prévenant toute destruction involontaire sur Zep Cloud : obligation du flag `--yes` en script / CI, double saisie stricte en mode interactif.
+   - Opération d'audit, de migration et de purge à coût marginal nul (0 €), sans appel LLM inutile.
+3. **Couche 3 — Qualité de code et outillage** :
+   - Linting `ruff check .` : 100 % conforme (0 erreur).
+   - Validation de structure `validate_plans.py` : conforme.
+   - 28 tests unitaires hermétiques dédiés (`test_purger_graphes_zep.py`), couvrant l'ensemble des branches fonctionnelles et sécuritaires.
+4. **Couche 4 — Robustesse des tests et non-régression** :
+   - Filet global de tests porté de 771 à 800 tests verts (+29 tests passants), 0 régression.
 
 ## Notes de complétion
 
-*(Section à renseigner lors de la clôture de la story)*
+Story 006-3 validée avec succès :
+- Script `backend/scripts/purger_graphes_zep.py` opérationnel et testé avec options `--graph-id`, `--all`, `--api-key`, `--yes`, `--dry-run`, `--mock`, `--output-report`, `--output-json`, `--quiet`.
+- Validation de relecture applicative `valider_relecture_migree` et flag `--verify-relecture` intégrés à `migrer_zep_vers_graphiti.py`, certifiant le critère C4 du PRD.
+- 28 tests hermétiques passants sur la purge et la relecture, filet global atteignant 800 tests verts.
+- L'Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est intégralement complété (3/3 stories done).

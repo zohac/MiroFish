@@ -317,7 +317,7 @@ epics:
   - id: "006"
     slug: migration-donnees-zep
     titre: "Migrer un graphe Zep existant — ou acter qu'on jette"
-    statut: in-progress
+    statut: done
     plan: docs/plans/006-migration-donnees-zep
     depend_de: ["003", "004", "005"]
     pourquoi: >-
@@ -351,9 +351,14 @@ epics:
     # Mode --mock déterministe hors-ligne sans dépendance réseau. Suite de 36 tests unitaires
     # hermétiques (test_migrer_zep_vers_graphiti.py). Revue BMad 4 couches validée (5 patchs appliqués).
     # Filet global porté à 771 tests verts (+37).
-    # Story 006-3 (in-progress) : validation de relecture GraphStore (get_all_nodes, get_all_edges),
-    # filtrage et extraction d'entités typées (ZepEntityReader), génération de personas et config OASIS
-    # (critère C4), et outil autonome de purge Zep Cloud sécurisé (purger_graphes_zep.py, FR-6).
+    # Story 006-3 (DONE) : validation de relecture applicative GraphStore (get_all_nodes, get_all_edges,
+    # get_graph_data), filtrage et extraction d'entités typées (ZepEntityReader.filter_defined_entities)
+    # et éligibilité personas OASIS sans Zep (critère C4, valider_relecture_migree et SimulatedGraphStore).
+    # Outil autonome de purge distante sécurisée backend/scripts/purger_graphes_zep.py (FR-6, dataclasses
+    # PurgeTarget, PurgeResult, PurgeReport, double confirmation interactive stricte, refus de sécurité
+    # sans --yes en non-interactif, modes --dry-run et --mock, masquage de secrets). Suite de 28 tests
+    # unitaires hermétiques (test_purger_graphes_zep.py). Revue BMad 4 couches validée.
+    # Filet global porté à 800 tests verts (+29). Epic 006 intégralement clos avec succès (3/3 stories done).
 
 
   - id: "007"

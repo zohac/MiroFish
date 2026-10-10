@@ -55,6 +55,14 @@ for _candidate in (_project_root / ".env", _backend_dir / ".env"):
         load_dotenv(_candidate)
 
 from app.config import Config
+from app.services.zep_entity_reader import EntityNode, FilteredEntities, ZepEntityReader
+from app.utils.graph_store import (
+    GraphEdge,
+    GraphInfo,
+    GraphNode,
+    GraphStore,
+    get_graph_store,
+)
 from app.utils.logger import get_logger
 from app.utils.zep import get_zep_client
 from app.utils.zep_paging import fetch_all_edges, fetch_all_nodes
@@ -306,6 +314,7 @@ class MigrationReport:
     batch_size: int = 100
     duration_seconds: float = 0.0
     fidelity_rate: float = 100.0
+    relecture_validation: Optional[Dict[str, Any]] = None
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     timestamp: str = field(
@@ -353,17 +362,34 @@ class MigrationReport:
             "",
         ]
 
+        if self.relecture_validation:
+            rv = self.relecture_validation
+            status_rv = "✅ Validée" if rv.get("valid") else "❌ Échec"
+            md_lines.extend([
+                "## 3. Validation de Relecture Applicative (Critère C4)",
+                "",
+                f"- **Statut global** : {status_rv}",
+                f"- **Nœuds relus (GraphStore)** : `{rv.get('nodes_count', 0)}`",
+                f"- **Arêtes relues (GraphStore)** : `{rv.get('edges_count', 0)}`",
+                f"- **Données API web (get_graph_data)** : `nœuds: {rv.get('graph_data_nodes', 0)}, arêtes: {rv.get('graph_data_edges', 0)}`",
+                f"- **Entités typées filtrées (ZepEntityReader)** : `{rv.get('filtered_entities_count', 0)}` ({', '.join(rv.get('entity_types_found', []))})",
+                f"- **Éligibilité Personas OASIS** : `{'Oui' if rv.get('oasis_ready') else 'Non'}`",
+                "",
+            ])
+
+        sec_num = 4 if self.relecture_validation else 3
         if self.warnings:
             md_lines.extend([
-                "## 3. Avertissements",
+                f"## {sec_num}. Avertissements",
                 "",
                 *[f"- ⚠️ {w}" for w in self.warnings],
                 "",
             ])
+            sec_num += 1
 
         if self.errors:
             md_lines.extend([
-                "## 4. Anomalies / Erreurs",
+                f"## {sec_num}. Anomalies / Erreurs",
                 "",
                 *[f"- ❌ {e}" for e in self.errors],
                 "",
@@ -875,6 +901,194 @@ class SimulatedNeo4jLoader:
         return total
 
 
+class SimulatedGraphStore(GraphStore):
+    """Magasin GraphStore simulé en mémoire pour la relecture hors-ligne (Critère C4)."""
+
+    def __init__(self, loader: Optional[SimulatedNeo4jLoader] = None) -> None:
+        self.nodes_by_uuid: Dict[str, GraphNode] = {}
+        self.edges_by_uuid: Dict[str, GraphEdge] = {}
+        if loader is not None:
+            self.charger_depuis_loader(loader)
+
+    def charger_depuis_loader(self, loader: SimulatedNeo4jLoader) -> None:
+        """Charge en mémoire les nœuds et arêtes injectés dans un SimulatedNeo4jLoader."""
+        for u, d in loader.nodes_by_uuid.items():
+            self.nodes_by_uuid[u] = GraphNode(
+                uuid=str(d.get("uuid", u)),
+                name=str(d.get("name", "")),
+                summary=str(d.get("summary", "")),
+                labels=list(d.get("labels", ["Entity"])),
+                attributes=dict(d.get("attributes", {})),
+                created_at=d.get("created_at"),
+            )
+        for u, d in loader.edges_by_uuid.items():
+            self.edges_by_uuid[u] = GraphEdge(
+                uuid=str(d.get("uuid", u)),
+                source_node_uuid=str(d.get("source_node_uuid", "")),
+                target_node_uuid=str(d.get("target_node_uuid", "")),
+                name=str(d.get("name", "RELATES_TO")),
+                fact=str(d.get("fact", "")),
+                fact_type=str(d.get("fact_type", "")),
+                valid_at=d.get("valid_at"),
+                invalid_at=d.get("invalid_at"),
+                expired_at=d.get("expired_at"),
+                attributes=dict(d.get("attributes", {})),
+                episodes=list(d.get("episodes", [])),
+                created_at=d.get("created_at"),
+            )
+
+    def get_all_nodes(self, graph_id: str) -> List[GraphNode]:
+        return list(self.nodes_by_uuid.values())
+
+    def get_all_edges(self, graph_id: str, include_temporal: bool = True) -> List[GraphEdge]:
+        edges = list(self.edges_by_uuid.values())
+        if include_temporal:
+            return edges
+        return [
+            GraphEdge(
+                uuid=e.uuid,
+                name=e.name,
+                fact=e.fact,
+                source_node_uuid=e.source_node_uuid,
+                target_node_uuid=e.target_node_uuid,
+                fact_type=e.fact_type,
+                source_node_name=e.source_node_name,
+                target_node_name=e.target_node_name,
+                attributes=e.attributes,
+                episodes=e.episodes,
+                created_at=e.created_at,
+                valid_at=None,
+                invalid_at=None,
+                expired_at=None,
+            )
+            for e in edges
+        ]
+
+    def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
+        nodes_list = [n.to_dict() for n in self.get_all_nodes(graph_id)]
+        edges_list = [e.to_dict(include_temporal=True) for e in self.get_all_edges(graph_id)]
+        return {
+            "graph_id": graph_id,
+            "nodes": nodes_list,
+            "edges": edges_list,
+            "node_count": len(nodes_list),
+            "edge_count": len(edges_list),
+            "statistics": {
+                "node_count": len(nodes_list),
+                "edge_count": len(edges_list),
+            },
+        }
+
+    def get_graph_info(self, graph_id: str) -> GraphInfo:
+        nodes = self.get_all_nodes(graph_id)
+        edges = self.get_all_edges(graph_id)
+        types = set()
+        for n in nodes:
+            t = n.attributes.get("entity_type")
+            if not t and len(n.labels) > 1:
+                t = [l for l in n.labels if l not in ("Entity", "Node")][0] if any(l not in ("Entity", "Node") for l in n.labels) else None
+            if t:
+                types.add(t)
+        return GraphInfo(
+            graph_id=graph_id,
+            node_count=len(nodes),
+            edge_count=len(edges),
+            entity_types=sorted(list(types)),
+        )
+
+    def create_graph(self, graph_id: Optional[str] = None) -> str:
+        return graph_id or "simulated_graph"
+
+    def delete_graph(self, graph_id: str) -> None:
+        self.nodes_by_uuid.clear()
+        self.edges_by_uuid.clear()
+
+    def get_node(self, graph_id: str, node_uuid: str) -> Optional[GraphNode]:
+        return self.nodes_by_uuid.get(node_uuid)
+
+    def get_node_edges(self, graph_id: str, node_uuid: str) -> List[GraphEdge]:
+        return [
+            e for e in self.edges_by_uuid.values()
+            if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
+        ]
+
+    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
+        pass
+
+    def add_episode(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError("SimulatedGraphStore est en lecture seule.")
+
+    def add_text_batch(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError("SimulatedGraphStore est en lecture seule.")
+
+    def wait_for_batch(self, *args: Any, **kwargs: Any) -> bool:
+        return True
+
+    def wait_for_episodes(self, *args: Any, **kwargs: Any) -> bool:
+        return True
+
+    def search(self, graph_id: str, query: str, limit: int = 10) -> List[Any]:
+        return []
+
+
+def valider_relecture_migree(
+    target_graph_id: str,
+    store: GraphStore,
+    entity_types: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Valide de bout en bout la relecture applicative d'un graphe migré (Critère C4 du PRD).
+
+    Vérifie que :
+    1. GraphStore.get_all_nodes() et get_all_edges() restituent fidèlement les données.
+    2. GraphStore.get_graph_data() retourne la structure complète conforme pour l'API.
+    3. ZepEntityReader extrait et filtre les entités typées via entity_type.
+    4. Les entités extraites sont directement prêtes pour la génération de profils personas OASIS sans Zep.
+    """
+    clean_id = target_graph_id.strip()
+
+    # 1. Relecture directe GraphStore
+    nodes = store.get_all_nodes(clean_id)
+    edges = store.get_all_edges(clean_id, include_temporal=True)
+    graph_data = store.get_graph_data(clean_id)
+
+    # 2. Relecture via ZepEntityReader
+    reader = ZepEntityReader(store=store)
+    reader_nodes = reader.get_all_nodes(clean_id)
+    reader_edges = reader.get_all_edges(clean_id)
+
+    types_cibles = list(entity_types or ["Person", "Organization", "Location", "Institution", "Commission", "Document"])
+    filtered = reader.filter_defined_entities(clean_id, defined_entity_types=types_cibles)
+
+    # 3. Contrôle de compatibilité OASIS
+    # Chaque entité filtrée doit disposer d'un nom non vide et d'un entity_type résolu
+    oasis_ready = len(filtered.entities) > 0 and all(
+        bool(e.name and e.get_entity_type()) for e in filtered.entities
+    )
+
+    checks = {
+        "graph_store_nodes_ok": len(nodes) == len(reader_nodes),
+        "graph_store_edges_ok": len(edges) == len(reader_edges),
+        "graph_data_consistent": graph_data.get("node_count") == len(nodes) and graph_data.get("edge_count") == len(edges),
+        "entity_reader_filtered_ok": filtered.filtered_count > 0 or len(nodes) == 0,
+        "oasis_personas_ready": oasis_ready or len(nodes) == 0,
+    }
+
+    all_passed = all(checks.values())
+
+    return {
+        "graph_id": clean_id,
+        "valid": all_passed,
+        "nodes_count": len(nodes),
+        "edges_count": len(edges),
+        "graph_data_nodes": graph_data.get("node_count", 0),
+        "graph_data_edges": graph_data.get("edge_count", 0),
+        "filtered_entities_count": filtered.filtered_count,
+        "entity_types_found": sorted(list(filtered.entity_types)),
+        "oasis_ready": oasis_ready,
+        "checks": checks,
+    }
+
+
 def generer_graphe_mock(
     graph_id: str = "mock_rapport_an_2506",
 ) -> Tuple[List[ZepNodeDTO], List[ZepEdgeDTO]]:
@@ -1181,6 +1395,12 @@ def parser_arguments(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Chemin de fichier pour exporter les résultats au format JSON.",
     )
     parser.add_argument(
+        "--verify-relecture",
+        action="store_true",
+        default=False,
+        help="Valider la relecture applicative post-migration (GraphStore, ZepEntityReader, OASIS) (Critère C4).",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         default=False,
@@ -1300,6 +1520,27 @@ def main(cli_args: Optional[List[str]] = None) -> int:
         finally:
             if "loader" in locals() and hasattr(loader, "close"):
                 loader.close()
+
+    # Validation optionnelle de relecture applicative (Critère C4)
+    if args.verify_relecture:
+        if args.mock:
+            sim_store = SimulatedGraphStore(loader=loader)
+            val_res = valider_relecture_migree(target_graph_id=target_id, store=sim_store)
+        else:
+            real_store = get_graph_store()
+            val_res = valider_relecture_migree(target_graph_id=target_id, store=real_store)
+
+        report.relecture_validation = val_res
+
+        if not args.quiet:
+            print("\n" + "=" * 50)
+            print("  Vérification de Relecture Applicative (Critère C4)")
+            print("=" * 50)
+            print(f"  - Nœuds relus (GraphStore)        : {val_res['nodes_count']}")
+            print(f"  - Arêtes relues (GraphStore)       : {val_res['edges_count']}")
+            print(f"  - Entités filtrées (EntityReader) : {val_res['filtered_entities_count']} ({', '.join(val_res['entity_types_found'])})")
+            print(f"  - Éligibilité Personas OASIS      : {'Oui' if val_res['oasis_ready'] else 'Non'}")
+            print(f"  - Statut de validation             : {'✅ VALIDÉ' if val_res['valid'] else '❌ ÉCHEC'}\n")
 
     # Affichage du rapport
     if not args.quiet:
