@@ -65,7 +65,8 @@ L'**Epic 005 (Environnement Docker de référence — Docker-first, ADR 0006) es
 L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette »)** est en cours :
 Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
 Chantiers en backlog pour la suite :
-- **Epic 007** : Ontologie dynamique (v2).
+- **Epic 009** : Éligibilité des acteurs et fiabilisation des sources (cadré suite à l'audit du 10 octobre 2026). Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`).
+- **Epic 007** : Ontologie dynamique (v2) — planifiée après l'Epic 009 afin d'enrichir le typage sur une sélection d'acteurs déjà assainie.
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
 ### Bilan consolidé de l'Epic 005 — Environnement Docker de référence (Clos — 711 tests verts)
@@ -262,7 +263,8 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | Epic | Titre | Dépend de |
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (en cours) | 003, 004, 005 |
-| 007 | Ontologie dynamique (v2) | 003 |
+| 009 | Éligibilité des acteurs et fiabilisation des sources (cadré) | 004, 005 |
+| 007 | Ontologie dynamique (v2) | 003, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
 ---

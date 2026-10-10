@@ -337,11 +337,12 @@ epics:
     slug: ontologie-dynamique
     titre: "Ontologie dynamique (v2)"
     statut: backlog
-    depend_de: ["003"]
+    depend_de: ["003", "009"]
     pourquoi: >-
-      Reportée en v2 par ADR 0003. Le chemin de lecture étant fait, le
-      surcoût marginal de l'ontologie devient acceptable — mais seulement si
-      la v1 a livré un graphe exploitable.
+      Reportée en v2 par ADR 0003. L'Epic 009 ayant posé le verrou d'éligibilité
+      des acteurs (ActorEligibility), l'ontologie dynamique devient un raffinement
+      qualitatif du graphe (meilleurs types de nœuds et relations) plutôt qu'un
+      bloqueur de simulation.
 
   - id: "008"
     slug: support-langue-francaise
@@ -361,3 +362,23 @@ epics:
       - "Prompts LLM enrichis avec l'instruction 'Veuillez répondre en français.'"
       - "Personas et rapports de simulation rédigés en français par les agents"
       - "Suite de tests unitaires d'intégrité et parité i18n au vert"
+
+  - id: "009"
+    slug: eligibilite-acteurs-et-sources
+    titre: "Éligibilité des acteurs et fiabilisation des sources"
+    statut: backlog
+    plan: docs/plans/009-eligibilite-acteurs-et-sources
+    depend_de: ["004", "005"]
+    pourquoi: >-
+      Audit du 10 octobre 2026 : rupture sémantique où toute entité du graphe
+      était convertie en agent social OASIS (produits, prix, URLs transformés en
+      personas). L'Epic 009 introduit le modèle ActorEligibility (séparation étanche
+      connaissances vs acteurs), la typologie SourceDocument, la persistance du
+      SimulationBrief, la prévalidation avant lancement et la provenance des faits
+      dans le rapport.
+    criteres_de_sortie:
+      - "0 entité passive (produits, prix, URLs, concepts) convertie en persona OASIS actif"
+      - "Classification agnostique validée sur au moins 2 domaines distincts sans règle en dur"
+      - "100 % des faits Neo4j (r.episodes) traçables jusqu'au SourceDocument et numéro de fragment"
+      - "SimulationBrief persisté dans Project et réinjecté sans perte dans la configuration"
+      - "Filet de tests hermétiques au vert sous Docker sans régression"
