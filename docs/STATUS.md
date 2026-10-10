@@ -2,7 +2,7 @@
 
 Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
-humaine**, pas un second saisie.
+humaine**, pas une seconde saisie.
 
 > Dernière mise à jour : **10 octobre 2026** · branche `local-first`
 
@@ -69,7 +69,7 @@ L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette »)** es
 
 Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
 Chantiers en backlog pour la suite :
-- **Epic 009** : Éligibilité des acteurs et fiabilisation des sources (cadré suite à l'audit du 10 octobre 2026). Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`).
+- **Epic 009 (`backlog`)** : plan revu le 10 octobre 2026, aucune story démarrée. [Revue](plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md), [PRD](plans/009-eligibilite-acteurs-et-sources/prd.md), [architecture](plans/009-eligibilite-acteurs-et-sources/architecture.md) et [hub](plans/009-eligibilite-acteurs-et-sources/epic-009.md) alignés sur C1–C7. Le [rapprochement avec le rapport source](plans/009-eligibilite-acteurs-et-sources/couverture-rapport-audit.md) complète le brief, les diagnostics de contexte et les références d'événements. Restent à spécifier : collectifs/fiction, corrections humaines, validation/conflits documentaires et contrat commun de provenance. La qualification fonctionnelle reste à réaliser.
 - **Epic 007** : Ontologie dynamique (v2) — planifiée après l'Epic 009 afin d'enrichir le typage sur une sélection d'acteurs déjà assainie.
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
@@ -151,9 +151,9 @@ Premier contact avec un vrai serveur, donc premières mesures :
 | Volume nommé | le nœud survit à `stop` puis `start`, `valid_at` compris (**C3**) |
 | Écart driver / serveur | 5.28.6 / 5.26.31 — mesuré, gardé par un test |
 
-Le compose d'épreuve est **séparé** — [`docker-compose.neo4j.yml`](../../docker-compose.neo4j.yml)
-— parce que `docker-compose.yml` pointe l'image amont (AGENTS.md §2.9). L'epic
-005 l'absorbera quand l'environnement de référence existera.
+Au jalon 001-2, le compose d'épreuve était **séparé** — [`docker-compose.neo4j.yml`](../docker-compose.neo4j.yml)
+— car le compose principal pointait alors l'image amont. Depuis l'Epic 005,
+`docker-compose.yml` définit la stack locale de référence ; le compose d'épreuve reste disponible pour rejouer le protocole historique.
 
 Deux mesures, parce qu'**APOC a deux réponses et non une** :
 
@@ -267,7 +267,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | Epic | Titre | Dépend de |
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (en cours) | 003, 004, 005 |
-| 009 | Éligibilité des acteurs et fiabilisation des sources (cadré) | 004, 005 |
+| 009 | Éligibilité des acteurs et fiabilisation des sources (`backlog`, plan revu, arbitrages ouverts) | 004, 005 |
 | 007 | Ontologie dynamique (v2) | 003, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
@@ -292,9 +292,9 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer la Story 006-1** : Outil d'audit et d'inventaire d'un compte Zep Cloud (`auditer_graphes_zep.py`) et tests unitaires avec mocks hermétiques.
-2. **Poursuivre avec la Story 006-2** : Pipeline ETL de transformation et injection directe Cypher dans Neo4j (`migrer_zep_vers_graphiti.py`).
-3. **Poursuivre avec la Story 006-3** : Validation de relecture `GraphStore`, personas OASIS sur graphe migré et outil de purge Zep Cloud (`purger_graphes_zep.py`).
+1. **Préparer 009-1** : fixer la politique minimale des rôles (collectifs laissés `review` dans la cible proposée), constituer les fixtures multi-domaines et créer la story lors de son démarrage. Le verrou P0 peut utiliser les consignes existantes sans attendre le brief complet de 009-2.
+2. **Préparer 009-2 puis 009-3** : arrêter par ADR le contrat de provenance commun aux deux stores et préciser les corrections humaines. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
+3. **Epic 006, indépendamment** : poursuivre la story 006-3 déjà `in-progress`. Les stories 006-1 et 006-2 sont terminées ; aucun recommencement n'est requis.
 
 ## Questions ouvertes
 
@@ -311,7 +311,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **711**, tous verts, **sans `.env`** (filet de tests post-Epic 005 ; 684 après Story 005-4, 632 avant Epic 005) |
+| Tests | **771 collectés : 768 réussis, 3 ignorés**, sous Docker sans `.env` ni réseau externe, le 10 octobre 2026 sur l'état initial `cb6e559` ([preuve et limites](plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)). Les 3 contrôles ignorés nécessitent Docker CLI dans le conteneur. Ce contrôle ne qualifie pas les changements 006 concurrents ; 711 est le jalon historique de l'Epic 005. |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 11 acceptés, 0 supersédé |

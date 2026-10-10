@@ -4,7 +4,7 @@ Constitution du dépôt. Elle vaut pour toute contribution, humaine ou agent.
 En cas de conflit entre ce fichier et une demande ponctuelle : **ce fichier
 gagne**, et on le corrige explicitement dans un commit dédié.
 
-> Révision : 7 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
+> Révision : 10 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
 
 ---
 
@@ -55,6 +55,11 @@ reproductible.**
 > **L'epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est en cours de cadrage et réalisation.**
 > Dossier de plan : [`docs/plans/006-migration-donnees-zep/`](docs/plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).
 > Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), et outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €) avec purge optionnelle sécurisée (`purger_graphes_zep.py`).
+> Les stories 006-1 et 006-2 sont `done` ; la story 006-3 est `in-progress`.
+>
+> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est en `backlog`, avec un plan revu le 10 octobre 2026.**
+> Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
+> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages à fixer avant code. Aucune story 009 n'est démarrée ; cette revue ne vaut pas qualification fonctionnelle.
 
 ---
 
@@ -82,7 +87,8 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**771 tests** — il doit grossir, jamais rétrécir.
+**771 tests collectés** — il doit grossir, jamais rétrécir. Contrôle Docker du
+10 octobre 2026 : **768 réussis, 3 ignorés** ; [limites consignées dans la revue](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md).
 
 Règles de qualité des tests :
 
@@ -147,8 +153,8 @@ Dépendance prévue côté produit : `graphiti-core` (Apache-2.0). Aucune autre.
 - Message de commit = *ce qui* + *le pourquoi*. Pas de « fix » nu.
 - Jalon important → tag de sauvegarde (ex. `local-first-2026-10-03`).
 - L'amont avance vite (~100 commits depuis mars). Pour le réintégrer :
-  `git fetch upstream && git rebase upstream/main`, **puis** relancer les
-  494 tests — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
+  `git fetch upstream && git rebase upstream/main`, **puis** relancer la
+  suite complète — ses correctifs d'ontologie et de Zep ne sont pas chez nous.
 
 ### 2.7 Licence
 
@@ -295,7 +301,7 @@ validateur exige désormais les titres français. **Ne pas la recopier.**
 docker compose up -d                                         # backend :5001, frontend :3000, Neo4j :7687/:7474
 docker compose ps                                            # état + healthchecks
 docker compose logs -f backend                               # logs en direct
-docker compose run --rm backend uv run pytest tests/ -q      # 711 tests dans le conteneur
+docker compose run --rm backend uv run pytest tests/ -q      # suite complète dans le conteneur
 docker compose run --rm backend uv run ruff check .          # linting dans le conteneur
 docker compose run --rm backend uv run python scripts/verifier_qualification_docker.py # qualification complète
 docker compose down                                          # arrêt en conservant les volumes
@@ -306,10 +312,10 @@ docker compose down                                          # arrêt en conserv
 ```bash
 # Bootstrap local hôte
 cd backend && uv sync && cd ..
-pnpm install && pnpm --dir frontend install
+pnpm install --frozen-lockfile && pnpm --dir frontend install --frozen-lockfile
 
 # Avant chaque commit
-cd backend && uv run pytest tests/ -q                  # 711 tests
+cd backend && uv run pytest tests/ -q                  # suite complète
 cd backend && uv run ruff check .                     # lint
 cd backend && uv run python scripts/validate_plans.py # structure de plan
 
@@ -344,7 +350,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 771 tests |
+| Tests | `backend/tests/` | pytest — 771 collectés au 10 octobre 2026 (768 réussis, 3 ignorés sous Docker) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -416,7 +422,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 
 ## 7. Définition de « fini »
 
-- [ ] Tests verts — en local aujourd'hui, sous Docker après l'epic 005
+- [ ] Tests verts sous Docker, environnement de référence depuis l'epic 005
 - [ ] `ruff check` → rien
 - [ ] `validate_plans.py` → rien à signaler
 - [ ] Aucun secret dans le diff ni dans l'image
@@ -445,7 +451,9 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 |---|---|
 | [`docs/STATUS.md`](docs/STATUS.md) | fait / en cours / à faire / prochain pas |
 | [`sprint-status.yaml`](docs/sprint-status.yaml) | agrégat machine-readable par epic |
-| [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | l'epic en cours : PRD, architecture, epic, stories |
+| [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | épreuve close : PRD, architecture, epic, stories |
+| [`docs/plans/006-migration-donnees-zep/`](docs/plans/006-migration-donnees-zep/epic-006.md) | migration en cours : 006-1 et 006-2 terminées, 006-3 démarrée |
+| [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md) | plan en backlog, revue de cohérence et arbitrages avant développement |
 | [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
 | [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
 | [`deferred-work.md`](docs/deferred-work.md) | travail réel différé, avec ce qui le déclencherait |

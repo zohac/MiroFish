@@ -1,7 +1,8 @@
 # Suivi des epics — source de vérité unique
 #
-# Lu par AGENTS.md §2.8. Une story n'est « done » que si : code + tests +
-# critères d'acceptation validés + ce fichier à jour.
+# Lu par AGENTS.md §2.8. Ce fichier porte l'agrégat des epics ; l'état d'une
+# story vit dans son fichier. Sa clôture exige code, tests, revue et critères
+# d'acceptation validés, puis actualisation de l'agrégat si nécessaire.
 #
 # GitHub Projects, si on l'ouvre un jour, n'est qu'une VUE générée depuis ce
 # fichier. Pas de double saisie : deux sources de vérité pour le même état,
@@ -361,8 +362,8 @@ epics:
     statut: backlog
     depend_de: ["003", "009"]
     pourquoi: >-
-      Reportée en v2 par ADR 0003. L'Epic 009 ayant posé le verrou d'éligibilité
-      des acteurs (ActorEligibility), l'ontologie dynamique devient un raffinement
+      Reportée en v2 par ADR 0003. Après livraison du verrou d'éligibilité
+      des acteurs de l'Epic 009 (encore en backlog), l'ontologie sera un raffinement
       qualitatif du graphe (meilleurs types de nœuds et relations) plutôt qu'un
       bloqueur de simulation.
 
@@ -392,15 +393,20 @@ epics:
     plan: docs/plans/009-eligibilite-acteurs-et-sources
     depend_de: ["004", "005"]
     pourquoi: >-
-      Audit du 10 octobre 2026 : rupture sémantique où toute entité du graphe
-      était convertie en agent social OASIS (produits, prix, URLs transformés en
-      personas). L'Epic 009 introduit le modèle ActorEligibility (séparation étanche
+      Revue de reprise du 10 octobre 2026 : le code confirme l'absence de
+      qualification sémantique avant génération des profils OASIS. Les exemples
+      de simulations initialement rapportés restent à documenter. L'Epic 009 prévoit ActorEligibility (séparation étanche
       connaissances vs acteurs), la typologie SourceDocument, la persistance du
       SimulationBrief, la prévalidation avant lancement et la provenance des faits
-      dans le rapport.
+      dans le rapport. Le plan est révisé, aucune story démarrée ; arbitrages
+      de rôles, validation/conflits documentaires et contrat de provenance à fixer
+      avant les lots concernés. Le rapport source est rapproché dans une matrice
+      de couverture incluant diagnostics de contexte et traces des événements.
     criteres_de_sortie:
-      - "0 entité passive (produits, prix, URLs, concepts) convertie en persona OASIS actif"
-      - "Classification agnostique validée sur au moins 2 domaines distincts sans règle en dur"
-      - "100 % des faits Neo4j (r.episodes) traçables jusqu'au SourceDocument et numéro de fragment"
-      - "SimulationBrief persisté dans Project et réinjecté sans perte dans la configuration"
-      - "Filet de tests hermétiques au vert sous Docker sans régression"
+      - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"
+      - "C2 : 2 domaines sans changement de code ; fixtures annotées et mesure séparée du classifieur réel"
+      - "C3 : 100 % des références documentaires neuves résolues sur 2 documents de 2 fragments, positions exactes ; autres origines signalées"
+      - "C4 : 100 % du brief complet persisté/transmis ; 1 cas long > 50 000 caractères avec diagnostics, 0 perte silencieuse de consignes"
+      - "C5 : 0 échec sous Docker sans .env ni réseau ; filet de référence 771 collectés, résultats et skips consignés"
+      - "C6 : 2 routes POST, 1 parcours de révision, 1 parcours simple et 1 blocage volontaire ; diagnostics visibles, arbitrages durables et sélections fraîches"
+      - "C7 : 5 origines et 1 contradiction avec ses sources ; références résolues, 0 citation inventée ni action observée sans trace du run"
