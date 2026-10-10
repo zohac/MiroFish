@@ -350,6 +350,9 @@ epics:
     # Mode --mock déterministe hors-ligne sans dépendance réseau. Suite de 36 tests unitaires
     # hermétiques (test_migrer_zep_vers_graphiti.py). Revue BMad 4 couches validée (5 patchs appliqués).
     # Filet global porté à 771 tests verts (+37).
+    # Story 006-3 (in-progress) : validation de relecture GraphStore (get_all_nodes, get_all_edges),
+    # filtrage et extraction d'entités typées (ZepEntityReader), génération de personas et config OASIS
+    # (critère C4), et outil autonome de purge Zep Cloud sécurisé (purger_graphes_zep.py, FR-6).
 
 
   - id: "007"
