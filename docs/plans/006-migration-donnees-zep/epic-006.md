@@ -47,7 +47,7 @@
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 006-1 | Outil d'audit et d'inventaire d'un compte Zep Cloud (`auditer_graphes_zep.py`) | `done` | `story-006-1.md` |
-| 006-2 | Pipeline ETL de transformation et injection directe Cypher dans Neo4j (`migrer_zep_vers_graphiti.py`) | `backlog` | `story-006-2.md` |
+| 006-2 | Pipeline ETL de transformation et injection directe Cypher dans Neo4j (`migrer_zep_vers_graphiti.py`) | `in-progress` | `story-006-2.md` |
 | 006-3 | Validation de relecture GraphStore, personas OASIS et outil de purge Zep Cloud (`purger_graphes_zep.py`) | `backlog` | `story-006-3.md` |
 
 | Story | Critères d'acceptation (résumé) |
