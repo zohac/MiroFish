@@ -53,8 +53,8 @@
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `done` | [story-009-1.md](story-009-1.md) |
-| 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `review` | [story-009-2.md](story-009-2.md) |
-| 009-3 | Endpoints et interface de prévalidation des acteurs (`preview` & `review`) (Lot C - P1) | `backlog` | `story-009-3.md` |
+| 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `done` | [story-009-2.md](story-009-2.md) |
+| 009-3 | Endpoints et interface de prévalidation des acteurs (`preview` & `review`) (Lot C - P1) | `backlog` | [story-009-3.md](story-009-3.md) |
 | 009-4 | Outils de provenance, rapport vérifiable et qualification globale (Lot D - P1) | `backlog` | `story-009-4.md` |
 
 | Story | Critères d'acceptation (résumé) |
