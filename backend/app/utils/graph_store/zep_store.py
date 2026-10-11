@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import hashlib
+import json
 import time
 from typing import Any, Callable, Dict, List, Optional
 import uuid
@@ -44,6 +45,9 @@ from .base import (
     GraphNode,
     GraphSearchResult,
     GraphStore,
+    ProvenanceOrigin,
+    ProvenanceRecord,
+    validate_chunk_metadata,
 )
 from .errors import (
     GraphConnectionError,
@@ -521,6 +525,7 @@ class ZepGraphStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         """Ingère des fragments textuels par lots via l'API Zep Batch."""
         if not graph_id or not graph_id.strip():
@@ -537,9 +542,11 @@ class ZepGraphStore(GraphStore):
                 f"Le fragment {oversized[0]} dépasse la limite de 10 000 caractères"
             )
 
+        # Validation partagée avec Graphiti, avant toute écriture (ADR 0012 §1).
+        metadata_entries = validate_chunk_metadata(chunks, chunk_metadata)
+
         total_chunks = len(chunks)
-        payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
-        operation_id = hashlib.sha256(f"{graph_id}:{payload_hash}".encode("utf-8")).hexdigest()
+        operation_id = self._build_operation_id(graph_id, chunks, metadata_entries)
 
         with self._translate_errors(f"soumission par lot pour {graph_id}"):
             try:
@@ -571,17 +578,14 @@ class ZepGraphStore(GraphStore):
                     progress_callback("sending", current_count, total_chunks)
 
                 items = [
-                    BatchAddItem(
-                        type="graph_episode",
+                    self._build_batch_item(
                         graph_id=graph_id,
-                        data=chunk,
-                        data_type="text",
-                        source_description="MiroFish source document chunk",
-                        metadata={
-                            "mirofish_operation_id": operation_id,
-                            "chunk_index": i + offset,
-                            "chunk_sha256": hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
-                        },
+                        chunk=chunk,
+                        operation_id=operation_id,
+                        sequence_index=i + offset,
+                        metadata_entry=(
+                            metadata_entries[i + offset] if metadata_entries else None
+                        ),
                     )
                     for offset, chunk in enumerate(batch_chunks)
                 ]
@@ -654,6 +658,230 @@ class ZepGraphStore(GraphStore):
                 episode_uuids=episode_uuids,
                 item_count=total_chunks,
             )
+
+    @staticmethod
+    def _build_operation_id(
+        graph_id: str,
+        chunks: List[str],
+        metadata_entries: List[Dict[str, Any]],
+    ) -> str:
+        """Identifiant déterministe d'opération.
+
+        Sans provenance, le hachage est **inchangé** : un lot Zep déjà persisté
+        dans `project.json` et repris après redémarrage reste reconnaissable
+        (ADR 0012 §1). Avec provenance, les métadonnées entrent dans le hachage.
+        """
+        payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
+        if metadata_entries:
+            canonical = json.dumps(
+                metadata_entries, ensure_ascii=False, sort_keys=True
+            ).encode("utf-8")
+            payload_hash = hashlib.sha256(
+                payload_hash.encode("ascii") + b"\0" + canonical
+            ).hexdigest()
+        return hashlib.sha256(f"{graph_id}:{payload_hash}".encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _build_batch_item(
+        *,
+        graph_id: str,
+        chunk: str,
+        operation_id: str,
+        sequence_index: int,
+        metadata_entry: Optional[Dict[str, Any]],
+    ) -> "BatchAddItem":
+        """Construit un élément de lot Zep, avec ou sans provenance.
+
+        Les clés historiques (`chunk_index` global, `chunk_sha256`) sont
+        conservées telles quelles : elles servent à la réconciliation. Avec
+        provenance, `chunk_index` **local au document** est ajouté sous le nom
+        `source_chunk_index`, pour que les deux index ne se confondent pas.
+        """
+        metadata: Dict[str, Any] = {
+            "mirofish_operation_id": operation_id,
+            "chunk_index": sequence_index,
+            "chunk_sha256": hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
+        }
+        source_description = "MiroFish source document chunk"
+
+        if metadata_entry:
+            for key, value in metadata_entry.items():
+                if key == "chunk_index":
+                    metadata["source_chunk_index"] = value
+                    continue
+                metadata[key] = value
+            source_description = (
+                f"{metadata_entry['source_filename']}#"
+                f"{metadata_entry['chunk_index']} [{metadata_entry['source_role']}]"
+            )
+
+        return BatchAddItem(
+            type="graph_episode",
+            graph_id=graph_id,
+            data=chunk,
+            data_type="text",
+            source_description=source_description,
+            metadata=metadata,
+        )
+
+    # --- Provenance des faits ---
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str) -> List[ProvenanceRecord]:
+        """Résout les origines documentaires d'une arête Zep, dans un graphe donné.
+
+        Zep n'expose pas « get edge by uuid **dans** un graphe ». Lire l'arête
+        à l'aveugle par UUID ferait fuiter une arête d'un autre graphe, donc la
+        lecture passe par `get_by_graph_id` filtré sur les UUID (ADR 0012 §4).
+        """
+        if not isinstance(graph_id, str) or not graph_id.strip():
+            raise GraphValidationError("graph_id est requis")
+        if not isinstance(edge_uuid, str) or not edge_uuid.strip():
+            raise GraphValidationError("edge_uuid est requis")
+
+        target_graph_id = graph_id.strip()
+        target_edge_uuid = edge_uuid.strip()
+
+        with self._translate_errors(
+            f"lecture de la provenance de l'arête {target_edge_uuid}"
+        ):
+            from zep_cloud import SearchFilters
+
+            matches = call_zep_read_with_retry(
+                lambda: self._client.graph.edge.get_by_graph_id(
+                    graph_id=target_graph_id,
+                    filters=SearchFilters(edge_uuids=[target_edge_uuid]),
+                    limit=2,
+                ),
+                operation_name=f"get_edge_provenance {target_edge_uuid}",
+            )
+            edges = list(matches or [])
+            if not edges:
+                return []
+
+            raw_refs = getattr(edges[0], "episodes", None) or []
+            episode_uuids = [str(value) for value in raw_refs if value]
+            if not episode_uuids:
+                return []
+
+            return [
+                self._load_episode_record(episode_uuid)
+                for episode_uuid in episode_uuids
+            ]
+
+    def _load_episode_record(self, episode_uuid: str) -> ProvenanceRecord:
+        """Charge un épisode Zep et le classe selon son origine réelle.
+
+        Seul un épisode réellement absent (`NotFoundError`) devient une référence
+        non résolue. Une panne de lecture (réseau, authentification) **remonte**
+        en `GraphStoreError` : l'appelant doit pouvoir distinguer « cette
+        référence n'existe pas » d'une panne du store (ADR 0012 §3).
+
+        L'isolation tient à l'appelant : `get_edge_provenance` n'énumère que les
+        épisodes d'une arête obtenue par `get_by_graph_id(graph_id)`. Zep n'offre
+        pas de « get episode **dans** un graphe », donc la borne de graphe vient
+        de l'arête, et un épisode d'un autre graphe ne peut pas être atteint par
+        ce chemin.
+        """
+        try:
+            episode = call_zep_read_with_retry(
+                lambda: self._client.graph.episode.get(episode_uuid),
+                operation_name=f"get_episode {episode_uuid}",
+            )
+        except NotFoundError:
+            return ProvenanceRecord(
+                episode_uuid=episode_uuid,
+                resolved=False,
+                origin=ProvenanceOrigin.UNRESOLVED,
+                missing_reason="Zep ne retourne aucun épisode pour cet UUID",
+            )
+        except ZepApiError as error:
+            if getattr(error, "status_code", None) == 404:
+                return ProvenanceRecord(
+                    episode_uuid=episode_uuid,
+                    resolved=False,
+                    origin=ProvenanceOrigin.UNRESOLVED,
+                    missing_reason="Zep ne retourne aucun épisode pour cet UUID (HTTP 404)",
+                )
+            raise
+
+        raw_metadata = getattr(episode, "metadata", None) or {}
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        return self._classify_episode(episode_uuid, episode, metadata)
+
+    @staticmethod
+    def _classify_episode(
+        episode_uuid: str,
+        episode: Any,
+        metadata: Dict[str, Any],
+    ) -> ProvenanceRecord:
+        """Classe un épisode Zep selon la même taxonomie que Graphiti."""
+
+        def _str_or_none(value: Any) -> Any:
+            if value is None:
+                return None
+            text = str(value)
+            return text if text else None
+
+        def _int_or_none(value: Any) -> Any:
+            if value is None or isinstance(value, bool):
+                return None
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        document_id = _str_or_none(metadata.get("source_document_id"))
+        simulation_id = _str_or_none(metadata.get("simulation_id"))
+
+        if simulation_id:
+            origin = ProvenanceOrigin.SIMULATION
+        elif document_id:
+            origin = ProvenanceOrigin.DOCUMENT
+        else:
+            origin = ProvenanceOrigin.LEGACY
+
+        missing_reason = None
+        if origin is ProvenanceOrigin.DOCUMENT:
+            required = {
+                "source_filename": _str_or_none(metadata.get("source_filename")),
+                "source_role": _str_or_none(metadata.get("source_role")),
+                "chunk_index": _int_or_none(
+                    metadata.get("source_chunk_index", metadata.get("chunk_index"))
+                ),
+                "char_start": _int_or_none(metadata.get("char_start")),
+                "char_end": _int_or_none(metadata.get("char_end")),
+            }
+            absent = [name for name, value in required.items() if value is None]
+            if absent:
+                missing_reason = (
+                    "épisode documentaire incomplet, champs manquants : "
+                    + ", ".join(sorted(absent))
+                )
+            elif required["char_end"] <= required["char_start"]:  # type: ignore[operator]
+                missing_reason = (
+                    f"positions incohérentes : char_end ({required['char_end']}) "
+                    f"<= char_start ({required['char_start']})"
+                )
+
+        return ProvenanceRecord(
+            episode_uuid=episode_uuid,
+            resolved=True,
+            origin=origin,
+            source_document_id=document_id,
+            source_filename=_str_or_none(metadata.get("source_filename")),
+            source_role=_str_or_none(metadata.get("source_role")),
+            chunk_index=_int_or_none(
+                metadata.get("source_chunk_index", metadata.get("chunk_index"))
+            ),
+            char_start=_int_or_none(metadata.get("char_start")),
+            char_end=_int_or_none(metadata.get("char_end")),
+            page=_int_or_none(metadata.get("page")),
+            section=_str_or_none(metadata.get("section")),
+            content=_str_or_none(getattr(episode, "content", None)),
+            simulation_id=simulation_id,
+            platform=_str_or_none(metadata.get("platform")),
+            missing_reason=missing_reason,
+        )
 
     def wait_for_batch(
         self,

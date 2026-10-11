@@ -2,7 +2,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import re
 from typing import Any, Callable, Dict, List, Optional
+
+from .errors import GraphValidationError
 
 
 @dataclass(frozen=True)
@@ -207,6 +210,253 @@ class BatchSubmissionRecord:
         }
 
 
+class ProvenanceOrigin(str):
+    """Origines d'un épisode, distinctes et jamais fusionnées (ADR 0012 §3)."""
+
+    DOCUMENT = "document"
+    SIMULATION = "simulation"
+    LEGACY = "legacy"
+    UNRESOLVED = "unresolved"
+
+
+#: Champs de métadonnées de fragment validés avant toute écriture (ADR 0012 §1).
+REQUIRED_CHUNK_METADATA_FIELDS = (
+    "source_document_id",
+    "source_filename",
+    "chunk_index",
+    "char_start",
+    "char_end",
+    "source_role",
+)
+
+#: Champs facultatifs, avec leur type attendu quand ils sont présents.
+OPTIONAL_CHUNK_METADATA_FIELDS: Dict[str, type] = {
+    "page": int,
+    "section": str,
+}
+
+#: Clés acceptées dans `chunk_metadata`. Toute autre clé est refusée : les noms
+#: de propriétés Cypher ne peuvent pas être paramétrés, donc une clé libre est
+#: une surface d'injection et une dérive du contrat (ADR 0012 §1).
+ALLOWED_CHUNK_METADATA_FIELDS = frozenset(
+    REQUIRED_CHUNK_METADATA_FIELDS + tuple(OPTIONAL_CHUNK_METADATA_FIELDS)
+)
+
+#: Clés de métadonnées que le store gère lui-même : les écrire écraserait une
+#: propriété de Graphiti ou le partitionnement. `source` en fait partie :
+#: `EpisodicNode.source` est un `EpisodeType`, et l'annoter corromprait
+#: l'épisode. L'origine simulée se lit sur `simulation_id`, jamais sur `source`.
+FORBIDDEN_ANNOTATION_KEYS = frozenset(
+    {
+        "uuid",
+        "group_id",
+        "content",
+        "name",
+        "source",
+        "source_description",
+        "valid_at",
+        "created_at",
+        "entity_edges",
+        "labels",
+        "episode_metadata",
+        "reference_time",
+    }
+)
+
+#: Un nom de propriété Neo4j est un identifiant : lettres, chiffres, `_`.
+_ANNOTATION_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+#: Rôles documentaires reconnus. La liste est explicite plutôt que déduite d'un
+#: import de modèle : `base.py` ne connaît aucun service métier (AGENTS.md §2.1).
+VALID_SOURCE_ROLES = (
+    "facts",
+    "scenario",
+    "personas",
+    "hypotheses",
+    "constraints",
+    "reference",
+)
+
+
+def validate_chunk_metadata(
+    chunks: List[str],
+    chunk_metadata: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    """Valide les métadonnées alignées avant toute écriture.
+
+    Une seule implémentation pour les deux stores : c'est la seule façon qu'ils
+    refusent la même entrée pour la même raison (ADR 0012 §1). Un refus lève
+    ``GraphValidationError`` **avant** la première écriture — il n'existe aucun
+    chemin produisant une ingestion partielle déclarée réussie.
+
+    Args:
+        chunks: Fragments.alignés sur ``chunk_metadata``.
+        chunk_metadata: Une entrée par fragment, ou ``None``.
+
+    Returns:
+        La liste validée, ou une liste vide si aucune provenance n'est demandée.
+
+    Raises:
+        GraphValidationError: Désalignement, champ manquant, type invalide ou
+            entrée non dictionnaire.
+    """
+    if chunk_metadata is None:
+        return []
+
+    if not isinstance(chunk_metadata, list):
+        raise GraphValidationError(
+            "chunk_metadata doit être une liste, une entrée par fragment"
+        )
+
+    if len(chunk_metadata) != len(chunks):
+        raise GraphValidationError(
+            f"chunk_metadata désaligné : {len(chunk_metadata)} entrées pour "
+            f"{len(chunks)} fragments"
+        )
+
+    validated: List[Dict[str, Any]] = []
+    for index, entry in enumerate(chunk_metadata):
+        if not isinstance(entry, dict):
+            raise GraphValidationError(
+                f"chunk_metadata[{index}] doit être un dictionnaire, reçu "
+                f"{type(entry).__name__}"
+            )
+
+        for field_name in REQUIRED_CHUNK_METADATA_FIELDS:
+            if field_name not in entry:
+                raise GraphValidationError(
+                    f"chunk_metadata[{index}] ne porte pas le champ requis "
+                    f"'{field_name}'"
+                )
+
+        unknown = set(entry) - ALLOWED_CHUNK_METADATA_FIELDS
+        if unknown:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}] porte des champs non reconnus : "
+                f"{sorted(unknown)} ; champs acceptés : "
+                f"{sorted(ALLOWED_CHUNK_METADATA_FIELDS)}"
+            )
+
+        for field_name in ("source_document_id", "source_filename"):
+            value = entry[field_name]
+            if not isinstance(value, str) or not value.strip():
+                raise GraphValidationError(
+                    f"chunk_metadata[{index}].{field_name} doit être une chaîne non vide"
+                )
+
+        for field_name in ("chunk_index", "char_start", "char_end"):
+            value = entry[field_name]
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise GraphValidationError(
+                    f"chunk_metadata[{index}].{field_name} doit être un entier, "
+                    f"reçu {type(value).__name__}"
+                )
+
+        if entry["chunk_index"] < 0:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}].chunk_index doit être >= 0 (base 0, "
+                "local au document)"
+            )
+        if entry["char_start"] < 0:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}].char_start doit être >= 0"
+            )
+        if entry["char_end"] <= entry["char_start"]:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}].char_end ({entry['char_end']}) doit être "
+                f"strictement supérieur à char_start ({entry['char_start']})"
+            )
+
+        role = entry["source_role"]
+        if not isinstance(role, str) or role not in VALID_SOURCE_ROLES:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}].source_role doit être un rôle reconnu "
+                f"{VALID_SOURCE_ROLES}, reçu {role!r}"
+            )
+
+        for field_name, expected_type in OPTIONAL_CHUNK_METADATA_FIELDS.items():
+            if field_name not in entry or entry[field_name] is None:
+                continue
+            value = entry[field_name]
+            if expected_type is int and isinstance(value, bool):
+                raise GraphValidationError(
+                    f"chunk_metadata[{index}].{field_name} doit être un entier"
+                )
+            if not isinstance(value, expected_type):
+                raise GraphValidationError(
+                    f"chunk_metadata[{index}].{field_name} doit être un "
+                    f"{expected_type.__name__}, reçu {type(value).__name__}"
+                )
+        if entry.get("page") is not None and entry["page"] < 1:
+            raise GraphValidationError(
+                f"chunk_metadata[{index}].page doit être >= 1 quand elle est connue"
+            )
+
+        validated.append(dict(entry))
+
+    return validated
+
+
+@dataclass(frozen=True)
+class ProvenanceRecord:
+    """Origine d'une référence d'épisode, résolue ou non (ADR 0012 §3).
+
+    Une référence non résolue n'est pas une exception : un graphe migré est un
+    cas normal d'usage, et l'appelant doit pouvoir distinguer « pas d'épisode »
+    d'une panne.
+    """
+
+    episode_uuid: str
+    resolved: bool
+    origin: str
+    source_document_id: Optional[str] = None
+    source_filename: Optional[str] = None
+    source_role: Optional[str] = None
+    chunk_index: Optional[int] = None
+    char_start: Optional[int] = None
+    char_end: Optional[int] = None
+    page: Optional[int] = None
+    section: Optional[str] = None
+    content: Optional[str] = None
+    simulation_id: Optional[str] = None
+    platform: Optional[str] = None
+    missing_reason: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "episode_uuid": self.episode_uuid,
+            "resolved": self.resolved,
+            "origin": self.origin,
+            "source_document_id": self.source_document_id,
+            "source_filename": self.source_filename,
+            "source_role": self.source_role,
+            "chunk_index": self.chunk_index,
+            "char_start": self.char_start,
+            "char_end": self.char_end,
+            "page": self.page,
+            "section": self.section,
+            "content": self.content,
+            "simulation_id": self.simulation_id,
+            "platform": self.platform,
+            "missing_reason": self.missing_reason,
+        }
+
+    @property
+    def is_documentary(self) -> bool:
+        """Vrai si cette référence compte comme fait documentaire (C3).
+
+        Une provenance **incomplète** (`missing_reason` renseigné) ne compte pas :
+        l'ADR 0012 §5 exige document, fichier, rôle, index et positions pour
+        qu'une référence soit résolue.
+        """
+
+        return (
+            self.resolved
+            and self.origin == ProvenanceOrigin.DOCUMENT
+            and self.missing_reason is None
+        )
+
+
 @dataclass(frozen=True)
 class GraphInfo:
     """Statistiques et métadonnées globales d'un graphe."""
@@ -329,6 +579,7 @@ class GraphStore(ABC):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         """Ingère une liste de textes découpés par lots.
 
@@ -337,6 +588,11 @@ class GraphStore(ABC):
             chunks: Liste ordonnée des fragments textuels à ingérer.
             batch_size: Taille maximale de chaque sous-lot.
             progress_callback: Callback facultatif (status, current, total).
+            chunk_metadata: Une entrée de métadonnées par fragment, dans le même
+                ordre que `chunks` (ADR 0012 §1). `None` — le cas de tous les
+                appelants existants — demande aucune provenance et conserve le
+                comportement actuel. Une liste désalignée ou invalide lève
+                `GraphValidationError` **avant** toute écriture.
 
         Returns:
             BatchSubmissionRecord contenant les identifiants d'opération et d'épisodes.
@@ -437,6 +693,30 @@ class GraphStore(ABC):
 
         Returns:
             Liste de GraphEdge connectées.
+        """
+        pass
+
+    # --- Provenance des faits ---
+
+    @abstractmethod
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str) -> List[ProvenanceRecord]:
+        """Résout les origines documentaires d'une arête, dans un graphe donné.
+
+        Chaque référence de `r.episodes` est rendue telle qu'elle, qu'elle se
+        résolve ou non : une liste vide, un épisode absent, une origine
+        simulée, héritée ou inconnue sont **signés distinctement** et jamais
+        inventés (ADR 0012 §3). La requête reste dans le store : aucun Cypher
+        ne remonte dans les services (AGENTS.md §2.1).
+
+        Args:
+            graph_id: Identifiant unique du graphe cible. Toute résolution est
+                bornée par ce `group_id` — une référence d'un autre graphe est
+                `unresolved`.
+            edge_uuid: Identifiant unique de l'arête.
+
+        Returns:
+            Une liste de `ProvenanceRecord` par référence d'épisode. Une arête
+            sans aucun épisode retourne une liste vide, pas une exception.
         """
         pass
 

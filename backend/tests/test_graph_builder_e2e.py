@@ -100,6 +100,7 @@ class MockE2EGraphitiStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         if self.should_fail and self.fail_stage == "add_text_batch":
             raise GraphStoreError("Erreur simulée lors de add_text_batch")
@@ -223,6 +224,11 @@ class MockE2EGraphitiStore(GraphStore):
             if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
         ]
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         nodes = self.get_all_nodes(graph_id)
         edges = self.get_all_edges(graph_id)

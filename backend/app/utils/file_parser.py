@@ -158,6 +158,44 @@ class FileParser:
         return "\n\n".join(all_texts)
 
 
+def _iter_chunk_spans(
+    text: str,
+    chunk_size: int,
+    overlap: int,
+) -> List[tuple]:
+    """Calcule les bornes brutes des fragments, sans rogner ni dupliquer.
+
+    Une seule implémentation de la découpe pour `split_text_into_chunks` (qui
+    rogne) et `split_text_into_chunk_spans` (qui conserve les positions). La
+    progression avance d'au moins un caractère : un `overlap` élevé ne peut pas
+    faire reculer `start` et produire une boucle ou des quasi-doublons.
+    """
+    if len(text) <= chunk_size:
+        return [(0, len(text))] if text.strip() else []
+
+    spans: List[tuple] = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        if end < len(text):
+            for sep in ['。', '！', '？', '.\n', '!\n', '?\n', '\n\n', '. ', '! ', '? ']:
+                last_sep = text[start:end].rfind(sep)
+                if last_sep != -1 and last_sep > chunk_size * 0.3:
+                    end = start + last_sep + len(sep)
+                    break
+        span = (start, min(end, len(text)))
+        # Un `overlap` proche de `chunk_size` peut produire exactement la même
+        # plage que la précédente après ajustement à une frontière de phrase :
+        # deux fragments identiques seraient alors ingérés deux fois. On ignore
+        # la répétition exacte, sans jamais reculer.
+        if not spans or span != spans[-1]:
+            spans.append(span)
+        if end >= len(text):
+            break
+        start = max(end - overlap, start + 1)
+    return spans
+
+
 def split_text_into_chunks(
     text: str, 
     chunk_size: int = 500, 
@@ -176,28 +214,44 @@ def split_text_into_chunks(
     """
     if len(text) <= chunk_size:
         return [text] if text.strip() else []
-    
-    chunks = []
-    start = 0
-    
-    while start < len(text):
-        end = start + chunk_size
-        
-        # 尝试在句子边界处分割
-        if end < len(text):
-            # 查找最近的句子结束符
-            for sep in ['。', '！', '？', '.\n', '!\n', '?\n', '\n\n', '. ', '! ', '? ']:
-                last_sep = text[start:end].rfind(sep)
-                if last_sep != -1 and last_sep > chunk_size * 0.3:
-                    end = start + last_sep + len(sep)
-                    break
-        
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        
-        # 下一个块从重叠位置开始
-        start = end - overlap if end < len(text) else len(text)
-    
-    return chunks
+    return [
+        text[start:end].strip()
+        for start, end in _iter_chunk_spans(text, chunk_size, overlap)
+        if text[start:end].strip()
+    ]
+
+
+def split_text_into_chunk_spans(
+    text: str,
+    chunk_size: int = 500,
+    overlap: int = 50,
+) -> List[tuple]:
+    """Découpe un texte en fragments **avec leur position exacte**.
+
+    Retourne une liste de ``(fragment, char_start, char_end)`` telle que
+    ``text[char_start:char_end] == fragment``. Les bornes proviennent du
+    découpage lui-même, jamais d'une recherche de sous-chaîne : sur un texte
+    répétitif, ``str.find`` renverrait la première occurrence et deux fragments
+    distincts partageraient la même position (story 009-2, AC2).
+    """
+    spans: List[tuple] = []
+    seen: set = set()
+    for start, end in _iter_chunk_spans(text, chunk_size, overlap):
+        raw = text[start:end]
+        if not raw.strip():
+            continue
+        # Rognage borné, pour que ``text[cs:ce] == fragment`` reste vrai.
+        left = len(raw) - len(raw.lstrip())
+        right = len(raw.rstrip())
+        cs, ce = start + left, start + right
+        if ce <= cs:
+            continue
+        # Un `overlap` proche de `chunk_size` peut ramener deux découpes
+        # distinctes à la même plage après rognage : ingérer deux fois le même
+        # fragment n'ajoute rien et fausse le compte.
+        if (cs, ce) in seen:
+            continue
+        seen.add((cs, ce))
+        spans.append((text[cs:ce], cs, ce))
+    return spans
 

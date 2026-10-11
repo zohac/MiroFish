@@ -12,6 +12,11 @@ from typing import Any, Callable, Dict, List, Optional
 import pytest
 
 from app.services.oasis_profile_generator import OasisProfileGenerator
+from app.models.actor_eligibility import (
+    ActorEligibility,
+    ActorRole,
+    EligibilityStatus,
+)
 from app.services.simulation_config_generator import SimulationConfigGenerator
 from app.services.zep_entity_reader import (
     EntityNode,
@@ -84,6 +89,7 @@ class MockGraphitiStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         return BatchSubmissionRecord(
             batch_id="batch-1",
@@ -129,6 +135,11 @@ class MockGraphitiStore(GraphStore):
                 result.append(edge)
         return result
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def search(
         self,
         graph_id: str,
@@ -506,10 +517,22 @@ def test_oasis_profile_generator_rule_based_fallback_with_generic_graphiti():
         attributes={},
     )
 
+    qualification = ActorEligibility(
+        entity_uuid="n-1",
+        entity_name="Valérie",
+        role=ActorRole.PERSON,
+        status=EligibilityStatus.ELIGIBLE,
+        rationale="Individu décrit",
+        confidence=0.9,
+        original_type="Entity",
+        attributes={},
+    )
+
     profile = generator.generate_profile_from_entity(
         entity=entity,
         user_id=1,
         use_llm=False,  # Test rule-based hermétique
+        qualification=qualification,
     )
 
     assert profile is not None

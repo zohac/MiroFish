@@ -57,9 +57,22 @@ reproductible.**
 > Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €), valider la relecture applicative (GraphStore, ZepEntityReader, OASIS — C4) avec purge optionnelle sécurisée (`purger_graphes_zep.py`, FR-6).
 > Les stories 006-1, 006-2 et 006-3 sont validées (800 tests verts).
 >
-> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est en `backlog`, avec un plan revu le 10 octobre 2026.**
+> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, story 009-2 en `review`.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-> La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md) distingue les défauts confirmés, les corrections du plan et les arbitrages. La [story 009-1](docs/plans/009-eligibilite-acteurs-et-sources/story-009-1.md) reste `backlog`, prête pour le développement : [46 entités annotées et relues, référence Docker contrôlée](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md). Aucun code métier 009 démarré ; le classifieur reste à implémenter et qualifier.
+> La story 009-1 est close (`done`) : modèle `ActorEligibility`, classifieur
+> agnostique à deux passes (`app/services/actor_classifier.py`), barrière du
+> générateur de profils, intégration gestionnaire/routes, preuve de qualification.
+> [Mesure réelle C2](docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md) :
+> space-bunny, 8/8 acteurs retenus et 0 faux acteur par domaine.
+> La story 009-2 est implémentée et passe en `review` : [ADR 0012](docs/decisions/0012-contrat-de-provenance-graphstore.md)
+> (contrat de provenance `GraphStore`) et [ADR 0013](docs/decisions/0013-semantique-des-sources.md)
+> (statut de validation, conflits, budget de contexte) acceptés ; modèles
+> `source_document.py` et `simulation_brief.py`, extension des deux stores,
+> découpage par document à positions exactes, transmission du brief et
+> diagnostics de contexte. [Mesure réelle C3](docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) :
+> 2 documents × 2 fragments, 8/8 références documentaires résolues, 8/8 positions
+> exactes. Les lots 009-3 à 009-4 restent en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
+> reste la référence des arbitrages.
 
 ---
 
@@ -86,9 +99,11 @@ api/  →  services/  →  utils/
 
 ### 2.2 Tout code produit est testé
 
-Une fonctionnalité sans test **n'est pas terminée**. Le filet actuel est de
-**825 tests collectés** — il doit grossir, jamais rétrécir. Contrôle Docker du
-10 octobre 2026 : **822 réussis, 3 ignorés** ; [preuves et limites](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md).
+Une fonctionnalité sans test **n'est pas terminée**. Le filet de référence du
+11 octobre 2026 est de **1110 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
+Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
+921 + 3 Docker ; [preuves et
+limites](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md).
 
 Règles de qualité des tests :
 
@@ -350,7 +365,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 825 collectés au 10 octobre 2026 (822 réussis, 3 ignorés sous Docker) |
+| Tests | `backend/tests/` | pytest — 1110 réussis sur l'hôte, 1107 + 3 ignorés sous Docker au 11 octobre 2026 (story 009-2) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -454,7 +469,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | [`sprint-status.yaml`](docs/sprint-status.yaml) | agrégat machine-readable par epic |
 | [`docs/plans/001-epreuve-graphiti-local/`](docs/plans/001-epreuve-graphiti-local/epic-001.md) | épreuve close : PRD, architecture, epic, stories |
 | [`docs/plans/006-migration-donnees-zep/`](docs/plans/006-migration-donnees-zep/epic-006.md) | migration en cours : 006-1 et 006-2 terminées, 006-3 démarrée |
-| [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md) | plan en backlog, revue de cohérence et arbitrages avant développement |
+| [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md) | verrou d'acteurs en cours : story 009-1 en `review`, mesure C2 réelle consignée |
 | [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | installation, rôle de Zep, couplage, obstacles, plan, audit des forks |
 | [`docs/README.md`](docs/README.md) | conventions et index de la documentation |
 | [`deferred-work.md`](docs/deferred-work.md) | travail réel différé, avec ce qui le déclencherait |
@@ -476,6 +491,8 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0009 | **Fichiers de story en markdown**, pas en YAML |
 | 0010 | Forcer `neo4j` par `override-dependencies` : un seul environnement, on contourne le pin de l'amont |
 | 0011 | Relevé réel de la surface `neo4j` (pas de `neo4j.Version`), version résolue consignée, marqueur de format de story |
+| 0012 | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation `:Episodic` vérifiée, lecture neutre `get_edge_provenance` |
+| 0013 | Sémantique des sources : statut de validation, conflits conservés avec règle déclarée, budget de contexte explicite |
 
 ---
 

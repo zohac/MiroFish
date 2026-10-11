@@ -69,7 +69,7 @@ class DummyStore(GraphStore):
         return EpisodeRecord(episode_uuid="ep-1", graph_id=graph_id, content=content)
 
     def add_text_batch(
-        self, graph_id: str, chunks: List[str], batch_size: int = 350
+        self, graph_id: str, chunks: List[str], batch_size: int = 350, progress_callback=None, chunk_metadata=None
     ) -> BatchSubmissionRecord:
         return BatchSubmissionRecord(batch_id="b-1", item_count=len(chunks))
 
@@ -111,6 +111,11 @@ class DummyStore(GraphStore):
             return [self.edge]
         return []
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def search(
         self, graph_id: str, query: str, limit: int = 10, scope: str = "hybrid"
     ) -> List[GraphSearchResult]:

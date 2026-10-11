@@ -18,6 +18,13 @@ from .zep_entity_reader import ZepEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
 from ..utils.locale import t
+from ..models.actor_eligibility import ACTOR_ELIGIBILITY_POLICY_VERSION
+from ..models.simulation_brief import SimulationBrief, build_minimal_brief
+from .actor_classifier import (
+    ActorClassifierService,
+    ActorClassificationResult,
+    fingerprint_qualification_inputs,
+)
 
 logger = get_logger('mirofish.simulation')
 
@@ -41,6 +48,80 @@ class PlatformType(str, Enum):
     REDDIT = "reddit"
 
 
+# Nom du fichier de preuve de qualification dans le dossier d'une simulation.
+QUALIFICATION_PROOF_FILENAME = "actor_qualifications.json"
+
+
+class QualificationProofError(ValueError):
+    """Preuve de qualification illisible (fichier corrompu ou tronqué)."""
+
+
+def build_qualification_proof(
+    *,
+    state: "SimulationState",
+    entities: List[Any],
+    simulation_requirement: str,
+    classification: ActorClassificationResult,
+    policy_version: str,
+    simulation_brief: Optional[SimulationBrief] = None,
+) -> Dict[str, Any]:
+    """Construit la preuve automatique du verrou de qualification (AC10).
+
+    Elle lie la préparation au projet/graphe, à la version de politique et à une
+    empreinte déterministe des entrées. Les UUID des acteurs retenus doivent
+    correspondre aux profils et à la configuration produits.
+    """
+
+    return {
+        "schema_version": 1,
+        "policy_version": policy_version,
+        "simulation_id": state.simulation_id,
+        "project_id": state.project_id,
+        "graph_id": state.graph_id,
+        "simulation_requirement": simulation_requirement or "",
+        "input_fingerprint": fingerprint_qualification_inputs(
+            entities, simulation_requirement, policy_version, simulation_brief
+        ),
+        "qualified_actor_uuids": [q.entity_uuid for q in classification.eligible],
+        "counts": classification.summary(),
+        "qualifications": [q.to_dict() for q in classification.qualifications],
+        "created_at": datetime.now().isoformat(),
+    }
+
+
+def write_qualification_proof(sim_dir: str, proof: Dict[str, Any]) -> str:
+    """Écrit la preuve de façon atomique : le démarrage en dépend."""
+
+    path = os.path.join(sim_dir, QUALIFICATION_PROOF_FILENAME)
+    temp_path = f"{path}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(proof, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp_path, path)
+    return path
+
+
+def read_qualification_proof(sim_dir: str) -> Optional[Dict[str, Any]]:
+    """Lit la preuve de qualification.
+
+    Retourne `None` si le fichier est absent ; lève `QualificationProofError`
+    s'il est présent mais illisible, pour que l'absence et la corruption ne
+    produisent pas le même diagnostic.
+    """
+
+    path = os.path.join(sim_dir, QUALIFICATION_PROOF_FILENAME)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as error:
+        raise QualificationProofError(
+            f"preuve de qualification illisible: {error}"
+        ) from error
+
+
 @dataclass
 class SimulationState:
     """模拟状态"""
@@ -59,6 +140,14 @@ class SimulationState:
     entities_count: int = 0
     profiles_count: int = 0
     entity_types: List[str] = field(default_factory=list)
+
+    # Barrière d'éligibilité (story 009-1) : préserve la distinction entre
+    # connaissances lues, acteurs retenus et candidats en review.
+    actors_count: int = 0
+    review_count: int = 0
+    ineligible_count: int = 0
+    policy_version: str = ""
+    qualified_actor_uuids: List[str] = field(default_factory=list)
     
     # 配置生成信息
     profiles_generated: bool = False
@@ -89,6 +178,11 @@ class SimulationState:
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "actors_count": self.actors_count,
+            "review_count": self.review_count,
+            "ineligible_count": self.ineligible_count,
+            "policy_version": self.policy_version,
+            "qualified_actor_uuids": self.qualified_actor_uuids,
             "profiles_generated": self.profiles_generated,
             "config_generated": self.config_generated,
             "config_reasoning": self.config_reasoning,
@@ -119,6 +213,10 @@ class SimulationState:
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "actors_count": self.actors_count,
+            "review_count": self.review_count,
+            "ineligible_count": self.ineligible_count,
+            "policy_version": self.policy_version,
             "profiles_generated": self.profiles_generated,
             "config_generated": self.config_generated,
             "error": self.error,
@@ -191,6 +289,11 @@ class SimulationManager:
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
             entity_types=data.get("entity_types", []),
+            actors_count=data.get("actors_count", 0),
+            review_count=data.get("review_count", 0),
+            ineligible_count=data.get("ineligible_count", 0),
+            policy_version=data.get("policy_version", ""),
+            qualified_actor_uuids=data.get("qualified_actor_uuids", []),
             profiles_generated=data.get("profiles_generated", False),
             config_generated=data.get("config_generated", False),
             config_reasoning=data.get("config_reasoning", ""),
@@ -249,7 +352,10 @@ class SimulationManager:
         defined_entity_types: Optional[List[str]] = None,
         use_llm_for_profiles: bool = True,
         progress_callback: Optional[callable] = None,
-        parallel_profile_count: int = 3
+        parallel_profile_count: int = 3,
+        classifier: Optional[ActorClassifierService] = None,
+        simulation_brief: Optional[SimulationBrief] = None,
+        document_sections: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationState:
         """
         准备模拟环境（全程自动化）
@@ -269,6 +375,8 @@ class SimulationManager:
             use_llm_for_profiles: 是否使用LLM生成详细人设
             progress_callback: 进度回调函数 (stage, progress, message)
             parallel_profile_count: 并行生成人设的数量，默认3
+            simulation_brief: 完整brief（story 009-2）。为 None 时回退到
+                simulation_requirement 构造一个最小 brief，因此旧调用不受影响。
             
         Returns:
             SimulationState
@@ -276,6 +384,9 @@ class SimulationManager:
         state = self._load_simulation_state(simulation_id)
         if not state:
             raise ValueError(f"模拟不存在: {simulation_id}")
+
+        if simulation_brief is None:
+            simulation_brief = build_minimal_brief(goal=simulation_requirement)
         
         try:
             state.status = SimulationStatus.PREPARING
@@ -304,7 +415,23 @@ class SimulationManager:
             
             state.entities_count = filtered.filtered_count
             state.entity_types = list(filtered.entity_types)
-            
+
+            # ========== Barrière d'éligibilité (story 009-1) ==========
+            classifier = classifier or ActorClassifierService()
+            classification = classifier.classify_entities(
+                filtered.entities, simulation_requirement, simulation_brief
+            )
+            qualifications = classification.by_uuid()
+            eligible_entities = [
+                entity
+                for entity in filtered.entities
+                if qualifications[entity.uuid].is_eligible
+            ]
+            state.actors_count = len(eligible_entities)
+            state.review_count = len(classification.review)
+            state.ineligible_count = len(classification.ineligible)
+            state.policy_version = classifier.policy_version
+
             if progress_callback:
                 progress_callback(
                     "reading", 100,
@@ -318,9 +445,19 @@ class SimulationManager:
                 state.error = "没有找到符合条件的实体，请检查图谱是否正确构建"
                 self._save_simulation_state(state)
                 raise ValueError(state.error)
+
+            if not eligible_entities:
+                state.status = SimulationStatus.FAILED
+                state.error = self.no_actor_diagnostic(classification)
+                self._save_simulation_state(state)
+                raise ValueError(state.error)
+
+            state.qualified_actor_uuids = [
+                q.entity_uuid for q in classification.eligible
+            ]
             
             # ========== 阶段2: 生成Agent Profile ==========
-            total_entities = len(filtered.entities)
+            total_entities = len(eligible_entities)
             
             if progress_callback:
                 progress_callback(
@@ -330,7 +467,7 @@ class SimulationManager:
                     total=total_entities
                 )
             
-            # 传入graph_id以启用Zep检索功能，获取更丰富的上下文
+            # 传入graph_id以启用检索功能，获取更丰富的上下文
             generator = OasisProfileGenerator(graph_id=state.graph_id)
             
             def profile_progress(current, total, msg):
@@ -355,13 +492,20 @@ class SimulationManager:
                 realtime_platform = "twitter"
             
             profiles = generator.generate_profiles_from_entities(
-                entities=filtered.entities,
+                entities=eligible_entities,
                 use_llm=use_llm_for_profiles,
                 progress_callback=profile_progress,
-                graph_id=state.graph_id,  # 传入graph_id用于Zep检索
+                graph_id=state.graph_id,  # 传入graph_id用于检索
                 parallel_count=parallel_profile_count,  # 并行生成数量
                 realtime_output_path=realtime_output_path,  # 实时保存路径
-                output_platform=realtime_platform  # 输出格式
+                output_platform=realtime_platform,  # 输出格式
+                qualifications={
+                    uuid: qualifications[uuid]
+                    for uuid in state.qualified_actor_uuids
+                },
+                classifier=classifier,
+                simulation_requirement=simulation_requirement,
+                simulation_brief=simulation_brief,
             )
             
             state.profiles_count = len(profiles)
@@ -426,9 +570,11 @@ class SimulationManager:
                 graph_id=state.graph_id,
                 simulation_requirement=simulation_requirement,
                 document_text=document_text,
-                entities=filtered.entities,
+                entities=eligible_entities,
                 enable_twitter=state.enable_twitter,
-                enable_reddit=state.enable_reddit
+                enable_reddit=state.enable_reddit,
+                simulation_brief=simulation_brief,
+                document_sections=document_sections,
             )
             
             if progress_callback:
@@ -457,7 +603,20 @@ class SimulationManager:
             
             # 注意：运行脚本保留在 backend/scripts/ 目录，不再复制到模拟目录
             # 启动模拟时，simulation_runner 会从 scripts/ 目录运行脚本
-            
+
+            # Preuve automatique du verrou de qualification (AC10). Écrite
+            # seulement quand profils et configuration sont produits : une
+            # préparation sans preuve n'est jamais réutilisée comme fraîche.
+            proof = build_qualification_proof(
+                state=state,
+                entities=filtered.entities,
+                simulation_requirement=simulation_requirement,
+                classification=classification,
+                policy_version=classifier.policy_version,
+                simulation_brief=simulation_brief,
+            )
+            write_qualification_proof(sim_dir, proof)
+
             # 更新状态
             state.status = SimulationStatus.READY
             self._save_simulation_state(state)
@@ -479,6 +638,27 @@ class SimulationManager:
     def get_simulation(self, simulation_id: str) -> Optional[SimulationState]:
         """获取模拟状态"""
         return self._load_simulation_state(simulation_id)
+
+    @staticmethod
+    def no_actor_diagnostic(classification: ActorClassificationResult) -> str:
+        """Diagnostic exploitable quand aucun acteur n'est retenu (AC9).
+
+        Le gabarit est localisé ; les motifs par entité restent des données
+        (raisons produites par le classifieur).
+        """
+
+        counts = classification.summary()
+        details = []
+        for qualification in classification.review[:10]:
+            reason = qualification.diagnostic or qualification.rationale
+            details.append(f"{qualification.entity_name or qualification.entity_uuid}: {reason}")
+        suffix = (" | " + " ; ".join(details)) if details else ""
+        return t(
+            'api.noEligibleActor',
+            eligible=counts['eligible'],
+            review=counts['review'],
+            ineligible=counts['ineligible'],
+        ) + suffix
     
     def list_simulations(self, project_id: Optional[str] = None) -> List[SimulationState]:
         """列出所有模拟"""

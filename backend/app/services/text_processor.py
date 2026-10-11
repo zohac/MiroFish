@@ -3,7 +3,11 @@
 """
 
 from typing import List, Optional
-from ..utils.file_parser import FileParser, split_text_into_chunks
+from ..utils.file_parser import (
+    FileParser,
+    split_text_into_chunk_spans,
+    split_text_into_chunks,
+)
 
 
 class TextProcessor:
@@ -32,6 +36,21 @@ class TextProcessor:
             文本块列表
         """
         return split_text_into_chunks(text, chunk_size, overlap)
+
+    @staticmethod
+    def split_text_with_offsets(
+        text: str,
+        chunk_size: int = 500,
+        overlap: int = 50,
+    ) -> List[tuple]:
+        """Découpe un texte en fragments conservant leur position exacte.
+
+        Retourne ``(fragment, char_start, char_end)`` avec
+        ``text[char_start:char_end] == fragment``. Utilisé par le découpage par
+        document (story 009-2) : les bornes viennent du découpage, jamais d'une
+        recherche de sous-chaîne.
+        """
+        return split_text_into_chunk_spans(text, chunk_size, overlap)
     
     @staticmethod
     def preprocess_text(text: str) -> str:

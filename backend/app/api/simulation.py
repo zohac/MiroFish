@@ -12,7 +12,18 @@ from . import simulation_bp
 from ..config import Config
 from ..services.zep_entity_reader import ZepEntityReader
 from ..services.oasis_profile_generator import OasisProfileGenerator
-from ..services.simulation_manager import SimulationManager, SimulationStatus
+from ..services.simulation_manager import (
+    QualificationProofError,
+    SimulationManager,
+    SimulationStatus,
+    read_qualification_proof,
+)
+from ..services.actor_classifier import (
+    ActorClassifierService,
+    fingerprint_qualification_inputs,
+)
+from ..models.actor_eligibility import ACTOR_ELIGIBILITY_POLICY_VERSION
+from ..models.simulation_brief import build_minimal_brief
 from ..services.simulation_runner import (
     SimulationRunner,
     RunnerStatus,
@@ -25,6 +36,33 @@ from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.project import ProjectManager
 
 logger = get_logger('mirofish.api.simulation')
+
+
+def _build_document_sections(project) -> list:
+    """Documents du projet, séparés, pour un diagnostic de contexte par document.
+
+    Retourne ``[{"document_id", "filename", "text"}]``. Un projet antérieur à la
+    provenance n'a pas de documents typés : la liste est vide et la configuration
+    retombe sur la concaténation, sans rien inventer.
+    """
+    documents = getattr(project, "source_documents", None) or []
+    if not documents:
+        return []
+    texts = ProjectManager.get_all_document_texts(project.project_id)
+    sections = []
+    for entry in documents:
+        document_id = entry.get("document_id")
+        text = texts.get(document_id)
+        if not text:
+            continue
+        sections.append(
+            {
+                "document_id": document_id,
+                "filename": entry.get("filename") or "",
+                "text": text,
+            }
+        )
+    return sections
 
 
 def _get_default_platform(simulation_id: str) -> str:
@@ -267,6 +305,106 @@ def create_simulation():
         }), 500
 
 
+def _qualification_proof_is_fresh(simulation_id: str, simulation_dir: str, state_data: dict) -> tuple:
+    """Contrôle documentaire de la preuve de qualification (AC10).
+
+    Aucune lecture de graphe : on vérifie la présence de la preuve, la version
+    de politique, les UUID retenus, l'empreinte d'entrées et la cohérence
+    simulation/projet/graphe avec l'état sauvegardé.
+    """
+
+    try:
+        proof = read_qualification_proof(simulation_dir)
+    except QualificationProofError as error:
+        return False, {"reason": str(error)}
+    if not proof:
+        return False, {"reason": "preuve de qualification absente"}
+    if proof.get("policy_version") != ACTOR_ELIGIBILITY_POLICY_VERSION:
+        return False, {
+            "reason": "politique de qualification périmée",
+            "recorded": proof.get("policy_version"),
+            "current": ACTOR_ELIGIBILITY_POLICY_VERSION,
+        }
+    if not proof.get("qualified_actor_uuids") or not proof.get("input_fingerprint"):
+        return False, {"reason": "preuve de qualification incomplète"}
+    if (
+        proof.get("simulation_id")
+        and proof["simulation_id"] != simulation_id
+    ):
+        return False, {
+            "reason": "preuve liée à une autre simulation",
+            "recorded": proof["simulation_id"],
+        }
+    if (
+        proof.get("graph_id")
+        and state_data.get("graph_id")
+        and proof["graph_id"] != state_data["graph_id"]
+    ):
+        return False, {"reason": "préparation liée à un autre graphe"}
+    if (
+        proof.get("project_id")
+        and state_data.get("project_id")
+        and proof["project_id"] != state_data["project_id"]
+    ):
+        return False, {"reason": "préparation liée à un autre projet"}
+    return True, {
+        "policy_version": proof.get("policy_version"),
+        "qualified_actor_uuids": proof.get("qualified_actor_uuids", []),
+        "counts": proof.get("counts", {}),
+        "input_fingerprint": proof.get("input_fingerprint"),
+    }
+
+
+def _qualification_inputs_are_fresh(state, entity_types_list) -> tuple:
+    """Recompare les entrées réelles à l'empreinte enregistrée (AC10).
+
+    Réservé au chemin `/prepare` : une préparation dont les entités ou la
+    consigne ont changé est régénérée plutôt que réutilisée.
+    """
+
+    simulation_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, state.simulation_id)
+    try:
+        proof = read_qualification_proof(simulation_dir)
+    except QualificationProofError as error:
+        return False, str(error)
+    if not proof:
+        return False, "preuve absente"
+    project = ProjectManager.get_project(state.project_id)
+    requirement = (getattr(project, "simulation_requirement", "") or "") if project else ""
+    if (proof.get("simulation_requirement") or "") != requirement:
+        return False, "consigne de simulation modifiée"
+    try:
+        reader = ZepEntityReader()
+        filtered = reader.filter_defined_entities(
+            graph_id=state.graph_id,
+            defined_entity_types=entity_types_list,
+            enrich_with_edges=True,
+        )
+    except Exception as error:
+        return False, f"relecture des entités impossible: {error}"
+    # Le brief effectif doit être le même que celui utilisé à la préparation :
+    # `prepare_simulation` reconstruit un brief minimal quand aucun n'est fourni,
+    # donc la fraîcheur doit faire de même, sinon toute préparation paraîtrait
+    # périmée.
+    brief = None
+    if project is not None:
+        getter = getattr(project, "get_brief", None)
+        if callable(getter):
+            brief = getter()
+    if brief is None:
+        brief = build_minimal_brief(goal=requirement)
+
+    fingerprint = fingerprint_qualification_inputs(
+        filtered.entities,
+        requirement,
+        ACTOR_ELIGIBILITY_POLICY_VERSION,
+        brief,
+    )
+    if fingerprint != proof.get("input_fingerprint"):
+        return False, "entrées de qualification modifiées"
+    return True, ""
+
+
 def _check_simulation_prepared(simulation_id: str) -> tuple:
     """
     检查模拟是否已经准备完成
@@ -324,10 +462,29 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
         with open(state_file, 'r', encoding='utf-8') as f:
             state_data = json.load(f)
         
-        status = state_data.get("status", "")
-        config_generated = state_data.get("config_generated", False)
-        
-        # 详细日志
+            status = state_data.get("status", "")
+            config_generated = state_data.get("config_generated", False)
+
+            # Barrière d'éligibilité (story 009-1) : une préparation sans preuve
+            # du verrou, ou liée à une autre politique/graphe/projet, n'est
+            # jamais déclarée fraîche. Le contrôle est purement documentaire ici
+            # (pas de lecture de graphe pendant le polling de statut).
+            proof_fresh, proof_info = _qualification_proof_is_fresh(
+                simulation_id, simulation_dir, state_data
+            )
+            if not proof_fresh:
+                logger.warning(
+                    f"模拟 {simulation_id} 检测结果: 资格证明缺失或过期 "
+                    f"({proof_info.get('reason')})"
+                )
+                return False, {
+                    "reason": proof_info.get("reason", "preuve de qualification absente"),
+                    "status": status,
+                    "config_generated": config_generated,
+                    "qualification": proof_info,
+                }
+
+            # 详细日志
         logger.debug(f"检测模拟准备状态: {simulation_id}, status={status}, config_generated={config_generated}")
         
         # 如果 config_generated=True 且文件存在，认为准备完成
@@ -368,6 +525,11 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
                 "status": status,
                 "entities_count": state_data.get("entities_count", 0),
                 "profiles_count": profiles_count,
+                "actors_count": state_data.get("actors_count", 0),
+                "review_count": state_data.get("review_count", 0),
+                "ineligible_count": state_data.get("ineligible_count", 0),
+                "qualified_actor_uuids": state_data.get("qualified_actor_uuids", []),
+                "policy_version": state_data.get("policy_version", ""),
                 "entity_types": state_data.get("entity_types", []),
                 "config_generated": config_generated,
                 "created_at": state_data.get("created_at"),
@@ -461,17 +623,24 @@ def prepare_simulation():
             is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
             logger.debug(f"检查结果: is_prepared={is_prepared}, prepare_info={prepare_info}")
             if is_prepared:
-                logger.info(f"模拟 {simulation_id} 已准备完成，跳过重复生成")
-                return jsonify({
-                    "success": True,
-                    "data": {
-                        "simulation_id": simulation_id,
-                        "status": "ready",
-                        "message": t('api.alreadyPrepared'),
-                        "already_prepared": True,
-                        "prepare_info": prepare_info
-                    }
-                })
+                inputs_fresh, freshness_reason = _qualification_inputs_are_fresh(
+                    state, data.get('entity_types')
+                )
+                if inputs_fresh:
+                    logger.info(f"模拟 {simulation_id} 已准备完成，跳过重复生成")
+                    return jsonify({
+                        "success": True,
+                        "data": {
+                            "simulation_id": simulation_id,
+                            "status": "ready",
+                            "message": t('api.alreadyPrepared'),
+                            "already_prepared": True,
+                            "prepare_info": prepare_info
+                        }
+                    })
+                logger.info(
+                    f"模拟 {simulation_id} 准备已过期 ({freshness_reason})，将重新生成"
+                )
             else:
                 logger.info(f"模拟 {simulation_id} 未准备完成，将启动准备任务")
         
@@ -493,6 +662,11 @@ def prepare_simulation():
         
         # 获取文档文本
         document_text = ProjectManager.get_extracted_text(state.project_id) or ""
+
+        # Story 009-2 (AC7) : le contexte de configuration reçoit les documents
+        # séparément pour produire un diagnostic par document, plutôt qu'une
+        # concaténation anonyme.
+        document_sections = _build_document_sections(project)
         
         entity_types_list = data.get('entity_types')
         use_llm_for_profiles = data.get('use_llm_for_profiles', True)
@@ -617,7 +791,12 @@ def prepare_simulation():
                     defined_entity_types=entity_types_list,
                     use_llm_for_profiles=use_llm_for_profiles,
                     progress_callback=progress_callback,
-                    parallel_profile_count=parallel_profile_count
+                    parallel_profile_count=parallel_profile_count,
+                    # Story 009-2 : le brief persisté (et non seulement la
+                    # consigne) est transmis à la classification, aux personas
+                    # et à la configuration.
+                    simulation_brief=project.get_brief(),
+                    document_sections=document_sections,
                 )
 
                 if result_state.status == SimulationStatus.FAILED:
@@ -654,6 +833,8 @@ def prepare_simulation():
                 "status": "preparing",
                 "message": t('api.prepareStarted'),
                 "already_prepared": False,
+                # Aperçu pré-classification : entités lues dans le graphe. Le
+                # total d'acteurs réellement retenus arrive avec la qualification.
                 "expected_entities_count": state.entities_count,  # 预期的Agent总数
                 "entity_types": state.entity_types  # 实体类型列表
             }
@@ -729,7 +910,7 @@ def get_prepare_status():
         # 如果没有task_id，返回错误
         if not task_id:
             if simulation_id:
-                # 有simulation_id但未准备完成
+                # 有simulation_id但未准备完成：transmettre le motif de refus
                 return jsonify({
                     "success": True,
                     "data": {
@@ -737,7 +918,8 @@ def get_prepare_status():
                         "status": "not_started",
                         "progress": 0,
                         "message": t('api.notStartedPrepare'),
-                        "already_prepared": False
+                        "already_prepared": False,
+                        "reason": prepare_info.get("reason"),
                     }
                 })
             return jsonify({
@@ -1145,7 +1327,12 @@ def get_simulation_profiles_realtime(simulation_id: str):
                     state_data = json.load(f)
                     status = state_data.get("status", "")
                     is_generating = status == "preparing"
-                    total_expected = state_data.get("entities_count")
+                    # AC9 : une fois la qualification faite, le total attendu est
+                    # le nombre d'acteurs retenus ; sinon l'aperçu d'entités.
+                    total_expected = (
+                        state_data.get("actors_count")
+                        or state_data.get("entities_count")
+                    )
                     error = state_data.get("error")
             except Exception:
                 pass
@@ -1434,7 +1621,8 @@ def generate_profiles():
             "graph_id": "mirofish_xxxx",     // 必填
             "entity_types": ["Student"],      // 可选
             "use_llm": true,                  // 可选
-            "platform": "reddit"              // 可选
+            "platform": "reddit",             // 可选
+            "simulation_requirement": "…"     // 可选，contexte de qualification
         }
     """
     try:
@@ -1463,11 +1651,36 @@ def generate_profiles():
                 "success": False,
                 "error": t('api.noMatchingEntities')
             }), 400
-        
+
+        # Barrière d'éligibilité obligatoire sur le chemin direct (AC6).
+        simulation_requirement = data.get('simulation_requirement', '') or ''
+        classifier = ActorClassifierService()
+        classification = classifier.classify_entities(
+            filtered.entities, simulation_requirement
+        )
+        qualifications = classification.by_uuid()
+        eligible_entities = [
+            entity
+            for entity in filtered.entities
+            if qualifications[entity.uuid].is_eligible
+        ]
+        if not eligible_entities:
+            return jsonify({
+                "success": False,
+                "error": SimulationManager.no_actor_diagnostic(classification),
+                "counts": classification.summary(),
+            }), 400
+
         generator = OasisProfileGenerator()
         profiles = generator.generate_profiles_from_entities(
-            entities=filtered.entities,
-            use_llm=use_llm
+            entities=eligible_entities,
+            use_llm=use_llm,
+            qualifications={
+                entity.uuid: qualifications[entity.uuid]
+                for entity in eligible_entities
+            },
+            classifier=classifier,
+            simulation_requirement=simulation_requirement,
         )
         
         if platform == "reddit":
@@ -1483,6 +1696,9 @@ def generate_profiles():
                 "platform": platform,
                 "entity_types": list(filtered.entity_types),
                 "count": len(profiles_data),
+                "actors_count": len(eligible_entities),
+                "review_count": len(classification.review),
+                "ineligible_count": len(classification.ineligible),
                 "profiles": profiles_data
             }
         })
@@ -1596,12 +1812,13 @@ def start_simulation():
             }), 404
 
         force_restarted = False
-        
+
+        # Préparation qualifiée contrôlée dans tous les cas, y compris l'état
+        # READY qui ne passait pas par ce contrôle auparavant (story 009-1, AC10).
+        is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
+
         # 智能处理状态：如果准备工作已完成，允许重新启动
         if state.status != SimulationStatus.READY:
-            # 检查准备工作是否已完成
-            is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
-
             if is_prepared:
                 run_state = SimulationRunner.get_run_state(simulation_id)
                 updater = ZepGraphMemoryManager.get_updater(simulation_id)
@@ -1671,11 +1888,39 @@ def start_simulation():
                 state.status = SimulationStatus.READY
                 manager._save_simulation_state(state)
             else:
-                # 准备工作未完成
+                # 准备工作未完成 : transmettre le motif de refus
                 return jsonify({
                     "success": False,
-                    "error": t('api.simNotReady', status=state.status.value)
+                    "error": t('api.simNotReady', status=state.status.value),
+                    "reason": prepare_info.get("reason"),
                 }), 400
+        elif not is_prepared:
+            # État READY mais préparation invalide (preuve absente ou périmée) :
+            # refuser le démarrage avec le motif et demander une nouvelle
+            # préparation, sans afficher « status: ready » seul.
+            return jsonify({
+                "success": False,
+                "error": t(
+                    'api.simPreparationStale',
+                    reason=prepare_info.get("reason", ""),
+                ),
+                "reason": prepare_info.get("reason"),
+                "qualification": prepare_info.get("qualification"),
+            }), 400
+
+        # AC10 (story 009-1) : au démarrage, une préparation dont les entrées
+        # de qualification (entités ou consigne) ont changé n'est pas lancée.
+        # Une seule relecture de graphe ici ; le polling de statut reste
+        # volontairement documentaire.
+        inputs_fresh, freshness_reason = _qualification_inputs_are_fresh(
+            state, state.entity_types or None
+        )
+        if not inputs_fresh:
+            return jsonify({
+                "success": False,
+                "error": t('api.simQualificationStale', reason=freshness_reason),
+                "reason": freshness_reason,
+            }), 400
         
         # 获取图谱ID（用于图谱记忆更新）
         graph_id = None

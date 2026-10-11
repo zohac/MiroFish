@@ -1,0 +1,3 @@
+MiroFish est un moteur de simulation sociale. Il transforme des documents en graphe de connaissances. Le graphe alimente ensuite des agents simulés.
+Chaque document importé conserve son rôle et sa provenance. Les fragments sont découpés séparément par document. Les positions sont exprimées en caractères du texte normalisé.
+Le rapport final cite ses sources et distingue les faits des hypothèses. Une contradiction reste visible plutôt que fusionnée.

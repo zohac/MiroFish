@@ -69,8 +69,8 @@ L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est 
 - **Story 006-3 (done)** : Validation de relecture applicative GraphStore (`get_all_nodes`, `get_all_edges`, `get_graph_data`), extraction et filtrage d'entités typées (`ZepEntityReader.filter_defined_entities`), éligibilité personas OASIS sans Zep (critère C4 du PRD, `valider_relecture_migree`, `SimulatedGraphStore` et flag `--verify-relecture`). Outil autonome de purge distante sécurisée `backend/scripts/purger_graphes_zep.py` avec CLI complète (`--graph-id`, `--all`, `--api-key`, `--yes`, `--dry-run`, `--mock`, `--output-report`, `--output-json`, `--quiet`), double confirmation interactive stricte, refus de sécurité sans `--yes` en mode non-interactif et masquage strict des secrets. Suite de 28 tests unitaires hermétiques (`test_purger_graphes_zep.py`), revue BMad 4 couches validée. Filet global porté à **800 tests verts** (+29).
 
 Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
-Chantiers en backlog pour la suite :
-- **Epic 009 (`backlog`)** : plan revu le 10 octobre 2026, aucune story démarrée. [Revue](plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md), [PRD](plans/009-eligibilite-acteurs-et-sources/prd.md), [architecture](plans/009-eligibilite-acteurs-et-sources/architecture.md) et [hub](plans/009-eligibilite-acteurs-et-sources/epic-009.md) alignés sur C1–C7. Le [rapprochement avec le rapport source](plans/009-eligibilite-acteurs-et-sources/couverture-rapport-audit.md) complète le brief, les diagnostics de contexte et les références d'événements. Restent à spécifier : collectifs/fiction, corrections humaines, validation/conflits documentaires et contrat commun de provenance. La qualification fonctionnelle reste à réaliser.
+Chantiers en cours et à venir :
+- **Epic 009 (`in-progress`)** : la [story 009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md) est implémentée et clôturée (`done`, revue contradictoire du 11 octobre 2026) — modèle `ActorEligibility`, classifieur agnostique à deux passes, barrière du générateur, intégration gestionnaire/routes, preuve de qualification et [mesure réelle C2](plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md). La [story 009-2](plans/009-eligibilite-acteurs-et-sources/story-009-2.md) passe en `review` : [ADR 0012](decisions/0012-contrat-de-provenance-graphstore.md) et [ADR 0013](decisions/0013-semantique-des-sources.md), documents sources typés et brief versionné, contrat de provenance étendu dans les deux stores (métadonnées alignées, annotation `:Episodic` vérifiée, lecture neutre `get_edge_provenance`), découpage par document à positions exactes, transmission du brief et diagnostics de contexte. [Sonde réelle C3](plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) : 2 documents × 2 fragments, 8/8 références documentaires résolues, 8/8 positions exactes. Les lots 009-3 et 009-4 restent `backlog`.
 - **Epic 007** : Ontologie dynamique (v2) — planifiée après l'Epic 009 afin d'enrichir le typage sur une sélection d'acteurs déjà assainie.
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
@@ -275,7 +275,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | Epic | Titre | Dépend de |
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
-| 009 | Éligibilité des acteurs et fiabilisation des sources (`backlog`, plan revu, arbitrages ouverts) | 004, 005 |
+| 009 | Éligibilité des acteurs et fiabilisation des sources (`in-progress`, story 009-2 en `review`) | 004, 005 |
 | 007 | Ontologie dynamique (v2) | 003, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
@@ -300,9 +300,9 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Implémenter [009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md)** : définition de prêt satisfaite, story toujours `backlog`, aucun code métier démarré. [Preuves](plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md) : 46 entités annotées/relues et contrôle Docker (822 réussis, 3 ignorés sur 825 collectés). Politique minimale : personnes et organisations admissibles, collectifs en `review`, exception marque/fiction reportée. Le verrou P0 utilise les consignes existantes sans attendre le brief complet de 009-2.
-2. **Préparer 009-2 puis 009-3** : arrêter par ADR le contrat de provenance commun aux deux stores et préciser les corrections humaines. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-3. **Graphes migrés de l'Epic 006 clos** : appliquer la même barrière d'acteurs pendant 009-1 ; ne pas rouvrir la migration ni inventer une provenance absente.
+1. **Relire et clore [009-2](plans/009-eligibilite-acteurs-et-sources/story-009-2.md)** : implémentation livrée et passage en `review`. [Sonde réelle C3](plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) : 2 documents × 2 fragments, 8/8 références résolues, 8/8 positions exactes. Reste la validation de revue avant `done`.
+2. **Préparer 009-3** : endpoints et interface de prévalidation des acteurs (`preview` & `review`), en s'appuyant sur les ADR 0012 et 0013 acceptés. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
+3. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
 
@@ -319,10 +319,10 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **825 collectés : 822 réussis, 3 ignorés**, sous Docker sans `.env` ni réseau externe le 10 octobre 2026, code applicatif `701945c` et 25 nouveaux contrôles de fixtures ([preuve et limites](plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md)). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Les résultats de la reprise sur `cb6e559` restent datés dans la revue ; 711 est le jalon historique de l'Epic 005. |
+| Tests | **1110 réussis** sur l'hôte et **1107 réussis + 3 ignorés** sous Docker, sans `.env` ni réseau externe, le 11 octobre 2026 (story 009-2). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Référence post-009-1 : 924 hôte / 921 + 3 Docker ; jalon historique Epic 005 : 711. La sonde réelle C3 est rejouable hors CI (`scripts/verifier_provenance_documents.py`). |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 11 acceptés, 0 supersédé |
+| ADR | 13 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker opérationnel (ADR 0006, Epic 005 clos) — stack 3 services (`neo4j`, `backend`, `frontend`) unifiée |
 | Fork audités | 6 — 0 adopté |

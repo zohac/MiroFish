@@ -95,6 +95,7 @@ class MockIngestionStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         self.calls.append(("add_text_batch", {"graph_id": graph_id, "chunks": chunks, "batch_size": batch_size}))
         if progress_callback:
@@ -138,6 +139,11 @@ class MockIngestionStore(GraphStore):
     def get_node_edges(self, graph_id: str, node_uuid: str) -> List[GraphEdge]:
         return []
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def search(
         self,
         graph_id: str,

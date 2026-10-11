@@ -58,6 +58,7 @@ from app.services.simulation_manager import (
 )
 from app.services.text_processor import TextProcessor
 from app.services.zep_entity_reader import ZepEntityReader
+from app.services.actor_classifier import ActorClassifierService
 from app.utils.graph_store.factory import override_graph_store, set_graph_store_override
 from app.utils.graph_store.graphiti_store import GraphitiGraphStore, LocalPassthroughCrossEncoder
 from app.utils.graphiti_embedder import SentenceTransformerEmbedder
@@ -173,6 +174,44 @@ class DeterministicQualificationLLMClient(LLMClient):
         return {}
 
 
+class DeterministicEligibilityLLMClient:
+    """Client LLM d'éligibilité déterministe pour le graphe mocké (story 009-1).
+
+    Le graphe de qualification est construit avec des entités typées Person et
+    Organization : ce client reproduit la décision d'un classifieur réel sans
+    réseau, afin que la barrière d'acteurs laisse passer les personnes et
+    organisations du banc. Il n'est utilisé que par cette sonde.
+    """
+
+    _PERSON_TYPES = {
+        "person", "student", "professor", "publicfigure", "expert", "faculty",
+        "official", "journalist", "activist", "alumni",
+    }
+    _ORGANIZATION_TYPES = {
+        "organization", "company", "university", "governmentagency", "ngo",
+        "institution", "group", "community", "mediaoutlet",
+    }
+
+    def chat_json(self, messages, **kwargs):
+        payload = json.loads(messages[1]["content"].split("\n", 1)[1])
+        entity = payload["entite"]
+        origin_type = (entity.get("type_origine") or "").strip().lower()
+        if origin_type in self._PERSON_TYPES:
+            return {
+                "role": "person", "status": "eligible",
+                "rationale": "personne du graphe de qualification mocké", "confidence": 0.9,
+            }
+        if origin_type in self._ORGANIZATION_TYPES:
+            return {
+                "role": "organization", "status": "eligible",
+                "rationale": "organisation du graphe de qualification mocké", "confidence": 0.9,
+            }
+        return {
+            "role": "unknown", "status": "review",
+            "rationale": "type non activé", "confidence": 0.0,
+        }
+
+
 def run_qualification_protocol(
     use_mock_llm: bool = True,
     keep_graph: bool = False,
@@ -181,6 +220,13 @@ def run_qualification_protocol(
     """Exécute le protocole complet de qualification globale local-first et valide formellement les critères C1 à C5."""
     rapport: Dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        # Divulgation (revue 009-1) : la barrière d'éligibilité des acteurs est
+        # stubbée dans ce banc ; les critères C1-C5 de l'Epic 004 ne portent pas
+        # sur la qualification sémantique (mesurée séparément par 009-1).
+        "eligibility_classifier": (
+            "stub déterministe (DeterministicEligibilityLLMClient) — "
+            "la barrière d'acteurs n'est pas exercée par ce banc"
+        ),
         "criteres": {
             "C1_zero_blocage_api_sans_zep": False,
             "C2_parametrage_llm_universel": False,
@@ -195,6 +241,7 @@ def run_qualification_protocol(
     print("=" * 80)
     print("BANC DE QUALIFICATION GLOBALE LOCAL-FIRST (EPIC 004 / STORIES 004-1 À 004-5)")
     print(f"Mode LLM : {'MOCK DÉTERMINISTE' if use_mock_llm else 'RÉEL OPENCODE GO'}")
+    print("Barrière d'acteurs : STUB DÉTERMINISTE (hors périmètre C1-C5, voir 009-1)")
     print(f"Conserver le graphe Neo4j : {keep_graph}")
     print(f"Conserver les artefacts : {keep_artifacts}")
     print("=" * 80)
@@ -404,6 +451,9 @@ def run_qualification_protocol(
         simulation_id = sim_state.simulation_id
 
         use_llm_profiles = not use_mock_llm
+        eligibility_classifier = ActorClassifierService(
+            llm_client=DeterministicEligibilityLLMClient()
+        )
         with override_graph_store(store):
             prepared_state = sim_manager.prepare_simulation(
                 simulation_id=simulation_id,
@@ -411,6 +461,7 @@ def run_qualification_protocol(
                 document_text=document_text,
                 use_llm_for_profiles=use_llm_profiles,
                 parallel_profile_count=2,
+                classifier=eligibility_classifier,
             )
 
         assert prepared_state.status == SimulationStatus.READY, f"SimulationState inattendu : {prepared_state.status}"

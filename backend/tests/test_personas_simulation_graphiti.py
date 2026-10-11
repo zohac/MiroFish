@@ -28,6 +28,12 @@ from app.services.simulation_manager import (
     SimulationStatus,
 )
 from app.services.zep_entity_reader import EntityNode, FilteredEntities, ZepEntityReader
+from app.models.actor_eligibility import (
+    ActorEligibility,
+    ActorRole,
+    EligibilityStatus,
+)
+from app.services.actor_classifier import ActorClassificationResult
 from app.utils.graph_store.base import (
     GraphEdge,
     GraphInfo,
@@ -77,6 +83,11 @@ class InMemoryMockStore(GraphStore):
             if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
         ]
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def add_node(self, graph_id: str, name: str, labels: list[str] | None = None, summary: str = "", attributes: dict | None = None) -> str:
         return "node-id"
 
@@ -96,7 +107,7 @@ class InMemoryMockStore(GraphStore):
             "statistics": {"node_count": len(self._nodes), "edge_count": len(self._edges)},
         }
 
-    def add_text_batch(self, graph_id: str, texts: list[str], batch_size: int = 10, group_id: str | None = None):
+    def add_text_batch(self, graph_id: str, texts: list[str], batch_size: int = 10, group_id: str | None = None, progress_callback=None, chunk_metadata=None):
         return None
 
     def wait_for_batch(self, batch_submission, timeout: float = 300.0) -> list:
@@ -117,6 +128,39 @@ class InMemoryMockStore(GraphStore):
 
     def close(self) -> None:
         pass
+
+
+def _qualification(entity, role, status, confidence=0.9):
+    return ActorEligibility(
+        entity_uuid=entity.uuid,
+        entity_name=entity.name,
+        role=role,
+        status=status,
+        rationale="qualification de test",
+        confidence=confidence,
+        original_type=entity.get_entity_type() or "Entity",
+        attributes=dict(entity.attributes),
+    )
+
+
+class StubClassifier:
+    """Classifieur déterministe injecté pour les tests de pipeline."""
+
+    policy_version = "009-1-v1"
+
+    def __init__(self, mapping):
+        self.mapping = mapping
+        self.calls = []
+
+    def classify_entities(self, entities, simulation_requirement="", simulation_brief=None):
+        self.calls.append([e.name for e in entities])
+        qualifications = []
+        for entity in entities:
+            role, status = self.mapping.get(
+                entity.name, (ActorRole.UNKNOWN, EligibilityStatus.REVIEW)
+            )
+            qualifications.append(_qualification(entity, role, status))
+        return ActorClassificationResult(qualifications=qualifications)
 
 
 @pytest.fixture
@@ -202,14 +246,30 @@ def test_oasis_profile_generator_rule_based_and_formats(sample_graph_data, tmp_p
 
     generator = OasisProfileGenerator(store=store, graph_id="test-graph")
 
-    # Génération sans LLM (rule-based)
+    qualifications = {
+        "node-1": _qualification(
+            next(e for e in filtered.entities if e.uuid == "node-1"),
+            ActorRole.PERSON, EligibilityStatus.ELIGIBLE,
+        ),
+        "node-2": _qualification(
+            next(e for e in filtered.entities if e.uuid == "node-2"),
+            ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE,
+        ),
+        "node-3": _qualification(
+            next(e for e in filtered.entities if e.uuid == "node-3"),
+            ActorRole.PLACE, EligibilityStatus.INELIGIBLE,
+        ),
+    }
+
+    # Génération sans LLM (rule-based) : seuls les acteurs qualifiés passent.
     profiles = generator.generate_profiles_from_entities(
         entities=filtered.entities,
         use_llm=False,
         parallel_count=2,
+        qualifications=qualifications,
     )
 
-    assert len(profiles) == 3
+    assert len(profiles) == 2
     for idx, p in enumerate(profiles):
         assert p.user_id == idx
         assert len(p.user_name) > 0
@@ -217,13 +277,14 @@ def test_oasis_profile_generator_rule_based_and_formats(sample_graph_data, tmp_p
         assert len(p.persona) > 0
         assert p.gender in ("male", "female", "other")
         assert p.mbti is not None
+    assert {p.name for p in profiles} == {"Alice Martin", "Thalès Défense"}
 
     # Sauvegarde Reddit JSON
     reddit_path = str(tmp_path / "reddit_profiles.json")
     generator.save_profiles(profiles, reddit_path, platform="reddit")
     with open(reddit_path, "r", encoding="utf-8") as f:
         reddit_data = json.load(f)
-    assert len(reddit_data) == 3
+    assert len(reddit_data) == 2
     assert "username" in reddit_data[0]
     assert "user_id" in reddit_data[0]
 
@@ -232,7 +293,7 @@ def test_oasis_profile_generator_rule_based_and_formats(sample_graph_data, tmp_p
     generator.save_profiles(profiles, twitter_path, platform="twitter")
     with open(twitter_path, "r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
-    assert len(rows) == 3
+    assert len(rows) == 2
     assert set(rows[0].keys()) == {"user_id", "name", "username", "user_char", "description"}
 
 
@@ -374,6 +435,12 @@ def test_simulation_manager_prepare_e2e_mocked(sample_graph_data, tmp_path, monk
     # Injection du store via le gestionnaire officiel de factory override_graph_store
     from app.utils.graph_store.factory import override_graph_store
 
+    classifier = StubClassifier({
+        "Alice Martin": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+        "Thalès Défense": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+        "Brest Port": (ActorRole.PLACE, EligibilityStatus.INELIGIBLE),
+    })
+
     with override_graph_store(store):
         prepared = manager.prepare_simulation(
             simulation_id=state.simulation_id,
@@ -381,12 +448,16 @@ def test_simulation_manager_prepare_e2e_mocked(sample_graph_data, tmp_path, monk
             document_text="Document de test",
             use_llm_for_profiles=False,
             parallel_profile_count=2,
+            classifier=classifier,
         )
 
     assert prepared.status == SimulationStatus.READY
-    assert prepared.profiles_count == 3
+    assert prepared.profiles_count == 2
     assert prepared.entities_count == 3
+    assert prepared.actors_count == 2
+    assert prepared.ineligible_count == 1
     assert prepared.config_generated is True
+    assert classifier.calls
 
     # Vérification des fichiers créés sur disque
     sim_dir = tmp_path / state.simulation_id

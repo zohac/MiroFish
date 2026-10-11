@@ -8,6 +8,9 @@ from .base import (
     GraphNode,
     GraphSearchResult,
     GraphStore,
+    ProvenanceOrigin,
+    ProvenanceRecord,
+    validate_chunk_metadata,
 )
 from .errors import (
     GraphConnectionError,
@@ -38,6 +41,9 @@ __all__ = [
     "EpisodeRecord",
     "BatchSubmissionRecord",
     "GraphInfo",
+    "ProvenanceRecord",
+    "ProvenanceOrigin",
+    "validate_chunk_metadata",
     "GraphStoreError",
     "GraphNotFoundError",
     "GraphConnectionError",

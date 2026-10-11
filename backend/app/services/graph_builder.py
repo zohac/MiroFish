@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 import hashlib
+import json
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -28,6 +29,166 @@ DEFAULT_INGESTION_WAIT_TIMEOUT_SECONDS = 600.0
 
 # Alias de compatibilité pour les appelants existants
 BatchSubmission = BatchSubmissionRecord
+
+
+@dataclass(frozen=True)
+class DocumentChunkPlan:
+    """Découpage d'un ensemble de documents, prêt à être ingéré.
+
+    Les fragments sont découpés **par document**, jamais sur la concaténation : un
+    fragment qui chevauchant deux fichiers n'est attribuable à aucun (R04). La
+    concaténation reste disponible comme contexte de prompt, via `context_text`.
+    """
+
+    chunks: List[str]
+    chunk_metadata: List[Dict[str, Any]]
+    context_text: str
+    diagnostics: Dict[str, Any]
+
+    @property
+    def total_chunks(self) -> int:
+        return len(self.chunks)
+
+    def per_document_counts(self) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for entry in self.chunk_metadata:
+            document_id = entry["source_document_id"]
+            counts[document_id] = counts.get(document_id, 0) + 1
+        return counts
+
+
+def plan_document_chunks(
+    documents: List[Dict[str, Any]],
+    document_texts: Dict[str, str],
+    chunk_size: int = 500,
+    chunk_overlap: int = 50,
+) -> DocumentChunkPlan:
+    """Découpe chaque document séparément et produit des métadonnées alignées.
+
+    `documents` est une liste de dictionnaires ou d'objets `SourceDocument` ; le
+    texte correspondant est cherché dans `document_texts` par `document_id`.
+
+    Un document dont le texte est absent du projet est **signalé** dans les
+    diagnostics et ne produit aucun fragment : il ne doit pas disparaître en
+    silence. Un document dont le texte normalisé est vide est également signalé.
+    """
+    chunks: List[str] = []
+    metadata: List[Dict[str, Any]] = []
+    context_parts: List[str] = []
+    omitted_documents: List[Dict[str, str]] = []
+
+    for document in documents:
+        try:
+            source = to_source_document_dict(document)
+        except ValueError as error:
+            omitted_documents.append(
+                {
+                    "document_id": str(
+                        document.get("document_id") if isinstance(document, dict) else ""
+                    ),
+                    "filename": "",
+                    "reason": f"document source invalide : {error}",
+                }
+            )
+            continue
+        document_id = source["document_id"]
+        filename = source["filename"]
+        role = source["role"]
+
+        normalized_text = document_texts.get(document_id)
+        if normalized_text is None:
+            omitted_documents.append(
+                {
+                    "document_id": document_id,
+                    "filename": filename,
+                    "reason": "texte normalisé absent du projet",
+                }
+            )
+            continue
+        if not normalized_text.strip():
+            omitted_documents.append(
+                {
+                    "document_id": document_id,
+                    "filename": filename,
+                    "reason": "texte normalisé vide",
+                }
+            )
+            continue
+
+        context_parts.append(f"=== {filename} ===\n{normalized_text}")
+
+        # Positions exactes issues du découpage lui-même (AC2) : jamais d'une
+        # recherche de sous-chaîne, qui choisirait la première occurrence sur un
+        # texte répétitif.
+        spans = TextProcessor.split_text_with_offsets(
+            normalized_text, chunk_size, chunk_overlap
+        )
+        if not spans:
+            omitted_documents.append(
+                {
+                    "document_id": document_id,
+                    "filename": filename,
+                    "reason": "aucun fragment produit",
+                }
+            )
+            continue
+
+        for local_index, (chunk_text, char_start, char_end) in enumerate(spans):
+            chunks.append(chunk_text)
+            metadata.append(
+                {
+                    "source_document_id": document_id,
+                    "source_filename": filename,
+                    "chunk_index": local_index,
+                    "char_start": char_start,
+                    "char_end": char_end,
+                    "source_role": role,
+                }
+            )
+
+    # Diagnostics calculés **après** construction : un document dont tous les
+    # fragments auraient été écartés ne doit pas être compté comme ingéré.
+    per_document: Dict[str, int] = {}
+    for entry in metadata:
+        document_id = entry["source_document_id"]
+        per_document[document_id] = per_document.get(document_id, 0) + 1
+
+    diagnostics = {
+        "documents_total": len(documents),
+        "documents_ingested": len(per_document),
+        "documents_omitted": omitted_documents,
+        "chunks_total": len(chunks),
+        "chunks_per_document": per_document,
+        "chunk_size": chunk_size,
+        "chunk_overlap": chunk_overlap,
+    }
+
+    return DocumentChunkPlan(
+        chunks=chunks,
+        chunk_metadata=metadata,
+        context_text="\n\n".join(context_parts),
+        diagnostics=diagnostics,
+    )
+
+
+def to_source_document_dict(document: Any) -> Dict[str, Any]:
+    """Accepte un `SourceDocument` ou son dictionnaire, sans en deviner le contenu."""
+
+    if isinstance(document, dict):
+        data = dict(document)
+    elif hasattr(document, "to_dict"):
+        data = document.to_dict()
+    else:
+        raise ValueError(
+            "un document source doit être un SourceDocument ou un dictionnaire"
+        )
+    if not data.get("document_id"):
+        raise ValueError("chaque document source doit porter un document_id")
+    if not data.get("filename"):
+        raise ValueError("un document source doit porter un filename")
+    if not data.get("role"):
+        raise ValueError("un document source doit porter un role")
+    return data
 
 
 class GraphBuilderService:
@@ -240,9 +401,27 @@ class GraphBuilderService:
         return self.store.create_graph(name=name, graph_id=target_graph_id)
 
     @staticmethod
-    def build_operation_id(graph_id: str, chunks: List[str]) -> str:
-        """Génère un identifiant déterministe d'opération d'ingestion."""
+    def build_operation_id(
+        graph_id: str,
+        chunks: List[str],
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Génère un identifiant déterministe d'opération d'ingestion.
+
+        Sans métadonnées, le hachage est strictement celui d'avant : un lot déjà
+        persisté dans `project.json` et repris après redémarrage reste
+        reconnaissable. Avec métadonnées, celles-ci entrent dans le hachage, pour
+        que deux textes identiques de deux documents différents ne soient jamais
+        confondus lors d'une réconciliation (ADR 0012 §1).
+        """
         payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
+        if chunk_metadata:
+            canonical = json.dumps(
+                chunk_metadata, ensure_ascii=False, sort_keys=True
+            ).encode("utf-8")
+            payload_hash = hashlib.sha256(
+                payload_hash.encode("ascii") + b"\0" + canonical
+            ).hexdigest()
         return hashlib.sha256(f"{graph_id}:{payload_hash}".encode("utf-8")).hexdigest()
 
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
@@ -256,13 +435,20 @@ class GraphBuilderService:
         batch_size: int = 350,
         progress_callback: Optional[Callable] = None,
         batch_created_callback: Optional[Callable[[str | None, str], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
-        """Soumet des morceaux de documents par lot au GraphStore."""
+        """Soumet des morceaux de documents par lot au GraphStore.
+
+        `chunk_metadata` est transmis tel quel au store, qui le valide avant
+        toute écriture (ADR 0012 §1). Les métadonnées entrent aussi dans
+        l'identité d'opération : deux textes identiques issus de deux documents
+        différents sont deux opérations distinctes.
+        """
         if not graph_id:
             raise ValueError("graph_id is required")
         self.validate_batch_chunks(chunks, batch_size=batch_size)
 
-        operation_id = self.build_operation_id(graph_id, chunks)
+        operation_id = self.build_operation_id(graph_id, chunks, chunk_metadata)
         if batch_created_callback:
             batch_created_callback(None, operation_id)
 
@@ -291,6 +477,7 @@ class GraphBuilderService:
             chunks=chunks,
             batch_size=batch_size,
             progress_callback=adapted_progress,
+            chunk_metadata=chunk_metadata,
         )
 
         if batch_created_callback:

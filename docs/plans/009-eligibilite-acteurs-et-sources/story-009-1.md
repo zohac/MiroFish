@@ -2,7 +2,7 @@
 id: "009-1"
 epic: "009"
 titre: "Modèle ActorEligibility et classifieur agnostique à deux passes"
-statut: backlog
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -13,9 +13,11 @@ Lot A, priorité P0. En tant qu'utilisateur, je veux que seules les personnes et
 les organisations qualifiées deviennent des agents OASIS, afin que les produits,
 tarifs, sites et concepts restent des connaissances discutées dans la simulation.
 
-Cette demande prépare le contrat de développement ; elle ne lance pas
-l'implémentation. Couverture : FR-1, FR-2, NFR-1, NFR-3, NFR-4, NFR-5 ; C1,
-C2 et contribution à C5. Les garanties de réutilisation ci-dessous ferment le
+Cette story est implémentée et validée après revue (voir `### Review Findings`) :
+le modèle, le classifieur, la barrière du générateur, l'intégration au
+gestionnaire et aux routes, la preuve de qualification et la mesure réelle sont
+livrés. Couverture : FR-1, FR-2, NFR-1, NFR-3, NFR-4, NFR-5 ; C1, C2 et
+contribution à C5. Les garanties de réutilisation ci-dessous ferment le
 contournement du verrou P0 ; la révision humaine complète appartient à 009-3.
 
 ## Définition de prêt
@@ -48,26 +50,65 @@ contournement du verrou P0 ; la révision humaine complète appartient à 009-3.
 
 ## Définition de fini
 
-- [ ] AC1 à AC13 satisfaits, preuves rattachées aux tests et à la mesure réelle ; aucun succès obtenu en excluant tous les acteurs.
-- [ ] Modèle et service uniques intégrés aux frontières applicatives et aux scripts appelant le générateur, sans branche Zep/Graphiti dans le nouveau code métier.
-- [ ] Refus d'éligibilité distingué d'une erreur de génération de persona ; cache et démarrage ne contournent pas le verrou.
-- [ ] Les profils Twitter CSV et Reddit JSON restent conformes ; graphe et types d'origine préservés.
-- [ ] Suite hermétique complète, lint et `validate_plans.py` exécutés sous Docker sur le code courant ; décompte et motifs des éventuels skips consignés. Les 771 tests du plan initial et les 800 annoncés après 006 sont des jalons, pas un résultat de cette story.
-- [ ] Mesure C2 réelle consignée sans secrets dans `mesure-009-1.md` ; écarts et conditions d'exécution exposés.
-- [ ] Revue de code réalisée et corrections traitées ; statut passé par `review` avant `done`.
-- [ ] Hub, suivi humain et agrégat d'epic actualisés ; notes de complétion renseignées, aucune case cochée sans preuve.
+- [x] AC1 à AC13 satisfaits, preuves rattachées aux tests et à la mesure réelle ; aucun succès obtenu en excluant tous les acteurs (16 acteurs retenus sur 46 entités, 8/8 par domaine).
+- [x] Modèle et service uniques intégrés aux frontières applicatives et aux scripts appelant le générateur, sans branche Zep/Graphiti dans le nouveau code métier.
+- [x] Refus d'éligibilité distingué d'une erreur de génération de persona (`ActorNotEligibleError`) ; cache et démarrage ne contournent pas le verrou.
+- [x] Les profils Twitter CSV et Reddit JSON restent conformes ; graphe et types d'origine préservés.
+- [x] Suite hermétique complète, lint et `validate_plans.py` exécutés sous Docker sur le code courant ; décompte et motifs des éventuels skips consignés (921 réussis, 3 ignorés sous Docker après la revue du 11 octobre 2026, image reconstruite ; 924 réussis sur l'hôte). Les 771 tests du plan initial et les 800 annoncés après 006 sont des jalons, pas un résultat de cette story.
+- [x] Mesure C2 réelle consignée sans secrets dans `mesure-009-1.md` ; écarts et conditions d'exécution exposés.
+- [x] Revue de code réalisée et corrections traitées ; statut passé par `review` avant `done`.
+- [x] Hub, suivi humain et agrégat d'epic actualisés ; notes de complétion renseignées, aucune case cochée sans preuve.
 
 ## Tâches
 
 - [x] T1 — Constituer les deux fixtures et relire leurs annotations avant implémentation (AC2, AC5, AC11) ; 46 entités annotées, 25 contrôles d'intégrité, [relecture consignée](preparation-009-1.md). Les comportements AC2/AC5/AC11 restent à implémenter et qualifier.
-- [ ] T2 — Ajouter `app/models/actor_eligibility.py` avec enums, validation commune et sérialisation testées (AC1, AC4, AC5).
-- [ ] T3 — Ajouter `app/services/actor_classifier.py` : filtrage syntaxique intégral, client LLM injecté/créé à la demande, réponse structurée validée et diagnostics par entité (AC2–AC5, AC13).
-- [ ] T4 — Protéger les entrées unitaires/par lots d'`OasisProfileGenerator`, choisir les prompts par rôle et séparer refus/erreur de persona (AC6–AC8).
-- [ ] T5 — Intégrer la classification à la préparation et à `/generate-profiles`, filtrer avant `max_agents`, transmettre uniquement les acteurs à la configuration et corriger les compteurs (AC6, AC9, AC11).
-- [ ] T6 — Ajouter la preuve minimale de qualification aux artefacts et contrôler réutilisation/statut/démarrage ; refuser les préparations historiques ou périmées (AC10).
-- [ ] T7 — Adapter les tests historiques qui créaient un profil de lieu ou un profil générique non qualifié ; conserver et renforcer leur intention, sans suppression du filet (AC7–AC11).
-- [ ] T8 — Ajouter la sonde `scripts/verifier_eligibilite_acteurs.py`, hors CI réseau, et réaliser la mesure réelle multi-domaines (AC12).
-- [ ] T9 — Exécuter contrôles Docker, revue et mise à jour des preuves/artefacts ; passer en `review`, puis en `done` après validation.
+- [x] T2 — `app/models/actor_eligibility.py` livré : enums `ActorRole`/`EligibilityStatus`, dataclass `ActorEligibility` validée (rationale, confiance finie bornée, rôle passif jamais `eligible`), réponse LLM Pydantic stricte et `qualify_from_response`. Tests `test_actor_eligibility.py` (AC1, AC4, AC5).
+- [x] T3 — `app/services/actor_classifier.py` livré : passe 1 déterministe (URL/domaine, montant avec devise, date, durée entiers), client injectable créé paresseusement, réponse validée, diagnostics par entité, empreinte des entrées. Tests `test_actor_classifier.py` (AC2–AC5, AC13).
+- [x] T4 — `OasisProfileGenerator` protégé : entrées unitaire et par lots filtrées, `ActorNotEligibleError` distincte, prompt choisi par rôle qualifié, `source_entity_type` d'origine préservé. La création du client LLM de personas est devenue facultative (AC6–AC8).
+- [x] T5 — `SimulationManager.prepare_simulation` et `POST /generate-profiles` classifient avant limite, transmettent uniquement les acteurs à la configuration et corrigent les compteurs (`actors_count`, `review_count`, `ineligible_count`). Tests `test_actor_eligibility_pipeline.py` (AC6, AC9, AC11).
+- [x] T6 — Preuve `actor_qualifications.json` (politique, projet/graphe, empreinte, UUID retenus) écrite à la préparation ; `/prepare`, `/prepare/status` et `/start` refusent une préparation historique ou périmée. Tests de routes (AC10).
+- [x] T7 — Tests historiques adaptés (`test_personas_simulation_graphiti.py`, `test_zep_entity_reader_graphiti.py`, `test_zep_graph_lifecycle.py`, `test_zep_report_barrier.py`) et sonde 004 (`verifier_qualification_local_first.py`) alignée sur la barrière ; aucune suppression de test (AC7–AC11).
+- [x] T8 — Sonde `scripts/verifier_eligibilite_acteurs.py` (mode `--mock` identifié) et mesure réelle sur les deux domaines consignée dans [mesure-009-1.md](mesure-009-1.md) et [mesure-009-1.json](mesure-009-1.json) (AC12).
+- [x] T9 — Contrôles Docker (suite hermétique, `ruff check .`, `validate_plans.py`), artefacts et suivi mis à jour ; passage en `review`.
+
+### Review Findings
+
+Revue contradictoire à quatre couches du 11 octobre 2026 (diff non commité de la story : code, tests, sondes, docs). Verdicts de triage vérifiés fichier et ligne en main.
+
+- [x] [Review][Patch] AC10 — relecture d'entrées au `/start` (empreinte + consigne), motif transmis ; statut documentaire assumé [backend/app/api/simulation.py:1744] — décision du 11 octobre 2026 : corriger maintenant au démarrage (une lecture de graphe, pas à chaque polling) ; le statut reste un contrôle documentaire.
+- [x] [Review][Patch] AC9 — le temps réel utilise `actors_count` quand il est connu ; l'aperçu d'entités du `/prepare` est documenté comme pré-classification ; tests de progression étendus [backend/app/api/simulation.py:1262] — décision du 11 octobre 2026 : préciser les compteurs maintenant.
+- [x] [Review][Patch] Empreinte d'entrées non déterministe : listes non triées et ordre instable des voisins/arêtes [backend/app/services/actor_classifier.py:389] — `_canonical` ne trie pas les listes ; `related_nodes` vient d'un `set` (zep_entity_reader.py:348) et `related_edges` d'un Cypher sans `ORDER BY` (`graphiti_store.py`) : après redémarrage du processus, l'empreinte peut changer sans changement d'entrées et forcer une régénération sur `/prepare`.
+- [x] [Review][Patch] Le verdict de la mesure C2 ignore les activations `review`→`eligible` et n'utilise pas le champ `match` [backend/scripts/verifier_eligibilite_acteurs.py:155-163] — `passed` ne dépend que de `actors_retained >= 2` et des seuls `ineligible` devenus `eligible` ; un collectif activé passerait en « 0 faux acteur ».
+- [x] [Review][Patch] Fixtures : les résumés des cas composites énoncent la conclusion attendue [backend/tests/fixtures/actor_eligibility/*.json] — la mesure réelle montre surtout la capacité à recopier une consigne présente dans la donnée ; le documenter dans mesure-009-1.md et ajouter des cas à résumé neutre si la généralisation doit être prouvée.
+- [x] [Review][Patch] Trois rationales corrompus (sorties mélangées du fournisseur) dans la preuve, non signalés [docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-1.json] — (Hugo Bernard, navette, ouverture du festival) ; aucune note dans mesure-009-1.md alors que les écarts doivent être exposés.
+- [x] [Review][Patch] mesure-009-1.md n'est pas la sortie de la sonde (champ commit reformulé) et le champ commit a été rempli à la main sans le dire [docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md:5] — `_git_commit()` retournerait « inconnu » dans l'image sans git ; régénérer ou annoter.
+- [x] [Review][Patch] Refus de `/start` et `/prepare/status` : le motif de qualification est jeté et le message affiche « status: ready » [backend/app/api/simulation.py:1822-1828,844-856] — `prepare_info` est disponible mais absent de la réponse ; à transmettre (et éviter « not ready / status: ready »).
+- [x] [Review][Patch] Diagnostics d'éligibilité en français codés en dur hors dictionnaire [backend/app/services/simulation_manager.py:618-631] — renvoyés tels quels en 400 par `/generate-profiles` et via `task.error` ; le reste de l'API passe par `t()` (défaut zh).
+- [x] [Review][Patch] Personas déterministes : le rôle qualifié écrase le gabarit du type d'origine [backend/app/services/oasis_profile_generator.py:864-870] — un étudiant qualifié reçoit « Expert and thought leader », âge 35-60 ; les gabarits student/media deviennent inatteignables.
+- [x] [Review][Patch] Mode dégradé sans clé LLM (personas) non observé ni testé [backend/app/services/oasis_profile_generator.py:274-280,588-592] — la génération retombe silencieusement sur le déterministe (un warning) sans indicateur d'état ; aucun test ne fixe le nouveau comportement.
+- [x] [Review][Patch] `last_classification` écrit à trois endroits, jamais lu [backend/app/services/oasis_profile_generator.py:288,351,984,987] — mort ou à brancher (KISS).
+- [x] [Review][Patch] Identité sans nom mais avec résumé : envoi au LLM et activation possible d'un profil sans nom [backend/app/services/actor_classifier.py:165-183] — `name == ""` + résumé non vide passe en passe 2 ; attendu « identité vide/inexploitable reste review ».
+- [x] [Review][Patch] Test de route manquant pour la barrière de `/generate-profiles` (+ `simulation_requirement` absent de la docstring) [backend/app/api/simulation.py:1541-1610] — aucun test n'appelle la route ; injecter/monkeypatcher le classifieur pour prouver le 400 sans acteur.
+- [x] [Review][Patch] Appel d'une méthode privée du service depuis la route [backend/app/api/simulation.py:1596] — `SimulationManager._no_actor_diagnostic` ; exposer un point d'entrée public.
+- [x] [Review][Patch] `sprint-status.yaml` : trois « commentaires » sont en réalité dans le scalaire `pourquoi` de l'epic 009 [docs/sprint-status.yaml]
+- [x] [Review][Patch] Sonde 004-5 : le classifieur d'éligibilité est stubbé sans le dire [backend/scripts/verifier_qualification_local_first.py:177-209] — `DeterministicEligibilityLLMClient` décide par type d'origine ; le rapport ne mentionne pas le stub.
+- [x] [Review][Patch] Preuve non liée à sa simulation : paramètre `simulation_id` inutilisé, `simulation_id` stocké jamais comparé [backend/app/api/simulation.py:282-313]
+- [x] [Review][Patch] Robustesse du fichier de preuve : écriture non atomique, absence et corruption confondues [backend/app/services/simulation_manager.py:86-99]
+- [x] [Review][Patch] Champs écrits jamais lus : `state.qualification_fingerprint` et la liste `qualifications` de la preuve [backend/app/services/simulation_manager.py:129,431,81]
+- [x] [Review][Patch] Branche `except ActorNotEligibleError` du lot jamais exercée [backend/app/services/oasis_profile_generator.py:1052-1055] — défense en profondeur à tester (appel direct d'une entité non qualifiée) ou à simplifier.
+- [x] [Review][Patch] Tests manquants : le rejet par écart `graph_id`/`project_id` n'est jamais exercé [backend/app/api/simulation.py:301-312]
+- [x] [Review][Patch] Sonde 004-4 : `prepare_simulation` appelé sans classifieur — échoue sans clé, appelle le réseau en mode mock [backend/scripts/verifier_personas_simulation_graphiti.py:272-278]
+- [x] [Review][Patch] AC4 : seuil 0,7 appliqué aux seules réponses `eligible` [backend/app/models/actor_eligibility.py:204-212] — une exclusion peu confiante reste `ineligible`, sans diagnostic.
+- [x] [Review][Patch] Import `EligibilityStatus` inutilisé [backend/app/api/simulation.py:26]
+- [x] [Review][Defer] Index documentaires périmés après la barrière [AGENTS.md:535] — deferred: corrections d'index (§4/§11, LOCAL-FIRST.md) et d'état (§1/§2.2 de AGENTS.md, STATUS.md) hors du lot de code, à traiter avec la mise à jour documentaire suivante.
+- [x] [Review][Defer] `prd.md` et `architecture.md` toujours en `backlog` et « non implémentés » [docs/plans/009-eligibilite-acteurs-et-sources/prd.md:3] — deferred: mise à jour d'artefacts de plan, à faire à la prochaine actualisation d'epic.
+- [x] [Review][Defer] Décompte Docker non reproductible par la commande standard [docker-compose.yml:63-65] — deferred: l'image locale est figée (le compose ne monte pas le code) et `AGENTS.md` §2.9 dit l'inverse ; reconstruction d'image et consignation du protocole à faire dans un geste séparé.
+
+#### Rejected
+
+- [Métadonnées de modèle lues dans l'environnement plutôt que dans le client] : rejeté (`false`) — `Config` charge `.env` dans `os.environ` dès l'import (`load_dotenv(override=True)`, config.py:11) et `_default_client()` l'a déjà importé avant la rédaction du rapport ; le client résout `model`/`base_url` des mêmes sources. La divergence « inconnu » n'existe que sans aucun réglage, cas où la sonde marque déjà `classifier_available` faux et le run en ÉCHEC.
+- [Fenêtre de régénération : une préparation périmée serait « already_prepared » pendant l'exécution] : rejeté (`false`) — `prepare_simulation` remet `config_generated=False` avant toute lecture/classification (simulation_manager.py:366-372) et `_check_simulation_prepared` l'exige (simulation.py:444) : pendant la régénération, le statut renvoie la progression et `/start` refuse. La fenêtre décrite n'existe pas.
+- [Contrat de message dupliqué entre classifieur et clients de test/sonde] : rejeté (`low`) — la fragilité ne se manifeste qu'en cas de changement du format de prompt, et elle est alors bruyante (les parseurs lèvent, tests et sonde échouent) ; la centralisation proposée est plus qu'une correction directe.
 
 ## Notes de développement
 
@@ -240,22 +281,96 @@ protocole séparé et ne fait pas partie de pytest/CI.
 
 ## Revue
 
-Revue du code à réaliser après implémentation. Examiner en priorité les chemins
-de contournement : secours après exception, mode sans LLM personas, générateur
-direct, artefacts historiques et démarrage. La relecture du présent contrat ne
-valide aucun comportement logiciel ni la mesure réelle C2. La relecture des
-46 annotations et les corrections de couverture sont consignées dans la
+Revue de code effectuée après implémentation. Chemins de contournement
+examinés : le refus unitaire lève `ActorNotEligibleError` sans créer de profil de
+secours ; le lot filtre avant génération ; `use_llm_for_profiles=False`,
+`use_llm=False` et le persona de secours ne rouvrent pas la barrière ; les
+artefacts historiques sans preuve et les préparations périmées sont refusés au
+statut, au démarrage et à la réutilisation. La relecture du présent contrat ne
+valide aucun comportement logiciel ; la mesure réelle C2 est consignée dans
+[`mesure-009-1.md`](mesure-009-1.md). La relecture des 46 annotations et les
+corrections de couverture sont consignées dans la
 [preuve de préparation](preparation-009-1.md).
+
+Revue contradictoire à quatre couches du 11 octobre 2026 (Blind Hunter, Edge
+Case Hunter, Verification Gap, Acceptance Auditor) sur les changements non
+commités : constats et verdicts dans `### Review Findings` (Tâches) ; 25
+correctifs appliqués, 3 constats différés (index documentaires, statut du PRD,
+décompte Docker), 2 affirmations réfutées par vérification. Les garanties
+faibles ont été refermées : relecture d'entrées au `/start`, verdict de la
+mesure C2 renforcé, empreinte déterministe, préparation liée à sa simulation,
+personas déterministes préservés par type d'origine.
 
 ## Notes de complétion
 
-Story rédigée le 10 octobre 2026 à la demande de l'utilisateur, au statut
-`backlog`. Aucun modèle, service ou test de fonctionnalité 009 n'est implémenté.
-La politique minimale reporte explicitement A02 (marque/fiction) et l'activation
-automatique des collectifs. La définition de prêt est satisfaite le même jour :
-46 entités annotées et relues, 25 tests d'intégrité ajoutés, contrôle Docker final
-de 825 tests collectés (822 réussis, 3 ignorés), lint et plans valides. Voir
-[préparation et limites](preparation-009-1.md). T1 est réalisée ; T2 à T9 et toute
-la définition de fini restent ouvertes. La story demeure `backlog`, prête pour
-le développement métier, sans qualification C1/C2 revendiquée. Compléter cette
-section avec résultats, divergences datées et preuves lors de l'implémentation.
+Implémentation du 10 octobre 2026, sur la branche `local-first`, arbre
+`2ca4057` + modifications non commitées. La story passe en `review`, puis est
+close après la revue contradictoire du 11 octobre 2026 (voir `## Revue`).
+
+Livré :
+
+- `app/models/actor_eligibility.py` (enums, dataclass validée, réponse LLM
+  Pydantic stricte, `qualify_from_response`, `ACTOR_ELIGIBILITY_POLICY_VERSION`).
+- `app/services/actor_classifier.py` (passe 1 déterministe, passe 2 LLM
+  paresseuse, diagnostics par entité, `fingerprint_qualification_inputs`).
+- Barrière dans `OasisProfileGenerator` (unitaire et par lots), prompts par rôle,
+  `ActorNotEligibleError`.
+- Intégration `SimulationManager.prepare_simulation` et `POST /generate-profiles`.
+- Preuve `actor_qualifications.json` et contrôles de fraîcheur dans
+  `_check_simulation_prepared`, `_qualification_inputs_are_fresh`, `/prepare`,
+  `/prepare/status` et `/start`.
+
+Preuves :
+
+- Suite hermétique : **921 réussis, 3 ignorés sous Docker** après la revue du
+  11 octobre 2026 (image reconstruite ; les trois skips sont ceux de la
+  préparation : CLI Docker absente dans l'image), **924 réussis sur l'hôte**.
+  `ruff check .` et `scripts/validate_plans.py` sans erreur.
+- Mesure réelle C2 ([`mesure-009-1.md`](mesure-009-1.md)) : modèle `space-bunny`
+  sur OpenCode Go, **8/8 acteurs retenus et 0 faux acteur par domaine**, soit
+  16/16 acteurs et 0/46 faux acteurs sur les deux domaines. La sonde réelle n'a
+  produit aucune écriture de graphe.
+
+Divergences et choix, datés :
+
+- Le constructeur `OasisProfileGenerator` ne lève plus quand `LLM_API_KEY` est
+  absent : le client de personas est facultatif, pour laisser la barrière
+  produire son diagnostic avant toute génération (exigence de la story). Aucun
+  test n'attendait l'ancien `ValueError`.
+- La détection de changement d'entités est recomparée par empreinte sur
+  `/prepare` (régénération) et, depuis la revue du 11 octobre 2026, refusée sur
+  `/start` avec motif (une seule relecture de graphe) ; `/prepare/status` reste
+  un contrôle documentaire pour le polling, sans lecture de graphe à chaque
+  interrogation.
+- La sonde 004 `verifier_qualification_local_first.py` construisait une
+  préparation sans classifieur : elle produit désormais un
+  `DeterministicEligibilityLLMClient` par type d'entité du graphe de banc. Le
+  défaut corrigé est l'absence de barrière à l'époque ; le test conservé n'a pas
+  été supprimé.
+- La sonde réelle n'a pas pu lire `git rev-parse` dans l'image (git absent) : le
+  champ `commit` a été renseigné à la main (`2ca4057`, arbre de travail).
+
+Restent hors de ce lot, conformément au plan : A02 (personnification
+marque/fiction), activation automatique des collectifs, `actors.json`, endpoints
+et IHM de révision (009-3), brief complet et provenance (009-2).
+
+Corrections de la revue du 11 octobre 2026 (25 correctifs, voir
+`### Review Findings`) :
+
+- Empreinte d'entrées triée par contenu (listes comprises) : plus de
+  régénération fantôme après redémarrage du processus.
+- `/start` refuse une préparation dont les entrées de qualification ont changé
+  (motif transmis) ; preuve liée à sa simulation ; écriture atomique et lecture
+  distinguant absence et corruption.
+- Mesure C2 : une activation `review`→`eligible` compte désormais comme faux
+  acteur ; limites de la mesure consignées dans `mesure-009-1.md`.
+- Seuil de confiance appliqué à tout statut (une exclusion peu confiante devient
+  `review`) ; identité sans nom laissée en `review` sans appel LLM.
+- Personas déterministes : le gabarit suit le type d'origine (plus de « Expert
+  and thought leader » pour un étudiant) ; compteur `degraded_generations` ;
+  `last_classification` mort supprimé.
+- Diagnostics `no_actor_diagnostic` localisés via `t()` ; compteurs temps réel
+  basés sur les acteurs retenus quand connus ; tests de route de
+  `/generate-profiles`, de liaison de preuve et de fraîcheur ajoutés.
+- Sondes 004 alignées et honnêtes : classifieur déterministe déclaré pour le
+  banc global, barrière injectée pour le banc personas.

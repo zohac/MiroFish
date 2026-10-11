@@ -1012,6 +1012,11 @@ class SimulatedGraphStore(GraphStore):
             if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
         ]
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
         pass
 

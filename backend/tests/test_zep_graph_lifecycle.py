@@ -337,6 +337,7 @@ def test_graph_reset_and_memory_start_cannot_cross_between_delete_and_clear(
         project_id=project.project_id,
         graph_id=project.graph_id,
         status=SimulationStatus.READY,
+        entity_types=[],
     )
     delete_entered = threading.Event()
     allow_delete = threading.Event()
@@ -377,6 +378,16 @@ def test_graph_reset_and_memory_start_cannot_cross_between_delete_and_clear(
         simulation_api.SimulationRunner,
         "start_simulation",
         classmethod(lambda _cls, **_kwargs: runner_called.append(True)),
+    )
+    monkeypatch.setattr(
+        simulation_api,
+        "_check_simulation_prepared",
+        lambda _simulation_id: (True, {}),
+    )
+    monkeypatch.setattr(
+        simulation_api,
+        "_qualification_inputs_are_fresh",
+        lambda _state, _types: (True, ""),
     )
 
     app = Flask(__name__)

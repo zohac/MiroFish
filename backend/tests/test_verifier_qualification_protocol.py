@@ -126,6 +126,11 @@ def test_run_qualification_protocol_success_with_mocked_neo4j(monkeypatch):
                 if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
             ]
 
+
+
+        def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+            """Aucune provenance : doublure de test, graphe en mémoire."""
+            return []
         def set_ontology(self, graph_id: str, ontology: dict) -> None:
             pass
 
@@ -139,7 +144,7 @@ def test_run_qualification_protocol_success_with_mocked_neo4j(monkeypatch):
         def add_episode(self, graph_id: str, text: str, source_description: str = "", metadata=None, created_at=None):
             return SimpleNamespace(uuid="ep-1", graph_id=graph_id, processed=True)
 
-        def add_text_batch(self, graph_id: str, chunks: list[str], batch_size: int = 350, progress_callback=None):
+        def add_text_batch(self, graph_id: str, chunks: list[str], batch_size: int = 350, progress_callback=None, chunk_metadata=None):
             return BatchSubmissionRecord(
                 batch_id="batch-1",
                 operation_id="op-1",
@@ -274,6 +279,11 @@ def test_run_qualification_protocol_insufficient_nodes_fails(monkeypatch):
         def get_node_edges(self, graph_id: str, node_uuid: str):
             return []
 
+
+
+        def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+            """Aucune provenance : doublure de test, graphe en mémoire."""
+            return []
         def set_ontology(self, graph_id: str, ontology: dict) -> None:
             pass
 
@@ -287,7 +297,7 @@ def test_run_qualification_protocol_insufficient_nodes_fails(monkeypatch):
         def add_episode(self, graph_id: str, text: str, source_description: str = "", metadata=None, created_at=None):
             return SimpleNamespace(uuid="ep-1", graph_id=graph_id, processed=True)
 
-        def add_text_batch(self, graph_id: str, chunks: list[str], batch_size: int = 350, progress_callback=None):
+        def add_text_batch(self, graph_id: str, chunks: list[str], batch_size: int = 350, progress_callback=None, chunk_metadata=None):
             return BatchSubmissionRecord(batch_id="batch-1", operation_id="op-1", episode_uuids=["ep-1"], item_count=len(chunks))
 
         def wait_for_batch(self, batch, progress_callback=None, timeout=600.0):

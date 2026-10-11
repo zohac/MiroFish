@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import inspect
+import json
 import logging
 import os
 import time
@@ -32,6 +33,11 @@ from .base import (
     GraphNode,
     GraphSearchResult,
     GraphStore,
+    ProvenanceOrigin,
+    ProvenanceRecord,
+    validate_chunk_metadata,
+    FORBIDDEN_ANNOTATION_KEYS,
+    _ANNOTATION_KEY_PATTERN,
 )
 from .errors import (
     GraphConnectionError,
@@ -475,7 +481,13 @@ class GraphitiGraphStore(GraphStore):
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
     ) -> EpisodeRecord:
-        """Ajoute un épisode textuel unitaire au graphe avec partitionnement group_id."""
+        """Ajoute un épisode textuel unitaire au graphe avec partitionnement group_id.
+
+        Les métadonnées sont **réellement persistées** sur `:Episodic` : Graphiti
+        valide `episode_metadata` mais ne l'écrit pas dans sa requête de
+        sauvegarde Neo4j, donc l'annotation est posée ici, par Cypher, sur l'UUID
+        que Graphiti a réellement retourné (ADR 0012 §2).
+        """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not isinstance(text, str) or not text.strip():
@@ -531,13 +543,77 @@ class GraphitiGraphStore(GraphStore):
             if not ep_uuid and isinstance(res, dict):
                 ep_uuid = res.get("uuid")
             if not ep_uuid:
-                ep_uuid = uuid.uuid4().hex
+                # Plus de repli silencieux sur uuid4() : cet UUID serait
+                # persisté nulle part et ne se résoudrait jamais (ADR 0012 §2).
+                raise GraphStoreError(
+                    "Graphiti n'a retourné aucun identifiant d'épisode ; "
+                    "aucune valeur de repli n'est inventée, car elle ne "
+                    "pointerait vers rien dans Neo4j"
+                )
+
+            episode_uuid = str(ep_uuid)
+
+            if metadata:
+                self._annotate_episode(target_graph_id, episode_uuid, metadata)
 
             return EpisodeRecord(
-                uuid=str(ep_uuid),
+                uuid=episode_uuid,
                 graph_id=target_graph_id,
                 processed=True,
                 created_at=ref_time.isoformat(),
+            )
+
+    def _annotate_episode(
+        self,
+        graph_id: str,
+        episode_uuid: str,
+        metadata: Dict[str, Any],
+    ) -> None:
+        """Pose les métadonnées sur `:Episodic` et vérifie qu'une ligne a été touchée.
+
+        Une annotation qui ne trouve pas son épisode est une erreur visible :
+        l'ingestion ne doit jamais être déclarée réussie avec une provenance
+        perdue en silence (ADR 0012 §2).
+
+        Les noms de propriétés Cypher ne peuvent pas être paramétrés : chaque clé
+        est donc validée comme identifiant et les clés que le store gère lui-même
+        sont refusées, pour qu'une clé libre ne devienne pas une surface
+        d'injection ou un écrasement de propriété.
+        """
+        payload: Dict[str, Any] = {}
+        for key, value in metadata.items():
+            if key in FORBIDDEN_ANNOTATION_KEYS:
+                raise GraphValidationError(
+                    f"La métadonnée '{key}' est interdite : elle est gérée par le store"
+                )
+            if not _ANNOTATION_KEY_PATTERN.match(key):
+                raise GraphValidationError(
+                    f"La métadonnée '{key}' n'est pas un nom de propriété valide"
+                )
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                payload[key] = value
+            else:
+                payload[key] = json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+        if not payload:
+            return
+
+        assignments = ", ".join(f"e.{key} = ${key}" for key in payload)
+        res = self._run_async(
+            self._execute_cypher(
+                f"""
+                MATCH (e:Episodic {{uuid: $episode_uuid, group_id: $group_id}})
+                SET {assignments}
+                RETURN e.uuid AS uuid
+                """,
+                params={"episode_uuid": episode_uuid, "group_id": graph_id, **payload},
+            )
+        )
+        records = self._extract_records(res)
+        if not records:
+            raise GraphStoreError(
+                f"Aucune annotation appliquée à l'épisode {episode_uuid} dans le "
+                f"graphe {graph_id} : l'ingestion n'est pas déclarée réussie"
             )
 
     def add_text_batch(
@@ -546,6 +622,7 @@ class GraphitiGraphStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         """Ingère une liste de textes découpés par lots avec suivi de progression."""
         if not graph_id or not graph_id.strip():
@@ -562,12 +639,14 @@ class GraphitiGraphStore(GraphStore):
                     f"Le fragment d'index {idx} ne peut pas être vide ou de type invalide"
                 )
 
+        # Validation partagée, avant toute écriture (ADR 0012 §1).
+        metadata_entries = validate_chunk_metadata(chunks, chunk_metadata)
+
         total_chunks = len(chunks)
         batch_id = f"batch_{uuid.uuid4().hex[:16]}"
-        payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
-        operation_id = hashlib.sha256(
-            f"{target_graph_id}:{payload_hash}".encode("utf-8")
-        ).hexdigest()
+        operation_id = self._build_operation_id(
+            target_graph_id, chunks, metadata_entries
+        )
 
         with self._translate_errors(f"ingestion par lots pour {target_graph_id}"):
             episode_uuids: List[str] = []
@@ -578,7 +657,8 @@ class GraphitiGraphStore(GraphStore):
                 record = self.add_episode(
                     graph_id=target_graph_id,
                     text=chunk,
-                    source_description=f"chunk_{idx}",
+                    source_description=self._chunk_source_description(idx, metadata_entries, idx - 1),
+                    metadata=metadata_entries[idx - 1] if metadata_entries else None,
                 )
                 episode_uuids.append(record.uuid)
 
@@ -594,6 +674,51 @@ class GraphitiGraphStore(GraphStore):
                 episode_uuids=episode_uuids,
                 item_count=total_chunks,
             )
+
+    @staticmethod
+    def _chunk_source_description(
+        sequence: int,
+        metadata_entries: List[Dict[str, Any]],
+        index: int,
+    ) -> str:
+        """Description lisible de la source d'un fragment.
+
+        Sans provenance, on garde `chunk_<n>` : c'est le comportement historique
+        et plusieurs tests le vérifient. Avec provenance, la description nomme le
+        document et l'index local — elle reste une description, jamais une
+        sérialisation faisant autorité (ADR 0012 §1).
+        """
+        if not metadata_entries:
+            return f"chunk_{sequence}"
+        entry = metadata_entries[index]
+        return (
+            f"{entry['source_filename']}#{entry['chunk_index']}"
+            f" [{entry['source_role']}]"
+        )
+
+    @staticmethod
+    def _build_operation_id(
+        graph_id: str,
+        chunks: List[str],
+        metadata_entries: List[Dict[str, Any]],
+    ) -> str:
+        """Identifiant déterministe d'opération.
+
+        Sans provenance, le hachage est **inchangé** : un lot déjà persisté et
+        repris après redémarrage reste reconnaissable. Avec provenance, les
+        métadonnées entrent dans le hachage, pour que deux textes identiques
+        issus de deux documents différents soient deux opérations distinctes
+        (ADR 0012 §1).
+        """
+        payload_hash = hashlib.sha256("\0".join(chunks).encode("utf-8")).hexdigest()
+        if metadata_entries:
+            canonical = json.dumps(
+                metadata_entries, ensure_ascii=False, sort_keys=True
+            ).encode("utf-8")
+            payload_hash = hashlib.sha256(
+                payload_hash.encode("ascii") + b"\0" + canonical
+            ).hexdigest()
+        return hashlib.sha256(f"{graph_id}:{payload_hash}".encode("utf-8")).hexdigest()
 
     def wait_for_batch(
         self,
@@ -981,6 +1106,192 @@ class GraphitiGraphStore(GraphStore):
                 self._record_to_graph_edge(rec, include_temporal=True)
                 for rec in records
             ]
+
+    # --- Provenance des faits ---
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str) -> List[ProvenanceRecord]:
+        """Résout les origines documentaires d'une arête, dans un graphe donné.
+
+        La requête part de l'arête **dans le graphe cible** et résout ses
+        références par `OPTIONAL MATCH` : une référence non résolue reste
+        visible au lieu de disparaître du résultat (ADR 0012 §4).
+        """
+        if not isinstance(graph_id, str) or not graph_id.strip():
+            raise GraphValidationError("graph_id est requis")
+        if not isinstance(edge_uuid, str) or not edge_uuid.strip():
+            raise GraphValidationError("edge_uuid est requis")
+
+        target_graph_id = graph_id.strip()
+        target_edge_uuid = edge_uuid.strip()
+
+        with self._translate_errors(
+            f"lecture de la provenance de l'arête {target_edge_uuid}"
+        ):
+            res = self._run_async(
+                self._execute_cypher(
+                    """
+                    MATCH (source:Entity {group_id: $group_id})-[r]->(target:Entity {group_id: $group_id})
+                    WHERE r.group_id = $group_id AND r.uuid = $edge_uuid
+                    RETURN coalesce(r.episodes, []) AS episode_uuids
+                    """,
+                    params={
+                        "group_id": target_graph_id,
+                        "edge_uuid": target_edge_uuid,
+                    },
+                )
+            )
+            edge_records = self._extract_records(res)
+            if not edge_records:
+                return []
+
+            raw_refs = self._get_record_field(edge_records[0], "episode_uuids", []) or []
+            if not isinstance(raw_refs, (list, tuple, set)):
+                raw_refs = [raw_refs]
+            episode_uuids = [str(value) for value in raw_refs if value]
+            if not episode_uuids:
+                return []
+
+            resolved = self._resolve_episodes(target_graph_id, episode_uuids)
+            return [
+                self._to_provenance_record(episode_uuid, resolved.get(episode_uuid))
+                for episode_uuid in episode_uuids
+            ]
+
+    def _resolve_episodes(
+        self, graph_id: str, episode_uuids: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """Charge les épisodes d'un graphe, indexés par UUID.
+
+        La résolution est bornée par `group_id` : un épisode d'un autre graphe
+        est traité comme absent, jamais comme trouvé.
+        """
+        res = self._run_async(
+            self._execute_cypher(
+                """
+                MATCH (e:Episodic {group_id: $group_id})
+                WHERE e.uuid IN $uuids
+                RETURN e.uuid AS uuid,
+                       e.content AS content,
+                       e.source_document_id AS source_document_id,
+                       e.source_filename AS source_filename,
+                       e.source_role AS source_role,
+                       e.chunk_index AS chunk_index,
+                       e.char_start AS char_start,
+                       e.char_end AS char_end,
+                       e.page AS page,
+                       e.section AS section,
+                       e.simulation_id AS simulation_id,
+                       e.platform AS platform,
+                       e.source AS source
+                """,
+                params={"group_id": graph_id, "uuids": list(episode_uuids)},
+            )
+        )
+        records = self._extract_records(res)
+        return {
+            str(self._get_record_field(record, "uuid", "")): {
+                "content": self._get_record_field(record, "content"),
+                "source_document_id": self._get_record_field(
+                    record, "source_document_id"
+                ),
+                "source_filename": self._get_record_field(record, "source_filename"),
+                "source_role": self._get_record_field(record, "source_role"),
+                "chunk_index": self._get_record_field(record, "chunk_index"),
+                "char_start": self._get_record_field(record, "char_start"),
+                "char_end": self._get_record_field(record, "char_end"),
+                "page": self._get_record_field(record, "page"),
+                "section": self._get_record_field(record, "section"),
+                "simulation_id": self._get_record_field(record, "simulation_id"),
+                "platform": self._get_record_field(record, "platform"),
+                "source": self._get_record_field(record, "source"),
+            }
+            for record in records
+            if self._get_record_field(record, "uuid")
+        }
+
+    @classmethod
+    def _to_provenance_record(
+        cls, episode_uuid: str, episode: Optional[Dict[str, Any]]
+    ) -> ProvenanceRecord:
+        """Classe une référence d'épisode selon son origine réelle.
+
+        Quatre origines, jamais fusionnées : documentaire, simulée, héritée d'un
+        graphe sans provenance, et non résolue (ADR 0012 §3).
+        """
+        if episode is None:
+            return ProvenanceRecord(
+                episode_uuid=episode_uuid,
+                resolved=False,
+                origin=ProvenanceOrigin.UNRESOLVED,
+                missing_reason=(
+                    "aucun épisode ne porte cet UUID dans le graphe demandé"
+                ),
+            )
+
+        def _int_or_none(value: Any) -> Optional[int]:
+            if isinstance(value, bool) or value is None:
+                return None
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        def _str_or_none(value: Any) -> Optional[str]:
+            if value is None:
+                return None
+            text = str(value)
+            return text if text else None
+
+        document_id = _str_or_none(episode.get("source_document_id"))
+        simulation_id = _str_or_none(episode.get("simulation_id"))
+
+        if simulation_id:
+            origin = ProvenanceOrigin.SIMULATION
+        elif document_id:
+            origin = ProvenanceOrigin.DOCUMENT
+        else:
+            origin = ProvenanceOrigin.LEGACY
+
+        missing_reason = None
+        if origin is ProvenanceOrigin.DOCUMENT:
+            # Une provenance documentaire incomplète n'est pas une provenance
+            # complète : elle est signalée, pas complétée par invention.
+            required = {
+                "source_filename": _str_or_none(episode.get("source_filename")),
+                "source_role": _str_or_none(episode.get("source_role")),
+                "chunk_index": _int_or_none(episode.get("chunk_index")),
+                "char_start": _int_or_none(episode.get("char_start")),
+                "char_end": _int_or_none(episode.get("char_end")),
+            }
+            absent = [name for name, value in required.items() if value is None]
+            if absent:
+                missing_reason = (
+                    "épisode documentaire incomplet, champs manquants : "
+                    + ", ".join(sorted(absent))
+                )
+            elif required["char_end"] <= required["char_start"]:  # type: ignore[operator]
+                missing_reason = (
+                    f"positions incohérentes : char_end ({required['char_end']}) "
+                    f"<= char_start ({required['char_start']})"
+                )
+
+        return ProvenanceRecord(
+            episode_uuid=episode_uuid,
+            resolved=True,
+            origin=origin,
+            source_document_id=document_id,
+            source_filename=_str_or_none(episode.get("source_filename")),
+            source_role=_str_or_none(episode.get("source_role")),
+            chunk_index=_int_or_none(episode.get("chunk_index")),
+            char_start=_int_or_none(episode.get("char_start")),
+            char_end=_int_or_none(episode.get("char_end")),
+            page=_int_or_none(episode.get("page")),
+            section=_str_or_none(episode.get("section")),
+            content=_str_or_none(episode.get("content")),
+            simulation_id=simulation_id,
+            platform=_str_or_none(episode.get("platform")),
+            missing_reason=missing_reason,
+        )
 
     # --- Recherche ---
 

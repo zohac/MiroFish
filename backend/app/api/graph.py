@@ -5,15 +5,22 @@
 
 import os
 import re
+import json
 import traceback
 import threading
 from contextlib import ExitStack, nullcontext
+from typing import Dict, Optional
 from flask import request, jsonify
 
 from . import graph_bp
 from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
-from ..services.graph_builder import BatchSubmission, GraphBuilderService
+from ..services.graph_builder import (
+    BatchSubmission,
+    DocumentChunkPlan,
+    GraphBuilderService,
+    plan_document_chunks,
+)
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.graph_store import GraphNotFoundError
@@ -22,6 +29,12 @@ from ..utils.locale import t, get_locale, set_locale
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..models.simulation_brief import build_minimal_brief
+from ..models.source_document import (
+    DocumentRole,
+    MAX_METADATA_FIELD_LENGTH,
+    create_source_document,
+)
 from ..services.simulation_manager import SimulationManager
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
@@ -119,12 +132,183 @@ def _project_has_active_build(project) -> bool:
     )
 
 
+def _legacy_chunk_plan(concatenated_text: str, *, chunk_size: int, chunk_overlap: int, reason: str):
+    """Plan de repli : découpage historique sur la concaténation.
+
+    Aucun document n'est inventé et aucune position n'est fabriquée : c'est le
+    chemin des projets créés avant la story 009-2, et celui d'un projet dont les
+    textes normalisés par document seraient absents.
+    """
+    chunks = TextProcessor.split_text(
+        concatenated_text, chunk_size=chunk_size, overlap=chunk_overlap
+    )
+    return DocumentChunkPlan(
+        chunks=chunks,
+        chunk_metadata=[],
+        context_text=concatenated_text,
+        diagnostics={
+            "documents_total": 0,
+            "documents_ingested": 0,
+            "documents_omitted": [{"document_id": "", "filename": "", "reason": reason}],
+            "chunks_total": len(chunks),
+            "chunks_per_document": {},
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+        },
+    )
+
+
+def _plan_project_chunks(
+    project,
+    concatenated_text: str,
+    *,
+    chunk_size: int,
+    chunk_overlap: int,
+):
+    """Planifie le découpage d'un projet, par document quand c'est possible.
+
+    Un document dont le texte normalisé manque est signalé et n'entre pas dans
+    le plan ; **les autres conservent leur provenance**. On ne bascule sur la
+    concaténation que lorsque aucun document n'est typé (projet antérieur).
+    """
+    documents = project.source_documents or []
+    if not documents:
+        return _legacy_chunk_plan(
+            concatenated_text,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            reason="projet antérieur à la provenance : découpage sur la concaténation",
+        )
+
+    document_texts = ProjectManager.get_all_document_texts(project.project_id)
+    available = [
+        entry for entry in documents if entry.get("document_id") in document_texts
+    ]
+    missing = [
+        entry for entry in documents if entry.get("document_id") not in document_texts
+    ]
+
+    if not available:
+        # Aucun texte typé : repli global, sans fabriquer de document.
+        plan = _legacy_chunk_plan(
+            concatenated_text,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            reason="aucun texte normalisé par document",
+        )
+        plan.diagnostics["documents_omitted"] = [
+            {
+                "document_id": entry.get("document_id", ""),
+                "filename": entry.get("filename", ""),
+                "reason": "texte normalisé absent du projet",
+            }
+            for entry in missing
+        ]
+        return plan
+
+    plan = plan_document_chunks(
+        available,
+        document_texts,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
+    # Les documents sans texte restent signalés, sans priver les autres de
+    # leur provenance.
+    for entry in missing:
+        logger.warning(
+            "Document sans texte normalisé, sans provenance : %s",
+            entry.get("filename"),
+        )
+        plan.diagnostics["documents_omitted"].append(
+            {
+                "document_id": entry.get("document_id", ""),
+                "filename": entry.get("filename", ""),
+                "reason": "texte normalisé absent du projet",
+            }
+        )
+    return plan
+
+
 def allowed_file(filename: str) -> bool:
     """检查文件扩展名是否允许"""
     if not filename or '.' not in filename:
         return False
     ext = os.path.splitext(filename)[1].lower().lstrip('.')
     return ext in Config.ALLOWED_EXTENSIONS
+
+
+def _parse_document_form_map(raw: Optional[str]) -> Dict[str, str]:
+    """Lit un champ de formulaire `document_<x>` de la forme `{"nom": "valeur"}`.
+
+    L'IHM n'est pas reconstruite ici : ces champs sont **facultatifs** et le
+    mode simple reste le mode par défaut. Ils existent pour qu'un appelant
+    puisse typer ses documents sans passer par l'écran de révision de 009-3.
+    Une chaîne mal encodée est ignorée plutôt que fatale : elle ne doit pas
+    empêcher un import par ailleurs valide.
+    """
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        logger.warning("Métadonnée de document illisible, ignorée : %r", raw[:120])
+        return {}
+    if not isinstance(parsed, dict):
+        logger.warning("Métadonnée de document inattendue, ignorée : %r", raw[:120])
+        return {}
+    return {str(key): str(value) for key, value in parsed.items() if value is not None}
+
+
+def _requested_role(raw: Optional[str], filename: str):
+    """Rôle demandé pour un fichier, ou le défaut du mode simple.
+
+    Un nom de fichier tel que `official.pdf` ne change rien : la seule source
+    d'autorité est la métadonnée explicite (ADR 0013 §1).
+    """
+    requested = _parse_document_form_map(raw).get(filename)
+    if requested is None:
+        return None
+    try:
+        return DocumentRole(requested.strip().lower())
+    except ValueError:
+        logger.warning("Rôle de document inconnu pour %s, défaut appliqué : %r", filename, requested)
+        return None
+
+
+def _requested_priority(raw: Optional[str], filename: str):
+    """Priorité demandée (1–5), ou le défaut du mode simple."""
+    requested = _parse_document_form_map(raw).get(filename)
+    if requested is None:
+        return None
+    try:
+        priority = int(str(requested).strip())
+    except (TypeError, ValueError):
+        logger.warning("Priorité de document illisible pour %s, défaut appliqué", filename)
+        return None
+    return priority if 1 <= priority <= 5 else None
+
+
+def _requested_metadata(raw: Optional[str], filename: str) -> Optional[str]:
+    """Métadonnée textuelle facultative (date, auteur, source).
+
+    Un champ libre trop long n'est pas une métadonnée mais un document collé
+    par erreur : il est ignoré (avec un avertissement) au lieu de faire échouer
+    tout l'import.
+    """
+    value = _parse_document_form_map(raw).get(filename)
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    if len(cleaned) > MAX_METADATA_FIELD_LENGTH:
+        logger.warning(
+            "Métadonnée trop longue pour %s (%d caractères), ignorée",
+            filename,
+            len(cleaned),
+        )
+        return None
+    return cleaned
 
 
 # ============== 项目管理接口 ==============
@@ -320,11 +504,21 @@ def generate_ontology():
         project = ProjectManager.create_project(name=project_name)
         project.simulation_requirement = simulation_requirement
         logger.info(f"创建项目: {project.project_id}")
-        
+
+        # Story 009-2 : le brief est construit avant l'ontologie et persisté.
+        # additional_context cesse d'être perdu après cette étape (AC6).
+        brief = build_minimal_brief(
+            goal=simulation_requirement,
+            additional_context=additional_context or None,
+        )
+        project.simulation_brief = brief.to_dict()
+        project.additional_context = additional_context or None
+
         # 保存文件并提取文本
         document_texts = []
         all_text = ""
-        
+        document_records = []
+
         for file in uploaded_files:
             if file and file.filename and allowed_file(file.filename):
                 # 保存文件到项目目录
@@ -337,20 +531,63 @@ def generate_ontology():
                     "filename": file_info["original_filename"],
                     "size": file_info["size"]
                 })
-                
+
+                # Story 009-2 : chaque fichier devient un SourceDocument typé.
+                # Le mode simple est le défaut ; le nom de fichier ne confère
+                # aucune autorité (ADR 0013 §1).
+                source_document = create_source_document(
+                    filename=file_info["original_filename"],
+                    saved_filename=file_info["saved_filename"],
+                    role=_requested_role(
+                        request.form.get("document_roles"),
+                        file_info["original_filename"],
+                    ),
+                    priority=_requested_priority(
+                        request.form.get("document_priorities"),
+                        file_info["original_filename"],
+                    ),
+                    date=_requested_metadata(
+                        request.form.get("document_dates"),
+                        file_info["original_filename"],
+                    ),
+                    author=_requested_metadata(
+                        request.form.get("document_authors"),
+                        file_info["original_filename"],
+                    ),
+                    source=_requested_metadata(
+                        request.form.get("document_sources"),
+                        file_info["original_filename"],
+                    ),
+                )
+
                 # 提取文本
                 text = FileParser.extract_text(file_info["path"])
                 text = TextProcessor.preprocess_text(text)
                 document_texts.append(text)
                 all_text += f"\n\n=== {file_info['original_filename']} ===\n{text}"
-        
+
+                # Le texte normalisé est conservé par document : c'est ce qui
+                # permet de vérifier document_text[char_start:char_end] == text
+                # bien après l'ingestion (AC2).
+                ProjectManager.save_document_text(
+                    project.project_id, source_document.document_id, text
+                )
+                document_records.append(source_document.to_dict())
+
         if not document_texts:
             ProjectManager.delete_project(project.project_id)
             return jsonify({
                 "success": False,
                 "error": t('api.noDocProcessed')
             }), 400
-        
+
+        # Le brief référence les documents réellement importés (AC6).
+        brief.source_document_ids = [
+            record["document_id"] for record in document_records
+        ]
+        project.simulation_brief = brief.to_dict()
+        project.source_documents = document_records
+
         # 保存提取的文本
         project.total_text_length = len(all_text)
         ProjectManager.save_extracted_text(project.project_id, all_text)
@@ -364,6 +601,23 @@ def generate_ontology():
             simulation_requirement=simulation_requirement,
             additional_context=additional_context if additional_context else None
         )
+
+        # Story 009-2 (AC7) : les limites appliquées à l'ontologie cessent d'être
+        # invisibles — échantillonnage, troncature et couverture par document.
+        ontology_diagnostics = getattr(generator, "last_context_diagnostics", None)
+        if ontology_diagnostics:
+            logger.info(
+                "Diagnostics de contexte ontologie : %s", ontology_diagnostics
+            )
+            if ontology_diagnostics.get("truncated") or ontology_diagnostics.get("sampled"):
+                logger.warning(
+                    "Contexte d'ontologie réduit : %d/%d caractères, %d fragment(s) "
+                    "échantillonné(s) sur %d",
+                    ontology_diagnostics.get("used_chars", 0),
+                    ontology_diagnostics.get("original_chars", 0),
+                    ontology_diagnostics.get("chunks_sampled", 0),
+                    ontology_diagnostics.get("chunks_total", 0),
+                )
         
         # 保存本体到项目
         entity_count = len(ontology.get("entity_types", []))
@@ -668,17 +922,28 @@ def _build_graph_impl():
                     message=t('progress.textChunking'),
                     progress=5
                 )
-                chunks = TextProcessor.split_text(
-                    text, 
-                    chunk_size=chunk_size, 
-                    overlap=chunk_overlap
+                # Story 009-2 : le découpage se fait par document, jamais sur
+                # la concaténation (R04). Un projet ancien n'a pas de document
+                # typé : on retombe alors sur le chemin historique.
+                plan = _plan_project_chunks(
+                    project, text, chunk_size=chunk_size, chunk_overlap=chunk_overlap
                 )
+                chunks = plan.chunks
+                chunk_metadata = plan.chunk_metadata or None
                 builder.validate_batch_chunks(chunks, batch_size=350)
                 total_chunks = len(chunks)
+                if plan.diagnostics.get("documents_omitted"):
+                    for omitted in plan.diagnostics["documents_omitted"]:
+                        build_logger.warning(
+                            "Document omis de l'ingestion : %s (%s)",
+                            omitted.get("filename"), omitted.get("reason"),
+                        )
                 
                 if resume_existing_batch:
                     graph_id = project.graph_id
-                    operation_id = builder.build_operation_id(graph_id, chunks)
+                    operation_id = builder.build_operation_id(
+                        graph_id, chunks, chunk_metadata
+                    )
                     if operation_id != project.zep_batch_operation_id:
                         raise RuntimeError(
                             "Persisted Zep batch does not match the current graph input"
@@ -745,6 +1010,7 @@ def _build_graph_impl():
                         batch_size=350,
                         progress_callback=add_progress_callback,
                         batch_created_callback=remember_batch,
+                        chunk_metadata=chunk_metadata,
                     )
                 
                 # 等待Zep处理完成（查询每个episode的processed状态）

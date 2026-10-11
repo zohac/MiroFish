@@ -43,6 +43,8 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0009](0009-format-des-stories.md) | Fichiers de story en markdown, pas en YAML | accepté — 2026-10-03 |
 | [0010](0010-override-driver-neo4j.md) | Forcer le driver `neo4j` par `override-dependencies` — un seul environnement | accepté — 2026-10-03 |
 | [0011](0011-inventaire-driver-et-format-de-story.md) | Relevé réel de la surface `neo4j`, version résolue consignée, marqueur de format de story | accepté — 2026-10-03 |
+| [0012](0012-contrat-de-provenance-graphstore.md) | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation vérifiée, lecture neutre | accepté — 2026-10-11 |
+| [0013](0013-semantique-des-sources.md) | Sémantique des sources : statut de validation, conflits conservés, budget de contexte explicite | accepté — 2026-10-11 |
 
 ## Règles
 

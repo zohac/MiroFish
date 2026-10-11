@@ -1,9 +1,9 @@
 # Epic 009 — Éligibilité des acteurs et fiabilisation des sources
 
-- **Statut** : `backlog` · **Dépend de** : 004, 005 · **Bloque** : 007
+- **Statut** : `in-progress` · **Dépend de** : 004, 005 · **Bloque** : 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
-- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) reste `backlog`, avec sa définition de prêt satisfaite : [fixtures relues et référence Docker](preparation-009-1.md). Aucun code métier 009 démarré. Les autres noms de fichiers sont des emplacements futurs.
+- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) est implémentée et clôturée (`done`, revue contradictoire du 11 octobre 2026) : modèle, classifieur, barrière, intégration et [mesure réelle](mesure-009-1.md) livrés. La [story 009-2](story-009-2.md) est implémentée et passe en `review` (revue à quatre couches du 11 octobre 2026, 15 constats traités) : [ADR 0012](../../decisions/0012-contrat-de-provenance-graphstore.md), [ADR 0013](../../decisions/0013-semantique-des-sources.md), modèles de sources et brief, contrat de provenance dans les deux stores, découpage par document, diagnostics de contexte et [mesure réelle C3](mesure-009-2.md) livrés. Les fichiers de 009-3 et 009-4 restent des emplacements futurs.
 - **Rapport source fourni par l'utilisateur** : [matrice de couverture](couverture-rapport-audit.md), incluant diagnostics, contexte long et événements de simulation.
 
 > L'Epic 005 a scellé l'environnement Docker de référence autonome (711 tests verts, Verdict GO).  
@@ -52,8 +52,8 @@
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `backlog` | [story-009-1.md](story-009-1.md) |
-| 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `backlog` | `story-009-2.md` |
+| 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `done` | [story-009-1.md](story-009-1.md) |
+| 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `review` | [story-009-2.md](story-009-2.md) |
 | 009-3 | Endpoints et interface de prévalidation des acteurs (`preview` & `review`) (Lot C - P1) | `backlog` | `story-009-3.md` |
 | 009-4 | Outils de provenance, rapport vérifiable et qualification globale (Lot D - P1) | `backlog` | `story-009-4.md` |
 

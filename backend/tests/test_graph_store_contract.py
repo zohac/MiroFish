@@ -119,6 +119,7 @@ class FakeGraphStore(GraphStore):
         chunks: List[str],
         batch_size: int = 350,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        chunk_metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> BatchSubmissionRecord:
         if graph_id not in self.graphs:
             raise GraphNotFoundError(f"Graphe '{graph_id}' introuvable.")
@@ -181,6 +182,11 @@ class FakeGraphStore(GraphStore):
             if e.source_node_uuid == node_uuid or e.target_node_uuid == node_uuid
         ]
 
+
+
+    def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+        """Aucune provenance : doublure de test, graphe en mémoire."""
+        return []
     def search(
         self,
         graph_id: str,

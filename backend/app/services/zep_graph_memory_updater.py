@@ -439,7 +439,9 @@ class ZepGraphMemoryUpdater:
                     text=combined_text,
                     source_description="MiroFish simulation activity batch",
                     metadata={
-                        "source": "mirofish_simulation",
+                        # `source` est interdit : `EpisodicNode.source` est un
+                        # EpisodeType géré par Graphiti. L'origine simulée se lit
+                        # sur `simulation_id` (ADR 0012 §3).
                         "simulation_id": self.simulation_id,
                         "platform": platform,
                         "activity_count": len(payload_activities),

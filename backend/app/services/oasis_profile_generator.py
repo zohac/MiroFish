@@ -27,8 +27,24 @@ from ..utils.locale import get_language_instruction, get_locale, set_locale, t
 from ..utils.logger import get_logger
 from ..utils.openai_chat_compat import create_chat_completion, extract_chat_completion_text
 from .zep_entity_reader import EntityNode, ZepEntityReader
+from ..models.actor_eligibility import ActorEligibility, ActorRole
+from ..models.simulation_brief import SimulationBrief
+from .actor_classifier import ActorClassifierService
 
 logger = get_logger('mirofish.oasis_profile')
+
+
+class ActorNotEligibleError(RuntimeError):
+    """Refus métier : l'entité n'est pas un acteur qualifié `eligible`.
+
+    Distinct d'une erreur de génération de persona : ce refus ne doit jamais
+    être rattrapé pour fabriquer un profil de secours.
+    """
+
+    def __init__(self, entity_uuid: str, reason: str):
+        self.entity_uuid = entity_uuid
+        self.reason = reason
+        super().__init__(f"Entité {entity_uuid} non éligible: {reason}")
 
 
 def _coerce_to_str(value: Any) -> str:
@@ -252,20 +268,28 @@ class OasisProfileGenerator:
         self.api_key = api_key or Config.LLM_API_KEY
         self.base_url = base_url or Config.LLM_BASE_URL
         self.model_name = model_name or Config.LLM_MODEL_NAME
-        
-        if not self.api_key:
-            raise ValueError("LLM_API_KEY 未配置")
-        
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            default_headers=llm_request_headers(self.base_url)
-        )
+
+        # Le client LLM de personas est facultatif : la barrière d'éligibilité
+        # doit pouvoir produire son diagnostic avant toute génération, même sans
+        # clé. Une génération LLM sans client retombe sur le mode déterministe.
+        self.client = None
+        if self.api_key:
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                default_headers=llm_request_headers(self.base_url)
+            )
+        # Observabilité du mode dégradé (revue 009-1) : compteur des personas
+        # retombées sur le mode déterministe faute de client LLM.
+        self.degraded_generations = 0
         
         self.zep_api_key = zep_api_key or Config.ZEP_API_KEY
         self._store = store
         self._zep_client = None
         self.graph_id = graph_id
+        # Story 009-2 (AC7) : l'étape personas borne le contexte documentaire
+        # (3000 caractères). La réduction cesse d'être silencieuse.
+        self.context_diagnostics: List[Dict[str, Any]] = []
 
     @property
     def store(self) -> Optional[GraphStore]:
@@ -301,21 +325,46 @@ class OasisProfileGenerator:
         self, 
         entity: EntityNode, 
         user_id: int,
-        use_llm: bool = True
+        use_llm: bool = True,
+        qualification: Optional[ActorEligibility] = None,
+        classifier: Optional[ActorClassifierService] = None,
+        simulation_requirement: str = "",
+        simulation_brief: Optional[SimulationBrief] = None,
     ) -> OasisAgentProfile:
         """
         从Zep实体生成OASIS Agent Profile
-        
+
+        La barrière d'éligibilité est appliquée avant toute génération : un
+        appel direct sans qualification fournie classe l'entité et refuse un
+        non-acteur par `ActorNotEligibleError`.
+
         Args:
             entity: Zep实体节点
             user_id: 用户ID（用于OASIS）
             use_llm: 是否使用LLM生成详细人设
-            
+            qualification: qualification déjà calculée (facultative)
+            classifier: classifieur à réutiliser si aucune qualification fournie
+            simulation_requirement: consigne minimale transmise au classifieur
+
         Returns:
             OasisAgentProfile
         """
+        if qualification is None:
+            classifier = classifier or ActorClassifierService()
+            result = classifier.classify_entities(
+                [entity], simulation_requirement, simulation_brief
+            )
+            qualification = result.qualifications[0]
+
+        if not qualification.is_eligible:
+            raise ActorNotEligibleError(
+                entity.uuid,
+                qualification.diagnostic or qualification.rationale or qualification.status.value,
+            )
+
+        role = qualification.role
         entity_type = entity.get_entity_type() or "Entity"
-        
+
         # 基础信息
         name = entity.name
         user_name = self._generate_username(name)
@@ -330,7 +379,9 @@ class OasisProfileGenerator:
                 entity_type=entity_type,
                 entity_summary=entity.summary,
                 entity_attributes=entity.attributes,
-                context=context
+                context=context,
+                role=role,
+                simulation_brief=simulation_brief,
             )
         else:
             # 使用规则生成基础人设
@@ -338,7 +389,8 @@ class OasisProfileGenerator:
                 entity_name=name,
                 entity_type=entity_type,
                 entity_summary=entity.summary,
-                entity_attributes=entity.attributes
+                entity_attributes=entity.attributes,
+                role=role,
             )
         
         return OasisAgentProfile(
@@ -358,6 +410,7 @@ class OasisProfileGenerator:
             profession=profile_data.get("profession"),
             interested_topics=profile_data.get("interested_topics", []),
             source_entity_uuid=entity.uuid,
+            # On conserve le type d'origine du graphe, jamais le rôle qualifié.
             source_entity_type=entity_type,
         )
     
@@ -527,25 +580,35 @@ class OasisProfileGenerator:
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        role: Optional[ActorRole] = None,
+        simulation_brief: Optional[SimulationBrief] = None,
     ) -> Dict[str, Any]:
         """
         使用LLM生成非常详细的人设
         
-        根据实体类型区分：
-        - 个人实体：生成具体的人物设定
-        - 群体/机构实体：生成代表性账号设定
+        根据 qualifié 角色区分：
+        - person : profil individuel
+        - organization : profil de compte officiel
         """
-        
-        is_individual = self._is_individual_entity(entity_type)
+        is_individual = role == ActorRole.PERSON if role is not None else self._is_individual_entity(entity_type)
+
+        if self.client is None:
+            self.degraded_generations += 1
+            logger.warning("Aucun client LLM de personas ; génération déterministe.")
+            return self._generate_profile_rule_based(
+                entity_name, entity_type, entity_summary, entity_attributes, role=role
+            )
         
         if is_individual:
             prompt = self._build_individual_persona_prompt(
-                entity_name, entity_type, entity_summary, entity_attributes, context
+                entity_name, entity_type, entity_summary, entity_attributes, context,
+                simulation_brief=simulation_brief,
             )
         else:
             prompt = self._build_group_persona_prompt(
-                entity_name, entity_type, entity_summary, entity_attributes, context
+                entity_name, entity_type, entity_summary, entity_attributes, context,
+                simulation_brief=simulation_brief,
             )
 
         # 尝试多次生成，直到成功或达到最大重试次数
@@ -605,7 +668,7 @@ class OasisProfileGenerator:
         
         logger.warning(f"LLM生成人设失败（{max_attempts}次尝试）: {last_error}, 使用规则生成")
         return self._generate_profile_rule_based(
-            entity_name, entity_type, entity_summary, entity_attributes
+            entity_name, entity_type, entity_summary, entity_attributes, role=role
         )
     
     def _fix_truncated_json(self, content: str) -> str:
@@ -702,18 +765,70 @@ class OasisProfileGenerator:
         base_prompt = "你是社交媒体用户画像生成专家。生成详细、真实的人设用于舆论模拟,最大程度还原已有现实情况。必须返回有效的JSON格式，所有字符串值不能包含未转义的换行符。"
         return f"{base_prompt}\n\n{get_language_instruction()}"
     
+    #: Plafond du contexte documentaire placé dans un prompt persona.
+    PERSONA_CONTEXT_LIMIT = 3000
+
+    def _bounded_context(self, context: str) -> str:
+        """Borne le contexte documentaire d'un persona et **signale** la réduction.
+
+        AC7 : l'étape personas ne doit pas tronquer en silence. Chaque réduction
+        est comptée dans `context_diagnostics`, sans bloquer la génération.
+        """
+        if not context:
+            return "无额外上下文"
+        if len(context) > self.PERSONA_CONTEXT_LIMIT:
+            self.context_diagnostics.append(
+                {
+                    "stage": "personas",
+                    "reason": "contexte documentaire tronqué",
+                    "original_chars": len(context),
+                    "used_chars": self.PERSONA_CONTEXT_LIMIT,
+                }
+            )
+            logger.warning(
+                "Contexte persona tronqué : %d -> %d caractères",
+                len(context),
+                self.PERSONA_CONTEXT_LIMIT,
+            )
+            return context[: self.PERSONA_CONTEXT_LIMIT]
+        return context
+
+    def _build_brief_block(
+        self, simulation_brief: Optional[SimulationBrief]
+    ) -> str:
+        """Bloc de consignes du brief, distinct du contexte documentaire.
+
+        NFR-5 : les consignes de l'utilisateur et le texte des sources ne sont
+        jamais confondus dans la même zone d'un message. Le bloc est donc étiqueté
+        et placé à part, et il n'est produit que si le brief porte des champs
+        avancés (AC9).
+        """
+        if simulation_brief is None or simulation_brief.is_minimal():
+            return ""
+        advanced = simulation_brief.advanced_text()
+        if not advanced:
+            return ""
+        return (
+            "\n\n【Consignes du brief — à respecter, distinctes des données "
+            "documentaires ci-dessus】\n"
+            f"Objectif : {simulation_brief.goal}\n"
+            f"{advanced}\n"
+            "【Fin des consignes】"
+        )
+
     def _build_individual_persona_prompt(
         self,
         entity_name: str,
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        simulation_brief: Optional[SimulationBrief] = None,
     ) -> str:
         """构建个人实体的详细人设提示词"""
         
         attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "无"
-        context_str = context[:3000] if context else "无额外上下文"
+        context_str = self._bounded_context(context)
         
         return f"""为实体生成详细的社交媒体用户人设,最大程度还原已有现实情况。
 
@@ -723,7 +838,7 @@ class OasisProfileGenerator:
 实体属性: {attrs_str}
 
 上下文信息:
-{context_str}
+{context_str}{self._build_brief_block(simulation_brief)}
 
 请生成JSON，包含以下字段:
 
@@ -757,12 +872,13 @@ class OasisProfileGenerator:
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        simulation_brief: Optional[SimulationBrief] = None,
     ) -> str:
         """构建群体/机构实体的详细人设提示词"""
         
         attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "无"
-        context_str = context[:3000] if context else "无额外上下文"
+        context_str = self._bounded_context(context)
         
         return f"""为机构/群体实体生成详细的社交媒体账号设定,最大程度还原已有现实情况。
 
@@ -772,7 +888,7 @@ class OasisProfileGenerator:
 实体属性: {attrs_str}
 
 上下文信息:
-{context_str}
+{context_str}{self._build_brief_block(simulation_brief)}
 
 请生成JSON，包含以下字段:
 
@@ -804,12 +920,25 @@ class OasisProfileGenerator:
         entity_name: str,
         entity_type: str,
         entity_summary: str,
-        entity_attributes: Dict[str, Any]
+        entity_attributes: Dict[str, Any],
+        role: Optional[ActorRole] = None,
     ) -> Dict[str, Any]:
         """使用规则生成基础人设"""
         
-        # 根据实体类型生成不同的人设
-        entity_type_lower = entity_type.lower()
+        # Le gabarit suit d'abord le type d'origine du graphe ; le rôle qualifié
+        # ne sert que de repli quand ce type n'a pas de gabarit dédié (AC7 : le
+        # rôle ne réécrit pas la traçabilité, il complète le typage générique).
+        entity_type_lower = (entity_type or "").lower()
+        known_templates = {
+            "student", "alumni", "publicfigure", "expert", "faculty", "person",
+            "mediaoutlet", "socialmediaplatform", "university",
+            "governmentagency", "ngo", "organization",
+        }
+        if entity_type_lower not in known_templates:
+            if role == ActorRole.ORGANIZATION:
+                entity_type_lower = "organization"
+            elif role == ActorRole.PERSON:
+                entity_type_lower = "person"
         
         if entity_type_lower in ["student", "alumni"]:
             return {
@@ -823,7 +952,7 @@ class OasisProfileGenerator:
                 "interested_topics": ["Education", "Social Issues", "Technology"],
             }
         
-        elif entity_type_lower in ["publicfigure", "expert", "faculty"]:
+        elif entity_type_lower in ["publicfigure", "expert", "faculty", "person"]:
             return {
                 "bio": f"Expert and thought leader in their field.",
                 "persona": f"{entity_name} is a recognized {entity_type.lower()} who shares insights and opinions on important matters. They are known for their expertise and influence in public discourse.",
@@ -884,31 +1013,55 @@ class OasisProfileGenerator:
         graph_id: Optional[str] = None,
         parallel_count: int = 5,
         realtime_output_path: Optional[str] = None,
-        output_platform: str = "reddit"
+        output_platform: str = "reddit",
+        qualifications: Optional[Dict[str, ActorEligibility]] = None,
+        classifier: Optional[ActorClassifierService] = None,
+        simulation_requirement: str = "",
+        simulation_brief: Optional[SimulationBrief] = None,
     ) -> List[OasisAgentProfile]:
         """
         批量从实体生成Agent Profile（支持并行生成）
-        
+
+        La barrière d'éligibilité est appliquée avant toute génération : les
+        entités non qualifiées `eligible` sont exclues du lot. Si aucune
+        qualification n'est fournie, l'entité est classée ici.
+
         Args:
             entities: 实体列表
             use_llm: 是否使用LLM生成详细人设
             progress_callback: 进度回调函数 (current, total, message)
-            graph_id: 图谱ID，用于Zep检索获取更丰富上下文
+            graph_id: 图谱ID，用于检索更丰富上下文
             parallel_count: 并行生成数量，默认5
-            realtime_output_path: 实时写入的文件路径（如果提供，每生成一个就写入一次）
+            realtime_output_path: 实时写入的文件路径
             output_platform: 输出平台格式 ("reddit" 或 "twitter")
-            
+            qualifications: qualifications déjà calculées, indexées par UUID
+            classifier: classifieur à réutiliser si aucune qualification fournie
+            simulation_requirement: consigne minimale transmise au classifieur
+
         Returns:
-            Agent Profile列表
+            Agent Profile列表（acteurs éligibles uniquement）
         """
         import concurrent.futures
         from threading import Lock
-        
-        # 设置graph_id用于Zep检索
+
+        # 设置graph_id用于检索
         if graph_id:
             self.graph_id = graph_id
-        
-        total = len(entities)
+
+        if qualifications is None:
+            classifier = classifier or ActorClassifierService()
+            classification = classifier.classify_entities(
+                entities, simulation_requirement, simulation_brief
+            )
+            qualifications = classification.by_uuid()
+
+        accepted = [
+            (entity, qualifications[entity.uuid])
+            for entity in entities
+            if entity.uuid in qualifications and qualifications[entity.uuid].is_eligible
+        ]
+
+        total = len(accepted)
         profiles = [None] * total  # 预分配列表保持顺序
         completed_count = [0]  # 使用列表以便在闭包中修改
         lock = Lock()
@@ -947,7 +1100,7 @@ class OasisProfileGenerator:
         # Capture locale before spawning thread pool workers
         current_locale = get_locale()
 
-        def generate_single_profile(idx: int, entity: EntityNode) -> tuple:
+        def generate_single_profile(idx: int, entity: EntityNode, qualification) -> tuple:
             """生成单个profile的工作函数"""
             set_locale(current_locale)
             entity_type = entity.get_entity_type() or "Entity"
@@ -956,7 +1109,9 @@ class OasisProfileGenerator:
                 profile = self.generate_profile_from_entity(
                     entity=entity,
                     user_id=idx,
-                    use_llm=use_llm
+                    use_llm=use_llm,
+                    qualification=qualification,
+                    simulation_brief=simulation_brief,
                 )
                 
                 # 实时输出生成的人设到控制台和日志
@@ -964,9 +1119,16 @@ class OasisProfileGenerator:
                 
                 return idx, profile, None
                 
+            except ActorNotEligibleError:
+                # Filet défensif : le lot ne présente jamais d'entité refusée
+                # (les refus sont filtrés en amont) ; si un chemin futur l'y
+                # amenait, un refus ne serait jamais converti en profil.
+                logger.warning(f"Entité {entity.name} refusée par la barrière.")
+                return idx, None, "refus d'éligibilité"
+
             except Exception as e:
                 logger.error(f"生成实体 {entity.name} 的人设失败: {str(e)}")
-                # 创建一个基础profile
+                # 创建一个基础profile（entité déjà éligible uniquement）
                 fallback_profile = OasisAgentProfile(
                     user_id=idx,
                     user_name=self._generate_username(entity.name),
@@ -987,8 +1149,9 @@ class OasisProfileGenerator:
         with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_count) as executor:
             # 提交所有任务
             future_to_entity = {
-                executor.submit(generate_single_profile, idx, entity): (idx, entity)
-                for idx, entity in enumerate(entities)
+                executor.submit(generate_single_profile, idx, entity, qualification):
+                    (idx, entity)
+                for idx, (entity, qualification) in enumerate(accepted)
             }
             
             # 收集结果
@@ -998,7 +1161,8 @@ class OasisProfileGenerator:
                 
                 try:
                     result_idx, profile, error = future.result()
-                    profiles[result_idx] = profile
+                    if profile is not None:
+                        profiles[result_idx] = profile
                     
                     with lock:
                         completed_count[0] += 1
@@ -1035,11 +1199,12 @@ class OasisProfileGenerator:
                     # 实时写入文件（即使是备用人设）
                     save_profiles_realtime()
         
+        result_profiles = [p for p in profiles if p is not None]
         print(f"\n{'='*60}")
-        print(f"人设生成完成！共生成 {len([p for p in profiles if p])} 个Agent")
+        print(f"人设生成完成！共生成 {len(result_profiles)} 个Agent")
         print(f"{'='*60}\n")
         
-        return profiles
+        return result_profiles
     
     def _print_generated_profile(self, entity_name: str, entity_type: str, profile: OasisAgentProfile):
         """实时输出生成的人设到控制台（完整内容，不截断）"""

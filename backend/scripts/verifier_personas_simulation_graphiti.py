@@ -44,6 +44,7 @@ for _candidate in (_project_root / ".env", _backend_dir / ".env"):
 
 from app.config import Config
 from app.models.project import Project, ProjectManager, ProjectStatus
+from app.services.actor_classifier import ActorClassifierService
 from app.services.oasis_profile_generator import OasisAgentProfile, OasisProfileGenerator
 from app.services.simulation_config_generator import (
     SimulationConfigGenerator,
@@ -150,6 +151,42 @@ class DeterministicPersonasLLMClient(LLMClient):
             return {"resolutions": []}
 
         return {}
+
+
+class DeterministicEligibilityLLMClient:
+    """Classifieur d'éligibilité déterministe pour le banc (revue 009-1).
+
+    Le banc 004-4 ne mesure pas la qualification d'acteurs (mesurée
+    séparément par 009-1) : ce stub type le graphe de banc Person/Organization
+    afin que la barrière laisse passer les acteurs attendus sans réseau ni clé.
+    """
+
+    _PERSON_TYPES = {
+        "person", "student", "professor", "publicfigure", "expert", "faculty",
+        "official", "journalist", "activist", "alumni",
+    }
+    _ORGANIZATION_TYPES = {
+        "organization", "company", "university", "governmentagency", "ngo",
+        "institution", "group", "community", "mediaoutlet",
+    }
+
+    def chat_json(self, messages, **kwargs):
+        payload = json.loads(messages[1]["content"].split("\n", 1)[1])
+        origin_type = (payload["entite"].get("type_origine") or "").strip().lower()
+        if origin_type in self._PERSON_TYPES:
+            return {
+                "role": "person", "status": "eligible",
+                "rationale": "personne du graphe de banc (stub)", "confidence": 0.9,
+            }
+        if origin_type in self._ORGANIZATION_TYPES:
+            return {
+                "role": "organization", "status": "eligible",
+                "rationale": "organisation du graphe de banc (stub)", "confidence": 0.9,
+            }
+        return {
+            "role": "unknown", "status": "review",
+            "rationale": "type non acteur (stub)", "confidence": 0.5,
+        }
 
 
 def run_personas_simulation_validation(
@@ -267,6 +304,11 @@ def run_personas_simulation_validation(
         # On utilise store mocké/injecté et use_llm=False pour un banc rapide et déterministe
         # (ou use_llm=True si --real-llm est spécifié)
         use_llm_profiles = not use_mock_llm
+        # Barrière d'acteurs (009-1) : classifieur déterministe — le banc ne
+        # mesure pas la qualification sémantique, mais prépare sans réseau.
+        eligibility_classifier = ActorClassifierService(
+            llm_client=DeterministicEligibilityLLMClient()
+        )
         # Injection de store via le gestionnaire officiel override_graph_store
         with override_graph_store(store):
             prepared_state = sim_manager.prepare_simulation(
@@ -275,6 +317,7 @@ def run_personas_simulation_validation(
                 document_text=sample_doc,
                 use_llm_for_profiles=use_llm_profiles,
                 parallel_profile_count=2,
+                classifier=eligibility_classifier,
             )
 
         print(f"   ✓ Préparation terminée avec statut={prepared_state.status.value}")

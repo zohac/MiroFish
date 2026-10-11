@@ -19,6 +19,7 @@ from datetime import datetime
 from openai import OpenAI
 
 from ..config import Config
+from ..models.simulation_brief import SimulationBrief
 from ..utils.logger import get_logger
 from ..utils.locale import get_language_instruction, t
 from ..utils.llm_compat import llm_request_headers
@@ -174,6 +175,12 @@ class SimulationParameters:
     # 生成元数据
     generated_at: str = field(default_factory=lambda: datetime.now().isoformat())
     generation_reasoning: str = ""  # LLM的推理说明
+
+    # Story 009-2 : copie du brief réellement utilisé et diagnostics de budget.
+    # Sans cela, l'artefact de configuration ne dit pas avec quelles consignes
+    # ni sur quels excerpts il a été produit (AC6, AC7).
+    simulation_brief: Optional[Dict[str, Any]] = None
+    context_budgets: List[Dict[str, Any]] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -192,11 +199,55 @@ class SimulationParameters:
             "llm_base_url": self.llm_base_url,
             "generated_at": self.generated_at,
             "generation_reasoning": self.generation_reasoning,
+            "simulation_brief": self.simulation_brief,
+            "context_budgets": list(self.context_budgets),
         }
     
     def to_json(self, indent: int = 2) -> str:
         """转换为JSON字符串"""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
+
+
+class SimulationContextError(ValueError):
+    """Le brief de simulation ne tient pas dans le budget d'une étape.
+
+    Lever une exception est délibéré : retirer une consigne explicite en silence
+    produirait une configuration incomplète que rien ne signalerait
+    (ADR 0013 §3).
+    """
+
+
+@dataclass
+class ContextBudget:
+    """Ce qu'une étape a réellement placé dans son prompt.
+
+    Les deux champs qui manquaient avant cette story sont `documents_omitted`
+    et `truncated` : sans eux, une réduction de contexte n'était visible que
+    par un marqueur écrit dans le texte du prompt.
+    """
+
+    stage: str
+    max_chars: int
+    used_chars: int = 0
+    brief_chars: int = 0
+    documents_included: List[str] = field(default_factory=list)
+    documents_omitted: List[Dict[str, str]] = field(default_factory=list)
+    characters_total: int = 0
+    characters_included: int = 0
+    truncated: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "stage": self.stage,
+            "max_chars": self.max_chars,
+            "used_chars": self.used_chars,
+            "brief_chars": self.brief_chars,
+            "documents_included": list(self.documents_included),
+            "documents_omitted": list(self.documents_omitted),
+            "characters_total": self.characters_total,
+            "characters_included": self.characters_included,
+            "truncated": self.truncated,
+        }
 
 
 class SimulationConfigGenerator:
@@ -223,7 +274,10 @@ class SimulationConfigGenerator:
     ENTITY_SUMMARY_LENGTH = 300          # 实体摘要
     AGENT_SUMMARY_LENGTH = 300           # Agent配置中的实体摘要
     ENTITIES_PER_TYPE_DISPLAY = 20       # 每类实体显示数量
-    
+
+    #: Marge réservée pour les enveloppes de contexte (titles, mentions).
+    CONTEXT_HEADROOM = 500
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -242,6 +296,15 @@ class SimulationConfigGenerator:
             base_url=self.base_url,
             default_headers=llm_request_headers(self.base_url)
         )
+
+        #: Diagnostics du dernier contexte construit, par étape (story 009-2, AC7).
+        self.context_budgets: List[ContextBudget] = []
+
+    @property
+    def last_context_budget(self) -> Optional[ContextBudget]:
+        """Budget du dernier contexte construit, ou None si l'étape n'a rien réduit."""
+
+        return self.context_budgets[-1] if self.context_budgets else None
     
     def generate_config(
         self,
@@ -254,6 +317,8 @@ class SimulationConfigGenerator:
         enable_twitter: bool = True,
         enable_reddit: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        simulation_brief: Optional[SimulationBrief] = None,
+        document_sections: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationParameters:
         """
         智能生成完整的模拟配置（分步生成）
@@ -290,7 +355,9 @@ class SimulationConfigGenerator:
         context = self._build_context(
             simulation_requirement=simulation_requirement,
             document_text=document_text,
-            entities=entities
+            entities=entities,
+            simulation_brief=simulation_brief,
+            documents=document_sections,
         )
         
         reasoning_parts = []
@@ -374,7 +441,11 @@ class SimulationConfigGenerator:
             reddit_config=reddit_config,
             llm_model=self.model_name,
             llm_base_url=self.base_url,
-            generation_reasoning=" | ".join(reasoning_parts)
+            generation_reasoning=" | ".join(reasoning_parts),
+            simulation_brief=(
+                simulation_brief.to_dict() if simulation_brief is not None else None
+            ),
+            context_budgets=[budget.to_dict() for budget in self.context_budgets],
         )
         
         logger.info(f"模拟配置生成完成: {len(params.agent_configs)} 个Agent配置")
@@ -385,29 +456,158 @@ class SimulationConfigGenerator:
         self,
         simulation_requirement: str,
         document_text: str,
-        entities: List[EntityNode]
+        entities: List[EntityNode],
+        simulation_brief: Optional[SimulationBrief] = None,
+        documents: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
-        """构建LLM上下文，截断到最大长度"""
-        
-        # 实体摘要
+        """构建LLM上下文，按预算分配并记录每次省略（story 009-2, AC7）。
+
+        L'ordre est : brief, puis entités, puis documents documentaires. Un
+        document ne prend jamais la place d'une consigne. Si le **brief** dépasse
+        à lui seul le budget, l'étape refuse avec un diagnostic explicite plutôt
+        que de retirer une consigne en silence (ADR 0013 §3).
+
+        `documents` (facultatif) permet un diagnostic **par document** : chaque
+        entrée ``{"document_id", "filename", "text"}`` est servie dans l'ordre,
+        et ce qui ne tient pas est nommé. Sans lui, le contexte est construit
+        depuis la concaténation, comme avant.
+        """
         entity_summary = self._summarize_entities(entities)
-        
-        # 构建上下文
+
+        # 1. Le brief est protégé et placé en premier.
+        brief_text = (
+            simulation_brief.instructions_text()
+            if simulation_brief is not None
+            else f"## 模拟需求\n{simulation_requirement}"
+        )
+        if len(brief_text) > self.MAX_CONTEXT_LENGTH:
+            raise SimulationContextError(
+                f"Le brief de simulation dépasse à lui seul le budget de l'étape "
+                f"« configuration » ({len(brief_text)} > {self.MAX_CONTEXT_LENGTH} "
+                "caractères) ; aucun document n'a été retiré pour le faire tenir, "
+                "car retirer une consigne explicite serait une perte silencieuse."
+            )
+
         context_parts = [
-            f"## 模拟需求\n{simulation_requirement}",
+            brief_text,
             f"\n## 实体信息 ({len(entities)}个)\n{entity_summary}",
         ]
-        
+
+        budget = ContextBudget(
+            stage="configuration",
+            max_chars=self.MAX_CONTEXT_LENGTH,
+            brief_chars=len(brief_text),
+        )
         current_length = sum(len(p) for p in context_parts)
-        remaining_length = self.MAX_CONTEXT_LENGTH - current_length - 500  # 留500字符余量
-        
-        if remaining_length > 0 and document_text:
-            doc_text = document_text[:remaining_length]
-            if len(document_text) > remaining_length:
-                doc_text += "\n...(文档已截断)"
-            context_parts.append(f"\n## 原始文档内容\n{doc_text}")
-        
+        remaining_length = self.MAX_CONTEXT_LENGTH - current_length - self.CONTEXT_HEADROOM
+
+        if remaining_length <= 0:
+            # Le brief et les entités occupent déjà tout le budget : les
+            # documents sont omis, et c'est dit, avec leur identité.
+            for document in self._document_entries(documents, document_text):
+                budget.documents_omitted.append(
+                    {
+                        "document_id": document["document_id"],
+                        "filename": document["filename"],
+                        "reason": "budget épuisé par le brief et les entités",
+                    }
+                )
+            budget.used_chars = current_length
+            budget.characters_total = sum(
+                len(document["text"])
+                for document in self._document_entries(documents, document_text)
+            )
+            self._record_context_budget(budget)
+            return "\n".join(context_parts)
+
+        entries = self._document_entries(documents, document_text)
+        budget.characters_total = sum(len(entry["text"]) for entry in entries)
+        included_sections: List[str] = []
+        consumed = 0
+        for entry in entries:
+            remaining_length = (
+                self.MAX_CONTEXT_LENGTH - current_length - consumed - self.CONTEXT_HEADROOM
+            )
+            if remaining_length <= 0:
+                budget.documents_omitted.append(
+                    {
+                        "document_id": entry["document_id"],
+                        "filename": entry["filename"],
+                        "reason": "budget épuisé par les documents précédents",
+                    }
+                )
+                continue
+            text = entry["text"]
+            if len(text) > remaining_length:
+                taken = text[:remaining_length] + "\n...(文档已截断)"
+                budget.truncated = True
+            else:
+                taken = text
+            consumed += len(taken)
+            included_sections.append(taken)
+            budget.documents_included.append(entry["document_id"])
+
+        if included_sections:
+            context_parts.append(
+                "\n## 原始文档内容\n" + "\n\n".join(included_sections)
+            )
+
+        budget.used_chars = sum(len(p) for p in context_parts)
+        budget.characters_included = consumed
+        self._record_context_budget(budget)
+
         return "\n".join(context_parts)
+
+    @staticmethod
+    def _document_entries(
+        documents: Optional[List[Dict[str, Any]]], document_text: str
+    ) -> List[Dict[str, str]]:
+        """Normalise les documents en entrées ``{document_id, filename, text}``.
+
+        Sans liste explicite, la concaténation devient **un** document anonyme :
+        le diagnostic reste honnête (il ne prétend pas nommer des documents
+        qu'on ne lui a pas donnés).
+        """
+        if documents:
+            entries: List[Dict[str, str]] = []
+            for document in documents:
+                text = document.get("text")
+                if not text:
+                    continue
+                entries.append(
+                    {
+                        "document_id": str(document.get("document_id") or ""),
+                        "filename": str(document.get("filename") or ""),
+                        "text": str(text),
+                    }
+                )
+            if entries:
+                return entries
+        if document_text:
+            return [
+                {
+                    "document_id": "",
+                    "filename": "concaténation des documents importés",
+                    "text": document_text,
+                }
+            ]
+        return []
+
+    def _record_context_budget(self, budget: ContextBudget) -> None:
+        """Consigne un budget et journalise ce qui n'a pas été placé dans le prompt."""
+        self.context_budgets.append(budget)
+        if budget.documents_omitted or budget.truncated:
+            logger.warning(
+                "Budget de contexte « %s » : %d/%d caractères, %d document(s) omis, "
+                "tronqué=%s",
+                budget.stage,
+                budget.used_chars,
+                budget.max_chars,
+                len(budget.documents_omitted),
+                budget.truncated,
+            )
+            for omitted in budget.documents_omitted:
+                logger.warning("  document omis : %s", omitted)
     
     def _summarize_entities(self, entities: List[EntityNode]) -> str:
         """生成实体摘要"""

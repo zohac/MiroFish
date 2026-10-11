@@ -5,6 +5,7 @@
 
 import os
 import json
+import re
 import uuid
 import shutil
 from datetime import datetime
@@ -53,6 +54,18 @@ class Project:
     
     # 错误信息
     error: Optional[str] = None
+
+    # --- Story 009-2 : documents sources typés, brief versionné ---
+    # Champs strictement additifs : un ancien project.json se relit avec des
+    # valeurs par défaut, et la lecture seule ne fabrique aucun document
+    # (provenance « inconnue », jamais reconstruite).
+    source_documents: List[Dict[str, Any]] = field(default_factory=list)
+    simulation_brief: Optional[Dict[str, Any]] = None
+    additional_context: Optional[str] = None
+    #: Conflits de sources conservés (story 009-2, AC8). Les deux sources de
+    #: chaque conflit restent attachées : aucune fusion silencieuse. C'est le
+    #: point de stockage ; l'arbitrage humain appartient à 009-3.
+    source_conflicts: List[Dict[str, Any]] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -73,7 +86,11 @@ class Project:
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "error": self.error
+            "error": self.error,
+            "source_documents": self.source_documents,
+            "simulation_brief": self.simulation_brief,
+            "additional_context": self.additional_context,
+            "source_conflicts": self.source_conflicts
         }
     
     @classmethod
@@ -100,8 +117,54 @@ class Project:
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
-            error=data.get('error')
+            error=data.get('error'),
+            source_documents=data.get('source_documents', []),
+            simulation_brief=data.get('simulation_brief'),
+            additional_context=data.get('additional_context'),
+            source_conflicts=data.get('source_conflicts', [])
         )
+
+    def get_brief(self):
+        """Retourne le brief persisté, ou ``None`` pour un projet ancien.
+
+        Un projet sans brief n'en reconstruit pas un : la fabrication d'un
+        objectif à partir d'un autre champ masquerait l'absence de consigne
+        structurée (AC6).
+        """
+        from .simulation_brief import SimulationBrief
+
+        if not self.simulation_brief:
+            return None
+        return SimulationBrief.from_dict(self.simulation_brief)
+
+    def get_source_documents(self):
+        """Retourne les documents persistés, éventuellement vides.
+
+        Un projet ancien n'a pas de document : la liste est vide, jamais peuplée
+        d'une entrée inventée à partir de ``files``.
+        """
+        from .source_document import SourceDocument
+
+        return [
+            SourceDocument.from_dict(entry) for entry in (self.source_documents or [])
+        ]
+
+    def get_source_conflicts(self):
+        """Retourne les conflits de sources persistés (AC8), éventuellement vides.
+
+        Un conflit conserve **ses deux sources** : c'est le point de stockage de
+        la story 009-2 ; l'arbitrage humain appartient à 009-3.
+        """
+        from .source_document import SourceConflict
+
+        return [
+            SourceConflict.from_dict(entry) for entry in (self.source_conflicts or [])
+        ]
+
+    def record_source_conflicts(self, conflicts) -> None:
+        """Stoque une liste de conflits de sources dans le projet."""
+
+        self.source_conflicts = [conflict.to_dict() for conflict in conflicts]
 
 
 class ProjectManager:
@@ -109,6 +172,16 @@ class ProjectManager:
     
     # 项目存储根目录
     PROJECTS_DIR = os.path.join(Config.UPLOAD_FOLDER, 'projects')
+
+    @staticmethod
+    def _safe_document_id(document_id: str) -> str:
+        """Valide un identifiant de document avant de l'utiliser comme nom de fichier."""
+        if not isinstance(document_id, str) or not document_id.strip():
+            raise ValueError("document_id is required")
+        candidate = document_id.strip()
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", candidate):
+            raise ValueError(f"document_id invalide : {document_id!r}")
+        return candidate
     
     @classmethod
     def _ensure_projects_dir(cls):
@@ -134,6 +207,16 @@ class ProjectManager:
     def _get_project_text_path(cls, project_id: str) -> str:
         """获取项目提取文本存储路径"""
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
+
+    @classmethod
+    def _get_project_documents_dir(cls, project_id: str) -> str:
+        """文本按文档存储的目录（story 009-2）。
+
+        Le texte normalisé de chaque document est conservé séparément : c'est ce
+        qui permet de vérifier plus tard que
+        ``document_text[char_start:char_end] == chunk_text`` (AC2).
+        """
+        return os.path.join(cls._get_project_dir(project_id), 'documents')
     
     @classmethod
     def create_project(cls, name: str = "Unnamed Project") -> Project:
@@ -304,6 +387,49 @@ class ProjectManager:
         
         with open(text_path, 'r', encoding='utf-8') as f:
             return f.read()
+
+    @classmethod
+    def save_document_text(cls, project_id: str, document_id: str, text: str) -> str:
+        """按文档保存归一化文本（story 009-2, AC2）。
+
+        返回写入的路径。``document_id`` est validé pour ne jamais s'échapper du
+        répertoire du projet : un identifiantissu d'une requête ne doit pas
+        pouvoir écrire ailleurs.
+        """
+        safe_id = cls._safe_document_id(document_id)
+        documents_dir = cls._get_project_documents_dir(project_id)
+        os.makedirs(documents_dir, exist_ok=True)
+        path = os.path.join(documents_dir, f"{safe_id}.txt")
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(text)
+        return path
+
+    @classmethod
+    def get_document_text(cls, project_id: str, document_id: str) -> Optional[str]:
+        """读取某个文档的归一化文本；不存在时返回 None 而非空串。"""
+        safe_id = cls._safe_document_id(document_id)
+        path = os.path.join(cls._get_project_documents_dir(project_id), f"{safe_id}.txt")
+        if not os.path.exists(path):
+            return None
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    @classmethod
+    def get_all_document_texts(cls, project_id: str) -> Dict[str, str]:
+        """返回全部文档文本 {document_id: text}；项目 ancien 返回空字典。"""
+        documents_dir = cls._get_project_documents_dir(project_id)
+        if not os.path.isdir(documents_dir):
+            return {}
+        texts: Dict[str, str] = {}
+        for entry in os.listdir(documents_dir):
+            if not entry.endswith('.txt'):
+                continue
+            full_path = os.path.join(documents_dir, entry)
+            if not os.path.isfile(full_path):
+                continue
+            with open(full_path, 'r', encoding='utf-8') as f:
+                texts[entry[:-4]] = f.read()
+        return texts
     
     @classmethod
     def get_project_files(cls, project_id: str) -> List[str]:

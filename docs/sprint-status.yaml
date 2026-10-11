@@ -17,7 +17,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-10
+mis_a_jour: 2026-10-11
 
 epics:
   - id: "001"
@@ -394,7 +394,7 @@ epics:
   - id: "009"
     slug: eligibilite-acteurs-et-sources
     titre: "Éligibilité des acteurs et fiabilisation des sources"
-    statut: backlog
+    statut: in-progress
     plan: docs/plans/009-eligibilite-acteurs-et-sources
     depend_de: ["004", "005"]
     pourquoi: >-
@@ -403,14 +403,28 @@ epics:
       de simulations initialement rapportés restent à documenter. L'Epic 009 prévoit ActorEligibility (séparation étanche
       connaissances vs acteurs), la typologie SourceDocument, la persistance du
       SimulationBrief, la prévalidation avant lancement et la provenance des faits
-      dans le rapport. La story 009-1 est rédigée et reste en backlog, sans code
-      démarré ; sa politique minimale conserve les collectifs en review et reporte
-      l'exception marque/fiction. Définition de prêt satisfaite le 10 octobre 2026 :
-      46 entités annotées et relues sur deux domaines, 25 tests d'intégrité ajoutés,
-      contrôle Docker consigné dans preparation-009-1.md. Aucun classifieur qualifié.
-      Corrections humaines, validation/conflits documentaires et contrat de provenance
-      à fixer avant les lots concernés. Le rapport source est rapproché dans une matrice
-      de couverture incluant diagnostics de contexte et traces des événements.
+      dans le rapport. La story 009-1 est implémentée et validée (revue de code
+      à quatre couches du 11 octobre 2026, 25 correctifs appliqués) :
+      modèle, classifieur agnostique, barrière du générateur, intégration
+      gestionnaire/routes, preuve de qualification et mesure réelle C2 (8/8
+      acteurs par domaine, 0 faux acteur). Politique minimale : personnes et
+      organisations admissibles, collectifs en review, exception marque/fiction
+      reportée. Corrections humaines, validation/conflits documentaires et contrat
+      de provenance à fixer avant les lots concernés.
+    # Story 009-1 (DONE) : ActorEligibility + ActorClassifierService livrés et
+    # relus (25 correctifs, 3 différés au 11 octobre 2026) ; 921 réussis + 3
+    # ignorés sous Docker (924 sur l'hôte) ; mesure réelle space-bunny consignée
+    # dans mesure-009-1.md. Détail dans docs/plans/009-eligibilite-acteurs-et-sources/.
+    # Story 009-2 (REVIEW) : ADR 0012 (contrat de provenance GraphStore) et
+    # ADR 0013 (statut de validation, conflits, budget de contexte) ; modèles
+    # source_document.py et simulation_brief.py ; extension rétrocompatible des
+    # deux stores (métadonnées alignées, annotation :Episodic vérifiée, lecture
+    # neutre get_edge_provenance) ; découpage par document avec positions
+    # exactes ; transmission du brief ; diagnostics de contexte. Sonde C3 réelle
+    # (mesure-009-2.md) : 2 documents x 2 fragments, 8/8 références résolues,
+    # 8/8 positions exactes. Filet : 1110 réussis sur l'hôte, 1107 + 3 ignorés
+    # sous Docker (référence post-009-1 : 924 hôte / 921 + 3 Docker). Revue à
+    # quatre couches : 1 bloquant + 14 constats traités.
     criteres_de_sortie:
       - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"
       - "C2 : 2 domaines sans changement de code ; fixtures annotées et mesure séparée du classifieur réel"

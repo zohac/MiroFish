@@ -152,6 +152,7 @@ def test_report_reader_lease_blocks_graph_start_and_delete(monkeypatch):
         project_id="proj-1",
         graph_id="graph-1",
         status=SimulationStatus.READY,
+        entity_types=[],
     )
     project = SimpleNamespace(
         project_id="proj-1",
@@ -244,6 +245,16 @@ def test_report_reader_lease_blocks_graph_start_and_delete(monkeypatch):
         classmethod(
             lambda _cls, **_kwargs: runner_calls.append(True)
         ),
+    )
+    monkeypatch.setattr(
+        simulation_api,
+        "_check_simulation_prepared",
+        lambda _simulation_id: (True, {}),
+    )
+    monkeypatch.setattr(
+        simulation_api,
+        "_qualification_inputs_are_fresh",
+        lambda _state, _types: (True, ""),
     )
     monkeypatch.setattr(
         graph_api.ZepGraphMemoryManager,

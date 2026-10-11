@@ -215,7 +215,7 @@ def test_factory_contract_and_default_resolution(monkeypatch):
         def set_ontology(self, graph_id, ontology): pass
         def add_episode(self, graph_id, text, source_description="", metadata=None, created_at=None):
             return EpisodeRecord(uuid="ep", graph_id=graph_id)
-        def add_text_batch(self, graph_id, chunks, batch_size=350, progress_callback=None):
+        def add_text_batch(self, graph_id, chunks, batch_size=350, progress_callback=None, chunk_metadata=None):
             return BatchSubmissionRecord("b", "op", ["ep"], len(chunks))
         def wait_for_batch(self, batch, progress_callback=None, timeout=600.0): return True
         def wait_for_episodes(self, graph_id, episode_uuids, timeout=600.0): return True
@@ -223,6 +223,11 @@ def test_factory_contract_and_default_resolution(monkeypatch):
         def get_all_edges(self, graph_id, include_temporal=True): return []
         def get_node(self, graph_id, node_uuid): return None
         def get_node_edges(self, graph_id, node_uuid): return []
+
+
+        def get_edge_provenance(self, graph_id: str, edge_uuid: str):
+            """Aucune provenance : doublure de test, graphe en mémoire."""
+            return []
         def search(self, graph_id, query, limit=10, scope="edges", reranker=None):
             return GraphSearchResult([], [], [], query, 0)
 

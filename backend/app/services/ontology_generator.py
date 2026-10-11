@@ -199,7 +199,10 @@ class OntologyGenerator:
     
     def __init__(self, llm_client: Optional[LLMClient] = None):
         self.llm_client = llm_client or LLMClient()
-    
+        #: Diagnostics du dernier contexte construit (story 009-2, AC7) : rend
+        #: visibles l'échantillonnage et la troncature appliqués par document.
+        self.last_context_diagnostics: Optional[Dict[str, Any]] = None
+
     def generate(
         self,
         document_texts: List[str],
@@ -217,6 +220,7 @@ class OntologyGenerator:
         Returns:
             本体定义（entity_types, edge_types等）
         """
+        self.last_context_diagnostics = None
         # 构建用户消息
         user_message = self._build_user_message(
             document_texts, 
@@ -294,16 +298,47 @@ class OntologyGenerator:
         return message
 
     def _build_document_context(self, document_texts: List[str]) -> str:
-        """构建用于本体分析的文档上下文，长文本按全局分块抽样而不是只截取开头。"""
+        """构建用于本体分析的文档上下文，长文本按全局分块抽样而不是只截取开头。
+
+        Restitue dans `self.last_context_diagnostics` ce que l'échantillonnage a
+        retiré, par document (story 009-2, AC7) : sans cela, une réduction de
+        contexte n'était visible que par un marqueur dans le prompt.
+        """
 
         combined_text = "\n\n---\n\n".join(document_texts)
         original_length = len(combined_text)
 
         if original_length <= self.MAX_TEXT_LENGTH_FOR_LLM:
+            self.last_context_diagnostics = {
+                "stage": "ontology",
+                "truncated": False,
+                "sampled": False,
+                "original_chars": original_length,
+                "used_chars": original_length,
+                "documents": [
+                    {
+                        "document_index": index,
+                        "original_chars": len(text),
+                        "chunks_total": 0,
+                        "chunks_sampled": 0,
+                        "reduced": False,
+                    }
+                    for index, text in enumerate(document_texts, 1)
+                ],
+            }
             return combined_text
 
         chunks = self._collect_document_chunks(document_texts)
         if not chunks:
+            self.last_context_diagnostics = {
+                "stage": "ontology",
+                "truncated": True,
+                "sampled": False,
+                "original_chars": original_length,
+                "used_chars": 0,
+                "documents": [],
+                "reason": "aucun fragment exploitable",
+            }
             return ""
 
         selected_chunks = self._select_representative_chunks(chunks)
@@ -324,11 +359,58 @@ class OntologyGenerator:
                 excerpt_limit=excerpt_budget,
             )
 
+        truncated = False
         if len(context) > self.MAX_TEXT_LENGTH_FOR_LLM:
             marker = "\n\n...(分块上下文已压缩到本体分析长度限制内)..."
             context = context[:self.MAX_TEXT_LENGTH_FOR_LLM - len(marker)] + marker
+            truncated = True
+
+        self.last_context_diagnostics = {
+            "stage": "ontology",
+            "truncated": truncated,
+            "sampled": len(selected_chunks) < len(chunks),
+            "original_chars": original_length,
+            "used_chars": len(context),
+            "chunks_total": len(chunks),
+            "chunks_sampled": len(selected_chunks),
+            "documents": self._per_document_diagnostics(chunks, selected_chunks),
+        }
 
         return context
+
+    def _per_document_diagnostics(
+        self,
+        chunks: List[Dict[str, Any]],
+        selected_chunks: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Résume, par document, la réduction réellement appliquée.
+
+        `chunks_sampled` compte les fragments **effectivement retenus** pour le
+        prompt, pas le total : un document dont aucun fragment n'a été
+        échantillonné apparaît comme tel (story 009-2, AC7).
+        """
+
+        selected_ids = {
+            (chunk["document_index"], chunk["chunk_index"])
+            for chunk in (selected_chunks or chunks)
+        }
+        documents: Dict[int, Dict[str, Any]] = {}
+        for chunk in chunks:
+            index = chunk["document_index"]
+            entry = documents.setdefault(
+                index,
+                {
+                    "document_index": index,
+                    "chunks_total": 0,
+                    "chunks_sampled": 0,
+                    "original_chars": 0,
+                },
+            )
+            entry["chunks_total"] += 1
+            entry["original_chars"] += len(chunk["text"])
+            if (index, chunk["chunk_index"]) in selected_ids:
+                entry["chunks_sampled"] += 1
+        return [documents[index] for index in sorted(documents)]
 
     def _collect_document_chunks(self, document_texts: List[str]) -> List[Dict[str, Any]]:
         """按文档收集分块，保留文档和分块编号方便提示词定位。"""
