@@ -275,7 +275,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | Epic | Titre | Dépend de |
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
-| 009 | Éligibilité des acteurs et fiabilisation des sources (`in-progress`, story 009-2 en `review`) | 004, 005 |
+| 009 | Éligibilité des acteurs et fiabilisation des sources (`in-progress`, stories 009-1 et 009-2 `done`) | 004, 005 |
 | 007 | Ontologie dynamique (v2) | 003, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
@@ -300,9 +300,8 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Relire et clore [009-2](plans/009-eligibilite-acteurs-et-sources/story-009-2.md)** : implémentation livrée et passage en `review`. [Sonde réelle C3](plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) : 2 documents × 2 fragments, 8/8 références résolues, 8/8 positions exactes. Reste la validation de revue avant `done`.
-2. **Préparer 009-3** : endpoints et interface de prévalidation des acteurs (`preview` & `review`), en s'appuyant sur les ADR 0012 et 0013 acceptés. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
-3. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
+1. **Lancer 009-3** : endpoints et interface de prévalidation des acteurs (`preview` & `review`), en s'appuyant sur les ADR 0012 et 0013 acceptés et sur les modèles de 009-2 clos. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
+2. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
 
@@ -319,7 +318,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **1110 réussis** sur l'hôte et **1107 réussis + 3 ignorés** sous Docker, sans `.env` ni réseau externe, le 11 octobre 2026 (story 009-2). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Référence post-009-1 : 924 hôte / 921 + 3 Docker ; jalon historique Epic 005 : 711. La sonde réelle C3 est rejouable hors CI (`scripts/verifier_provenance_documents.py`). |
+| Tests | **1112 réussis** sur l'hôte et **1109 réussis + 3 ignorés** sous Docker, sans `.env` ni réseau externe, le 11 octobre 2026 (stories 009-1 et 009-2 closes). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Référence post-009-1 : 924 hôte / 921 + 3 Docker ; jalon historique Epic 005 : 711. La sonde réelle C3 est rejouable hors CI (`scripts/verifier_provenance_documents.py`). |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 13 acceptés, 0 supersédé |

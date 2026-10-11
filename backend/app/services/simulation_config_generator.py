@@ -501,10 +501,11 @@ class SimulationConfigGenerator:
         current_length = sum(len(p) for p in context_parts)
         remaining_length = self.MAX_CONTEXT_LENGTH - current_length - self.CONTEXT_HEADROOM
 
+        entries = self._document_entries(documents, document_text)
         if remaining_length <= 0:
             # Le brief et les entités occupent déjà tout le budget : les
             # documents sont omis, et c'est dit, avec leur identité.
-            for document in self._document_entries(documents, document_text):
+            for document in entries:
                 budget.documents_omitted.append(
                     {
                         "document_id": document["document_id"],
@@ -513,14 +514,10 @@ class SimulationConfigGenerator:
                     }
                 )
             budget.used_chars = current_length
-            budget.characters_total = sum(
-                len(document["text"])
-                for document in self._document_entries(documents, document_text)
-            )
+            budget.characters_total = sum(len(document["text"]) for document in entries)
             self._record_context_budget(budget)
             return "\n".join(context_parts)
 
-        entries = self._document_entries(documents, document_text)
         budget.characters_total = sum(len(entry["text"]) for entry in entries)
         included_sections: List[str] = []
         consumed = 0

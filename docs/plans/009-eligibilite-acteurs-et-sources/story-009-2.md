@@ -2,7 +2,7 @@
 id: "009-2"
 epic: "009"
 titre: "Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore`"
-statut: review
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -104,6 +104,21 @@ Deux points sont assumés et documentés plutôt que corrigés : la détection d
 conflits reste lexicale et bornée (elle le déclare), et `split_text_into_chunks`
 a une progression plus sûre que la version d'origine sur les `overlap` extrêmes.
 
+#### Constats de la revue BMAD (Story 009-2)
+
+- [x] [Review][Patch] Unicité de conflict_id en cas de multiples contradictions entre la même paire de documents [backend/app/models/source_document.py:793]
+- [x] [Review][Patch] Prise en charge des dates ISO 8601 complètes avec composante horaire dans _parse_date [backend/app/models/source_document.py:560]
+- [x] [Review][Patch] Éviter le double appel redondant à _document_entries dans _build_context [backend/app/services/simulation_config_generator.py:507]
+
+##### Rejected
+- [Review][Rejected] false : Repli vers document_text si documents contient des textes vides [backend/app/services/simulation_config_generator.py:571] — Réfutation : Mécanisme de secours intentionnel pour la rétrocompatibilité.
+- [Review][Rejected] false : Mixité apparente des indices 1-based et 0-based dans _chunk_source_description [backend/app/utils/graph_store/graphiti_store.py:660] — Réfutation : L'indice 1-based est réservé au repli hérité chunk_{sequence}, l'indice 0-based indexe metadata_entries validé de taille identique à chunks.
+- [Review][Rejected] false : Rejet strict des types non-chaînes par _clean_str_list [backend/app/models/simulation_brief.py:44] — Réfutation : La levée de SimulationBriefError est une validation stricte délibérée.
+- [Review][Rejected] false : Priorité 1 par défaut et repli en cas de chaîne invalide [backend/app/api/graph.py:278] — Réfutation : Conforme à ADR 0013 §1 et AC2 (mode simple par défaut à 1, égalité sans préséance).
+- [Review][Rejected] false : Omission de target_audiences dans le prompt du classifieur d'acteurs [backend/app/services/actor_classifier.py:380] — Réfutation : AC4 restreint explicitement les consignes de classification du brief à excluded_actors, time_horizon et hypotheses.
+- [Review][Rejected] false : Acceptation de chaînes vides pour le champ section dans validate_chunk_metadata [backend/app/utils/graph_store/base.py:377] — Réfutation : section est typé Optional[str] sans restriction sur chaîne vide selon ADR 0012.
+- [Review][Rejected] low : Gestion d'erreur de décodage UTF-8 dans get_all_document_texts [backend/app/models/project.py:430] — Réfutation : Les fichiers .txt de ce répertoire sont toujours écrits hermétiquement en UTF-8 par l'application.
+
 ## Notes de développement
 
 ### Décisions à figer en T1 (préconditions de code)
@@ -190,10 +205,11 @@ Sondes existantes à préserver : `verifier_integration_graphiti.py`, `verifier_
 ## Revue
 
 Revue contradictoire à quatre couches menée le 11 octobre 2026, consignée dans
-`### Review Findings` ci-dessus (Tâches). Un second tour a relu les correctifs.
-Verdict : un défaut bloquant (F1) et quatorze constats majeurs/mineurs trouvés et
-traités ; les deux limites assumées sont écrites. La story peut passer en
-`review`.
+`### Review Findings` ci-dessus (Tâches). Un premier tour a traité 15 constats
+(dont 1 bloquant F1). La revue finale de code BMAD a identifié et appliqué
+3 patches de fiabilisation (unicité des `conflict_id`, support des horodatages
+ISO complets avec composante horaire, et factorisation des appels au budget de
+contexte). 1112 tests au vert. Verdict : clôture validée en `done`.
 
 ## Notes de complétion
 
@@ -214,8 +230,8 @@ le code, conformément à la définition de prêt.
   fragments, 8/8 références documentaires résolues, 8/8 positions exactes,
   isolation par graphe prouvée, sortie sans secret. Rejouée sous Docker contre le
   Neo4j du compose.
-- Filet hermétique : **1110 réussis** sur l'hôte (hors 3 contrôles Docker CLI) et
-  **1107 réussis + 3 ignorés** sous Docker sur le code courant, pour une référence
+- Filet hermétique : **1112 réussis** sur l'hôte (hors 3 contrôles Docker CLI) et
+  **1109 réussis + 3 ignorés** sous Docker sur le code courant, pour une référence
   post-009-1 de 924 hôte / 921 + 3 Docker. Les 3 ignorés sont les contrôles qui
   exigent la CLI Docker, inchangés.
 - `ruff check .` : aucune erreur. `validate_plans.py` : 9 epics, 33 fichiers de

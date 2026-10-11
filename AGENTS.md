@@ -57,21 +57,22 @@ reproductible.**
 > Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €), valider la relecture applicative (GraphStore, ZepEntityReader, OASIS — C4) avec purge optionnelle sécurisée (`purger_graphes_zep.py`, FR-6).
 > Les stories 006-1, 006-2 et 006-3 sont validées (800 tests verts).
 >
-> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, story 009-2 en `review`.**
+> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, stories 009-1 et 009-2 `done`.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
 > La story 009-1 est close (`done`) : modèle `ActorEligibility`, classifieur
 > agnostique à deux passes (`app/services/actor_classifier.py`), barrière du
 > générateur de profils, intégration gestionnaire/routes, preuve de qualification.
 > [Mesure réelle C2](docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md) :
 > space-bunny, 8/8 acteurs retenus et 0 faux acteur par domaine.
-> La story 009-2 est implémentée et passe en `review` : [ADR 0012](docs/decisions/0012-contrat-de-provenance-graphstore.md)
+> La story 009-2 est close (`done`) : [ADR 0012](docs/decisions/0012-contrat-de-provenance-graphstore.md)
 > (contrat de provenance `GraphStore`) et [ADR 0013](docs/decisions/0013-semantique-des-sources.md)
 > (statut de validation, conflits, budget de contexte) acceptés ; modèles
 > `source_document.py` et `simulation_brief.py`, extension des deux stores,
 > découpage par document à positions exactes, transmission du brief et
 > diagnostics de contexte. [Mesure réelle C3](docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) :
 > 2 documents × 2 fragments, 8/8 références documentaires résolues, 8/8 positions
-> exactes. Les lots 009-3 à 009-4 restent en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
+> exactes. Revue BMAD validée avec 3 patches appliqués (1112 tests verts).
+> Les lots 009-3 à 009-4 restent en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
 > reste la référence des arbitrages.
 
 ---

@@ -557,15 +557,23 @@ def _parse_date(value: Optional[str]) -> Optional[tuple]:
 
     if not isinstance(value, str):
         return None
-    match = re.fullmatch(r"(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?", value.strip())
+    match = re.match(
+        r"^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?.*)?$",
+        value.strip(),
+    )
     if not match:
         return None
     year = int(match.group(1))
     month = int(match.group(2)) if match.group(2) else 1
     day = int(match.group(3)) if match.group(3) else 1
+    hour = int(match.group(4)) if match.group(4) else 0
+    minute = int(match.group(5)) if match.group(5) else 0
+    second = int(match.group(6)) if match.group(6) else 0
     if not 1 <= month <= 12 or not 1 <= day <= 31:
         return None
-    return (year, month, day)
+    if not 0 <= hour <= 23 or not 0 <= minute <= 59 or not 0 <= second <= 59:
+        return None
+    return (year, month, day, hour, minute, second)
 
 
 def _rule_recency(conflict: SourceConflict) -> Optional[str]:
@@ -788,9 +796,13 @@ def detect_conflicts(
                 continue
 
             result.comparisons_made += 1
+            conflict_index = len(result.conflicts) + 1
             result.conflicts.append(
                 SourceConflict(
-                    conflict_id=f"conflict_{left['reference'].document_id}_{right['reference'].document_id}",
+                    conflict_id=(
+                        f"conflict_{left['reference'].document_id}_"
+                        f"{right['reference'].document_id}_{conflict_index}"
+                    ),
                     claim=f"{left['claim']} ⟷ {right['claim']}",
                     source_references=[left["reference"], right["reference"]],
                 )

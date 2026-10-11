@@ -415,16 +415,17 @@ epics:
     # relus (25 correctifs, 3 différés au 11 octobre 2026) ; 921 réussis + 3
     # ignorés sous Docker (924 sur l'hôte) ; mesure réelle space-bunny consignée
     # dans mesure-009-1.md. Détail dans docs/plans/009-eligibilite-acteurs-et-sources/.
-    # Story 009-2 (REVIEW) : ADR 0012 (contrat de provenance GraphStore) et
+    # Story 009-2 (DONE) : ADR 0012 (contrat de provenance GraphStore) et
     # ADR 0013 (statut de validation, conflits, budget de contexte) ; modèles
     # source_document.py et simulation_brief.py ; extension rétrocompatible des
     # deux stores (métadonnées alignées, annotation :Episodic vérifiée, lecture
     # neutre get_edge_provenance) ; découpage par document avec positions
     # exactes ; transmission du brief ; diagnostics de contexte. Sonde C3 réelle
     # (mesure-009-2.md) : 2 documents x 2 fragments, 8/8 références résolues,
-    # 8/8 positions exactes. Filet : 1110 réussis sur l'hôte, 1107 + 3 ignorés
-    # sous Docker (référence post-009-1 : 924 hôte / 921 + 3 Docker). Revue à
-    # quatre couches : 1 bloquant + 14 constats traités.
+    # 8/8 positions exactes. Filet : 1112 réussis sur l'hôte, 1109 + 3 ignorés
+    # sous Docker (référence post-009-1 : 924 hôte / 921 + 3 Docker). Revue BMAD à
+    # quatre couches : 3 patches appliqués (unicité conflict_id, ISO datetime,
+    # factorisation budget), 1112 tests verts.
     criteres_de_sortie:
       - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"
       - "C2 : 2 domaines sans changement de code ; fixtures annotées et mesure séparée du classifieur réel"

@@ -362,6 +362,18 @@ class TestSourceConflict:
         resolu = resolve_conflict(conflict, ConflictResolutionRule.RECENCY)
         assert resolu.resolution == "doc_2"
 
+    def test_regle_recency_supporte_horodatage_iso_complet(self):
+        conflict = SourceConflict(
+            "c1",
+            "affirmation",
+            [
+                make_reference("doc_1", date="2026-06-01T08:00:00Z"),
+                make_reference("doc_2", date="2026-06-01T14:30:00Z"),
+            ],
+        )
+        resolu = resolve_conflict(conflict, ConflictResolutionRule.RECENCY)
+        assert resolu.resolution == "doc_2"
+
     def test_round_trip_du_conflit(self):
         conflict = SourceConflict(
             "c1",
@@ -439,6 +451,32 @@ class TestDetectConflicts:
     def test_une_affirmation_sans_source_est_refusee(self):
         with pytest.raises(SourceConflictError):
             detect_conflicts([{"claim": "une affirmation"}])
+
+    def test_multiples_conflits_meme_paire_ont_des_identifiants_uniques(self):
+        result = detect_conflicts(
+            [
+                {
+                    "claim": "Le service Premium est disponible pour tous les comptes.",
+                    "source_reference": make_reference("doc_1"),
+                },
+                {
+                    "claim": "Le service Premium n'est pas disponible pour tous les comptes.",
+                    "source_reference": make_reference("doc_2"),
+                },
+                {
+                    "claim": "L'option Solo est active par defaut pour chaque compte.",
+                    "source_reference": make_reference("doc_1"),
+                },
+                {
+                    "claim": "L'option Solo n'est pas active par defaut pour chaque compte.",
+                    "source_reference": make_reference("doc_2"),
+                },
+            ]
+        )
+        assert len(result.conflicts) == 2
+        ids = [c.conflict_id for c in result.conflicts]
+        assert len(set(ids)) == 2
+        assert ids[0] != ids[1]
 
 
 # --- AC7 : le cas long est généré, pas committé ---
