@@ -8,6 +8,7 @@ contre Neo4j, qui est consignée séparément dans `mesure-009-2.md`.
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any, List, Tuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,6 +59,7 @@ class FakeProvenanceStore:
         self._documents = documents
         self._texts = document_texts
         self._edges = []
+        self.set_ontology_calls: List[Tuple[str, Any]] = []
 
     def _run_async(self, coro):
         return None
@@ -71,7 +73,8 @@ class FakeProvenanceStore:
     def create_graph(self, name, graph_id=None):
         return graph_id
 
-    def set_ontology(self, graph_id, ontology):
+    def set_ontology(self, graph_id, ontology, **kwargs):
+        self.set_ontology_calls.append((graph_id, ontology))
         return None
 
     def add_text_batch(self, graph_id, chunks, batch_size=350, progress_callback=None, chunk_metadata=None):
@@ -165,6 +168,17 @@ def test_sonde_reussit_avec_un_store_double(monkeypatch, tmp_path):
     assert rapport["statut"] == "SUCCES"
     assert all(rapport["criteres"].values())
     assert rapport["details"]["positions_exactes"] == rapport["details"]["resolved_documentary"]
+
+    # AC5 symétrie relecture BMAD groupe C : la sonde passe un payload non-vide
+    # à `set_ontology` (ADR 0014 refuse l'ontologie vide). Une régression qui
+    # reviendrait au payload `{"entity_types": [], "edge_types": []}` lèverait
+    # `OntologyValidationError` en vrai sur Neo4j ; on l'attrape ici.
+    assert created["store"].set_ontology_calls, "set_ontology jamais appelé"
+    payload = created["store"].set_ontology_calls[0][1]
+    assert payload["entity_types"], (
+        f"L'ontologie passée à set_ontology doit comporter au moins un type "
+        f"d'entité (ADR 0014 refuse les ontologies vides), reçu : {payload}"
+    )
 
 
 def test_sonde_gere_une_erreur_et_restaure_la_config(monkeypatch):

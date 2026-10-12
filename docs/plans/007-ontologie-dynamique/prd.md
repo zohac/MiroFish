@@ -47,7 +47,7 @@ L'ADR 0003 §3 nomme ces trois questions à arbitrer en v2 :
 Rendre l'ontologie **effective, validée et régénérable** sur événement, sans dupliquer ce que l'Epic 009 pose déjà. À la fin de l'epic :
 
 1. **L'ontologie générée pose réellement ses labels sur les nœuds du graphe.** `GraphStore.add_episode` consomme l'ontologie du projet et l'utilise pour contraindre l'extraction, et les nœuds résultants portent les labels déclarés (`PersonEntity`, `MediaOrganization`, etc.).
-2. **L'écriture est validée** : un nœud dont le type n'est pas dans l'ontologie est soit rejeté avec un diagnostic explicite, soit rétrogradé vers `:Entity` avec un `warning` tracé, selon la politique configurée (rejet par défaut, log-only via override).
+2. **L'écriture est validée** : un nœud dont le type n'est pas dans l'ontologie est soit rejeté avec un diagnostic explicite, soit rétrogradé vers `:Entity` avec un `warning` tracé, selon la politique configurée (rétrogradation avec warning par défaut, refus via `strict_ontology=True`).
 3. **La régénération est déclenchée sur événement** : ajout de document au projet, modification du brief de simulation, demande explicite via API. La régénération préserve les labels existants et ajoute les types nouveaux.
 4. **L'ontologie est une par projet** : deux simulations du même projet partagent l'ontologie ; un nouveau projet génère la sienne. Pas d'ontologie globale, pas de duplication.
 5. **L'ontologie est composable avec l'actor selection 009** : `ActorClassifierService` lit le label d'ontologie comme signal primaire quand il existe, conserve sa cascade de repli sinon, et n'est jamais contredit par un label absent.
@@ -75,7 +75,7 @@ Rendre l'ontologie **effective, validée et régénérable** sur événement, sa
 - **Édition manuelle des types d'ontologie par l'utilisateur** via une IHM dédiée. L'ontologie reste inférée du corpus et du brief. Une IHM de revue pourra être ajoutée dans un lot ultérieur si l'arbitrage change.
 - **Migration automatique des graphes Epic 006 vers l'ontologie v2.** Les graphes migrés restent sur `:Entity` (leur étiquette d'origine, ADR 0012) et ne sont pas ré-typés. Une migration rétroactive est documentée dans `docs/deferred-work.md`.
 - **Personnalisation utilisateur de la langue de l'ontologie** (FR/EN/ mixte). L'ontologie reste en anglais PascalCase pour les types et `UPPER_SNAKE_CASE` pour les relations, conformément au contrat actuel d'`OntologyGenerator`. La traduction des descriptions est du ressort de l'Epic 008 (localisation).
-- **Bascule « strict ontology » par projet.** La politique de validation est globale pour cette v2. Une exposition par projet est un raffinement ultérieur.
+- **Interface utilisateur de politique.** La préférence `strict_ontology` est persistée par projet et exposée par API en 007-2 ; une bascule dans l’IHM est reportée.
 
 ---
 
@@ -190,3 +190,13 @@ Ces chantiers sont explicitement reportés :
 - Édition manuelle des types via IHM (lot ultérieur, dépend de l'arbitrage utilisateur).
 - Localisation FR des types d'ontologie (Epic 008).
 - Régénération par simulation d'événements externes (RSS, API) — non couvert par la v2.
+
+## 11. Clarification du ticket 007-2 — 12 octobre 2026
+
+Le contrat détaillé de l’epic et de l’architecture est retenu : rétrogradation
+avec warning par défaut, refus en mode strict, politique sérialisable par projet
+et endpoint PATCH idempotent. Les formulations contraires des §2/3.2 sont
+corrigées. Les warnings sont conservés dans un journal dédié par graphe, sans
+mélange avec l’historique d’identifiants de versions prévu en 007-4. La garantie
+de refus exige un contrôle avant persistance ; sa faisabilité est une condition
+de prêt explicite de 007-2.

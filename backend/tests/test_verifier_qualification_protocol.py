@@ -131,7 +131,7 @@ def test_run_qualification_protocol_success_with_mocked_neo4j(monkeypatch):
         def get_edge_provenance(self, graph_id: str, edge_uuid: str):
             """Aucune provenance : doublure de test, graphe en mémoire."""
             return []
-        def set_ontology(self, graph_id: str, ontology: dict) -> None:
+        def set_ontology(self, graph_id: str, ontology: dict, *, strict: bool = False) -> None:
             pass
 
         def get_graph_data(self, graph_id: str) -> dict:
@@ -284,7 +284,7 @@ def test_run_qualification_protocol_insufficient_nodes_fails(monkeypatch):
         def get_edge_provenance(self, graph_id: str, edge_uuid: str):
             """Aucune provenance : doublure de test, graphe en mémoire."""
             return []
-        def set_ontology(self, graph_id: str, ontology: dict) -> None:
+        def set_ontology(self, graph_id: str, ontology: dict, *, strict: bool = False) -> None:
             pass
 
         def get_graph_data(self, graph_id: str) -> dict:

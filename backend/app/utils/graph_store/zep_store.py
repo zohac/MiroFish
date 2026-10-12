@@ -21,16 +21,13 @@ from zep_cloud.external_clients.ontology import (
     EntityText,
 )
 
-
 from ..logger import get_logger
 from ..ontology import (
-    MAX_ONTOLOGY_TYPES,
-    is_valid_ontology_name,
     normalize_ontology_attributes,
     normalize_ontology_source_targets,
     safe_ontology_attribute_name,
 )
-from .ontology_pydantic import valider_nom_de_type
+from .ontology_pydantic import OntologyToPydantic
 from ..zep import (
     call_zep_read_with_retry,
     get_zep_client,
@@ -58,43 +55,9 @@ from .errors import (
     GraphStoreError,
     GraphTimeoutError,
     GraphValidationError,
-    OntologyValidationError,
 )
 
 logger = get_logger("mirofish.graph_store.zep")
-
-
-def _declared_entity_type_names(ontology: Dict[str, Any]) -> List[str]:
-    """Noms des types d'entité réellement transmis à Zep, dans l'ordre déclaré.
-
-    Une entrée inutilisable — chaîne vide, dictionnaire sans nom — n'est jamais
-    transmise, donc elle ne doit pas non plus figurer dans l'empreinte utilisée
-    pour éviter de réappliquer une ontologie déjà posée (ADR 0014 §2).
-    """
-    return _declared_names(ontology.get("entity_types", []))
-
-
-def _declared_edge_type_names(ontology: Dict[str, Any]) -> List[str]:
-    """Noms des types de relation réellement transmis à Zep."""
-    return _declared_names(ontology.get("edge_types", []))
-
-
-def _declared_names(raw_types: Any) -> List[str]:
-    """Noms exploits d'une liste de types, chaîne ou dictionnaire."""
-    if not isinstance(raw_types, list):
-        return []
-
-    names: List[str] = []
-    for type_def in raw_types[:MAX_ONTOLOGY_TYPES]:
-        if isinstance(type_def, str):
-            name = type_def.strip()
-        elif isinstance(type_def, dict):
-            name = str(type_def.get("name", "")).strip()
-        else:
-            continue
-        if name:
-            names.append(name)
-    return names
 
 
 class ZepGraphStore(GraphStore):
@@ -181,13 +144,20 @@ class ZepGraphStore(GraphStore):
     # --- Cycle de vie ---
 
     def create_graph(self, name: str, graph_id: Optional[str] = None) -> str:
-        """Crée un graphe Zep avec réconciliation de création et tolérance aux pannes."""
+        """Crée un graphe Zep avec réconciliation de création et tolérance aux pannes.
+
+        Quand un `graph_id` est explicitement fourni, l'ontologie appliquée
+        mémorisée sous cette clé est effacée : un graphe « neuf » ne peut pas
+        hériter d'une politique posée avant lui (ADR 0014 §2 ; bug de cycle de
+        vie relecturé le 12 octobre 2026).
+        """
         if not name or not name.strip():
             raise GraphValidationError("Le nom du graphe ne peut pas être vide")
         if graph_id is not None and not graph_id.strip():
             raise GraphValidationError("graph_id ne peut pas être une chaîne vide")
 
         target_graph_id = graph_id.strip() if graph_id else f"mirofish_{uuid.uuid4().hex[:16]}"
+        self._applied_ontologies.pop(target_graph_id, None)
         with self._translate_errors(f"création du graphe {target_graph_id}"):
             try:
                 self._client.graph.create(
@@ -225,11 +195,19 @@ class ZepGraphStore(GraphStore):
             return target_graph_id
 
     def delete_graph(self, graph_id: str) -> None:
-        """Supprime un graphe Zep Cloud."""
+        """Supprime un graphe Zep Cloud.
+
+        L'ontologie appliquée mémorisée est aussi purgée : un graphe supprimé
+        puis recréé sous le même identifiant ne doit pas voir `get_applied
+        _ontology` répondre sur un état mémoire antérieur (ADR 0014 §2 ; bug
+        de cycle de vie relecturé le 12 octobre 2026).
+        """
         if not graph_id or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        with self._translate_errors(f"suppression du graphe {graph_id}"):
-            self._client.graph.delete(graph_id=graph_id)
+        target_graph_id = graph_id.strip()
+        with self._translate_errors(f"suppression du graphe {target_graph_id}"):
+            self._client.graph.delete(graph_id=target_graph_id)
+        self._applied_ontologies.pop(target_graph_id, None)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         """Retourne la totalité des nœuds, arêtes et statistiques compatibles API/UI."""
@@ -353,55 +331,48 @@ class ZepGraphStore(GraphStore):
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
+        if not isinstance(strict, bool):
+            raise GraphValidationError("strict doit être un booléen")
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
         target_graph_id = graph_id.strip()
 
-        # La validation de noms et de cardinalité est **partagée** avec
-        # GraphitiGraphStore : les deux implémentations doivent refuser la même
-        # entrée pour la même raison (ADR 0014 §2). Zep n'écrit pas les mêmes
-        # labels Cypher, mais un nom qui ne serait pas un identifiant produirait
-        # chez lui la même erreur, en plus loin.
-        entity_type_names = _declared_entity_type_names(ontology)
-        edge_type_names = _declared_edge_type_names(ontology)
-        if not entity_type_names and not edge_type_names:
-            raise OntologyValidationError(
-                "Ontologie refusée : aucun type d'entité ni type de relation "
-                "exploitable"
-            )
+        # Validation unique : `OntologyToPydantic` est la source unique de
+        # vérité pour les deux implémentations. Les classes Pydantic qu'il
+        # produit sont jetées ici — Zep n'en a pas besoin, il ne consomme
+        # que les noms à transmettre à son serveur — mais la validation est
+        # par construction la même que pour Graphiti (ADR 0014 §2).
+        entity_type_names = tuple(OntologyToPydantic.from_dict(ontology).keys())
+        edge_type_names = tuple(
+            OntologyToPydantic.edge_types_from_dict(ontology).keys()
+        )
 
         with self._translate_errors(f"définition de l'ontologie pour {target_graph_id}"):
             warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
             entity_types: Dict[str, Any] = {}
-            for entity_def in ontology.get("entity_types", [])[:MAX_ONTOLOGY_TYPES]:
+            for entity_def in ontology.get("entity_types", []):
                 if isinstance(entity_def, str):
                     name = entity_def.strip()
-                    if not name:
-                        continue
                     description = f"A {name} entity."
                     raw_attrs = []
                 elif isinstance(entity_def, dict):
                     name = str(entity_def.get("name", "")).strip()
-                    if not name:
-                        continue
-                    description = entity_def.get("description", f"A {name} entity.")
+                    description = entity_def.get("description") or f"A {name} entity."
                     raw_attrs = entity_def.get("attributes", [])
                 else:
                     continue
 
-                valider_nom_de_type(name, "type")
+                if name not in entity_type_names:
+                    # Filtré par OntologyToPydantic (nom vide, doublon, type
+                    # d'entrée non supporté, etc.) — déjà refusé en amont.
+                    continue
 
                 attrs = {"__doc__": description}
                 annotations: Dict[str, Any] = {}
 
                 for normalized in normalize_ontology_attributes(raw_attrs):
                     attr_name = safe_ontology_attribute_name(normalized["name"])
-                    if not is_valid_ontology_name(attr_name):
-                        raise OntologyValidationError(
-                            f"L'attribut '{normalized['name']}' du type '{name}' "
-                            "n'est pas un identifiant valide"
-                        )
                     attr_desc = normalized["description"]
                     attrs[attr_name] = Field(description=attr_desc, default=None)
                     annotations[attr_name] = Optional[EntityText]
@@ -412,36 +383,28 @@ class ZepGraphStore(GraphStore):
                 entity_types[name] = entity_class
 
             edge_definitions: Dict[str, Any] = {}
-            for edge_def in ontology.get("edge_types", [])[:MAX_ONTOLOGY_TYPES]:
+            for edge_def in ontology.get("edge_types", []):
                 if isinstance(edge_def, str):
                     name = edge_def.strip()
-                    if not name:
-                        continue
                     description = f"A {name} relationship."
                     raw_attrs = []
                     raw_source_targets = []
                 elif isinstance(edge_def, dict):
                     name = str(edge_def.get("name", "")).strip()
-                    if not name:
-                        continue
-                    description = edge_def.get("description", f"A {name} relationship.")
+                    description = edge_def.get("description") or f"A {name} relationship."
                     raw_attrs = edge_def.get("attributes", [])
                     raw_source_targets = edge_def.get("source_targets", [])
                 else:
                     continue
 
-                valider_nom_de_type(name, "relation")
+                if name not in edge_type_names:
+                    continue
 
                 attrs = {"__doc__": description}
                 annotations = {}
 
                 for normalized in normalize_ontology_attributes(raw_attrs):
                     attr_name = safe_ontology_attribute_name(normalized["name"])
-                    if not is_valid_ontology_name(attr_name):
-                        raise OntologyValidationError(
-                            f"L'attribut '{normalized['name']}' de la relation "
-                            f"'{name}' n'est pas un identifiant valide"
-                        )
                     attr_desc = normalized["description"]
                     attrs[attr_name] = Field(description=attr_desc, default=None)
                     annotations[attr_name] = Optional[str]
@@ -516,9 +479,9 @@ class ZepGraphStore(GraphStore):
         déjà posée pour ce graphe, elle est appliquée au graphe **avant** l'ajout,
         pour que l'extraction distant s'exécute sous ces types (ADR 0014 §2).
         """
-        if not graph_id or not graph_id.strip():
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        if not text or not text.strip():
+        if not isinstance(text, str) or not text.strip():
             raise GraphValidationError("Le contenu textuel de l'épisode est requis")
         if metadata is not None and not isinstance(metadata, dict):
             raise GraphValidationError("metadata doit être un dictionnaire")
@@ -562,21 +525,20 @@ class ZepGraphStore(GraphStore):
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
 
-        # L'empreinte couvre les **relations** aussi : deux ontologies qui
-        # déclarent les mêmes entités mais des relations différentes sont deux
-        # ontologies, et ne pas les distinguer reviendrait à n'appliquer que la
-        # première en silence.
-        fingerprint = (
-            tuple(_declared_entity_type_names(ontology)),
-            tuple(_declared_edge_type_names(ontology)),
+        # Validation par `OntologyToPydantic` (source unique, mêmes refus que
+        # Graphiti). Les classes Pydantic sont jetées : on ne garde que les
+        # noms pour l'empreinte. Une ontologie qui échoue ici lève
+        # `OntologyValidationError` — Graphiti fait exactement la même chose
+        # dans `_resolve_applied_ontology`.
+        entity_type_names = tuple(OntologyToPydantic.from_dict(ontology).keys())
+        edge_type_names = tuple(
+            OntologyToPydantic.edge_types_from_dict(ontology).keys()
         )
-        if fingerprint == ((), ()):
-            return
 
         appliquee = self._applied_ontologies.get(graph_id)
         if appliquee is not None:
             courante = (appliquee.entity_type_names, appliquee.edge_type_names)
-            if courante == fingerprint:
+            if courante == (entity_type_names, edge_type_names):
                 return
 
         self.set_ontology(graph_id, ontology)

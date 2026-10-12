@@ -67,7 +67,13 @@ class MockE2EGraphitiStore(GraphStore):
         self._nodes.pop(graph_id, None)
         self._edges.pop(graph_id, None)
 
-    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
+    def set_ontology(
+        self,
+        graph_id: str,
+        ontology: Dict[str, Any],
+        *,
+        strict: bool = False,
+    ) -> None:
         if self.should_fail and self.fail_stage == "set_ontology":
             raise GraphStoreError("Erreur simulée lors de set_ontology")
         self.ontologies[graph_id] = ontology

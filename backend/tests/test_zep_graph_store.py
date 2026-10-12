@@ -687,20 +687,24 @@ def test_search_extracts_node_created_at(mock_zep_client: MagicMock):
 
 
 def test_set_ontology_with_string_lists_and_missing_names(mock_zep_client: MagicMock):
-    """Vérifie le support des ontologies avec listes de chaînes et tolérance aux dictionnaires incomplets."""
+    """Une entrée sans nom exploitable est refusée : AC5 symétrie (007-1 relecture).
+
+    `OntologyToPydantic.from_dict` est la source unique de validation : un
+    dict sans `name` est rejeté comme `Type d'entité sans nom exploitable`,
+    des deux côtés, et non plus silencieusement filtré par Zep.
+    """
     store = ZepGraphStore(client=mock_zep_client)
     compact_ontology = {
         "entity_types": ["Person", {"name": "Organization"}, {"invalid": "missing name"}],
         "edge_types": ["KNOWS", {"name": "ALLIED_WITH"}],
     }
-    store.set_ontology("proj-compact", compact_ontology)
 
-    mock_zep_client.graph.set_ontology.assert_called_once()
-    kwargs = mock_zep_client.graph.set_ontology.call_args[1]
-    assert "Person" in kwargs["entities"]
-    assert "Organization" in kwargs["entities"]
-    assert "KNOWS" in kwargs["edges"]
-    assert "ALLIED_WITH" in kwargs["edges"]
+    from app.utils.graph_store.errors import OntologyValidationError
+
+    with pytest.raises(OntologyValidationError):
+        store.set_ontology("proj-compact", compact_ontology)
+
+    mock_zep_client.graph.set_ontology.assert_not_called()
 
 
 def test_wait_for_episodes_validation_guards(mock_zep_client: MagicMock):

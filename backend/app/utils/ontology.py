@@ -8,11 +8,17 @@ MAX_ONTOLOGY_TYPES = 10
 MAX_ONTOLOGY_ATTRIBUTES = 10
 MAX_ONTOLOGY_SOURCE_TARGETS = 10
 #: Noms d'attributs d'ontologie que le store gère lui-même : ils sont préfixés
-#: par `entity_` au lieu d'être refusés. La liste couvre les propriétés de
-#: `EntityNode` (Graphiti) — mesuré sur `EntityNode.model_fields` — et le
-#: `graph_id` de partitionnement. Un attribut portant l'un de ces noms entrerait
-#: en collision avec une propriété gérée, et Graphiti refuserait la classe **au
-#: moment de l'extraction**, loin de sa cause (ADR 0014 §4).
+#: par `entity_` au lieu d'être refusés. La liste couvre :
+#: - les propriétés de `EntityNode` (Graphiti) — mesuré sur `EntityNode.model_fields` ;
+#: - le `graph_id` de partitionnement ;
+#: - les noms de classe / d'instance réservés par Pydantic 2 — mesuré sur
+#:   `pydantic 2.12.5`, où `graphiti_core` lit `entity_type.model_fields` en
+#:   plusieurs endroits ; un attribut portant un de ces noms serait avalé par
+#:   Pydantic comme configuration de classe, jamais posé en propriété de nœud
+#:   (relecture BMAD du 12 oct. 2026, patch #6 groupe B).
+#: Un attribut portant l'un de ces noms entrerait en collision avec une
+#: propriété gérée, et Graphiti refuserait la classe **au moment de
+#: l'extraction**, loin de sa cause (ADR 0014 §4).
 RESERVED_ONTOLOGY_ATTRIBUTE_NAMES = frozenset({
     "uuid",
     "name",
@@ -23,6 +29,21 @@ RESERVED_ONTOLOGY_ATTRIBUTE_NAMES = frozenset({
     "created_at",
     "attributes",
     "labels",
+    # Noms de classe Pydantic 2 (`pydantic 2.12.5`).
+    "model_config",
+    "model_fields",
+    "model_post_init",
+    "model_parametrized_name",
+    "model_validate",
+    "model_construct",
+    "model_copy",
+    "model_dump",
+    "model_dump_json",
+    "model_validate_json",
+    "model_extra_fields",
+    "model_post_root_validator",
+    "model_rebuild",
+    "model_rebuild_method",
 })
 
 _FALLBACK_ATTRIBUTE = {

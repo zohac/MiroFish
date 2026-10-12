@@ -209,32 +209,45 @@ def test_reference_en_etoile_n_est_pas_un_cycle():
 
 
 def test_classe_non_constructible_est_refusee():
-    """`model_config` passe le schéma et casse la construction : le refus vient du second temps."""
-    with pytest.raises(OntologyValidationError) as exc_info:
-        OntologyToPydantic.from_dict(
-            ontology_with(
-                {
-                    "name": "PersonEntity",
-                    "attributes": [{"name": "model_config", "type": "text"}],
-                }
-            )
-        )
+    """`model_config` est désormais préfixé au schéma (relecture BMAD groupe B, P6).
 
-    assert "PersonEntity" in str(exc_info.value)
-    assert "constructible" in str(exc_info.value)
+    Avant la relecture, `model_config` passait la validation de schéma,
+    atteignait la construction Pydantic et déclenchait une
+    `pydantic.errors.PydanticUserError` levée comme « constructibilité ».
+    Le préfixage au schéma — via `safe_ontology_attribute_name` qui le
+    range dans `RESERVED_ONTOLOGY_ATTRIBUTE_NAMES` — attrape le conflit
+    plus tôt, sans dépendre de Pydantic, et produit un champ
+    `entity_model_config` plutôt qu'une classe cassée.
+    """
+    classes = OntologyToPydantic.from_dict(
+        ontology_with(
+            {
+                "name": "PersonEntity",
+                "attributes": [{"name": "model_config", "type": "text"}],
+            }
+        )
+    )
+
+    fields = classes["PersonEntity"].model_fields
+    assert "model_config" not in fields
+    assert "entity_model_config" in fields
 
 
 def test_le_refus_de_constructibilite_survit_a_un_autre_type_valide():
     """Le refus vise le type fautif, pas l'ontologie entière."""
+    # Cas d'un attribut invalide qui doit lever même en présence d'un autre
+    # type valide : `model_fields` est désormais préfixé (pas un refus), on
+    # utilise un nom de type trop long ou avec un caractère non-identifiant
+    # pour forcer le refus au niveau du type.
     with pytest.raises(OntologyValidationError) as exc_info:
         OntologyToPydantic.from_dict(
             ontology_with(
                 {"name": "ValidType"},
-                {"name": "BrokenType", "attributes": [{"name": "model_config"}]},
+                {"name": "Bad-Type"},  # tiret → non identifiant
             )
         )
 
-    assert "BrokenType" in str(exc_info.value)
+    assert "Bad-Type" in str(exc_info.value)
     assert "ValidType" not in str(exc_info.value)
 
 
@@ -491,3 +504,369 @@ def test_ontology_validation_error_est_une_graph_store_error():
     from app.utils.graph_store.errors import GraphStoreError
 
     assert issubclass(OntologyValidationError, GraphStoreError)
+
+# --- Relecture BMAD du 12 oct. 2026 — groupe B ---
+
+
+def _ont_with_edges(*entities, **edges):
+    """Construit `{"entity_types": [...], "edge_types": [...]}` pour les tests edge."""
+    return {
+        "entity_types": list(entities),
+        "edge_types": list(edges.get("edge_types", [])),
+    }
+
+
+def test_attribut_d_arete_annote_son_type_dans_la_classe():
+    """P1 — les attributs d'arête sont traduisibles (primitives, références), pas
+    seulement `str` (avant la relecture, `annotation = str` était hardcodé).
+    """
+    classes = OntologyToPydantic.edge_types_from_dict(
+        _ont_with_edges(
+            {"name": "Person"},
+            edge_types=[
+                {
+                    "name": "REGULATES",
+                    "attributes": [
+                        {"name": "weight", "type": "integer"},
+                        {"name": "since", "type": "date"},
+                    ],
+                }
+            ],
+        )
+    )
+    # Les champs sont wrappés en Optional[...] par `_build_pydantic_classes`.
+    weight_annotation = classes["REGULATES"].model_fields["weight"].annotation
+    assert weight_annotation is Optional[int]
+    since_annotation = classes["REGULATES"].model_fields["since"].annotation
+    assert since_annotation is Optional[str]  # `date` est un alias de `str` dans PRIMITIVE_FIELD_TYPES
+
+
+def test_attribut_d_arete_refuse_un_conteneur_generique():
+    """P1 — un attribut d'arête déclaré `List[Any]` doit lever, pas être
+    silencieusement transformé en `str` (avant la relecture).
+    """
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.edge_types_from_dict(
+            _ont_with_edges(
+                {"name": "Person"},
+                edge_types=[
+                    {
+                        "name": "REGULATES",
+                        "attributes": [{"name": "weight", "type": "List[Any]"}],
+                    }
+                ],
+            )
+        )
+    assert "REGULATES" in str(exc_info.value)
+
+
+def test_attribut_d_arete_reference_une_entite_declaree():
+    """P1 — un attribut d'arête typé par le nom d'une entité déclarée est résolu
+    comme référence, avec la description enrichie.
+    """
+    classes = OntologyToPydantic.edge_types_from_dict(
+        _ont_with_edges(
+            {"name": "Person"},
+            edge_types=[
+                {
+                    "name": "KNOWS",
+                    "attributes": [{"name": "friend", "type": "Person"}],
+                }
+            ],
+        )
+    )
+    field = classes["KNOWS"].model_fields["friend"]
+    # Référence résolue : Optional[str] wrappé en Optional[Optional[str]] car
+    # `_build_pydantic_classes` enveloppe déjà d'un `Optional[...]`.
+    assert field.annotation is Optional[Optional[str]]
+    assert "Person" in field.description
+
+
+def test_source_target_d_arete_reference_entite_declaree():
+    """P2 — `source_targets` valide que les extrémités référencent une entité
+    déclarée. Avant la relecture, c'était silencieusement ignoré.
+    """
+    classes = OntologyToPydantic.edge_types_from_dict(
+        _ont_with_edges(
+            {"name": "Politician"},
+            edge_types=[
+                {
+                    "name": "allied_with",
+                    "source_targets": [
+                        {"source": "Politician", "target": "Politician"}
+                    ],
+                }
+            ],
+        )
+    )
+    assert "allied_with" in classes
+
+
+def test_source_target_d_arete_refuse_entite_non_declaree():
+    """P2 — `source_targets: ["PersonEntitty"]` (typo) doit lever."""
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.edge_types_from_dict(
+            _ont_with_edges(
+                {"name": "Person"},
+                edge_types=[
+                    {
+                        "name": "allied_with",
+                        "source_targets": [
+                            {"source": "PersonEntitty", "target": "Person"}
+                        ],
+                    }
+                ],
+            )
+        )
+    assert "PersonEntitty" in str(exc_info.value)
+    assert "allied_with" in str(exc_info.value)
+
+
+def test_source_target_d_arete_refuse_non_liste():
+    """P2 — `source_targets: "Person"` (chaîne au lieu de liste) doit lever."""
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.edge_types_from_dict(
+            {
+                "entity_types": [{"name": "Person"}],
+                "edge_types": [
+                    {
+                        "name": "allied_with",
+                        "source_targets": "Person",  # type: ignore[list-item]
+                    }
+                ],
+            }
+        )
+
+
+def test_nom_d_entite_non_string_est_refuse():
+    """P3 — `{"name": None}` ou `{"name": True}` doit lever."""
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.from_dict(
+            {"entity_types": [{"name": None}]}  # type: ignore[dict-item]
+        )
+    assert "NoneType" in str(exc_info.value)
+
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.from_dict(
+            {"entity_types": [{"name": True}]}  # type: ignore[dict-item]
+        )
+
+
+def test_nom_d_arete_non_string_est_refuse():
+    """P3 — `{"name": None}` sur une arête doit aussi lever."""
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.edge_types_from_dict(
+            {
+                "entity_types": [{"name": "Person"}],
+                "edge_types": [{"name": None}],  # type: ignore[dict-item]
+            }
+        )
+
+
+def test_reference_entite_est_insensible_a_la_casse():
+    """P4 — `Person` et `person` désignent la même entité déclarée."""
+    classes = OntologyToPydantic.from_dict(
+        ontology_with(
+            {"name": "Person"},
+            {
+                "name": "PersonRef",
+                "attributes": [{"name": "friend", "type": "person"}],
+            },
+        )
+    )
+    # L'attribut `friend` est résolu comme référence vers `Person` malgré la
+    # différence de casse ; la description est enrichie.
+    field = classes["PersonRef"].model_fields["friend"]
+    assert "Person" in field.description
+
+
+def test_reference_entite_ambigue_en_casse_est_refusee():
+    """P4 — deux entités déclarées qui matchent en casse différente sont une
+    ambiguïté ; pas d'attribution silencieuse.
+    """
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.from_dict(
+            ontology_with(
+                {"name": "Person"},
+                {"name": "person"},
+                {
+                    "name": "Ambiguous",
+                    "attributes": [{"name": "friend", "type": "Person"}],
+                },
+            )
+        )
+    assert (
+        "ambigu" in str(exc_info.value).lower()
+        or "plusieurs" in str(exc_info.value)
+    )
+
+
+def test_safe_ontology_attribute_name_est_insensible_a_la_casse():
+    """P5 — un attribut `UUID` (majuscule) doit être préfixé comme `uuid`."""
+    from app.utils.ontology import safe_ontology_attribute_name
+
+    assert safe_ontology_attribute_name("UUID") == "entity_UUID"
+    assert safe_ontology_attribute_name("Uuid") == "entity_Uuid"
+
+
+def test_attributs_pydantic_reserves_sont_dans_la_liste():
+    """P6 — `model_config`, `model_fields`, etc. sont préfixés par
+    `safe_ontology_attribute_name` pour éviter les collisions avec Pydantic.
+    """
+    from app.utils.ontology import RESERVED_ONTOLOGY_ATTRIBUTE_NAMES
+
+    for name in (
+        "model_config",
+        "model_fields",
+        "model_post_init",
+        "model_validate",
+        "model_dump",
+        "model_construct",
+    ):
+        assert name in RESERVED_ONTOLOGY_ATTRIBUTE_NAMES
+
+
+def test_relations_au_dela_de_dix_types_refusees():
+    """P12 — `len(edge_types) > MAX_ONTOLOGY_TYPES` doit lever (côté edge)."""
+    edge_types = [{"name": f"REL_{i}"} for i in range(11)]
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.edge_types_from_dict(
+            {"entity_types": [{"name": "Person"}], "edge_types": edge_types}
+        )
+    assert "11 types de relation" in str(exc_info.value)
+
+
+def test_nom_de_relation_duplique_est_refuse():
+    """P12 — deux relations de même nom sont refusées, pas silencieusement dédupliquées."""
+    with pytest.raises(OntologyValidationError) as exc_info:
+        OntologyToPydantic.edge_types_from_dict(
+            {
+                "entity_types": [{"name": "Person"}],
+                "edge_types": [{"name": "LINK"}, {"name": "LINK"}],
+            }
+        )
+    assert "LINK" in str(exc_info.value)
+    assert "deux fois" in str(exc_info.value)
+
+
+def test_edge_types_non_liste_est_refuse():
+    """P12 — `edge_types: "..."` doit lever (forme non-liste)."""
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.edge_types_from_dict(
+            {
+                "entity_types": [{"name": "Person"}],
+                "edge_types": "RELATED",  # type: ignore[dict-item]
+            }
+        )
+
+
+def test_attributs_d_arete_dupliques_sont_refuses():
+    """P12 — deux attributs d'arête de même nom sont refusés."""
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.edge_types_from_dict(
+            _ont_with_edges(
+                {"name": "Person"},
+                edge_types=[
+                    {
+                        "name": "LINK",
+                        "attributes": [{"name": "weight"}, {"name": "weight"}],
+                    }
+                ],
+            )
+        )
+
+
+def test_attributs_d_arete_au_dela_de_dix_sont_plafonnes():
+    """P12 — plus de MAX_ONTOLOGY_ATTRIBUTES attributs d'arête : plafonné, pas
+    refusé (aligné sur le comportement d'entité).
+    """
+    attributes = [{"name": f"a_{i}"} for i in range(12)]
+    classes = OntologyToPydantic.edge_types_from_dict(
+        _ont_with_edges(
+            {"name": "Person"},
+            edge_types=[{"name": "LINK", "attributes": attributes}],
+        )
+    )
+    assert len(classes["LINK"].model_fields) <= 10
+
+
+def test_entree_d_arete_ni_string_non_dict_est_refusee():
+    """P12 — un `edge_types: [42]` doit lever."""
+    with pytest.raises(OntologyValidationError):
+        OntologyToPydantic.edge_types_from_dict(
+            {
+                "entity_types": [{"name": "Person"}],
+                "edge_types": [42],  # type: ignore[list-item]
+            }
+        )
+
+
+def test_tous_les_noms_de_types_reserves_sont_refuses_pour_les_aretes():
+    """P10 — `RESERVED_ONTOLOGY_TYPE_NAMES` (Entity, Node, Episodic, Community)
+    est appliqué aussi aux types d'arête. Uniformité délibérée (cf. la
+    constante).
+    """
+    for reserved in ("Entity", "Node", "Episodic", "Community"):
+        with pytest.raises(OntologyValidationError):
+            OntologyToPydantic.edge_types_from_dict(
+                _ont_with_edges(
+                    {"name": "Person"},
+                    edge_types=[{"name": reserved}],
+                )
+            )
+
+
+def test_attribut_d_arete_depasse_dix_attributs_est_plafonne_avec_log():
+    """P7+P12 — la troncature aligne l'arête sur l'entité (log explicite)."""
+    import logging
+
+    captured = []
+
+    class _CaptureHandler(logging.Handler):
+        def emit(self, record):
+            captured.append(record.getMessage())
+
+    from app.utils.graph_store.ontology_pydantic import logger as ont_logger
+
+    handler = _CaptureHandler(level=logging.DEBUG)
+    ont_logger.addHandler(handler)
+    try:
+        attributes = [{"name": f"a_{i}"} for i in range(12)]
+        OntologyToPydantic.edge_types_from_dict(
+            _ont_with_edges(
+                {"name": "Person"},
+                edge_types=[{"name": "LINK", "attributes": attributes}],
+            )
+        )
+    finally:
+        ont_logger.removeHandler(handler)
+
+    assert any(
+        "LINK" in msg and "tronqué" in msg for msg in captured
+    ), captured
+
+
+def test_ontology_pydantic_a_un_newline_final():
+    """P11 — `ontology_pydantic.py` se termine par un saut de ligne (PEP 8,
+    `ruff format`)."""
+    import pathlib
+
+    p = (
+        pathlib.Path(__file__).resolve().parents[1]
+        / "app/utils/graph_store/ontology_pydantic.py"
+    )
+    assert p.read_bytes().endswith(b"\n")
+
+
+def test_from_dict_accepte_ontologie_avec_relations_seules_mais_rend_dict_vide():
+    """Defer — `from_dict` avec seulement `edge_types` rend un dict vide ;
+    `edge_types_from_dict` rend les classes séparément."""
+    classes = OntologyToPydantic.from_dict(
+        {"entity_types": [], "edge_types": [{"name": "RELATED"}]}
+    )
+    assert classes == {}
+
+    edge_classes = OntologyToPydantic.edge_types_from_dict(
+        {"entity_types": [], "edge_types": [{"name": "RELATED"}]}
+    )
+    assert "RELATED" in edge_classes

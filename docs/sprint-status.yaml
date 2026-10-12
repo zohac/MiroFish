@@ -18,6 +18,8 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-12
+# 12 oct. 2026 : 007-1 done après relectures ; ticket 007-2 préparé en backlog.
+# Epic 007 reste in-progress ; contrôle avant persistance à démontrer en 007-2.
 # 12 oct. 2026 : epic 007 passe de backlog à in-progress (story 007-1 en cours).
 # 12 oct. 2026 : story 007-1 passe de in-progress à review après la revue BMAD
 # code-review à 4 couches (16 findings, 14 patchés, 4 différés) et la mesure C1
@@ -385,23 +387,65 @@ epics:
     # reportée (note dans deferred-work.md). L'ontologie générée par OntologyGenerator
     # reste l'unique point de génération ; la v2 la traduit en labels réels et la
     # régénère sur événement.
-    # Story 007-1 (review au 12 oct. 2026) : rupture du no-op de set_ontology.
-    # ADR 0014 (« Pose effective de l'ontologie par GraphStore.set_ontology »)
-    # pose la décision ; factory OntologyToPydantic (validation en deux temps :
-    # schéma puis constructibilité, plus edge_types_from_dict) ; contrat
-    # GraphStore versionné (version = 2, strict et ontology en keyword-only) ;
+    # Story 007-1 (done, relectures BMAD du 12 oct. 2026 groupes A et B) :
+    # rupture du no-op de set_ontology. ADR 0014 (« Pose effective de
+    # l'ontologie par GraphStore.set_ontology ») pose la décision ;
+    # factory OntologyToPydantic (validation en deux temps : schéma puis
+    # constructibilité, plus edge_types_from_dict) ; contrat GraphStore
+    # versionné (version = 2, strict et ontology en keyword-only) ;
     # get_applied_ontology neutre et commun aux deux stores ; les deux
     # implémentations alignées par une table de conformité testée.
     # Rétrocompatibilité Epic 003 garantie : sans ontologie, add_episode
-    # construit exactement l'appel d'avant (filet dédié).
-    # Mesure C1 réelle sur 2 fixtures (télécom, énergie ; 5 documents chacune
-    # dont un long > 20 000 caractères) : consignée dans
+    # construit exactement l'appel d'avant (filet dédié). Mesure C1 réelle
+    # sur 2 fixtures (télécom, énergie ; 5 documents chacune dont un long
+    # > 20 000 caractères) : consignée dans
     # docs/plans/007-ontologie-dynamique/mesure-007-1.txt.
-    # Revue BMAD 4 couches : 23 findings (3 décisions, 16 patches, 4 différés)
-    # deferred-work.md. Le plus lourd : l'ingestion réelle échouait sur une
-    # propriété-map, parce que le LLM renvoyait le fragment de schéma JSON d'un
-    # attribut — filtre ajouté dans MiroFishLLMClient, 14 tests de régression.
-    # Filet global : voir la story pour le compte exact de la fin de session.
+    # Première revue BMAD 4 couches : 23 findings (3 décisions, 16 patches,
+    # 4 différés dans deferred-work.md). Le plus lourd : l'échec d'ingestion
+    # réelle par propriété-map (LLM renvoyant le fragment de schéma JSON
+    # d'un attribut) — filtre ajouté dans MiroFishLLMClient, 14 tests de
+    # régression. Relecture BMAD 4 couches du 12 oct. 2026 (groupe A :
+    # contrat/stores) : 1 décision résolue (route Zep via OntologyToPydantic
+    # comme source unique de validation), 7 patches appliqués (type Zep
+    # add_episode/get_applied_ontology, cycle de vie _applied_ontologies,
+    # get_applied_ontology default returns None, tests miroirs Zep rejet,
+    # héritage strict par _resolve_applied_ontology, strict non-bool guards,
+    # route unique Zep), 2 defer (concurrence Flask threaded, piège
+    # sémantique __bool__), 3 rejetés.
+    # Relecture BMAD 4 couches du 12 oct. 2026 (groupe B : factory
+    # OntologyToPydantic) : 12 patches appliqués (helper d'annotation
+    # partagé entité/arête, validation source/target, name=None refusé,
+    # références case-insensitive, reserved names Pydantic, log de troncature,
+    # exception narrow, docstring, uniformité reserved names documentée,
+    # newline final, 11 tests edge-type). Le défaut load-bearing : les
+    # attributs d'arête étaient silencieusement forcés à `str` (détecté
+    # par 3 couches, devenu load-bearing par le patch A du groupe précédent).
+    # Filet global porté à 1349 sur l'hôte (+22 tests par la relecture B),
+    # lint et validate_plans au vert. La table de conformité AC5 est
+    # désormais construite (source unique) plutôt que déclarée.
+    # Relecture BMAD 4 couches du 12 oct. 2026 (groupe C : filet LLM +
+    # graph_builder + verifier) : 6 patches appliqués (wrapper
+    # `set_ontology` propage `strict`, `_filtrer_champs_valides` narrow
+    # Exception et validation par sous-modèle, step 6 chemin de retour
+    # explicite, `_filtrer_champs_valides` écarte les champs permissifs,
+    # docstring cohérente, tests pytest sur le fix
+    # `verifier_provenance_documents`), 2 defer (couplage RESERVED,
+    # assertions réelles sur le verifier d'intégration), 1 rejeté (log
+    # spam). `acceptance-auditor` clean. Filet porté à 1355 sur
+    # l'hôte (+6 tests par la relecture C).
+    # Relecture BMAD 4 couches du 12 oct. 2026 (groupe D : sonde réelle
+    # C1 `verifier_ontology_persistence.py`) : 1 décision tranchée
+    # (amender AC4 pour scoper le comptage à `:Entity`, cohérent avec
+    # architecture §9.2, verdict GO actuel reste valide), 9 patches
+    # appliqués (`mesures` vide → NO-GO, newline final + test de
+    # régression, output par défaut vers `mesure-007-1.txt`, magic
+    # numbers → constantes, validation `--seuil` dans `[0, 100]`,
+    # `try/finally` cleanup par domaine, mock LLM collision-safe via
+    # UUID, `int(None)` defensif contre graphe vide Cypher 5, manifest
+    # KeyError → message clair, amender AC4 + docstring), 3 defer (tests
+    # mock auto-fulfilling, shell script rejouable, UTF-8 BOM), 1
+    # rejeté (async sans wrapper). Filet porté à 1366 sur l'hôte (+11
+    # tests par la relecture D). Story 007-1 close.
 
   - id: "008"
     slug: support-langue-francaise

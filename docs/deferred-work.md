@@ -210,6 +210,144 @@ travail différé.
   d'attribut peut être un mot de `BaseModel`** : voir ci-dessus. Les *noms de
   types* sont refusés (`RESERVED_ONTOLOGY_TYPE_NAMES`).
 
+## Deferred from: relecture BMAD de story-007-1 (groupe A : contrat/stores) (2026-10-12)
+
+Relecture à quatre couches (blind-hunter, edge-case-hunter, verification-gap,
+acceptance-auditor) du noyau contrat + implémentations, sur le code post-patches
+de la première revue BMAD de la story 007-1. Deux constats réellement ouverts,
+complémentaires des 4 déjà inscrits par la première vague (mémoire par instance,
+`close()`, attributs `BaseModel`, message « no-op »).
+
+- **Concurrence sur `_applied_ontologies` (Flask `threaded=True`)**
+  [`run.py:45`, `graphiti_store.py:247`, `zep_store.py:499`] —
+  `Dictionary.__setitem__` n'est pas atomique pendant un rehash, et Flask est
+  lancé en mode multi-threads (`app.run(threaded=True)`). `get_graph_store()`
+  (`factory.py:71-74`) instancie par appel, donc la portée d'un store est
+  étroite ; le risque réel se limite aux services qui conservent `self.store`
+  (`GraphBuilderService`, `ZepGraphMemoryUpdater`). *Ce qui déclencherait :
+  la story 007-4, qui imposera une persistance réelle (`OntologyVersionStore`)
+  et une lecture à la volée plutôt qu'une mémoire d'instance — la question
+  de concurrence tombera avec elle. D'ici là, un `threading.Lock` ciblé est
+  une parade locale, à arbitrer avec le cycle de vie des services.*
+
+- **Piège sémantique `AppliedOntology.__bool__`** [`base.py:495-498`] —
+  `bool(AppliedOntology(entity_type_names=(), edge_type_names=("REGULATES",)))`
+  vaut `True`. Un `if store.get_applied_ontology(gid):` sur un graphe où
+  seules les relations ont été posées serait True alors qu'aucune entité
+  n'est en vigueur. La distinction « `None` vs listes vides » du contrat
+  est ténue. *Ce qui déclencherait : la story 007-2 (politique
+  `strict_ontology`), qui consommera `AppliedOntology` et stabilisera ses
+  call sites ; le contrat `__bool__` sera redéfini à ce moment-là, en
+  concertation avec les services qui testent la présence d'ontologie.*
+
+## Deferred from: relecture BMAD de story-007-1 (groupe D : sonde réelle C1) (2026-10-12)
+
+Relecture à quatre couches (blind-hunter, edge-case-hunter,
+verification-gap, acceptance-auditor) du script `verifier_ontology_persistence.py`,
+la *preuve* de C1. Trois constats réellement ouverts, complémentaires
+des 13 déjà inscrits par les quatre vagues précédentes.
+
+- **Les tests `test_le_decompte_exclut_les_labels_generiques` et
+  `test_la_mesure_calcule_le_ratio_depuis_le_decompte` sont des mocks
+  auto-fulfilling** [`test_verifier_ontology_persistence.py:302-311, 437-446`]
+  — les assertions ne portent que sur la valeur de retour du mock, pas
+  sur le comportement effectif de la requête Cypher. Une régression du
+  filter (par exemple, retirer `label <> 'Entity'` du `WHERE`) ne serait
+  pas détectée par pytest. *Ce qui déclencherait : la prochaine
+  exécution réelle sous Docker (T10 de la story) qui verrait un ratio
+  faussement à 100 % sur un graphe non typé. Parade naturelle : la
+  mesure elle-même est la qualification.*
+
+- **Pas de shell script rejouable `verifier-007-1.sh`**
+  [`docs/verifier-007-1.sh`] — la convention AGENTS.md §4 fait d'un
+  shell script l'entrée canonique rejouable (cf. `verifier-001-2.sh`
+  pour la mesure de l'Epic 001). La sonde C1 n'a pas son équivalent ;
+  connaître la commande exacte exige de mémoriser l'incantation
+  `docker compose run --rm backend uv run python scripts/verifier_ontology_persistence.py …`
+  et les conventions (modes `--mock-llm` / réel, `--output` / stdout,
+  `--keep-graph`, etc.). *Ce qui déclencherait : un besoin de rejouer
+  la mesure régulièrement (par exemple, à chaque release de
+  `graphiti-core`, qui peut changer la sémantique de `add_episode`).
+  À ce moment-là, poser un `verifier-007-1.sh` qui orchestre la
+  commande, capture la sortie et la compare au SHA-256 canonique.*
+
+- **UTF-8 BOM dans un document** [`verifier_ontology_persistence.py:158`]
+  — un BOM (3 octets `0xEF 0xBB 0xBF`) en tête de fichier serait inclus
+  dans le texte lu, contaminant le SHA-256 et le découpage en
+  fragments. *Ce qui déclencherait : le jour où la sonde lira des
+  documents utilisateur (au-delà des fixtures de la story). Parade
+  simple : `chemin.read_text(encoding="utf-8-sig")`.*
+
+## Deferred from: relecture BMAD de story-007-1 (groupe C : filet LLM + graph_builder + verifier) (2026-10-12)
+
+Relecture à quatre couches (blind-hunter, edge-case-hunter, verification-gap,
+acceptance-auditor) du sanitizer `MiroFishLLMClient._filtrer_champs_valides`,
+du câblage `GraphBuilderService.set_ontology`, et des scripts
+`verifier_provenance_documents.py` / `verifier_integration_graphiti.py`.
+Deux constats réellement ouverts, complémentaires des 11 déjà inscrits par
+les trois vagues précédentes.
+
+- **`verifier_integration_graphiti.py` change le print sans ajouter
+  d'assertion réelle** [`verifier_integration_graphiti.py:265`] — le script
+  d'intégration Graphiti + Neo4j local se contente de renommer le message
+  « no-op gracieux v1 » → « pose effective, ADR 0014 », sans vérifier
+  qu'un `add_episode` post-`set_ontology` produit des nœuds portant les
+  labels déclarés. *Ce qui déclencherait : la qualification C1 elle-même
+  (exercée par `verifier_ontology_persistence.py`, qui est dans le filet
+  pytest post-relecture D) — si la pose C1 échoue, c'est ce script qui
+  sert de deuxième rideau manuel. À automatiser le jour où ce script sera
+  rejoué régulièrement et où on voudra intégrer son verdict dans la
+  qualification.*
+
+- **Couplage caché avec `RESERVED_ONTOLOGY_TYPE_NAMES` sur les verifiers**
+  — `verifier_provenance_documents.py` déclare `"DocumentedFact"`,
+  `verifier_integration_graphiti.py` déclare `Organization` / `Person` /
+  `Topic`. Aucun assert que ces noms ne sont pas dans
+  `RESERVED_ONTOLOGY_TYPE_NAMES` ; si la liste grandit (ajout de
+  `Organization`, par exemple), les scripts cassent en silence sur une
+  vraie exécution Docker. *Ce qui déclencherait : un relèvement de la
+  liste réservée qui attrape un nom utilisé par un verifier. Parade
+  simple — un `assert "Person" not in RESERVED_ONTOLOGY_TYPE_NAMES` au
+  début de chaque verifier suffit — à poser quand le script sera rejoué
+  dans le filet pytest.*
+
+## Deferred from: relecture BMAD de story-007-1 (groupe B : OntologyToPydantic) (2026-10-12)
+
+Relecture à quatre couches (blind-hunter, edge-case-hunter, verification-gap,
+acceptance-auditor) de la factory `OntologyToPydantic` et du helper
+`safe_ontology_attribute_name`, sur le code post-clôture du groupe A. Trois
+constats réellement ouverts, complémentaires des 8 déjà inscrits par les deux
+vagues précédentes (mémoire par instance, `close()`, attributs `BaseModel`
+partiellement traité, message « no-op », concurrence `_applied_ontologies`,
+piège `__bool__`).
+
+- **Récursion sur `_reject_reference_cycles`**
+  [`ontology_pydantic.py:284-315`] — la détection de cycle est en Python
+  récursif (`def visit(name): ...; visit(target)`). Une ontologie avec
+  plusieurs centaines de types en chaîne pourrait dépasser la limite de
+  récursion (~1000) et lever `RecursionError`. *Ce qui déclencherait : un
+  relèvement de `MAX_ONTOLOGY_TYPES` (10 actuellement), ou l'exposition du
+  validateur à un corpus où la profondeur est plus grande que le nombre de
+  types. Une réécriture en DFS itératif avec pile explicite résoudrait le
+  point.*
+
+- **O(n²) sur l'unicité des attributs d'arête**
+  [`ontology_pydantic.py:375-379`] — `any(field.name == field_name for field
+  in fields)` au lieu d'un `Set[str]` (qui est ce que fait la résolution
+  d'entité, ligne 199-203). *Ce qui déclencherait : un relèvement de
+  `MAX_ONTOLOGY_ATTRIBUTES` ou une réécriture du path entité ; la
+  convergence serait l'occasion d'aligner.*
+
+- **`from_dict` avec uniquement `edge_types` rend `{}`**
+  [`ontology_pydantic.py:436-475`] — `from_dict({"entity_types": [],
+  "edge_types": [{"name": "RELATED_TO"}]})` retourne un dict vide, et le
+  caller doit appeler `edge_types_from_dict` séparément. `architecture.md`
+  §4.1 le prévoit (entités et relations sont deux produits distincts) ;
+  la docstring de `from_dict` sera clarifiée par le patch #9 du groupe B.
+  *Ce qui déclencherait : un caller qui croirait que `from_dict` rend
+  *toutes* les classes. Le contrat actuel demande deux appels explicites,
+  c'est un choix d'architecture documenté — pas une dette.*
+
 ## Deferred from: cadrage de l'epic 007 (2026-10-12)
 
 Deux chantiers que l'[epic 007](../plans/007-ontologie-dynamique/epic-007.md) et

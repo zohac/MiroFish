@@ -622,14 +622,16 @@ class GraphStore(ABC):
         Returns:
             `AppliedOntology` — dont les listes de noms peuvent être vides si
             aucune ontologie n'a été posée — ou `None` si le graphe n'en a
-            aucune.
+            aucune. Une sous-classe qui ne le redéclare pas hérite du contrat
+            et répond `None`, ce qui est l'engagement pris par le contrat —
+            la valeur par défaut `NotImplementedError` aurait contredit
+            l'annotation `Optional[AppliedOntology]` sans bénéfice pour
+            personne.
 
         Raises:
             GraphValidationError: `graph_id` vide ou non chaîne.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} n'expose pas l'ontologie appliquée"
-        )
+        return None
 
     @abstractmethod
     def add_episode(

@@ -64,9 +64,20 @@ class MockIngestionStore(GraphStore):
         self.calls.append(("get_graph_info", {"graph_id": graph_id}))
         return GraphInfo(graph_id=graph_id, node_count=1, edge_count=1, entity_types=["Test"])
 
-    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
+    def set_ontology(
+        self,
+        graph_id: str,
+        ontology: Dict[str, Any],
+        *,
+        strict: bool = False,
+    ) -> None:
         self.ontologies[graph_id] = ontology
-        self.calls.append(("set_ontology", {"graph_id": graph_id, "ontology": ontology}))
+        self.calls.append(
+            (
+                "set_ontology",
+                {"graph_id": graph_id, "ontology": ontology, "strict": strict},
+            )
+        )
 
     def add_episode(
         self,
@@ -270,7 +281,7 @@ def test_graph_builder_delegates_all_lifecycle_to_injected_store():
 
     # 2. Ontologie
     service.set_ontology(gid, {"entity_types": [{"name": "Person"}]})
-    assert ("set_ontology", {"graph_id": "graph-custom", "ontology": {"entity_types": [{"name": "Person"}]}}) in store.calls
+    assert ("set_ontology", {"graph_id": "graph-custom", "ontology": {"entity_types": [{"name": "Person"}]}, "strict": False}) in store.calls
 
     # 3. Ingestion par lot
     progress_calls = []

@@ -70,6 +70,27 @@ SEUIL_POURCENTAGE = 80.0
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
+#: Taille du lot d'ingestion — alignée sur la convention
+#: `GraphBuilderService.add_text_batches` (Epic 003 / story 003-3). Le test
+#: ``test_le_decoupage_est_aligne_sur_la_production`` pinne ce paramètre
+#: contre la production ; le rejouer ne diverge pas.
+BATCH_SIZE_C1 = 350
+
+#: Délai d'attente maximum pour `wait_for_batch` — supérieur au défaut
+#: du store (600 s) parce que la mesure tourne le pipeline réel (LLM +
+#: embeddings + extraction), pas un graphe pré-chargé. Une régression
+#: qui ferait passer une valeur plus courte masquerait un timeout sous
+#: le verdict GO : on l'évite par une constante nommée.
+TIMEOUT_ATTENTE_BATCH_S = 900.0
+
+#: Chemin canonique de sortie de la mesure — pinned par la story
+#: (Notes de complétion) avec son empreinte SHA-256. Une exécution qui
+#: oublie ``--output`` perd la seule preuve de C1 ; par défaut on écrit
+#: ici pour que la sortie soit persistée par construction.
+SORTIE_PAR_DEFAUT = Path(
+    "docs/plans/007-ontologie-dynamique/mesure-007-1.txt"
+)
+
 
 class StructuralMockLLMClient(LLMClient):
     """LLM déterministe : vérifie le chemin des labels, pas la qualité d'extraction.
@@ -88,7 +109,7 @@ class StructuralMockLLMClient(LLMClient):
     #: injecté par Graphiti lui-même.
     PREMIER_TYPE_DECLARE = 1
 
-    def __init__(self, entite: str = "Entite de preuve") -> None:
+    def __init__(self, entite: Optional[str] = None) -> None:
         super().__init__(
             LLMConfig(
                 api_key="mock-key",
@@ -96,7 +117,11 @@ class StructuralMockLLMClient(LLMClient):
                 model="mock-model",
             )
         )
-        self.entite = entite
+        # Une chaîne que le texte du document ne peut pas contenir : un
+        # littéral français (« Entite de preuve ») pourrait apparaître
+        # dans une fixture et être extrait comme une vraie entité. Un
+        # UUID-derived est collision-safe par construction.
+        self.entite = entite or f"c1_evidence_{uuid.uuid4().hex[:8]}"
 
     async def _generate_response(
         self,
@@ -141,13 +166,26 @@ def charger_fixture(domaine: str) -> Dict[str, Any]:
     """
     racine = FIXTURES_DIR / domaine
     manifeste = json.loads((racine / "manifest.json").read_text(encoding="utf-8"))
+    for cle_manquante in ("documents", "ontology"):
+        if cle_manquante not in manifeste:
+            raise ValueError(
+                f"manifeste de '{domaine}' incomplet : clé '{cle_manquante}' "
+                f"manquante (attendu : {sorted(manifeste.keys())})"
+            )
     ontologie = json.loads(
         (racine / manifeste["ontology"]).read_text(encoding="utf-8")
     )
 
     documents: List[Dict[str, Any]] = []
     empreinte_documents = hashlib.sha256()
-    for entree in manifeste["documents"]:
+    for index, entree in enumerate(manifeste["documents"]):
+        for cle_attendue in ("filename", "document_id", "role", "kind"):
+            if cle_attendue not in entree:
+                raise ValueError(
+                    f"manifeste de '{domaine}' : entrée documents[{index}] "
+                    f"incomplète, clé '{cle_attendue}' manquante "
+                    f"(reçu : {sorted(entree.keys())})"
+                )
         chemin = racine / "documents" / entree["filename"]
         texte = chemin.read_text(encoding="utf-8")
         empreinte = hashlib.sha256(texte.encode("utf-8")).hexdigest()
@@ -201,8 +239,21 @@ def borner_fragments(
 def compter_labels(store: GraphitiGraphStore, graph_id: str) -> Dict[str, Any]:
     """Comptage Cypher des nœuds typés et non typés du graphe `graph_id`.
 
-    Le seuil porte sur `:Entity` : les nœuds `:Episodic` sont des épisodes, pas
-    des entités, et les compter gonflerait artificiellement le dénominateur.
+    Le seuil C1 porte sur les **nœuds ``:Entity``** : les nœuds
+    ``:Episodic`` sont des épisodes (artefacts de l'ingestion), pas des
+    entités, et les compter gonflerait artificiellement le dénominateur
+    (15 chunks ingérés par domaine produisent ~15 ``:Episodic`` qui
+    ramèneraient le ratio à 50 % si inclus). L'architecture §9.2 fixe
+    l'invariant « au plus un label non-``Entity`` » sur les entités, ce
+    qui rend le scope ``:Entity`` cohérent avec la définition du
+    typage métier.
+
+    Le texte littéral d'AC4 a été amendé le 12 oct. 2026 (relecture
+    BMAD du groupe D, décision tranchée) pour aligner le contrat sur
+    ce que la sonde mesure effectivement : le comptage porte sur
+    ``MATCH (n:Entity)`` et non ``MATCH (n)``. Le verdict GO actuel
+    (100 % / 100 % sur les deux fixtures) reste valide sans
+    ré-exécution.
     """
     resultat = store._run_async(
         store._execute_cypher(
@@ -219,8 +270,20 @@ def compter_labels(store: GraphitiGraphStore, graph_id: str) -> Dict[str, Any]:
     )
     enregistrements = store._extract_records(resultat)
     if not enregistrements:
-        raise RuntimeError(f"le comptage Cypher n'a rien renvoyé pour {graph_id}")
-    return enregistrements[0]
+        # ``:`` complet (rare en vrai ; peut arriver si une fixture
+        # produit un graphe sans aucune entité). Le guard de
+        # ``calculer_ratio`` gère ``total == 0`` proprement.
+        return {"total": 0, "labelled": 0, "max_labels_specifiques": 0}
+    # ``sum(...)`` sur zéro ligne vaut ``null`` en Cypher 5 ; le driver le
+    # surface en ``None``. On traite gracieusement avant l'accès.
+    enregistrement = enregistrements[0]
+    return {
+        "total": int(enregistrement.get("total") or 0),
+        "labelled": int(enregistrement.get("labelled") or 0),
+        "max_labels_specifiques": int(
+            enregistrement.get("max_labels_specifiques") or 0
+        ),
+    }
 
 
 def detail_par_label(
@@ -312,10 +375,10 @@ def mesurer_domaine(
     lot = store.add_text_batch(
         graph_id=graph_id,
         chunks=chunks,
-        batch_size=350,
+        batch_size=BATCH_SIZE_C1,
         chunk_metadata=chunk_metadata,
     )
-    store.wait_for_batch(lot, timeout=900.0)
+    store.wait_for_batch(lot, timeout=TIMEOUT_ATTENTE_BATCH_S)
     duree = time.perf_counter() - debut
 
     comptage = compter_labels(store, graph_id)
@@ -361,8 +424,17 @@ def rendre_rapport(
     mock_llm: bool,
     max_fragments: int,
 ) -> str:
-    """Rend la mesure en texte, dans la forme de la convention Epic 001-2."""
-    toutes_conformes = all(m["pourcentage"] >= seuil for m in mesures)
+    """Rend la mesure en texte, dans la forme de la convention Epic 001-2.
+
+    Le verdict ``toutes_conformes`` est explicitement ``False`` sur liste
+    vide : ``all([])`` est par vacuité ``True``, ce qui retournerait GO
+    sans avoir effectué aucune mesure. Le script ne peut jamais rendre
+    GO si la liste de mesures est vide.
+    """
+    if not mesures:
+        toutes_conformes = False
+    else:
+        toutes_conformes = all(m["pourcentage"] >= seuil for m in mesures)
     lignes = []
     lignes.append("=" * 78)
     lignes.append("MESURE 007-1 — PERSISTANCE EFFECTIVE DES LABELS D'ONTOLOGIE")
@@ -485,7 +557,29 @@ def verifier_critere_c1(
         for domaine in DOMAINES:
             fixture = charger_fixture(domaine)
             graph_id = f"c1_{domaine}_{run_id}"
-            mesure = mesurer_domaine(store, fixture, graph_id, max_fragments)
+            # Chaque domaine a son propre filet try/finally : si le second
+            # domaine lève (timeout Cypher, erreur add_text_batch après
+            # create_graph, etc.), le graphe du premier est supprimé
+            # avant que la mesure ne se termine, plutôt que d'orpheliner
+            # un graphe dans Neo4j.
+            try:
+                mesure = mesurer_domaine(store, fixture, graph_id, max_fragments)
+            except Exception:
+                if not keep_graph:
+                    try:
+                        store._run_async(
+                            store._execute_cypher(
+                                "MATCH (n {group_id: $group_id}) DETACH DELETE n",
+                                params={"group_id": graph_id},
+                            )
+                        )
+                    except Exception as nettoyage_exc:
+                        print(
+                            f"   ⚠ cleanup du graphe '{graph_id}' a échoué : "
+                            f"{nettoyage_exc}",
+                            file=sys.stderr,
+                        )
+                raise
             mesures.append(mesure)
             print(
                 f"   {domaine} : {mesure['total_noeuds']} noeuds, "
@@ -555,13 +649,24 @@ def main() -> int:
     analyseur.add_argument(
         "--output",
         type=Path,
-        default=None,
-        help="Fichier de sortie de la mesure (aucun fichier ecrit si absent).",
+        default=SORTIE_PAR_DEFAUT,
+        help=(
+            "Fichier de sortie de la mesure (defaut : "
+            "docs/plans/007-ontologie-dynamique/mesure-007-1.txt, "
+            "le chemin canonique pinned par la story)."
+        ),
     )
     arguments = analyseur.parse_args()
 
     if arguments.max_fragments < 2:
         print("ERREUR : --max-fragments doit valoir au moins 2 (AC4).", file=sys.stderr)
+        return 2
+    if not 0.0 <= arguments.seuil <= 100.0:
+        print(
+            "ERREUR : --seuil doit etre dans [0, 100] (un seuil negatif "
+            "est toujours NO-GO ; un seuil > 100 est toujours GO).",
+            file=sys.stderr,
+        )
         return 2
 
     conforme, _ = verifier_critere_c1(

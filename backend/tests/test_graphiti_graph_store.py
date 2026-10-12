@@ -475,16 +475,58 @@ class TestGraphitiGraphStoreLifecycle:
             store_with_mocks.delete_graph(graph_id="sim-err")
         assert "Cypher syntax error" in str(exc_info.value)
 
-    def test_set_ontology_poses_effectivement_les_types(self, store_with_mocks):
-        """set_ontology retient les classes traduites pour les écritures suivantes (ADR 0014)."""
-        res = store_with_mocks.set_ontology(
+    def test_set_ontology_poses_effectivement_les_types(self, mock_dependencies):
+        """set_ontology retient les classes traduites pour les écritures suivantes (ADR 0014).
+
+        Vérifie la pose effective : un `add_episode` post-`set_ontology`
+        ajoute `entity_types` à `episode_kwargs` (cf.
+        `graphiti_store.py:649-650`), et les classes Pydantic
+        effectivement consommées par Graphiti portent les noms
+        déclarés. Sans `add_episode`, la garantie ADR 0014
+        n'est pas exercée — c'est l'écart que la relecture BMAD
+        groupe E a relevé.
+        """
+        from unittest.mock import MagicMock
+
+        # Mock du retour de graphiti.add_episode avec un épisode UUID.
+        episode_retour = MagicMock()
+        episode_retour.episode = MagicMock(uuid="ep-onto-1")
+
+        store = GraphitiGraphStore(
+            driver=mock_dependencies["driver"],
+            llm_client=mock_dependencies["llm_client"],
+            embedder=mock_dependencies["embedder"],
+            cross_encoder=mock_dependencies["cross_encoder"],
+            graphiti=mock_dependencies["graphiti"],
+        )
+        mock_dependencies["graphiti"].add_episode.return_value = episode_retour
+
+        store.set_ontology(
             graph_id="sim-onto",
             ontology={"entity_types": [{"name": "Person"}, {"name": "Institution"}]},
         )
-        assert res is None
         assert sorted(
-            store_with_mocks.get_applied_ontology("sim-onto").entity_type_names
+            store.get_applied_ontology("sim-onto").entity_type_names
         ) == ["Institution", "Person"]
+
+        # L'ingestion post-set_ontology doit recevoir les classes
+        # Pydantic traduites. Mock du driver pour accepter le Cypher
+        # d'annotation sans réseau.
+        mock_dependencies["driver"].execute_query.return_value = ([], [], [])
+
+        store.add_episode(
+            graph_id="sim-onto",
+            text="Alice dirige l'INRIA.",
+            source_description="chunk-1",
+        )
+
+        # Le dernier appel à graphiti.add_episode doit porter
+        # `entity_types` avec les noms déclarés.
+        dernier_appel = mock_dependencies["graphiti"].add_episode.call_args
+        episode_kwargs = dernier_appel.kwargs
+        assert "entity_types" in episode_kwargs
+        noms_entites = list(episode_kwargs["entity_types"].keys())
+        assert sorted(noms_entites) == ["Institution", "Person"]
 
 
 class TestGraphitiGraphStoreEpisodeIngestion:

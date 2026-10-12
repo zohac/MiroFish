@@ -140,7 +140,7 @@ class GraphValidationWarning:
     policy: str                  # "downgrade" | "strict"
 ```
 
-Les warnings sont collectés par le `Project.applied_ontology_id` pour traçabilité, et exposés via une nouvelle méthode `GraphStore.get_ontology_warnings(graph_id) -> List[GraphValidationWarning]`.
+En 007-2, les warnings sont conservés dans un journal durable par `graph_id`, distinct de `Project.ontology_history`. Leur rattachement à `Project.applied_ontology_id` attend le versionnement de 007-4, et exposés via une nouvelle méthode `GraphStore.get_ontology_warnings(graph_id) -> List[GraphValidationWarning]`.
 
 ---
 
@@ -556,3 +556,17 @@ L'ordre peut être révisé dans `epic-007.md` au démarrage de la première sto
 - **A4 — NFR-5 maintenu.** La consigne ontologique reste une donnée utilisateur. L'inspection des messages LLM (test dédié) garantit qu'elle ne fuite pas en `system_prompt`.
 - **A5 — Performance acceptable.** Le coût additionnel d'écriture (Pydantic + label) est mesuré au banc Epic 005-4 ; ajustement au cas où il dépasserait les seuils Epic 005-5.
 - **A6 — Étanchéité du store.** La traduction Pydantic vit dans `backend/app/utils/graph_store/`, pas dans `services/`. La règle de dépendance `api → services → utils` (AGENTS.md §2.1) reste respectée : `services` consomme le contrat, `utils` produit la traduction.
+
+## 13. État après 007-1 et préparation de 007-2 — 12 octobre 2026
+
+La pose effective des labels est implémentée ; les modèles versionnés et les
+services de régénération ci-dessus restent des cibles. `strict` est mémorisé
+mais n’a pas encore d’effet de refus. Le ticket 007-2 précise politique projet,
+journal durable et deux endpoints. `api/project.py` sera créé et enregistré :
+les routes projets actuelles vivent dans `api/graph.py`.
+
+Graphiti persiste avant le retour de `add_episode` ; Zep extrait à distance et
+son Batch ne délègue pas à `add_episode`. Le contrôle avant sauvegarde doit
+être démontré pour chacun de ces chemins avant développement. Ni une
+inspection après écriture, ni une suppression compensatoire ne prouvent le
+refus strict. Voir la définition de prêt du [ticket 007-2](story-007-2.md).

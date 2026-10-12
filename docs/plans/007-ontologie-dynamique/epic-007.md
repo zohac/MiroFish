@@ -8,7 +8,7 @@
 
 > L'Epic 009 a clos le verrou d'éligibilité des acteurs (**1157 tests verts**, Verdict GO, 4/4 stories). L'actor selection est qualifiée, l'anti-affabulation C7 tient, la section « Sources & Provenance » du rapport est en place, et l'étanchéité NFR-5 est maintenue au niveau des prompts LLM.  
 >
-> **L'Epic 007 transforme l'ontologie générée en typage réel du graphe.** Le `set_ontology` de l'interface `GraphStore` est aujourd'hui un no-op documenté (ADR 0003, ligne 462 de `graphiti_store.py`) ; la v2 le rend effectif, valide l'écriture, régénère sur événement, et expose l'ontologie dans le rapport. Le filet de référence passe de **1157** à **1177+ tests verts** sans casser la rétrocompatibilité des epics antérieurs.
+> **L'Epic 007 transforme l'ontologie générée en typage réel du graphe.** La story 007-1 a rendu effectif le `set_ontology` de l'interface `GraphStore` (ADR 0014) ; la suite de la v2 valide l'écriture, régénère sur événement, et expose l'ontologie dans le rapport. Le filet de référence passe de **1157** à **1177+ tests verts** sans casser la rétrocompatibilité des epics antérieurs.
 
 ---
 
@@ -17,7 +17,7 @@
 | Réf. | Intitulé | Description |
 |---|---|---|
 | **FR-1** | Application effective de l'ontologie | `GraphStore.set_ontology(graph_id, ontology, strict=False)` traduit le dict en classes Pydantic (`GraphitiGraphStore`) et aligne `ZepGraphStore` ; les écritures suivantes (`add_episode`, `add_text_batch`) consomment ces classes et posent les labels déclarés sur les nœuds. Le no-op de l'ADR 0003 disparaît. |
-| **FR-2** | Validation à l'écriture | Toute tentative d'écriture d'un nœud avec un `entity_type` non déclaré déclenche un `GraphValidationWarning` (mode par défaut) ou un `GraphValidationError` (mode `strict_ontology=True`). Le warning est tracé dans `Project.ontology_history` et exposé via `GraphStore.get_ontology_warnings(graph_id, since=...)`. |
+| **FR-2** | Validation à l'écriture | Toute tentative d'écriture d'un nœud avec un `entity_type` non déclaré déclenche un `GraphValidationWarning` (mode par défaut) ou un `GraphValidationError` (mode `strict_ontology=True`). Le warning est tracé dans un journal durable par graphe, distinct de `Project.ontology_history` (historique des versions en 007-4) et exposé via `GraphStore.get_ontology_warnings(graph_id, since=...)`. |
 | **FR-3** | Régénération sur événement | Trois déclencheurs câblés : (a) ajout de document à un projet (E1), (b) modification du `SimulationBrief` au-delà d'un seuil de diff (`difflib.SequenceMatcher.ratio() < 0.95`, E2), (c) demande explicite via `POST /api/project/<id>/ontology/regenerate` (E3). Une création de projet déclenche la génération initiale (E4). |
 | **FR-4** | Persistance versionnée d'ontologie | `OntologyVersion` (immuable, identifiant `ont_<uuid12>`) stocké dans `OntologyVersionStore` (`Config.UPLOAD_FOLDER/ontologies/<version_id>.json`). Le `Project` porte `applied_ontology_id`, `applied_ontology_version` (compteur monotone), `ontology_history` (liste de version_id). La version courante est lue en temps réel depuis le store, jamais cachée. |
 | **FR-5** | Composition avec l'actor selection (Epic 009) | `ActorClassifierService` (009-1) consulte d'abord le label d'ontologie comme signal primaire (table de correspondance injective `PersonEntity → ActorRole.PERSON`, etc.) ; quand le label est absent, la cascade 009-1 s'applique. Le test C6 prouve le court-circuit LLM quand le label est suffisant. |
@@ -31,7 +31,7 @@
 | Réf. | Intitulé | Description |
 |---|---|---|
 | **NFR-1** | Zéro règle métier spécifique | L'ontologie reste inférée du corpus et du brief, sans catalogue de types en dur. L'arbitrage « multi-niveaux » et « édition manuelle » est reporté. La table de correspondance label → `ActorRole` (FR-5) est **injective et finie** : un label non mappé tombe en `REVIEW`, jamais en `ELIGIBLE` direct. |
-| **NFR-2** | Rétrocompatibilité `GraphStore` | `add_episode(..., ontology=None)` reste l'appel par défaut et conserve le comportement Epic 003-2. `set_ontology` peut toujours être appelé sans ontologie (no-op historique, supprimé en v2). L'extension est documentée par un ADR (à créer en 007-1) et testée sur les deux implémentations concrètes. |
+| **NFR-2** | Rétrocompatibilité `GraphStore` | `add_episode(..., ontology=None)` reste l'appel par défaut et conserve le comportement Epic 003-2. Sans ontologie effective, les écritures conservent le comportement historique ; une ontologie vide est refusée. L'extension est documentée par l'ADR 0014 et testée sur les deux implémentations concrètes. |
 | **NFR-3** | Régénération idempotente et déterministe | `OntologyGenerator` est appelé avec `temperature=0.0` par défaut (vs 0.3 en v1). Deux régénérations successives du même corpus produisent deux ontologies identiques au mot près sur les champs stables (`entity_types[].name`, `edge_types[].name`, `attributes[].name`). C3 vérifie la déterminisme par diff JSON. |
 | **NFR-4** | Filet de tests hermétiques et Docker | La suite globale passe de **1157 à 1177+ tests verts** sur l'hôte (≥ +20 tests hermétiques par l'epic 007), **0 échec** sous Docker. `ruff check .` et `validate_plans.py` au vert. La parité Docker est validée par le banc `verifier_qualification_epic_007.py`. |
 | **NFR-5** | Étanchéité NFR-5 maintenue | La consigne ontologique (« voici les types d'entité reconnus ») est passée au LLM **uniquement en `user_message`**, jamais en `system_prompt`. Le test d'inspection des messages LLM (test de 009-4 étendu) garantit la non-fuite. L'étiquette `NFR5_DATA_NOT_INSTRUCTION_SUFFIX` reste en place sur les trois `system_prompt` (plan, section, chat). |
@@ -54,7 +54,7 @@
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `review` | [story-007-1.md](story-007-1.md) |
+| 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `done` | [story-007-1.md](story-007-1.md) |
 | 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `backlog` | [story-007-2.md](story-007-2.md) |
 | 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `backlog` | [story-007-3.md](story-007-3.md) |
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `backlog` | [story-007-4.md](story-007-4.md) |
@@ -101,9 +101,9 @@ L'Epic 006 (migration Zep) est close : les graphes migrés portent `:Entity` san
 | [`docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md`](../009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md) | Verdict GO Epic 009 (1157 tests verts), contrats ADR 0012 / 0013, étanchéité NFR-5. La v2 s'insère sans rien casser. |
 | [`backend/app/services/ontology_generator.py`](../../../backend/app/services/ontology_generator.py) | `OntologyGenerator` (814 lignes) : contrat de retour `entity_types` (10 max), `edge_types`, `attributes`. Ne change pas de signature en v2. |
 | [`backend/app/utils/ontology.py`](../../../backend/app/utils/ontology.py) | Constante `MAX_ONTOLOGY_TYPES = 10`, helpers de normalisation. |
-| [`backend/app/utils/graph_store/base.py`](../../../backend/app/utils/graph_store/base.py) | Contrat neutre `GraphStore`. `set_ontology` est no-op (ligne 541) — la v2 lève cette restriction. |
-| [`backend/app/utils/graph_store/graphiti_store.py`](../../../backend/app/utils/graph_store/graphiti_store.py) | Implémentation Graphiti : `set_ontology` ligne 462 (no-op), `add_episode` ligne 476 (sans ontology). |
-| [`backend/app/utils/graph_store/zep_store.py`](../../../backend/app/utils/graph_store/zep_store.py) | Implémentation Zep : `set_ontology` ligne 298 (scaffolding non exercé). La v2 aligne sur Graphiti. |
+| [`backend/app/utils/graph_store/base.py`](../../../backend/app/utils/graph_store/base.py) | Contrat neutre `GraphStore` version 2, ontologie effective et politique `strict` mémorisée. |
+| [`backend/app/utils/graph_store/graphiti_store.py`](../../../backend/app/utils/graph_store/graphiti_store.py) | Implémentation Graphiti : ontologie effective, résolution par graphe et appel d’extraction/persistance à contrôler en 007-2. |
+| [`backend/app/utils/graph_store/zep_store.py`](../../../backend/app/utils/graph_store/zep_store.py) | Implémentation Zep : pose effective, extraction distante et chemin Batch distinct à couvrir en 007-2. |
 | [`backend/app/services/zep_entity_reader.py`](../../../backend/app/services/zep_entity_reader.py) | `EntityNode.get_entity_type` (ligne 50) : cascade de résolution. La v2 alimente la première branche (label non-`Entity`). |
 | [`backend/app/services/actor_classifier.py`](../../../backend/app/services/actor_classifier.py) | `ActorClassifierService` (009-1) : la v2 ajoute un court-circuit sur label d'ontologie. |
 | [`backend/app/models/project.py`](../../../backend/app/models/project.py) | Modèle `Project` (009-2) : extension rétrocompatible `applied_ontology_id`, `applied_ontology_version`, `ontology_history`. |
@@ -113,7 +113,7 @@ L'Epic 006 (migration Zep) est close : les graphes migrés portent `:Entity` san
 | [`backend/app/services/zep_tools.py`](../../../backend/app/services/zep_tools.py) | L'outil LLM `get_applied_ontology` est défini ici (cohérence avec `get_edge_provenance`, 009-4). |
 | [`backend/app/api/graph.py`](../../../backend/app/api/graph.py) | Endpoint `POST /api/graph/upload` déclenche E1 en arrière-plan, répond 202. |
 | [`backend/app/api/simulation.py`](../../../backend/app/api/simulation.py) | `prepare_simulation` lit `Project.applied_ontology_id` (câblage transparent, pas d'endpoint nouveau). |
-| [`backend/app/api/project.py`](../../../backend/app/api/project.py) | Endpoints `/api/project/<id>/ontology/regenerate`, `/get`, `/warnings`, `/policy`. |
+| [`backend/app/api/project.py`](../../../backend/app/api/project.py) | Fichier cible à créer : endpoints `/api/project/<id>/ontology/regenerate`, `/get`, `/warnings`, `/policy`. |
 | [`backend/scripts/verifier_qualification_epic_009.py`](../../../backend/scripts/verifier_qualification_epic_009.py) | Modèle du banc de qualification à réutiliser (Epic 005-5, Epic 007-7). |
 | [ADR 0001](../../decisions/0001-remplacement-de-zep-par-graphiti.md) | Interface `GraphStore` à deux implémentations. La v2 respecte le contrat commun. |
 | [ADR 0003](../../decisions/0003-ontologie-differee-en-v2.md) | Cadrage initial de la v2. |
@@ -122,3 +122,12 @@ L'Epic 006 (migration Zep) est close : les graphes migrés portent `:Entity` san
 | [ADR 0013](../../decisions/0013-semantique-des-sources.md) | Sémantique des sources : `InformationOrigin` (5 origines) sert à étiqueter l'origine d'un type d'ontologie. |
 | [`AGENTS.md`](../../../AGENTS.md) | Constitution : clean architecture (api → services → utils), règles de dépendance, étiquette `NFR5_DATA_NOT_INSTRUCTION_SUFFIX`, définitions de prêt/fini, Docker d'abord. |
 | [`docs/deferred-work.md`](../../deferred-work.md) | Note sur la boucle auto-évolutive acteur/ontologie et la migration rétroactive Epic 006, toutes deux reportées. |
+
+## 6. Passage à 007-2 — 12 octobre 2026
+
+007-1 est `done` après relectures et mesure C1. Le [ticket 007-2](story-007-2.md)
+est rédigé en `backlog` : sa définition de prêt exige encore de démontrer le
+contrôle des types avant persistance sur les deux moteurs, y compris les lots
+Zep. L’epic reste `in-progress` (1/7 stories terminée). La politique est
+persistée par projet et les warnings ont un journal dédié ; le versionnement
+et `Project.ontology_history` restent réservés à 007-4.

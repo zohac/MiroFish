@@ -408,6 +408,11 @@ class GraphitiGraphStore(GraphStore):
 
         Vérifie la disponibilité de la connexion Neo4j et retourne l'identifiant logique
         (généré au format 'mirofish_<uuid>' si omis).
+
+        Quand un `graph_id` est explicitement fourni, l'ontologie appliquée
+        mémorisée sous cette clé est effacée : un graphe « neuf » ne peut pas
+        hériter d'une politique posée avant lui (ADR 0014 §2 ; bug de cycle de
+        vie relecturé le 12 octobre 2026).
         """
         if not isinstance(name, str) or not name.strip():
             raise GraphValidationError("Le nom du graphe ne peut pas être vide")
@@ -415,6 +420,7 @@ class GraphitiGraphStore(GraphStore):
             raise GraphValidationError("graph_id ne peut pas être une chaîne vide")
 
         target_graph_id = graph_id.strip() if graph_id else f"mirofish_{uuid.uuid4().hex[:16]}"
+        self._applied_ontologies.pop(target_graph_id, None)
         with self._translate_errors(f"création du graphe {target_graph_id}"):
             self._run_async(self._check_connection())
             return target_graph_id
@@ -424,6 +430,11 @@ class GraphitiGraphStore(GraphStore):
 
         Supprime atomiquement par Cypher tous les nœuds et arêtes partitionnés sous le
         group_id spécifié, sans affecter aucun autre graphe (Critère C2).
+
+        L'ontologie appliquée mémorisée est aussi purgée : un graphe supprimé
+        puis recréé sous le même identifiant ne doit pas voir `get_applied
+        _ontology` répondre sur un état mémoire antérieur (ADR 0014 §2 ; bug
+        de cycle de vie relecturé le 12 octobre 2026).
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
@@ -435,6 +446,7 @@ class GraphitiGraphStore(GraphStore):
                     params={"group_id": target_graph_id},
                 )
             )
+        self._applied_ontologies.pop(target_graph_id, None)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         """Retourne les nœuds, arêtes et statistiques complètes du graphe pour l'API."""
@@ -499,6 +511,8 @@ class GraphitiGraphStore(GraphStore):
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
+        if not isinstance(strict, bool):
+            raise GraphValidationError("strict doit être un booléen")
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
         target_graph_id = graph_id.strip()
@@ -539,18 +553,26 @@ class GraphitiGraphStore(GraphStore):
         qui permette à un appelant de poser, pour un épisode, une ontologie que
         `set_ontology` n'a jamais vue. Elle ne modifie **pas** l'ontologie
         mémorisée du graphe.
+
+        `strict` est hérité de l'ontologie mémorisée du graphe quand une
+        ontologie explicite est fournie : « la politique du graphe vaut tant
+        qu'elle n'est pas changée » (ADR 0014). Sans graphe posé, défaut à
+        `False`.
         """
         if ontology is None:
             return self._applied_ontologies.get(graph_id)
 
         entity_types = OntologyToPydantic.from_dict(ontology)
         edge_types = OntologyToPydantic.edge_types_from_dict(ontology)
+        appliquee = self._applied_ontologies.get(graph_id)
+        strict = appliquee.neutre.strict if appliquee is not None else False
         return _OntologyTraduite(
             entity_types=entity_types,
             edge_types=edge_types,
             neutre=AppliedOntology(
                 entity_type_names=tuple(entity_types),
                 edge_type_names=tuple(edge_types),
+                strict=strict,
             ),
         )
 

@@ -13,9 +13,10 @@ Ces tests couvrent le contrat commun annoncé par l'ADR 0014 :
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import inspect
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -62,6 +63,15 @@ def _episode_retourne(uuid: str = "ep-1"):
     result = MagicMock()
     result.episode = MagicMock(uuid=uuid)
     return result
+
+
+@dataclass(frozen=True)
+class _FakeTraduite:
+    """Fausse `_OntologyTraduite` minimale, pour les tests de cycle de vie."""
+
+    entity_types: Dict[str, Any] = field(default_factory=dict)
+    edge_types: Dict[str, Any] = field(default_factory=dict)
+    neutre: Any = None
 
 
 @pytest.fixture
@@ -304,6 +314,36 @@ def test_ontologie_explicite_non_dictionnaire_refusee_avant_toute_ecriture(
     graphiti_deps["graphiti"].add_episode.assert_not_called()
 
 
+def test_add_episode_zep_refuse_ontologie_invalide_avant_appel_distant(
+    store_zep_avec_client,
+):
+    """AC5 symétrie : `_apply_ontology_for_episode` Zep refuse une ontologie invalide
+    avant tout appel au client Zep (007-1 relecture — verification-gap)."""
+    store, _ = store_zep_avec_client
+
+    with pytest.raises(OntologyValidationError):
+        store.add_episode(
+            "g-zep",
+            "Un fait.",
+            ontology={"entity_types": [{"name": "Type Invalide"}]},
+        )
+
+
+def test_add_episode_zep_refuse_ontologie_non_dict_avant_appel_distant(
+    store_zep_avec_client,
+):
+    """AC5 symétrie : un `ontology` non-dict est refusé avant tout appel distant (007-1 relecture)."""
+    from app.utils.graph_store.errors import GraphValidationError
+
+    store, client = store_zep_avec_client
+
+    with pytest.raises(GraphValidationError):
+        store.add_episode("g-zep", "Un fait.", ontology="pas un dict")  # type: ignore[arg-type]
+
+    client.graph.set_ontology.assert_not_called()
+    client.graph.add.assert_not_called()
+
+
 def test_add_text_batch_transmet_l_ontologie_posee_sans_changer_de_signature(
     store_graphiti, graphiti_deps
 ):
@@ -423,19 +463,19 @@ def test_add_episode_zep_repose_une_ontologie_differente(store_zep, store_zep_av
     assert client.graph.set_ontology.call_count == 2
 
 
-def test_ontologie_zep_sans_type_transmissible_ne_bloque_pas_l_ecriture(
+def test_ontologie_zep_vide_refusee_avant_appel_distant(
     store_zep, store_zep_avec_client
 ):
-    """Une ontologie vide ne doit pas faire échouer une ingestion qui n'en a rien à faire."""
-    _, client = store_zep_avec_client
-    client.graph.add.side_effect = lambda **kwargs: MagicMock(
-        uuid_="ep-zep", processed=True
-    )
+    """Une ontologie vide est refusée avant tout appel distant : AC5 symétrie (007-1 relecture)."""
+    from app.utils.graph_store.errors import OntologyValidationError
 
-    store_zep.add_episode("g-zep", "Un fait.", ontology={"entity_types": []})
+    _, client = store_zep_avec_client
+
+    with pytest.raises(OntologyValidationError):
+        store_zep.add_episode("g-zep", "Un fait.", ontology={"entity_types": []})
 
     client.graph.set_ontology.assert_not_called()
-    client.graph.add.assert_called_once()
+    client.graph.add.assert_not_called()
 
 
 # --- Alignement du contrat entre les deux implémentations (AC5) ---
@@ -562,6 +602,174 @@ def test_get_applied_ontology_refuse_un_graph_id_inutilisable(store_graphiti, st
         store_graphiti.get_applied_ontology("")
     with pytest.raises(GraphValidationError):
         store_zep.get_applied_ontology("")
+
+
+def test_delete_graph_purge_l_ontologie_appliquee_graphiti(
+    store_graphiti, graphiti_deps
+):
+    """Cycle de vie : `delete_graph` purge l'ontologie appliquée mémorisée.
+
+    Un graphe supprimé puis recréé sous le même `graph_id` ne doit pas voir
+    `get_applied_ontology` répondre sur un état mémoire antérieur (bug de
+    cycle de vie relecturé le 12 octobre 2026).
+    """
+    graphiti_deps["graphiti"].add_episode = MagicMock(return_value=_episode_retourne())
+    store_graphiti.set_ontology("g-cycle", ONTOLOGIE_TELECOM)
+    assert store_graphiti.get_applied_ontology("g-cycle") is not None
+
+    # delete_graph appelle directement _execute_cypher, sans dépendance externe
+    # dans ce test (le mock _run_async tolère l'appel).
+    graphiti_deps["driver"].execute_query.return_value = ([], [], [])
+    store_graphiti.delete_graph("g-cycle")
+
+    assert store_graphiti.get_applied_ontology("g-cycle") is None
+
+
+def test_create_graph_avec_id_explicite_purge_l_ontologie_appliquee_graphiti(
+    store_graphiti,
+):
+    """Cycle de vie : `create_graph` avec `graph_id` explicite purge l'ontologie
+    appliquée mémorisée.
+
+    Sans purge, un graphe recréé sous le même identifiant hériterait d'une
+    politique posée avant lui (bug de cycle de vie relecturé le 12 octobre
+    2026)."""
+    from app.utils.graph_store.base import AppliedOntology
+    from app.utils.graph_store.errors import GraphConnectionError
+
+    store_graphiti._check_connection = AsyncMock(
+        side_effect=GraphConnectionError("non testé")
+    )
+
+    store_graphiti._applied_ontologies["g-reuse"] = _FakeTraduite(
+        neutre=AppliedOntology(entity_type_names=("Person",), edge_type_names=())
+    )
+    assert store_graphiti.get_applied_ontology("g-reuse") is not None
+
+    # create_graph lève _après_ la purge si la connexion échoue.
+    with pytest.raises(GraphConnectionError):
+        store_graphiti.create_graph("graphe recyclé", graph_id="g-reuse")
+
+    assert "g-reuse" not in store_graphiti._applied_ontologies
+
+
+def test_delete_graph_purge_l_ontologie_appliquee_zep(
+    store_zep, store_zep_avec_client
+):
+    """Cycle de vie Zep : `delete_graph` purge l'ontologie appliquée mémorisée."""
+    _, client = store_zep_avec_client
+    store_zep.set_ontology("g-zep-cycle", ONTOLOGIE_TELECOM)
+    assert store_zep.get_applied_ontology("g-zep-cycle") is not None
+
+    store_zep.delete_graph("g-zep-cycle")
+
+    assert store_zep.get_applied_ontology("g-zep-cycle") is None
+    client.graph.delete.assert_called_once()
+
+
+def test_set_ontology_refuse_strict_non_booleen_graphiti(store_graphiti):
+    """`strict` doit être un booléen : `bool("false")` vaut `True`, piège latent."""
+    with pytest.raises(GraphValidationError):
+        store_graphiti.set_ontology(
+            "g-strict", graphe_de_test(), strict="false"  # noqa: F821
+        )
+
+
+def test_set_ontology_refuse_strict_non_booleen_zep(store_zep):
+    """`strict` doit être un booléen, côté Zep aussi."""
+    with pytest.raises(GraphValidationError):
+        store_zep.set_ontology(
+            "g-strict", graphe_de_test(), strict="false"  # noqa: F821
+        )
+
+
+def test_add_episode_ontologie_explicite_herite_strict_du_graphe(
+    store_graphiti, graphiti_deps
+):
+    """Une ontologie explicite hérite du `strict` posé par `set_ontology` (ADR 0014)."""
+    from app.utils.graph_store.base import AppliedOntology
+
+    graphiti_deps["graphiti"].add_episode = MagicMock(return_value=_episode_retourne())
+    store_graphiti.set_ontology("g-strict-h", ONTOLOGIE_TELECOM, strict=True)
+
+    # On appelle add_episode avec une ontologie explicite mais sans strict :
+    # l'ontologie résolue doit porter `strict=True` hérité du graphe.
+    graphiti_deps["graphiti"].add_episode.reset_mock()
+    store_graphiti.add_episode(
+        "g-strict-h", "Fait.", ontology=ONTOLOGIE_TELECOM
+    )
+
+    # L'AppliedOntology du graphe est `strict=True`, l'ontologie résolue
+    # pour cet épisode aussi.
+    appliquee = store_graphiti.get_applied_ontology("g-strict-h")
+    assert isinstance(appliquee, AppliedOntology)
+    assert appliquee.strict is True
+
+
+def test_get_applied_ontology_default_retourne_none_pour_sous_classe_tierce():
+    """Le contrat `Optional[AppliedOntology]` est respecté par défaut (007-1 relecture).
+
+    Une sous-classe qui n'override pas la méthode retourne `None` au lieu de
+    lever `NotImplementedError`, ce qui matche la docstring et le type
+    annoncé.
+    """
+    from app.utils.graph_store.base import GraphStore
+
+    class _TierceSansOverride(GraphStore):
+        version = 2
+
+        def set_ontology(self, graph_id, ontology, *, strict=False):
+            return None
+
+        def add_episode(self, graph_id, text, source_description="", metadata=None,
+                        created_at=None, *, ontology=None):
+            return None
+
+        def create_graph(self, name, graph_id=None):
+            return graph_id or "g"
+
+        def delete_graph(self, graph_id):
+            return None
+
+        def get_all_nodes(self, graph_id, limit=10000):
+            return []
+
+        def get_all_edges(self, graph_id, include_temporal=True, limit=10000):
+            return []
+
+        def get_node(self, graph_id, node_uuid):
+            return None
+
+        def get_node_edges(self, graph_id, node_uuid):
+            return []
+
+        def get_graph_data(self, graph_id):
+            return {"nodes": [], "edges": []}
+
+        def get_graph_info(self, graph_id):
+            from app.utils.graph_store.base import GraphInfo
+
+            return GraphInfo(graph_id=graph_id, node_count=0, edge_count=0, entity_types=[])
+
+        def search(self, graph_id, query, scopes=("edges",)):
+            return []
+
+        def add_text_batch(self, graph_id, texts, batch_size=10):
+            from app.utils.graph_store.base import BatchSubmissionRecord
+
+            return BatchSubmissionRecord(batch_id="b", operation_id="op", episode_uuids=[], item_count=0)
+
+        def wait_for_batch(self, batch, *, timeout=10.0):
+            return None
+
+        def wait_for_episodes(self, graph_id, episode_uuids, *, timeout=10.0):
+            return None
+
+        def get_edge_provenance(self, graph_id, edge_uuid):
+            return []
+
+    tierce = _TierceSansOverride()
+    assert tierce.get_applied_ontology("g-quelconque") is None
 
 
 # --- Le contrat tient-il encore pour une implémentation tierce ? ---
