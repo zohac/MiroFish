@@ -21,7 +21,14 @@ from ..utils.graph_store import (
     GraphSearchResult,
     GraphStore,
     GraphStoreError,
+    ProvenanceOrigin,
+    ProvenanceRecord,
     get_graph_store,
+)
+from ..models.source_document import (
+    InformationOrigin,
+    classify_record_origin,
+    classify_provenance_records,
 )
 from ..utils.llm_client import LLMClient
 from ..utils.locale import get_locale, t
@@ -38,6 +45,9 @@ class SearchResult:
     nodes: List[Dict[str, Any]]
     query: str
     total_count: int
+    provenance: List[ProvenanceRecord] = field(default_factory=list)
+    origin: str = "unknown"
+    origins: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -45,7 +55,12 @@ class SearchResult:
             "edges": self.edges,
             "nodes": self.nodes,
             "query": self.query,
-            "total_count": self.total_count
+            "total_count": self.total_count,
+            "provenance": [
+                p.to_dict() if hasattr(p, "to_dict") else p for p in self.provenance
+            ],
+            "origin": self.origin,
+            "origins": list(self.origins),
         }
     
     def to_text(self) -> str:
@@ -86,7 +101,7 @@ class NodeInfo:
 
 @dataclass
 class EdgeInfo:
-    """边信息"""
+    """边信息 (Enrichi avec traçabilité et 5 origines - Story 009-4)"""
     uuid: str
     name: str
     fact: str
@@ -99,6 +114,17 @@ class EdgeInfo:
     valid_at: Optional[str] = None
     invalid_at: Optional[str] = None
     expired_at: Optional[str] = None
+    # 溯源与5大来源信息 (AC1, AC2)
+    episodes: List[str] = field(default_factory=list)
+    provenance: List[ProvenanceRecord] = field(default_factory=list)
+    origin: str = "unknown"
+    origins: List[str] = field(default_factory=list)
+    source_document_id: Optional[str] = None
+    source_filename: Optional[str] = None
+    source_role: Optional[str] = None
+    chunk_index: Optional[int] = None
+    char_start: Optional[int] = None
+    char_end: Optional[int] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -112,10 +138,22 @@ class EdgeInfo:
             "created_at": self.created_at,
             "valid_at": self.valid_at,
             "invalid_at": self.invalid_at,
-            "expired_at": self.expired_at
+            "expired_at": self.expired_at,
+            "episodes": list(self.episodes),
+            "provenance": [
+                p.to_dict() if hasattr(p, "to_dict") else p for p in self.provenance
+            ],
+            "origin": self.origin,
+            "origins": list(self.origins),
+            "source_document_id": self.source_document_id,
+            "source_filename": self.source_filename,
+            "source_role": self.source_role,
+            "chunk_index": self.chunk_index,
+            "char_start": self.char_start,
+            "char_end": self.char_end,
         }
     
-    def to_text(self, include_temporal: bool = False) -> str:
+    def to_text(self, include_temporal: bool = False, include_provenance: bool = True) -> str:
         """转换为文本格式"""
         source = self.source_node_name or self.source_node_uuid[:8]
         target = self.target_node_name or self.target_node_uuid[:8]
@@ -127,6 +165,14 @@ class EdgeInfo:
             base_text += f"\n时效: {valid_at} - {invalid_at}"
             if self.expired_at:
                 base_text += f" (已过期: {self.expired_at})"
+        
+        if include_provenance and (self.origin or self.source_filename):
+            prov_desc = f"来源: [{self.origin}]"
+            if self.source_filename:
+                prov_desc += f" {self.source_filename}"
+            if self.char_start is not None and self.char_end is not None:
+                prov_desc += f" (pos: {self.char_start}-{self.char_end})"
+            base_text += f"\n{prov_desc}"
         
         return base_text
     
@@ -155,6 +201,10 @@ class InsightForgeResult:
     semantic_facts: List[str] = field(default_factory=list)  # 语义搜索结果
     entity_insights: List[Dict[str, Any]] = field(default_factory=list)  # 实体洞察
     relationship_chains: List[str] = field(default_factory=list)  # 关系链
+    edges: List[Dict[str, Any]] = field(default_factory=list)  # 边列表（含溯源）
+    provenance: List[ProvenanceRecord] = field(default_factory=list)  # 溯源记录
+    origin: str = "unknown"
+    origins: List[str] = field(default_factory=list)
     
     # 统计信息
     total_facts: int = 0
@@ -169,6 +219,12 @@ class InsightForgeResult:
             "semantic_facts": self.semantic_facts,
             "entity_insights": self.entity_insights,
             "relationship_chains": self.relationship_chains,
+            "edges": self.edges,
+            "provenance": [
+                p.to_dict() if hasattr(p, "to_dict") else p for p in self.provenance
+            ],
+            "origin": self.origin,
+            "origins": list(self.origins),
             "total_facts": self.total_facts,
             "total_entities": self.total_entities,
             "total_relationships": self.total_relationships
@@ -502,14 +558,32 @@ class ZepToolsService:
             
             facts = list(search_res.facts)
             edges = []
+            all_prov_records: List[ProvenanceRecord] = []
+
+            # Résolution batch de la provenance pour éviter N+1 round-trips.
+            prov_map: Dict[str, List[ProvenanceRecord]] = {}
+            if search_res.edges:
+                try:
+                    prov_map = self.store.get_edges_provenance(
+                        graph_id, [edge.uuid for edge in search_res.edges]
+                    )
+                except Exception as e:
+                    logger.debug(f"Batch provenance échoué, repli par arête: {e}")
+                    prov_map = {}
+
             for edge in search_res.edges:
-                edges.append({
-                    "uuid": edge.uuid,
-                    "name": edge.name,
-                    "fact": edge.fact,
-                    "source_node_uuid": edge.source_node_uuid,
-                    "target_node_uuid": edge.target_node_uuid,
-                })
+                precomputed = prov_map.get(edge.uuid)
+                if precomputed is None and prov_map:
+                    precomputed = []
+                edge_info = self._enrich_edge_info(
+                    graph_id,
+                    edge,
+                    include_temporal=True,
+                    resolve_provenance=True,
+                    precomputed_provenance=precomputed,
+                )
+                edges.append(edge_info.to_dict())
+                all_prov_records.extend(edge_info.provenance)
             
             nodes = []
             for node in search_res.nodes:
@@ -524,12 +598,17 @@ class ZepToolsService:
             
             logger.info(t("console.searchComplete", count=len(facts)))
             
+            primary_origin, distinct_origins = classify_provenance_records(all_prov_records)
+
             return SearchResult(
                 facts=facts,
                 edges=edges,
                 nodes=nodes,
                 query=query,
-                total_count=len(facts)
+                total_count=len(facts),
+                provenance=all_prov_records,
+                origin=primary_origin.value,
+                origins=[o.value for o in distinct_origins],
             )
             
         except Exception as e:
@@ -658,13 +737,85 @@ class ZepToolsService:
         logger.info(t("console.fetchedNodes", count=len(result)))
         return result
 
-    def get_all_edges(self, graph_id: str, include_temporal: bool = True) -> List[EdgeInfo]:
+    def _enrich_edge_info(
+        self,
+        graph_id: str,
+        edge: GraphEdge,
+        include_temporal: bool = True,
+        resolve_provenance: bool = True,
+        precomputed_provenance: Optional[List[ProvenanceRecord]] = None,
+    ) -> EdgeInfo:
+        """Enrichit un GraphEdge en EdgeInfo avec résolution de provenance (AC1, AC2).
+
+        Si `precomputed_provenance` est fourni, le store n'est pas consulté pour
+        cette arête — c'est le chemin utilisé par `get_all_edges` et
+        `search_graph` qui résolvent la provenance en lot pour éviter le N+1.
         """
-        获取图谱的所有边（包含时间信息）
+        episodes = list(getattr(edge, "episodes", []) or [])
+        prov_records: List[ProvenanceRecord] = []
+        if precomputed_provenance is not None:
+            prov_records = list(precomputed_provenance)
+        elif resolve_provenance:
+            try:
+                prov_records = self.store.get_edge_provenance(graph_id, edge.uuid)
+            except Exception as e:
+                logger.debug(f"Provenance non résolue pour l'arête {edge.uuid}: {e}")
+                prov_records = []
+
+        primary_origin, distinct_origins = classify_provenance_records(prov_records)
+
+        # Chercher le premier fragment documentaire s'il existe
+        doc_rec = next(
+            (
+                r
+                for r in prov_records
+                if getattr(r, "is_documentary", False)
+                or getattr(r, "origin", None) == "document"
+            ),
+            None,
+        )
+
+        edge_info = EdgeInfo(
+            uuid=edge.uuid,
+            name=edge.name or "",
+            fact=edge.fact or "",
+            source_node_uuid=edge.source_node_uuid or "",
+            target_node_uuid=edge.target_node_uuid or "",
+            source_node_name=edge.source_node_name or None,
+            target_node_name=edge.target_node_name or None,
+            episodes=episodes,
+            provenance=prov_records,
+            origin=primary_origin.value,
+            origins=[o.value for o in distinct_origins],
+            source_document_id=doc_rec.source_document_id if doc_rec else None,
+            source_filename=doc_rec.source_filename if doc_rec else None,
+            source_role=doc_rec.source_role if doc_rec else None,
+            chunk_index=doc_rec.chunk_index if doc_rec else None,
+            char_start=doc_rec.char_start if doc_rec else None,
+            char_end=doc_rec.char_end if doc_rec else None,
+        )
+
+        if include_temporal:
+            edge_info.created_at = edge.created_at
+            edge_info.valid_at = edge.valid_at
+            edge_info.invalid_at = edge.invalid_at
+            edge_info.expired_at = edge.expired_at
+
+        return edge_info
+
+    def get_all_edges(
+        self,
+        graph_id: str,
+        include_temporal: bool = True,
+        resolve_provenance: bool = True,
+    ) -> List[EdgeInfo]:
+        """
+        获取图谱的所有边（包含时间信息与溯源）
 
         Args:
             graph_id: 图谱ID
             include_temporal: 是否包含时间信息（默认True）
+            resolve_provenance: 是否解析溯源记录（默认True）
 
         Returns:
             边列表
@@ -672,29 +823,70 @@ class ZepToolsService:
         logger.info(t("console.fetchingAllEdges", graphId=graph_id))
 
         edges = self.store.get_all_edges(graph_id, include_temporal=include_temporal)
+        # Résolution batch de la provenance pour éviter N+1 appels au store.
+        prov_map: Dict[str, List[ProvenanceRecord]] = {}
+        if resolve_provenance and edges:
+            try:
+                prov_map = self.store.get_edges_provenance(
+                    graph_id, [edge.uuid for edge in edges]
+                )
+            except Exception as e:
+                logger.debug(f"Batch provenance échoué, repli par arête: {e}")
+                prov_map = {}
 
         result = []
         for edge in edges:
-            edge_info = EdgeInfo(
-                uuid=edge.uuid,
-                name=edge.name or "",
-                fact=edge.fact or "",
-                source_node_uuid=edge.source_node_uuid or "",
-                target_node_uuid=edge.target_node_uuid or "",
-                source_node_name=edge.source_node_name or None,
-                target_node_name=edge.target_node_name or None,
+            precomputed = prov_map.get(edge.uuid)
+            if precomputed is None and resolve_provenance and prov_map:
+                # Le store n'a pas retourné d'entrée pour cette arête : pas de
+                # provenance, mais on évite le repli en N+1 silencieux.
+                precomputed = []
+            result.append(
+                self._enrich_edge_info(
+                    graph_id,
+                    edge,
+                    include_temporal=include_temporal,
+                    resolve_provenance=resolve_provenance,
+                    precomputed_provenance=precomputed,
+                )
             )
-
-            if include_temporal:
-                edge_info.created_at = edge.created_at
-                edge_info.valid_at = edge.valid_at
-                edge_info.invalid_at = edge.invalid_at
-                edge_info.expired_at = edge.expired_at
-
-            result.append(edge_info)
 
         logger.info(t("console.fetchedEdges", count=len(result)))
         return result
+    
+    def get_edge_detail(
+        self,
+        graph_id: str,
+        edge_uuid: str,
+        resolve_provenance: bool = True,
+    ) -> Optional[EdgeInfo]:
+        """
+        获取单条边的详细信息（包含溯源与时间信息 - AC1）
+
+        Args:
+            graph_id: 图谱ID
+            edge_uuid: 边UUID
+            resolve_provenance: 是否解析溯源（默认True）
+
+        Returns:
+            EdgeInfo ou None
+        """
+        if not edge_uuid:
+            return None
+        logger.info(f"Fetching edge detail for {edge_uuid[:8]} in graph {graph_id}")
+        try:
+            target = self.store.get_edge_by_uuid(graph_id, edge_uuid, include_temporal=True)
+            if not target:
+                return None
+            return self._enrich_edge_info(
+                graph_id,
+                target,
+                include_temporal=True,
+                resolve_provenance=resolve_provenance,
+            )
+        except Exception as e:
+            logger.error(f"Failed to fetch edge detail for {edge_uuid}: {e}")
+            raise
     
     def get_node_detail(
         self,
@@ -733,13 +925,19 @@ class ZepToolsService:
             logger.error(t("console.fetchNodeDetailFailed", error=str(e)))
             raise
     
-    def get_node_edges(self, graph_id: str, node_uuid: str) -> List[EdgeInfo]:
+    def get_node_edges(
+        self,
+        graph_id: str,
+        node_uuid: str,
+        resolve_provenance: bool = True,
+    ) -> List[EdgeInfo]:
         """
-        获取节点相关的所有边
+        获取节点相关的所有边（含溯源）
         
         Args:
             graph_id: 图谱ID
             node_uuid: 节点UUID
+            resolve_provenance: 是否解析溯源（默认True）
             
         Returns:
             边列表
@@ -748,22 +946,15 @@ class ZepToolsService:
         
         try:
             edges = self.store.get_node_edges(graph_id, node_uuid=node_uuid)
-            
-            result = []
-            for edge in edges:
-                result.append(EdgeInfo(
-                    uuid=edge.uuid,
-                    name=edge.name or "",
-                    fact=edge.fact or "",
-                    source_node_uuid=edge.source_node_uuid or "",
-                    target_node_uuid=edge.target_node_uuid or "",
-                    source_node_name=edge.source_node_name or None,
-                    target_node_name=edge.target_node_name or None,
-                    created_at=edge.created_at,
-                    valid_at=edge.valid_at,
-                    invalid_at=edge.invalid_at,
-                    expired_at=edge.expired_at,
-                ))
+            result = [
+                self._enrich_edge_info(
+                    graph_id,
+                    edge,
+                    include_temporal=True,
+                    resolve_provenance=resolve_provenance,
+                )
+                for edge in edges
+            ]
             
             logger.info(t("console.foundNodeEdges", count=len(result)))
             return result
@@ -1081,6 +1272,25 @@ class ZepToolsService:
         result.relationship_chains = relationship_chains
         result.total_relationships = len(relationship_chains)
         
+        # Collecter les traces de provenance et l'origine agrégée (AC1)
+        all_prov: List[ProvenanceRecord] = []
+        all_prov.extend(main_search.provenance)
+        for e in all_edges:
+            if isinstance(e, dict) and e.get("provenance"):
+                for p in e["provenance"]:
+                    if isinstance(p, ProvenanceRecord):
+                        all_prov.append(p)
+                    elif isinstance(p, dict):
+                        try:
+                            all_prov.append(ProvenanceRecord(**p))
+                        except Exception:
+                            pass
+        primary_origin, distinct_origins = classify_provenance_records(all_prov)
+        result.edges = all_edges
+        result.provenance = all_prov
+        result.origin = primary_origin.value
+        result.origins = [o.value for o in distinct_origins]
+
         logger.info(t("console.insightForgeComplete", facts=result.total_facts, entities=result.total_entities, relationships=result.total_relationships))
         return result
     

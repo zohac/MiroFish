@@ -25,6 +25,8 @@ reproductible.**
 | Planification migrée vers `epic-XXX.md` + `story-XXX.md` (ADR 0009) | ✅ fait |
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002, 003 et 004 clos (632 tests verts) |
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
+| Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
+| Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1145 tests verts, Verdict GO) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -57,7 +59,7 @@ reproductible.**
 > Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €), valider la relecture applicative (GraphStore, ZepEntityReader, OASIS — C4) avec purge optionnelle sécurisée (`purger_graphes_zep.py`, FR-6).
 > Les stories 006-1, 006-2 et 006-3 sont validées (800 tests verts).
 >
-> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, stories 009-1, 009-2 et 009-3 `done`.**
+> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est intégralement clos avec succès (4/4 stories done).**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
 > La story 009-1 est close (`done`) : modèle `ActorEligibility`, classifieur
 > agnostique à deux passes (`app/services/actor_classifier.py`), barrière du
@@ -81,10 +83,15 @@ reproductible.**
 > transmission des rôles qualifiés aux personas, invalidation d'obsolescence et blocage
 > volontaire `block_on_review`/`block_on_conflict`) ; IHM Vue 3 (`Step2EnvSetup.vue`) avec
 > panneau de prévalidation, badges d'éligibilité, dialogue modal d'arbitrage motivé,
-> alertes de conflits et cases de blocage. 18 nouveaux tests unitaires et d'intégration hermétiques
-> (1130 tests verts sur l'hôte, 0 échec, revue BMAD à 4 couches validée avec 7 patches).
-> Le lot 009-4 reste en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
-> reste la référence des arbitrages.
+> alertes de conflits et cases de blocage (1130 tests verts).
+> La story 009-4 est close (`done`, revue BMAD code-review du 12 octobre 2026, 10 patches de moyen/haut impact appliqués et **1157 tests verts** — voir `### Review Findings` dans la story) : outils de provenance `ZepToolsService` (classification
+> étanche en 5 origines, `ProvenanceRecord`, `episodes`, fragments `char_start`/`char_end`),
+> vérificateur d'actions simulées `SimulationActionVerifier` (règle anti-affabulation C7,
+> `event_id` déterministe, contrôle verbatim exact des citations, formatage des contradictions),
+> génération de la section « Sources & Provenance » dans `ReportAgent` avec étanchéité NFR-5,
+> banc d'orchestration globale `backend/scripts/verifier_qualification_epic_009.py` validant
+> les critères C1 à C7 de bout en bout avec [rapport de qualification formel](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md)
+> et **VERDICT GO** validé (1145 tests verts sur l'hôte, 0 échec, revue BMAD 4 couches conforme).
 
 ---
 
@@ -112,10 +119,10 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet de référence du
-11 octobre 2026 est de **1130 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
+12 octobre 2026 est de **1145 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
-921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130 hôte ; [preuves et
-limites](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md).
+921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; [preuves et
+limites](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md).
 
 Règles de qualité des tests :
 
@@ -377,7 +384,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 1110 réussis sur l'hôte, 1107 + 3 ignorés sous Docker au 11 octobre 2026 (story 009-2) |
+| Tests | `backend/tests/` | pytest — 1145 réussis sur l'hôte au 12 octobre 2026 (Epic 009 clos) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -397,6 +404,7 @@ Variables d'environnement utiles :
 | Audit Zep Cloud | `backend/scripts/auditer_graphes_zep.py` | sonde d'inventaire et d'arbitrage de compte Zep (006-1), critère C1 |
 | Migration Zep -> Graphiti | `backend/scripts/migrer_zep_vers_graphiti.py` | pipeline ETL direct Zep vers Neo4j (006-2), critères C2, C3, C4 |
 | Purge Zep Cloud | `backend/scripts/purger_graphes_zep.py` | outil autonome de purge distante sécurisée (006-3), critère FR-6 |
+| Qualification Epic 009 | `backend/scripts/verifier_qualification_epic_009.py` | banc de qualification globale éligibilité acteurs et provenance (009-4), critères C1-C7, VERDICT GO |
 | Protocole de la 001-2 | `docs/plans/001-epreuve-graphiti-local/verifier-001-2.sh` | les deux modes (compose / sans-apoc) — **la seule chose rejouable** |
 | Sorties de mesure | `…/mesure-001-2-compose.txt`, `…/mesure-001-2-sans-apoc.txt` | la preuve versionnée, avec les deux versions |
 | Garde-fous de la 001-2 | `backend/tests/test_neo4j_serveur_epreuve.py`, `…/test_verifier_protocol.py` | 43 tests — serveur déclaré, protocole, sorties |

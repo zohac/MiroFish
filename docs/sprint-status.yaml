@@ -17,7 +17,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-11
+mis_a_jour: 2026-10-12
 
 epics:
   - id: "001"
@@ -394,7 +394,7 @@ epics:
   - id: "009"
     slug: eligibilite-acteurs-et-sources
     titre: "Éligibilité des acteurs et fiabilisation des sources"
-    statut: in-progress
+    statut: done
     plan: docs/plans/009-eligibilite-acteurs-et-sources
     depend_de: ["004", "005"]
     pourquoi: >-
@@ -440,6 +440,23 @@ epics:
     # quatre couches validée (7 patches appliqués : alignement des rôles ActorRole IHM,
     # éligibilité stricte, priorisation de la justification motivée, désérialisation
     # None-safe, isolation save_atomic, horodatage UTC ISO 8601, parité i18n).
+    # Story 009-4 (REVIEW au 12 oct. 2026) : Outils de provenance ZepToolsService (transport complet des
+    # épisodes, ProvenanceRecord et origines sans régression), modèle InformationOrigin
+    # avec classification étanche des 5 origines d'information, service SimulationActionVerifier
+    # scellant la règle d'or anti-affabulation C7 (toute déclaration verbale d'intention
+    # non suivie d'action dans actions.jsonl est requalifiée en « intention simulée exprimée »,
+    # hachage déterministe compute_event_id, contrôle de véracité des citations verbatim,
+    # formatage des contradictions ouvertes), intégration ReportAgent avec section dédiée
+    # « Sources & Provenance » et séparation stricte données/consignes (NFR-5).
+    # Banc d'orchestration verifier_qualification_epic_009.py validant de bout en bout
+    # les critères C1 à C7 avec le rapport formel rapport-qualification-epic-009.md et
+    # VERDICT GO. Filet : 1157 réussis sur l'hôte au 12 octobre 2026 (+12 tests
+    # hermétiques ajoutés par la revue BMAD code-review : tests N+1 batch, cache
+    # invalidation, déterminisme compute_event_id, exactitude verify_citation,
+    # motifs d'intention étendus, _resolve_project, _load_source_document_text).
+    # Rétrogradée de done à review le 12 octobre 2026 par la revue BMAD code-review
+    # puis remise en done le 12 octobre 2026 après application des 10 patches
+    # (haut + moyen impact) listés dans § Review Findings.
     criteres_de_sortie:
       - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"
       - "C2 : 2 domaines sans changement de code ; fixtures annotées et mesure séparée du classifieur réel"

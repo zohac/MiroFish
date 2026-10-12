@@ -1,10 +1,10 @@
 # Epic 009 — Éligibilité des acteurs et fiabilisation des sources
 
-- **Statut** : `in-progress` · **Dépend de** : 004, 005 · **Bloque** : 007
+- **Statut** : `done` · **Dépend de** : 004, 005 · **Bloque** : 007
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
-- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). La [story 009-1](story-009-1.md) est implémentée et clôturée (`done`, revue contradictoire du 11 octobre 2026) : modèle, classifieur, barrière, intégration et [mesure réelle](mesure-009-1.md) livrés. La [story 009-2](story-009-2.md) est implémentée et clôturée (`done`) : [ADR 0012](../../decisions/0012-contrat-de-provenance-graphstore.md), [ADR 0013](../../decisions/0013-semantique-des-sources.md), modèles de sources et brief, contrat de provenance dans les deux stores, découpage par document, diagnostics de contexte et [mesure réelle C3](mesure-009-2.md) livrés. La [story 009-3](story-009-3.md) est implémentée et clôturée (`done`) : modèle `ActorSelection`, persistance atomique `actors.json`, routes Flask `preview`/`review`, IHM Vue 3, alertes de conflits et blocage volontaire. La [story 009-4](story-009-4.md) est rédigée (`backlog`).
-- **Rapport source fourni par l'utilisateur** : [matrice de couverture](couverture-rapport-audit.md), incluant diagnostics, contexte long et événements de simulation.
+- **Reprise du 10 octobre 2026** : [revue de cohérence et arbitrages ouverts](revue-coherence-2026-10-10.md). Les 4 stories du lot sont achevées et clôturées (`done`) : la [story 009-1](story-009-1.md) (modèle, classifieur agnostique, barrière), la [story 009-2](story-009-2.md) (ADR 0012, ADR 0013, documents typés, brief, contrat de provenance GraphStore), la [story 009-3](story-009-3.md) (sélection persistée `actors.json`, endpoints `preview`/`review`, IHM Vue 3, blocage) et la [story 009-4](story-009-4.md) (outils de provenance, rapport vérifiable avec 5 origines, règle anti-affabulation C7, et banc de qualification globale avec VERDICT GO).
+- **Rapport de qualification globale** : [`rapport-qualification-epic-009.md`](rapport-qualification-epic-009.md) (**VERDICT GO** validé le 12 octobre 2026, 1145 tests au vert).
 
 > L'Epic 005 a scellé l'environnement Docker de référence autonome (711 tests verts, Verdict GO).  
 > **L'Epic 009 élimine la confusion sémantique entre connaissances et acteurs simulables**.  
@@ -55,7 +55,7 @@
 | 009-1 | Modèle `ActorEligibility` et classifieur agnostique à deux passes (Lot A - P0) | `done` | [story-009-1.md](story-009-1.md) |
 | 009-2 | Documents sources typés, brief versionné, écriture et lecture de provenance `GraphStore` (Lot B - P1) | `done` | [story-009-2.md](story-009-2.md) |
 | 009-3 | Endpoints et interface de prévalidation des acteurs (`preview` & `review`) (Lot C - P1) | `done` | [story-009-3.md](story-009-3.md) |
-| 009-4 | Outils de provenance, rapport vérifiable et qualification globale (Lot D - P1) | `backlog` | [story-009-4.md](story-009-4.md) |
+| 009-4 | Outils de provenance, rapport vérifiable et qualification globale (Lot D - P1) | `done` | [story-009-4.md](story-009-4.md) |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|

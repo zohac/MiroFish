@@ -98,6 +98,121 @@ class ConflictResolutionRule(str, Enum):
     RECENCY = "recency"
 
 
+class InformationOrigin(str, Enum):
+    """Typologie stricte des 5 origines d'information (ADR 0012, ADR 0013, PRD C7).
+
+    Les 5 catégories exclusives sont :
+      - documentary : fait issu d'un document source validé ou avec positions exactes.
+      - hypothesis : hypothèse de brief ou consigne de scénario.
+      - simulation : comportement d'agent ou événement enregistré lors du run.
+      - inference : déduction analytique ou synthèse du LLM de rapport.
+      - unknown : référence non résolue, arête héritée ou sans provenance traçable.
+    """
+
+    DOCUMENTARY = "documentary"
+    HYPOTHESIS = "hypothesis"
+    SIMULATION = "simulation"
+    INFERENCE = "inference"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_str(cls, value: Optional[str]) -> "InformationOrigin":
+        """Normalise une chaîne quelconque vers l'une des 5 origines."""
+        if not value or not isinstance(value, str):
+            return cls.UNKNOWN
+        val = value.strip().lower()
+        if val in ("documentary", "document", "facts", "doc"):
+            return cls.DOCUMENTARY
+        if val in ("hypothesis", "scenario", "hypotheses", "hypothesis/scenario"):
+            return cls.HYPOTHESIS
+        if val in ("simulation", "observation", "simulated", "simulation/observation"):
+            return cls.SIMULATION
+        if val in ("inference", "deduction", "analysis"):
+            return cls.INFERENCE
+        if val in ("unknown", "inherited", "legacy", "unresolved", "unknown/inherited"):
+            return cls.UNKNOWN
+        return cls.UNKNOWN
+
+
+def classify_record_origin(record: Any) -> InformationOrigin:
+    """Détermine l'une des 5 origines d'un ProvenanceRecord ou dict de provenance."""
+    if record is None:
+        return InformationOrigin.UNKNOWN
+
+    def _get(key: str, default: Any = None) -> Any:
+        if isinstance(record, dict):
+            return record.get(key, default)
+        return getattr(record, key, default)
+
+    origin = _get("origin")
+    role = _get("source_role") or _get("role")
+
+    # Rôle sémantique d'hypothèse ou de scénario prioritaire sur la nature documentaire
+    if role in (
+        DocumentRole.HYPOTHESES.value,
+        DocumentRole.SCENARIO.value,
+        "hypotheses",
+        "scenario",
+    ):
+        return InformationOrigin.HYPOTHESIS
+
+    # Fait documentaire vérifié (objet avec property is_documentary ou dict avec références valides)
+    if _get("is_documentary", False):
+        return InformationOrigin.DOCUMENTARY
+
+    if origin == "document" and _get("resolved", False):
+        return InformationOrigin.DOCUMENTARY
+
+    if _get("filename") and _get("char_start") is not None and _get("char_end") is not None:
+        return InformationOrigin.DOCUMENTARY
+
+    if _get("source_filename") and _get("char_start") is not None and _get("char_end") is not None:
+        return InformationOrigin.DOCUMENTARY
+
+    if origin == "simulation" or _get("simulation_id"):
+        return InformationOrigin.SIMULATION
+
+    if origin in ("legacy", "unresolved") or not _get("resolved", True):
+        return InformationOrigin.UNKNOWN
+
+    if origin:
+        return InformationOrigin.from_str(str(origin))
+
+    return InformationOrigin.UNKNOWN
+
+
+def classify_provenance_records(
+    records: List[Any],
+) -> tuple[InformationOrigin, List[InformationOrigin]]:
+    """Détermine l'origine principale et toutes les origines distinctes d'un ensemble de ProvenanceRecord."""
+    if not records:
+        return InformationOrigin.UNKNOWN, [InformationOrigin.UNKNOWN]
+
+    distinct: List[InformationOrigin] = []
+    for r in records:
+        o = classify_record_origin(r)
+        if o not in distinct:
+            distinct.append(o)
+
+    if not distinct:
+        return InformationOrigin.UNKNOWN, [InformationOrigin.UNKNOWN]
+
+    # Priorité pour l'origine représentative :
+    # Si documentaire présent -> DOCUMENTARY, sinon SIMULATION, sinon HYPOTHESIS, sinon INFERENCE, sinon UNKNOWN
+    if InformationOrigin.DOCUMENTARY in distinct:
+        primary = InformationOrigin.DOCUMENTARY
+    elif InformationOrigin.SIMULATION in distinct:
+        primary = InformationOrigin.SIMULATION
+    elif InformationOrigin.HYPOTHESIS in distinct:
+        primary = InformationOrigin.HYPOTHESIS
+    elif InformationOrigin.INFERENCE in distinct:
+        primary = InformationOrigin.INFERENCE
+    else:
+        primary = InformationOrigin.UNKNOWN
+
+    return primary, distinct
+
+
 class SourceDocumentError(ValueError):
     """Métadonnée de document source invalide."""
 

@@ -720,6 +720,54 @@ class GraphStore(ABC):
         """
         pass
 
+    def get_edges_provenance(
+        self, graph_id: str, edge_uuids: List[str]
+    ) -> Dict[str, List[ProvenanceRecord]]:
+        """Résout la provenance de plusieurs arêtes en une seule passe.
+
+        Implémentation par défaut : appels individuels à `get_edge_provenance`.
+        Les stores qui ont une requête batch (UNWIND ou équivalent) peuvent la
+        surcharger pour éviter l'effet N+1.
+
+        Args:
+            graph_id: Identifiant unique du graphe cible.
+            edge_uuids: Liste d'UUIDs d'arêtes à résoudre.
+
+        Returns:
+            Dictionnaire `{edge_uuid: [ProvenanceRecord, ...]}` aligné sur la
+            liste d'entrée : un UUID absent du résultat signifie « aucun
+            enregistrement de provenance pour cette arête » (liste vide).
+        """
+        result: Dict[str, List[ProvenanceRecord]] = {}
+        for uuid in edge_uuids:
+            try:
+                result[uuid] = list(self.get_edge_provenance(graph_id, uuid) or [])
+            except Exception:
+                result[uuid] = []
+        return result
+
+    def get_edge_by_uuid(
+        self, graph_id: str, edge_uuid: str, include_temporal: bool = True
+    ) -> Optional[GraphEdge]:
+        """Lit une arête unique par son UUID.
+
+        Implémentation par défaut : scan linéaire via `get_all_edges`. Les
+        stores disposant d'un index direct (Cypher `MATCH (r) WHERE r.uuid = $uuid`)
+        peuvent surcharger pour offrir un lookup O(1).
+
+        Args:
+            graph_id: Identifiant unique du graphe cible.
+            edge_uuid: UUID de l'arête recherchée.
+            include_temporal: Inclure les champs de temporalité.
+
+        Returns:
+            La `GraphEdge` correspondante, ou `None` si absente.
+        """
+        for edge in self.get_all_edges(graph_id, include_temporal=include_temporal):
+            if edge.uuid == edge_uuid:
+                return edge
+        return None
+
     # --- Recherche ---
 
     @abstractmethod
