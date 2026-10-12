@@ -9,7 +9,7 @@ import json
 import shutil
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from ..config import Config
@@ -18,8 +18,22 @@ from .zep_entity_reader import ZepEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
 from ..utils.locale import t
-from ..models.actor_eligibility import ACTOR_ELIGIBILITY_POLICY_VERSION
+from ..models.actor_eligibility import (
+    ACTOR_ELIGIBILITY_POLICY_VERSION,
+    ActorEligibility,
+    ActorRole,
+    EligibilityStatus,
+)
 from ..models.simulation_brief import SimulationBrief, build_minimal_brief
+from ..models.project import ProjectManager
+from ..models.source_document import ConflictStatus
+from ..models.actor_selection import (
+    ACTOR_SELECTION_FILENAME,
+    ActorItem,
+    ActorSelection,
+    OptimisticLockError,
+    SelectionValidationError,
+)
 from .actor_classifier import (
     ActorClassifierService,
     ActorClassificationResult,
@@ -64,6 +78,7 @@ def build_qualification_proof(
     classification: ActorClassificationResult,
     policy_version: str,
     simulation_brief: Optional[SimulationBrief] = None,
+    actor_selection_revision: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Construit la preuve automatique du verrou de qualification (AC10).
 
@@ -72,7 +87,7 @@ def build_qualification_proof(
     correspondre aux profils et à la configuration produits.
     """
 
-    return {
+    proof = {
         "schema_version": 1,
         "policy_version": policy_version,
         "simulation_id": state.simulation_id,
@@ -85,8 +100,11 @@ def build_qualification_proof(
         "qualified_actor_uuids": [q.entity_uuid for q in classification.eligible],
         "counts": classification.summary(),
         "qualifications": [q.to_dict() for q in classification.qualifications],
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if actor_selection_revision is not None:
+        proof["actor_selection_revision"] = actor_selection_revision
+    return proof
 
 
 def write_qualification_proof(sim_dir: str, proof: Dict[str, Any]) -> str:
@@ -344,6 +362,153 @@ class SimulationManager:
         
         return state
     
+    def get_actor_selection(self, simulation_id: str) -> Optional[ActorSelection]:
+        """Lit la sélection persistée `actors.json` rattachée à la simulation."""
+        sim_dir = self._get_simulation_dir(simulation_id)
+        selection_file = os.path.join(sim_dir, ACTOR_SELECTION_FILENAME)
+        return ActorSelection.load(selection_file)
+
+    def save_actor_selection(self, selection: ActorSelection) -> str:
+        """Sauvegarde atomique de la sélection `actors.json`."""
+        sim_dir = self._get_simulation_dir(selection.simulation_id)
+        selection_file = os.path.join(sim_dir, ACTOR_SELECTION_FILENAME)
+        return selection.save_atomic(selection_file)
+
+    def preview_actors(
+        self,
+        simulation_id: str,
+        force_refresh: bool = False,
+        classifier: Optional[ActorClassifierService] = None,
+    ) -> tuple[ActorSelection, Dict[str, Any]]:
+        """Prévisualise et persiste la sélection des acteurs pour une simulation (AC2).
+
+        Si `actors.json` existe déjà et que ses entrées sont inchangées (sans
+        force_refresh), la sélection existante est renvoyée sans recalcul LLM,
+        préservant ainsi les arbitrages humains existants.
+        """
+        state = self._load_simulation_state(simulation_id)
+        if not state:
+            raise ValueError(f"Simulation inexistante: {simulation_id}")
+
+        project = ProjectManager.get_project(state.project_id)
+        simulation_requirement = (project.simulation_requirement or "") if project else ""
+        brief = project.get_brief() if project else None
+        if brief is None:
+            brief = build_minimal_brief(goal=simulation_requirement)
+
+        reader = ZepEntityReader()
+        filtered = reader.filter_defined_entities(
+            graph_id=state.graph_id,
+            defined_entity_types=state.entity_types or None,
+            enrich_with_edges=True,
+        )
+
+        current_fingerprint = fingerprint_qualification_inputs(
+            filtered.entities,
+            simulation_requirement,
+            ACTOR_ELIGIBILITY_POLICY_VERSION,
+            brief,
+        )
+
+        existing = self.get_actor_selection(simulation_id)
+        if (
+            existing is not None
+            and not force_refresh
+            and existing.input_fingerprint == current_fingerprint
+        ):
+            logger.info(
+                f"Réutilisation de la sélection persistée actors.json pour {simulation_id} "
+                f"(révision {existing.revision})"
+            )
+            return existing, {"reused": True, "diagnostics": {}}
+
+        # Recalcul ou première exécution
+        classifier = classifier or ActorClassifierService()
+        classification = classifier.classify_entities(
+            filtered.entities, simulation_requirement, brief
+        )
+
+        actor_items = [
+            ActorItem(
+                entity_uuid=q.entity_uuid,
+                entity_name=q.entity_name,
+                original_type=q.original_type,
+                qualified_role=q.role,
+                eligibility_status=q.status,
+                confidence=q.confidence,
+                reasoning=q.rationale,
+                is_human_modified=False,
+                last_modified_at=None,
+                justification=None,
+            )
+            for q in classification.qualifications
+        ]
+
+        selection = ActorSelection(
+            simulation_id=state.simulation_id,
+            project_id=state.project_id,
+            graph_id=state.graph_id,
+            input_fingerprint=current_fingerprint,
+            revision=1,
+            actors=actor_items,
+        )
+        self.save_actor_selection(selection)
+
+        # Synchroniser l'état
+        state.entities_count = filtered.filtered_count
+        state.actors_count = selection.counts["eligible"]
+        state.review_count = selection.counts["review"]
+        state.ineligible_count = selection.counts["ineligible"]
+        state.policy_version = selection.policy_version
+        state.qualified_actor_uuids = [a.entity_uuid for a in selection.eligible_actors]
+        self._save_simulation_state(state)
+
+        return selection, {"reused": False, "diagnostics": classification.diagnostics}
+
+    def review_actors(
+        self,
+        simulation_id: str,
+        expected_revision: int,
+        modifications: List[Dict[str, Any]],
+    ) -> ActorSelection:
+        """Applique des arbitrages motivés sur la sélection d'acteurs (AC3).
+
+        Vérifie le verrouillage d'état, la concurrence optimiste et les règles
+        d'admissibilité des rôles.
+        """
+        state = self._load_simulation_state(simulation_id)
+        if not state:
+            raise ValueError(f"Simulation inexistante: {simulation_id}")
+
+        if state.status in {
+            SimulationStatus.PREPARING,
+            SimulationStatus.RUNNING,
+            SimulationStatus.COMPLETED,
+        }:
+            raise SelectionValidationError(
+                f"Mutations interdites : la simulation {simulation_id} est en statut "
+                f"'{state.status.value}'"
+            )
+
+        selection = self.get_actor_selection(simulation_id)
+        if not selection:
+            raise SelectionValidationError(
+                f"Aucune sélection d'acteurs trouvée pour {simulation_id}. "
+                "Veuillez d'abord exécuter une prévisualisation."
+            )
+
+        selection.apply_review(expected_revision, modifications)
+        self.save_actor_selection(selection)
+
+        # Synchroniser l'état de simulation
+        state.actors_count = selection.counts["eligible"]
+        state.review_count = selection.counts["review"]
+        state.ineligible_count = selection.counts["ineligible"]
+        state.qualified_actor_uuids = [a.entity_uuid for a in selection.eligible_actors]
+        self._save_simulation_state(state)
+
+        return selection
+
     def prepare_simulation(
         self,
         simulation_id: str,
@@ -356,6 +521,8 @@ class SimulationManager:
         classifier: Optional[ActorClassifierService] = None,
         simulation_brief: Optional[SimulationBrief] = None,
         document_sections: Optional[List[Dict[str, Any]]] = None,
+        block_on_review: bool = False,
+        block_on_conflict: bool = False,
     ) -> SimulationState:
         """
         准备模拟环境（全程自动化）
@@ -377,6 +544,8 @@ class SimulationManager:
             parallel_profile_count: 并行生成人设的数量，默认3
             simulation_brief: 完整brief（story 009-2）。为 None 时回退到
                 simulation_requirement 构造一个最小 brief，因此旧调用不受影响。
+            block_on_review: interruption volontaire si des entités restent en REVIEW (AC6)
+            block_on_conflict: interruption volontaire si des conflits restent OPEN (AC6)
             
         Returns:
             SimulationState
@@ -385,6 +554,10 @@ class SimulationManager:
         if not state:
             raise ValueError(f"模拟不存在: {simulation_id}")
 
+        if simulation_brief is None:
+            project = ProjectManager.get_project(state.project_id)
+            if project:
+                simulation_brief = project.get_brief()
         if simulation_brief is None:
             simulation_brief = build_minimal_brief(goal=simulation_requirement)
         
@@ -416,21 +589,96 @@ class SimulationManager:
             state.entities_count = filtered.filtered_count
             state.entity_types = list(filtered.entity_types)
 
-            # ========== Barrière d'éligibilité (story 009-1) ==========
-            classifier = classifier or ActorClassifierService()
-            classification = classifier.classify_entities(
-                filtered.entities, simulation_requirement, simulation_brief
+            # ========== Barrière d'éligibilité & Sélection (stories 009-1 / 009-3) ==========
+            current_fingerprint = fingerprint_qualification_inputs(
+                filtered.entities,
+                simulation_requirement,
+                ACTOR_ELIGIBILITY_POLICY_VERSION,
+                simulation_brief,
             )
-            qualifications = classification.by_uuid()
+            existing_selection = self.get_actor_selection(simulation_id)
+
+            if (
+                existing_selection is not None
+                and existing_selection.input_fingerprint == current_fingerprint
+            ):
+                # Consomme la sélection existante avec les arbitrages humains appliqués (AC4)
+                logger.info(
+                    f"Consommation de la sélection actors.json existante (révision {existing_selection.revision}) "
+                    f"pour {simulation_id}"
+                )
+                selection = existing_selection
+            else:
+                # Parcours simple direct ou sélection invalidée sur divergence d'empreinte (AC4 / AC5)
+                classifier = classifier or ActorClassifierService()
+                classification = classifier.classify_entities(
+                    filtered.entities, simulation_requirement, simulation_brief
+                )
+                actor_items = [
+                    ActorItem(
+                        entity_uuid=q.entity_uuid,
+                        entity_name=q.entity_name,
+                        original_type=q.original_type,
+                        qualified_role=q.role,
+                        eligibility_status=q.status,
+                        confidence=q.confidence,
+                        reasoning=q.rationale,
+                        is_human_modified=False,
+                        last_modified_at=None,
+                        justification=None,
+                    )
+                    for q in classification.qualifications
+                ]
+                selection = ActorSelection(
+                    simulation_id=state.simulation_id,
+                    project_id=state.project_id,
+                    graph_id=state.graph_id,
+                    input_fingerprint=current_fingerprint,
+                    revision=1,
+                    actors=actor_items,
+                )
+                self.save_actor_selection(selection)
+
+            # Blocage volontaire préventif (AC6)
+            if block_on_review and selection.counts.get("review", 0) > 0:
+                review_names = [a.entity_name or a.entity_uuid for a in selection.review_actors]
+                error_msg = (
+                    f"Blocage préventif activé : {len(review_names)} entité(s) non tranchée(s) "
+                    f"en statut REVIEW : {', '.join(review_names[:5])}"
+                )
+                state.status = SimulationStatus.FAILED
+                state.error = error_msg
+                self._save_simulation_state(state)
+                raise ValueError(error_msg)
+
+            if block_on_conflict:
+                project = ProjectManager.get_project(state.project_id)
+                if project:
+                    open_conflicts = [
+                        c
+                        for c in project.get_source_conflicts()
+                        if getattr(c, "status", None) == ConflictStatus.OPEN
+                    ]
+                    if open_conflicts:
+                        claims = [c.claim for c in open_conflicts]
+                        error_msg = (
+                            f"Blocage préventif activé : {len(open_conflicts)} conflit(s) documentaire(s) "
+                            f"non résolu(s) : {', '.join(claims[:5])}"
+                        )
+                        state.status = SimulationStatus.FAILED
+                        state.error = error_msg
+                        self._save_simulation_state(state)
+                        raise ValueError(error_msg)
+
+            eligible_uuids = {a.entity_uuid for a in selection.eligible_actors}
             eligible_entities = [
-                entity
-                for entity in filtered.entities
-                if qualifications[entity.uuid].is_eligible
+                entity for entity in filtered.entities if entity.uuid in eligible_uuids
             ]
             state.actors_count = len(eligible_entities)
-            state.review_count = len(classification.review)
-            state.ineligible_count = len(classification.ineligible)
-            state.policy_version = classifier.policy_version
+            state.review_count = selection.counts.get("review", 0)
+            state.ineligible_count = selection.counts.get("ineligible", 0)
+            state.policy_version = selection.policy_version
+            state.qualified_actor_uuids = list(eligible_uuids)
 
             if progress_callback:
                 progress_callback(
@@ -448,13 +696,14 @@ class SimulationManager:
 
             if not eligible_entities:
                 state.status = SimulationStatus.FAILED
-                state.error = self.no_actor_diagnostic(classification)
+                state.error = t(
+                    'api.noEligibleActor',
+                    eligible=selection.counts.get('eligible', 0),
+                    review=selection.counts.get('review', 0),
+                    ineligible=selection.counts.get('ineligible', 0),
+                )
                 self._save_simulation_state(state)
                 raise ValueError(state.error)
-
-            state.qualified_actor_uuids = [
-                q.entity_uuid for q in classification.eligible
-            ]
             
             # ========== 阶段2: 生成Agent Profile ==========
             total_entities = len(eligible_entities)
@@ -491,6 +740,24 @@ class SimulationManager:
                 realtime_output_path = os.path.join(sim_dir, "twitter_profiles.csv")
                 realtime_platform = "twitter"
             
+            # Qualifications avec rôles qualifiés humains ou automatiques (AC4)
+            qualifications_for_profiles = {
+                a.entity_uuid: ActorEligibility(
+                    entity_uuid=a.entity_uuid,
+                    entity_name=a.entity_name,
+                    role=a.qualified_role,
+                    status=a.eligibility_status,
+                    rationale=(
+                        a.justification
+                        if (a.is_human_modified and a.justification)
+                        else (a.reasoning or "")
+                    ),
+                    confidence=a.confidence,
+                    original_type=a.original_type,
+                )
+                for a in selection.actors
+            }
+
             profiles = generator.generate_profiles_from_entities(
                 entities=eligible_entities,
                 use_llm=use_llm_for_profiles,
@@ -500,8 +767,9 @@ class SimulationManager:
                 realtime_output_path=realtime_output_path,  # 实时保存路径
                 output_platform=realtime_platform,  # 输出格式
                 qualifications={
-                    uuid: qualifications[uuid]
+                    uuid: qualifications_for_profiles[uuid]
                     for uuid in state.qualified_actor_uuids
+                    if uuid in qualifications_for_profiles
                 },
                 classifier=classifier,
                 simulation_requirement=simulation_requirement,
@@ -604,16 +872,35 @@ class SimulationManager:
             # 注意：运行脚本保留在 backend/scripts/ 目录，不再复制到模拟目录
             # 启动模拟时，simulation_runner 会从 scripts/ 目录运行脚本
 
-            # Preuve automatique du verrou de qualification (AC10). Écrite
+            # Preuve automatique du verrou de qualification (AC10 / AC4). Écrite
             # seulement quand profils et configuration sont produits : une
             # préparation sans preuve n'est jamais réutilisée comme fraîche.
+            classification_for_proof = ActorClassificationResult(
+                qualifications=[
+                    ActorEligibility(
+                        entity_uuid=a.entity_uuid,
+                        entity_name=a.entity_name,
+                        role=a.qualified_role,
+                        status=a.eligibility_status,
+                        rationale=(
+                            a.justification
+                            if (a.is_human_modified and a.justification)
+                            else (a.reasoning or "")
+                        ),
+                        confidence=a.confidence,
+                        original_type=a.original_type,
+                    )
+                    for a in selection.actors
+                ]
+            )
             proof = build_qualification_proof(
                 state=state,
                 entities=filtered.entities,
                 simulation_requirement=simulation_requirement,
-                classification=classification,
-                policy_version=classifier.policy_version,
+                classification=classification_for_proof,
+                policy_version=selection.policy_version,
                 simulation_brief=simulation_brief,
+                actor_selection_revision=selection.revision,
             )
             write_qualification_proof(sim_dir, proof)
 

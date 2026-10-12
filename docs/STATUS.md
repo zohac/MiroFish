@@ -70,7 +70,7 @@ L'**Epic 006 (« Migrer un graphe Zep existant — ou acter qu'on jette ») est 
 
 Dossier de plan complet : [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) (`prd.md`, `architecture.md`, `epic-006.md`).  
 Chantiers en cours et à venir :
-- **Epic 009 (`in-progress`)** : la [story 009-1](plans/009-eligibilite-acteurs-et-sources/story-009-1.md) est implémentée et clôturée (`done`, revue contradictoire du 11 octobre 2026) — modèle `ActorEligibility`, classifieur agnostique à deux passes, barrière du générateur, intégration gestionnaire/routes, preuve de qualification et [mesure réelle C2](plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md). La [story 009-2](plans/009-eligibilite-acteurs-et-sources/story-009-2.md) passe en `review` : [ADR 0012](decisions/0012-contrat-de-provenance-graphstore.md) et [ADR 0013](decisions/0013-semantique-des-sources.md), documents sources typés et brief versionné, contrat de provenance étendu dans les deux stores (métadonnées alignées, annotation `:Episodic` vérifiée, lecture neutre `get_edge_provenance`), découpage par document à positions exactes, transmission du brief et diagnostics de contexte. [Sonde réelle C3](plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) : 2 documents × 2 fragments, 8/8 références documentaires résolues, 8/8 positions exactes. Les lots 009-3 et 009-4 restent `backlog`.
+- **Epic 009 (`in-progress`)** : les stories 009-1, 009-2 et 009-3 sont implémentées et clôturées (`done`). Story 009-1 : modèle `ActorEligibility`, classifieur agnostique à deux passes, barrière du générateur, preuve de qualification et [mesure réelle C2](plans/009-eligibilite-acteurs-et-sources/mesure-009-1.md). Story 009-2 : [ADR 0012](decisions/0012-contrat-de-provenance-graphstore.md) et [ADR 0013](decisions/0013-semantique-des-sources.md), documents sources typés, brief versionné, contrat de provenance `GraphStore`, diagnostics et [mesure réelle C3](plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md). Story 009-3 : modèle `ActorSelection`, persistance atomique `actors.json`, routes Flask `preview`/`review`, IHM Vue 3, alertes de conflits et blocage volontaire (filet porté à **1130 tests verts**). La [story 009-4](plans/009-eligibilite-acteurs-et-sources/story-009-4.md) est rédigée dans le `backlog`.
 - **Epic 007** : Ontologie dynamique (v2) — planifiée après l'Epic 009 afin d'enrichir le typage sur une sélection d'acteurs déjà assainie.
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 
@@ -300,7 +300,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Lancer 009-3** : endpoints et interface de prévalidation des acteurs (`preview` & `review`), en s'appuyant sur les ADR 0012 et 0013 acceptés et sur les modèles de 009-2 clos. Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
+1. **Lancer 009-4** : outils de provenance, rapport vérifiable et qualification globale (Lot D - P1). Suivre les dépendances du [hub 009](plans/009-eligibilite-acteurs-et-sources/epic-009.md).
 2. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
@@ -318,7 +318,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **1112 réussis** sur l'hôte et **1109 réussis + 3 ignorés** sous Docker, sans `.env` ni réseau externe, le 11 octobre 2026 (stories 009-1 et 009-2 closes). Les trois contrôles ignorés nécessitent Docker CLI dans le conteneur. Référence post-009-1 : 924 hôte / 921 + 3 Docker ; jalon historique Epic 005 : 711. La sonde réelle C3 est rejouable hors CI (`scripts/verifier_provenance_documents.py`). |
+| Tests | **1130 réussis** sur l'hôte, sans `.env` ni réseau externe, le 11 octobre 2026 (stories 009-1, 009-2 et 009-3 closes). Filet enrichi de 18 nouveaux tests unitaires et d'intégration hermétiques pour `ActorSelection` et les endpoints de prévalidation/arbitrage, revue contradictoire BMAD validée avec 7 patches appliqués. |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 13 acceptés, 0 supersédé |

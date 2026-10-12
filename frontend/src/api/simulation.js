@@ -10,10 +10,26 @@ export const createSimulation = (data) => {
 
 /**
  * 准备模拟环境（异步任务）
- * @param {Object} data - { simulation_id, entity_types?, use_llm_for_profiles?, parallel_profile_count?, force_regenerate? }
+ * @param {Object} data - { simulation_id, entity_types?, use_llm_for_profiles?, parallel_profile_count?, force_regenerate?, block_on_review?, block_on_conflict? }
  */
 export const prepareSimulation = (data) => {
   return service.post('/api/simulation/prepare', data)
+}
+
+/**
+ * 预验证/预览参与者与资格状态 (AC2)
+ * @param {Object} data - { simulation_id, force_refresh? }
+ */
+export const previewSimulationActors = (data) => {
+  return service.post('/api/simulation/actors/preview', data)
+}
+
+/**
+ * 提交动机仲裁/复核参与者 (AC3)
+ * @param {Object} data - { simulation_id, expected_revision, modifications: [...] }
+ */
+export const reviewSimulationActors = (data) => {
+  return service.post('/api/simulation/actors/review', data)
 }
 
 /**

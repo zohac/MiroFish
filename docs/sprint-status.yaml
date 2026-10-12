@@ -426,6 +426,20 @@ epics:
     # sous Docker (référence post-009-1 : 924 hôte / 921 + 3 Docker). Revue BMAD à
     # quatre couches : 3 patches appliqués (unicité conflict_id, ISO datetime,
     # factorisation budget), 1112 tests verts.
+    # Story 009-3 (DONE) : Modèle et persistance atomique ActorSelection (actors.json,
+    # révisions, empreinte SHA-256 déterministe et journal d'audit) ; routes
+    # POST /api/simulation/actors/preview (cache d'empreinte, recalcul force_refresh,
+    # exposition des conflits ouverts) et POST /api/simulation/actors/review (409 sur
+    # concurrence optimiste, 400 sur produit éligible, 400 sur justification vide,
+    # 400 sur simulation active) ; intégration prepare_simulation (parcours direct sans
+    # friction, consommation des sélections révisées, transmission des rôles qualifiés,
+    # invalidation d'obsolescence et blocage volontaire block_on_review/block_on_conflict) ;
+    # IHM Vue 3 (Step2EnvSetup.vue) avec panneau de prévalidation, badges d'éligibilité,
+    # dialogue modal d'arbitrage motivé, alertes de conflits et cases de blocage.
+    # Filet : 1130 réussis sur l'hôte (+18 tests hermétiques, 0 échec). Revue BMAD à
+    # quatre couches validée (7 patches appliqués : alignement des rôles ActorRole IHM,
+    # éligibilité stricte, priorisation de la justification motivée, désérialisation
+    # None-safe, isolation save_atomic, horodatage UTC ISO 8601, parité i18n).
     criteres_de_sortie:
       - "C1 : 0 faux acteur sur au moins 20 entités de 2 domaines, au moins 2 acteurs attendus retenus par domaine"
       - "C2 : 2 domaines sans changement de code ; fixtures annotées et mesure séparée du classifieur réel"

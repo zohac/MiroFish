@@ -41,6 +41,139 @@
         </div>
       </div>
 
+      <!-- Step 01.5: Prévalidation et Révision des Acteurs (AC7) -->
+      <div v-if="simulationId" class="step-card" :class="{ 'active': phase === 0, 'completed': phase > 0 }">
+        <div class="card-header">
+          <div class="step-info">
+            <span class="step-num">01.5</span>
+            <span class="step-title">{{ $t('step2.actorPreviewTitle') }}</span>
+          </div>
+          <div class="step-status">
+            <span v-if="actorSelection" class="badge accent">
+              {{ $t('step2.actorReviewRevision', { revision: actorSelection.revision }) }}
+            </span>
+            <span v-if="loadingActors" class="badge processing">{{ $t('step2.generating') }}</span>
+          </div>
+        </div>
+
+        <div class="card-content">
+          <p class="api-note">POST /api/simulation/actors/preview · POST /api/simulation/actors/review</p>
+          <p class="description">{{ $t('step2.actorPreviewDesc') }}</p>
+
+          <!-- Avertissement conflits ouverts -->
+          <div v-if="openConflicts.length > 0" class="conflict-alert-box">
+            <div class="alert-title">
+              ⚠️ {{ $t('step2.actorConflictWarning', { count: openConflicts.length }) }}
+            </div>
+            <ul class="conflict-list">
+              <li v-for="c in openConflicts" :key="c.conflict_id" class="conflict-item">
+                <span class="conflict-claim">« {{ c.claim }} »</span>
+                <span class="conflict-count">({{ c.source_references?.length || 0 }} sources)</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Avertissement entités à vérifier -->
+          <div v-if="actorSelection?.counts?.review > 0" class="review-alert-box">
+            <span>ℹ️ {{ $t('step2.actorReviewWarning', { count: actorSelection.counts.review }) }}</span>
+          </div>
+
+          <!-- Grille des statistiques d'éligibilité -->
+          <div v-if="actorSelection" class="stats-grid actor-stats-grid">
+            <div class="stat-card">
+              <span class="stat-value">{{ actorSelection.counts.total }}</span>
+              <span class="stat-label">{{ $t('step2.actorTotal') }}</span>
+            </div>
+            <div class="stat-card eligible-card">
+              <span class="stat-value text-success">{{ actorSelection.counts.eligible }}</span>
+              <span class="stat-label">{{ $t('step2.actorEligible') }}</span>
+            </div>
+            <div class="stat-card review-card">
+              <span class="stat-value text-warning">{{ actorSelection.counts.review }}</span>
+              <span class="stat-label">{{ $t('step2.actorReview') }}</span>
+            </div>
+            <div class="stat-card ineligible-card">
+              <span class="stat-value text-muted">{{ actorSelection.counts.ineligible }}</span>
+              <span class="stat-label">{{ $t('step2.actorIneligible') }}</span>
+            </div>
+          </div>
+
+          <!-- Cases à cocher de blocage préventif (AC6) -->
+          <div class="block-guards-container" v-if="phase === 0">
+            <label class="guard-checkbox-label">
+              <input type="checkbox" v-model="blockOnReview" />
+              <span>{{ $t('step2.actorBlockOnReview') }}</span>
+            </label>
+            <label class="guard-checkbox-label">
+              <input type="checkbox" v-model="blockOnConflict" />
+              <span>{{ $t('step2.actorBlockOnConflict') }}</span>
+            </label>
+          </div>
+
+          <!-- Tableau / Liste des acteurs prévalidés -->
+          <div v-if="actorSelection?.actors?.length" class="actors-table-container">
+            <table class="actors-table">
+              <thead>
+                <tr>
+                  <th>{{ $t('step2.actorOriginalType') }}</th>
+                  <th>{{ $t('step2.actorRole') }}</th>
+                  <th>{{ $t('step2.actorStatus') }}</th>
+                  <th>{{ $t('step2.actorReasoning') }}</th>
+                  <th v-if="phase === 0" class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="actor in actorSelection.actors" :key="actor.entity_uuid" class="actor-row">
+                  <td class="actor-name-cell">
+                    <span class="actor-name">{{ actor.entity_name }}</span>
+                    <span class="actor-orig-type mono">{{ actor.original_type }}</span>
+                  </td>
+                  <td>
+                    <span class="role-pill mono">{{ actor.qualified_role }}</span>
+                  </td>
+                  <td>
+                    <span class="badge" :class="{
+                      'success': actor.eligibility_status === 'eligible',
+                      'processing': actor.eligibility_status === 'review',
+                      'pending': actor.eligibility_status === 'ineligible'
+                    }">
+                      {{
+                        actor.eligibility_status === 'eligible' ? $t('step2.actorStatusEligible') :
+                        actor.eligibility_status === 'review' ? $t('step2.actorStatusReview') :
+                        $t('step2.actorStatusIneligible')
+                      }}
+                    </span>
+                    <span v-if="actor.is_human_modified" class="badge-modified">
+                      {{ $t('step2.actorHumanModified') }}
+                    </span>
+                  </td>
+                  <td class="actor-reason-cell">
+                    <span :title="actor.reasoning || actor.justification" class="reason-text">
+                      {{ actor.justification || actor.reasoning || '-' }}
+                    </span>
+                  </td>
+                  <td v-if="phase === 0" class="text-right">
+                    <button class="btn-arbitrate" @click="openActorReviewModal(actor)">
+                      {{ $t('step2.actorArbitrate') }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Boutons d'action dans le panneau -->
+          <div v-if="phase === 0" class="action-group">
+            <button class="action-btn primary" @click="startPrepareSimulation">
+              🚀 {{ $t('step2.actorStartPrepare') }}
+            </button>
+            <button class="action-btn secondary" :disabled="loadingActors" @click="loadActorsPreview(true)">
+              🔄 {{ $t('step2.actorRefreshAnalysis') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Step 02: 生成 Agent 人设 -->
       <div class="step-card" :class="{ 'active': phase === 1, 'completed': phase > 1 }">
         <div class="card-header">
@@ -615,6 +748,79 @@
       </div>
     </Transition>
 
+    <!-- Modal d'arbitrage motivé de l'acteur (AC3) -->
+    <Transition name="modal">
+      <div v-if="selectedActorToReview" class="profile-modal-overlay" @click.self="closeActorReviewModal">
+        <div class="review-modal">
+          <div class="modal-header">
+            <div class="modal-header-info">
+              <span class="modal-realname">{{ $t('step2.actorReviewModalTitle') }}</span>
+              <span class="modal-username">{{ selectedActorToReview.entity_name }} ({{ selectedActorToReview.original_type }})</span>
+            </div>
+            <button class="close-btn" @click="closeActorReviewModal">×</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">{{ $t('step2.actorTargetRole') }}</label>
+              <select v-model="reviewTargetRole" class="form-select">
+                <option value="person">person (Personne physique)</option>
+                <option value="organization">organization (Organisation, institution)</option>
+                <option value="collective">collective (Collectif, groupe informel)</option>
+                <option value="product">product (Produit, offre, logiciel)</option>
+                <option value="service">service (Service rendu)</option>
+                <option value="domain">domain (Nom de domaine, site web, URL)</option>
+                <option value="place">place (Lieu géographique, ville, pays)</option>
+                <option value="event">event (Événement daté, réunion, incident)</option>
+                <option value="concept">concept (Idée, concept abstrait, sujet)</option>
+                <option value="unknown">unknown (Non déterminé / autre)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">{{ $t('step2.actorTargetStatus') }}</label>
+              <select v-model="reviewTargetStatus" class="form-select">
+                <option value="eligible">{{ $t('step2.actorStatusEligible') }}</option>
+                <option value="review">{{ $t('step2.actorStatusReview') }}</option>
+                <option value="ineligible">{{ $t('step2.actorStatusIneligible') }}</option>
+              </select>
+            </div>
+
+            <div v-if="isPassiveRoleEligible" class="alert-passive-error">
+              ⚠️ {{ $t('step2.actorPassiveEligibleError') }}
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">{{ $t('step2.actorJustification') }} *</label>
+              <textarea
+                v-model="reviewJustification"
+                class="form-textarea"
+                rows="3"
+                :placeholder="$t('step2.actorJustificationPlaceholder')"
+              ></textarea>
+            </div>
+
+            <div v-if="reviewError" class="modal-error-message">
+              {{ reviewError }}
+            </div>
+
+            <div class="action-group dual">
+              <button class="action-btn secondary" @click="closeActorReviewModal">
+                {{ $t('step2.actorCancel') }}
+              </button>
+              <button
+                class="action-btn primary"
+                :disabled="reviewSubmitting || !reviewJustification.trim() || isPassiveRoleEligible"
+                @click="submitActorReview"
+              >
+                {{ reviewSubmitting ? '...' : $t('step2.actorConfirmReview') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Bottom Info / Logs -->
     <div class="system-logs">
       <div class="log-header">
@@ -636,6 +842,8 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   prepareSimulation,
+  previewSimulationActors,
+  reviewSimulationActors,
   getPrepareStatus,
   getSimulationProfilesRealtime,
   getSimulationConfig,
@@ -665,6 +873,26 @@ const expectedTotal = ref(null)
 const simulationConfig = ref(null)
 const selectedProfile = ref(null)
 const showProfilesDetail = ref(true)
+
+// Acteurs & Prévalidation (Story 009-3)
+const actorSelection = ref(null)
+const openConflicts = ref([])
+const loadingActors = ref(false)
+const blockOnReview = ref(false)
+const blockOnConflict = ref(false)
+
+// Dialogue d'arbitrage
+const selectedActorToReview = ref(null)
+const reviewTargetRole = ref('person')
+const reviewTargetStatus = ref('eligible')
+const reviewJustification = ref('')
+const reviewError = ref('')
+const reviewSubmitting = ref(false)
+
+const isPassiveRoleEligible = computed(() => {
+  const activeRoles = ['person', 'organization']
+  return !activeRoles.includes(reviewTargetRole.value) && reviewTargetStatus.value === 'eligible'
+})
 
 // 日志去重：记录上一次输出的关键信息
 let lastLoggedMessage = ''
@@ -776,6 +1004,87 @@ const selectProfile = (profile) => {
   selectedProfile.value = profile
 }
 
+const loadActorsPreview = async (forceRefresh = false) => {
+  if (!props.simulationId) return
+  loadingActors.value = true
+  try {
+    const res = await previewSimulationActors({
+      simulation_id: props.simulationId,
+      force_refresh: forceRefresh
+    })
+    if (res.success && res.data) {
+      actorSelection.value = res.data.selection
+      openConflicts.value = res.data.conflicts || []
+      addLog(`[Prévalidation] Sélection d'acteurs R${res.data.selection.revision} chargée (${res.data.selection.counts.eligible} éligibles, ${res.data.selection.counts.review} à revoir)`)
+    }
+  } catch (err) {
+    console.warn('Échec de chargement de la prévisualisation des acteurs:', err)
+  } finally {
+    loadingActors.value = false
+  }
+}
+
+const openActorReviewModal = (actor) => {
+  selectedActorToReview.value = actor
+  reviewTargetRole.value = actor.qualified_role || 'person'
+  reviewTargetStatus.value = actor.eligibility_status || 'eligible'
+  reviewJustification.value = actor.justification || ''
+  reviewError.value = ''
+}
+
+const closeActorReviewModal = () => {
+  selectedActorToReview.value = null
+  reviewJustification.value = ''
+  reviewError.value = ''
+}
+
+const submitActorReview = async () => {
+  if (!selectedActorToReview.value || !actorSelection.value) return
+  if (!reviewJustification.value.trim()) {
+    reviewError.value = t('step2.actorJustificationRequired')
+    return
+  }
+  if (isPassiveRoleEligible.value) {
+    reviewError.value = t('step2.actorPassiveEligibleError')
+    return
+  }
+
+  reviewSubmitting.value = true
+  reviewError.value = ''
+
+  try {
+    const res = await reviewSimulationActors({
+      simulation_id: props.simulationId,
+      expected_revision: actorSelection.value.revision,
+      modifications: [
+        {
+          entity_uuid: selectedActorToReview.value.entity_uuid,
+          role: reviewTargetRole.value,
+          status: reviewTargetStatus.value,
+          justification: reviewJustification.value.trim()
+        }
+      ]
+    })
+
+    if (res.success && res.data) {
+      actorSelection.value = res.data.selection
+      addLog(`[Arbitrage] Acteur ${selectedActorToReview.value.entity_name} arbitré en ${reviewTargetRole.value} (${reviewTargetStatus.value}) -> R${res.data.revision}`)
+      closeActorReviewModal()
+    } else {
+      reviewError.value = res.error || 'Erreur lors de la validation'
+    }
+  } catch (err) {
+    if (err.response?.status === 409) {
+      reviewError.value = 'Conflit de révision (409) : la sélection a changé, veuillez rafraîchir.'
+      await loadActorsPreview()
+    } else {
+      reviewError.value = err.response?.data?.error || err.message
+    }
+  } finally {
+    reviewSubmitting.value = false
+  }
+}
+
 // 自动开始准备模拟
 const startPrepareSimulation = async () => {
   if (!props.simulationId) {
@@ -794,7 +1103,9 @@ const startPrepareSimulation = async () => {
     const res = await prepareSimulation({
       simulation_id: props.simulationId,
       use_llm_for_profiles: true,
-      parallel_profile_count: 5
+      parallel_profile_count: 5,
+      block_on_review: blockOnReview.value,
+      block_on_conflict: blockOnConflict.value
     })
     
     if (res.success && res.data) {
@@ -1086,11 +1397,11 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(() => {
-  // 自动开始准备流程
+onMounted(async () => {
+  // Prévalidation et aperçu initial des acteurs
   if (props.simulationId) {
     addLog(t('log.step2Init'))
-    startPrepareSimulation()
+    await loadActorsPreview()
   }
 })
 
@@ -2619,5 +2930,246 @@ onUnmounted(() => {
 .modal-leave-to .profile-modal {
   transform: scale(0.95) translateY(10px);
   opacity: 0;
+}
+
+/* Styles Prévalidation & Révision Acteurs (AC7) */
+.actor-stats-grid {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 12px;
+}
+
+.text-success { color: #2E7D32; font-weight: 700; }
+.text-warning { color: #E65100; font-weight: 700; }
+.text-muted { color: #757575; font-weight: 700; }
+
+.conflict-alert-box {
+  background: #FFF3E0;
+  border-left: 4px solid #FF9800;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.alert-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #BF360C;
+  margin-bottom: 6px;
+}
+
+.conflict-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #5D4037;
+}
+
+.conflict-item {
+  margin-bottom: 4px;
+}
+
+.conflict-count {
+  font-size: 11px;
+  color: #8D6E63;
+  margin-left: 4px;
+}
+
+.review-alert-box {
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #F57F17;
+}
+
+.block-guards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 12px;
+  background: #FAFAFA;
+  border-radius: 6px;
+  border: 1px dashed #E0E0E0;
+}
+
+.guard-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #333;
+  cursor: pointer;
+}
+
+.actors-table-container {
+  margin: 16px 0;
+  overflow-x: auto;
+  border: 1px solid #EAEAEA;
+  border-radius: 6px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.actors-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.actors-table th {
+  background: #F5F5F5;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #555;
+  border-bottom: 1px solid #EAEAEA;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.actors-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #F0F0F0;
+  vertical-align: middle;
+}
+
+.actor-row:hover {
+  background: #FAFAFA;
+}
+
+.actor-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actor-name {
+  font-weight: 600;
+  color: #111;
+}
+
+.actor-orig-type {
+  font-size: 10px;
+  color: #888;
+}
+
+.role-pill {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #F0F0F0;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.badge-modified {
+  margin-left: 6px;
+  padding: 2px 5px;
+  background: #E8EAF6;
+  color: #283593;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.actor-reason-cell {
+  max-width: 280px;
+}
+
+.reason-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.btn-arbitrate {
+  padding: 4px 10px;
+  background: #000;
+  color: #FFF;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-arbitrate:hover {
+  opacity: 0.8;
+}
+
+/* Modal Arbitrage */
+.review-modal {
+  background: #FFF;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #CCC;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+  background: #FFF;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+}
+
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #000;
+  outline: none;
+}
+
+.alert-passive-error {
+  background: #FFEBEE;
+  color: #C62828;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.modal-error-message {
+  color: #D32F2F;
+  font-size: 12px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #FFEBEE;
+  border-radius: 4px;
 }
 </style>

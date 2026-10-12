@@ -24,6 +24,11 @@ from ..services.actor_classifier import (
 )
 from ..models.actor_eligibility import ACTOR_ELIGIBILITY_POLICY_VERSION
 from ..models.simulation_brief import build_minimal_brief
+from ..models.actor_selection import (
+    OptimisticLockError,
+    SelectionValidationError,
+)
+from ..models.source_document import ConflictStatus
 from ..services.simulation_runner import (
     SimulationRunner,
     RunnerStatus,
@@ -302,6 +307,148 @@ def create_simulation():
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Prévalidation et Révision des Acteurs (Story 009-3) ==============
+
+@simulation_bp.route('/actors/preview', methods=['POST'])
+def preview_simulation_actors():
+    """Prévisualise et persiste la sélection des acteurs d'une simulation (AC2).
+
+    Reçoit { "simulation_id": str, "force_refresh": Optional[bool] }.
+    Résout le projet et le graphe, exécute la classification ou réutilise actors.json
+    si l'empreinte d'entrée est identique. Expose également les diagnostics et les
+    conflits documentaires ouverts.
+    """
+    try:
+        data = request.get_json() or {}
+        simulation_id = data.get('simulation_id')
+        if not simulation_id:
+            return jsonify({
+                "success": False,
+                "error": t('api.requireSimulationId')
+            }), 400
+
+        force_refresh = bool(data.get('force_refresh', False))
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        selection, extra = manager.preview_actors(
+            simulation_id=simulation_id,
+            force_refresh=force_refresh,
+        )
+
+        project = ProjectManager.get_project(selection.project_id)
+        open_conflicts = []
+        if project:
+            open_conflicts = [
+                c.to_dict()
+                for c in project.get_source_conflicts()
+                if getattr(c, "status", None) == ConflictStatus.OPEN
+            ]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "selection": selection.to_dict(),
+                "conflicts": open_conflicts,
+                "diagnostics": extra.get("diagnostics", {}),
+                "reused": extra.get("reused", False),
+            }
+        })
+    except Exception as e:
+        logger.error(f"Échec de prévisualisation des acteurs: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
+@simulation_bp.route('/actors/review', methods=['POST'])
+def review_simulation_actors():
+    """Applique des arbitrages motivés sur la sélection d'acteurs (AC3).
+
+    Reçoit { "simulation_id": str, "expected_revision": int, "modifications": List[Dict] }.
+    Contrôle de concurrence optimiste (409), verrouillage sur simulation active (400),
+    interdiction des rôles passifs éligibles (400) et justification obligatoire (400).
+    """
+    try:
+        data = request.get_json() or {}
+        simulation_id = data.get('simulation_id')
+        if not simulation_id:
+            return jsonify({
+                "success": False,
+                "error": t('api.requireSimulationId')
+            }), 400
+
+        if 'expected_revision' not in data:
+            return jsonify({
+                "success": False,
+                "error": "expected_revision est obligatoire",
+            }), 400
+
+        try:
+            expected_revision = int(data['expected_revision'])
+        except (ValueError, TypeError):
+            return jsonify({
+                "success": False,
+                "error": "expected_revision doit être un entier",
+            }), 400
+
+        modifications = data.get('modifications')
+        if not modifications or not isinstance(modifications, list):
+            return jsonify({
+                "success": False,
+                "error": "modifications doit être une liste non vide",
+            }), 400
+
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        try:
+            selection = manager.review_actors(
+                simulation_id=simulation_id,
+                expected_revision=expected_revision,
+                modifications=modifications,
+            )
+        except OptimisticLockError as err:
+            return jsonify({
+                "success": False,
+                "error": str(err),
+                "code": "CONFLICT_REVISION",
+            }), 409
+        except (SelectionValidationError, ValueError) as err:
+            return jsonify({
+                "success": False,
+                "error": str(err),
+            }), 400
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "selection": selection.to_dict(),
+                "revision": selection.revision,
+                "updated_at": selection.updated_at,
+            }
+        })
+    except Exception as e:
+        logger.error(f"Échec de révision des acteurs: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
         }), 500
 
 
@@ -671,6 +818,8 @@ def prepare_simulation():
         entity_types_list = data.get('entity_types')
         use_llm_for_profiles = data.get('use_llm_for_profiles', True)
         parallel_profile_count = data.get('parallel_profile_count', 5)
+        block_on_review = bool(data.get('block_on_review', False))
+        block_on_conflict = bool(data.get('block_on_conflict', False))
         
         # ========== 同步获取实体数量（在后台任务启动前） ==========
         # 这样前端在调用prepare后立即就能获取到预期Agent总数
@@ -797,6 +946,8 @@ def prepare_simulation():
                     # et à la configuration.
                     simulation_brief=project.get_brief(),
                     document_sections=document_sections,
+                    block_on_review=block_on_review,
+                    block_on_conflict=block_on_conflict,
                 )
 
                 if result_state.status == SimulationStatus.FAILED:

@@ -57,7 +57,7 @@ reproductible.**
 > Objectif : auditer les graphes distants (`auditer_graphes_zep.py`), formaliser l'arbitrage (« Migrer vs Jeter »), outiller le rapatriement direct vers Neo4j (`migrer_zep_vers_graphiti.py`) à coût marginal nul (0 €), valider la relecture applicative (GraphStore, ZepEntityReader, OASIS — C4) avec purge optionnelle sécurisée (`purger_graphes_zep.py`, FR-6).
 > Les stories 006-1, 006-2 et 006-3 sont validées (800 tests verts).
 >
-> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, stories 009-1 et 009-2 `done`.**
+> **L'epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est `in-progress`, stories 009-1, 009-2 et 009-3 `done`.**
 > Dossier : [`docs/plans/009-eligibilite-acteurs-et-sources/`](docs/plans/009-eligibilite-acteurs-et-sources/epic-009.md).
 > La story 009-1 est close (`done`) : modèle `ActorEligibility`, classifieur
 > agnostique à deux passes (`app/services/actor_classifier.py`), barrière du
@@ -72,7 +72,18 @@ reproductible.**
 > diagnostics de contexte. [Mesure réelle C3](docs/plans/009-eligibilite-acteurs-et-sources/mesure-009-2.md) :
 > 2 documents × 2 fragments, 8/8 références documentaires résolues, 8/8 positions
 > exactes. Revue BMAD validée avec 3 patches appliqués (1112 tests verts).
-> Les lots 009-3 à 009-4 restent en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
+> La story 009-3 est close (`done`) : modèle `ActorSelection` et persistance
+> atomique `actors.json` rattachée à la simulation avec empreinte SHA-256 déterministe
+> et journal d'audit ; endpoints Flask `POST /api/simulation/actors/preview`
+> (cache serveur, recalcul forcé, conflits ouverts) et `POST /api/simulation/actors/review`
+> (409 sur désynchronisation optimiste, rejet strict des non-acteurs éligibles, justification
+> obligatoire) ; intégration fluide dans `prepare_simulation` (parcours simple sans friction,
+> transmission des rôles qualifiés aux personas, invalidation d'obsolescence et blocage
+> volontaire `block_on_review`/`block_on_conflict`) ; IHM Vue 3 (`Step2EnvSetup.vue`) avec
+> panneau de prévalidation, badges d'éligibilité, dialogue modal d'arbitrage motivé,
+> alertes de conflits et cases de blocage. 18 nouveaux tests unitaires et d'intégration hermétiques
+> (1130 tests verts sur l'hôte, 0 échec, revue BMAD à 4 couches validée avec 7 patches).
+> Le lot 009-4 reste en `backlog`. La [revue de reprise](docs/plans/009-eligibilite-acteurs-et-sources/revue-coherence-2026-10-10.md)
 > reste la référence des arbitrages.
 
 ---
@@ -101,9 +112,9 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet de référence du
-11 octobre 2026 est de **1110 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
+11 octobre 2026 est de **1130 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
-921 + 3 Docker ; [preuves et
+921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130 hôte ; [preuves et
 limites](docs/plans/009-eligibilite-acteurs-et-sources/preparation-009-1.md).
 
 Règles de qualité des tests :
