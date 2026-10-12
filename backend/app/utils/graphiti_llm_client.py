@@ -163,22 +163,74 @@ class MiroFishLLMClient(OpenAIGenericClient):
         return False
 
     @classmethod
+    def _filtrer_champs_valides(
+        cls,
+        model: type[BaseModel],
+        candidate: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Ne garde que les champs déclarés dont la valeur se valide isolément.
+
+        Retourne ``None`` quand il n'y a rien à retirer. Le filtre est la seule
+        défense contre l'écho de schéma : un fragment de schéma est un
+        dictionnaire, il échoue à la validation du champ qu'il décrit, et le
+        champ disparaît du payload au lieu d'arriver sur le nœud.
+        """
+        champs = model.model_fields
+        retenus: Dict[str, Any] = {}
+        for key, value in candidate.items():
+            if key not in champs:
+                continue
+            try:
+                model.model_validate({key: value})
+            except Exception:
+                logger.warning(
+                    "Valeur non conforme ignorée pour le champ '%s' de %s "
+                    "(écho de schéma ou valeur invalide)",
+                    key,
+                    model.__name__,
+                )
+                continue
+            retenus[key] = value
+
+        if retenus == candidate:
+            return None
+        return retenus
+
+    @classmethod
     def _normalize_response(
         cls,
         parsed: Any,
         response_model: Optional[type[BaseModel]],
     ) -> Dict[str, Any]:
-        """Normalise et assainit le payload retourné par le LLM pour correspondre à response_model."""
+        """Normalise et assainit le payload retourné par le LLM pour correspondre à response_model.
+
+        Le but de l'assainissement est **la survie de l'ingestion** : une valeur
+        que le modèle ne sait pas écrire — un écho de schéma JSON, un objet
+        imbriqué — devient une propriété que le serveur refuse, et une seule
+        d'entre elles fait échouer tout l'épisode. Un champ écarté ici est une
+        invention du modèle : aucune donnée n'est perdue (ADR 0014, risque R1).
+
+        L'ordre des étapes est important : **aucune** ne renvoie un dictionnaire
+        qui contienne une valeur non conforme. Une étape qui-extrait une
+        instance ne la renvoie que si le filtre ne trouve rien à retirer — sinon
+        elle passe à la suivante, parce qu'un « déballage » peut tout aussi bien
+        déballer un schéma qu'une instance.
+        """
         if response_model is None:
             return parsed if isinstance(parsed, dict) else {"data": parsed}
 
-        # 1. Vérification directe : si déjà conforme, retour immédiat
+        # 1. Vérification directe : si déjà conforme, retour immédiat.
+        # Pydantic **ignore** les clés en trop : une réponse « conforme » peut
+        # donc porter un écho de schéma sous une clé inconnue. On repasse le
+        # filtre, et si rien ne doit être retiré on renvoie tel quel.
         if isinstance(parsed, dict):
             try:
                 response_model.model_validate(parsed)
-                return parsed
             except Exception:
                 pass
+            else:
+                if cls._filtrer_champs_valides(response_model, parsed) is None:
+                    return parsed
 
         # 2. Cas où le LLM renvoie directement une liste pour un modèle contenant un seul champ liste
         if isinstance(parsed, list):
@@ -207,14 +259,33 @@ class MiroFishLLMClient(OpenAIGenericClient):
                 if isinstance(sub_val, dict):
                     try:
                         response_model.model_validate(sub_val)
+                    except Exception:
+                        continue
+                    filtre = cls._filtrer_champs_valides(response_model, sub_val)
+                    candidat = (
+                        sub_val
+                        if filtre is None
+                        else (filtre or cls._build_default_instance_dict(response_model))
+                    )
+                    try:
+                        response_model.model_validate(candidat)
+                    except Exception:
+                        continue
+                    if filtre is None:
                         logger.debug(
                             "Payload extrait de la clé '%s' pour %s",
                             candidate_key,
                             response_model.__name__,
                         )
-                        return sub_val
-                    except Exception:
-                        pass
+                    else:
+                        logger.warning(
+                            "Clé '%s' nettoyée pour %s : %d champ(s) retenus sur %d",
+                            candidate_key,
+                            response_model.__name__,
+                            len(candidat),
+                            len(sub_val),
+                        )
+                    return candidat
 
         # 4. Alias courants pour l'extraction d'entités (entities -> extracted_entities)
         if isinstance(parsed, dict) and "entities" in parsed and "extracted_entities" not in parsed:
@@ -245,7 +316,38 @@ class MiroFishLLMClient(OpenAIGenericClient):
                     exc,
                 )
 
-        # 6. Fallback général si parsed n'est pas un dictionnaire
+        # 6. Écho partiel de schéma : le LLM renvoie des fragments sans
+        # l'enveloppe `properties`. Ils passent les étapes 1 à 5 et sortaient
+        # inchangés, jusqu'à être écrits comme propriétés sur un nœud — ce que
+        # Neo4j refuse, une propriété ne pouvant pas être une map.
+        if isinstance(parsed, dict):
+            assaini = cls._filtrer_champs_valides(response_model, parsed)
+            if assaini is not None:
+                # Aucun champ valide : le repli par défaut vaut mieux qu'une
+                # réponse qui échouera à l'écriture du nœud.
+                candidat: Dict[str, Any] = (
+                    assaini
+                    if assaini
+                    else cls._build_default_instance_dict(response_model)
+                )
+                try:
+                    response_model.model_validate(candidat)
+                    logger.warning(
+                        "Payload partiellement nettoyé pour %s : %d champ(s) "
+                        "retenus sur %d",
+                        response_model.__name__,
+                        len(candidat),
+                        len(parsed),
+                    )
+                    return candidat
+                except Exception as exc:
+                    logger.error(
+                        "Échec de validation du payload nettoyé pour %s: %s",
+                        response_model.__name__,
+                        exc,
+                    )
+
+        # 7. Fallback général si parsed n'est pas un dictionnaire
         if not isinstance(parsed, dict):
             fallback = cls._build_default_instance_dict(response_model)
             try:

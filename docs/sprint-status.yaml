@@ -18,6 +18,12 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-12
+# 12 oct. 2026 : epic 007 passe de backlog à in-progress (story 007-1 en cours).
+# 12 oct. 2026 : story 007-1 passe de in-progress à review après la revue BMAD
+# code-review à 4 couches (16 findings, 14 patchés, 4 différés) et la mesure C1
+# réelle sur deux fixtures de domaines distincts.
+# 12 oct. 2026 : story 009-4 passe à done après application des 10 patches de la
+# revue BMAD code-review (1157 tests verts, +12 tests ajoutés).
 
 epics:
   - id: "001"
@@ -364,13 +370,38 @@ epics:
   - id: "007"
     slug: ontologie-dynamique
     titre: "Ontologie dynamique (v2)"
-    statut: backlog
-    depend_de: ["003", "009"]
+    statut: in-progress
+    plan: docs/plans/007-ontologie-dynamique
+    depend_de: ["003", "004", "005", "009"]
     pourquoi: >-
-      Reportée en v2 par ADR 0003. Après livraison du verrou d'éligibilité
-      des acteurs de l'Epic 009 (encore en backlog), l'ontologie sera un raffinement
-      qualitatif du graphe (meilleurs types de nœuds et relations) plutôt qu'un
-      bloqueur de simulation.
+      Reportée en v2 par ADR 0003. Le verrou d'éligibilité de l'Epic 009 est
+      clos (4/4 stories, 1157 tests verts, Verdict GO). L'ontologie devient
+      un raffinement qualitatif du graphe (labels réels sur les nœuds au lieu
+      du no-op de `set_ontology` ligne 462 de `graphiti_store.py`) : typage
+      métier lisible directement par `zep_entity_reader.get_entity_type()` et
+      consommable par `ActorClassifierService` sans appel LLM superflu.
+    # Cadrage du 12 octobre 2026 : périmètre restreint à « persistance + validation »
+    # et « une ontologie par projet ». La boucle auto-évolutive acteur/ontologie est
+    # reportée (note dans deferred-work.md). L'ontologie générée par OntologyGenerator
+    # reste l'unique point de génération ; la v2 la traduit en labels réels et la
+    # régénère sur événement.
+    # Story 007-1 (review au 12 oct. 2026) : rupture du no-op de set_ontology.
+    # ADR 0014 (« Pose effective de l'ontologie par GraphStore.set_ontology »)
+    # pose la décision ; factory OntologyToPydantic (validation en deux temps :
+    # schéma puis constructibilité, plus edge_types_from_dict) ; contrat
+    # GraphStore versionné (version = 2, strict et ontology en keyword-only) ;
+    # get_applied_ontology neutre et commun aux deux stores ; les deux
+    # implémentations alignées par une table de conformité testée.
+    # Rétrocompatibilité Epic 003 garantie : sans ontologie, add_episode
+    # construit exactement l'appel d'avant (filet dédié).
+    # Mesure C1 réelle sur 2 fixtures (télécom, énergie ; 5 documents chacune
+    # dont un long > 20 000 caractères) : consignée dans
+    # docs/plans/007-ontologie-dynamique/mesure-007-1.txt.
+    # Revue BMAD 4 couches : 23 findings (3 décisions, 16 patches, 4 différés)
+    # deferred-work.md. Le plus lourd : l'ingestion réelle échouait sur une
+    # propriété-map, parce que le LLM renvoyait le fragment de schéma JSON d'un
+    # attribut — filtre ajouté dans MiroFishLLMClient, 14 tests de régression.
+    # Filet global : voir la story pour le compte exact de la fin de session.
 
   - id: "008"
     slug: support-langue-francaise

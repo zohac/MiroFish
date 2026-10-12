@@ -1,0 +1,37 @@
+{
+  "domain": "energie",
+  "description": "Fixture d'épreuve C1 (story 007-1) — domaine énergie. Cinq documents, dont un long de plus de 20 000 caractères destiné à l'échantillonnage. L'ontologie associée couvre huit types d'entité et six types de relation.",
+  "ontology": "ontology.json",
+  "documents": [
+    {
+      "document_id": "energie-01",
+      "filename": "01-schema-technique-rivesaltes.txt",
+      "role": "reference",
+      "kind": "minimal"
+    },
+    {
+      "document_id": "energie-02",
+      "filename": "02-tarifs-usage.txt",
+      "role": "facts",
+      "kind": "minimal"
+    },
+    {
+      "document_id": "energie-03",
+      "filename": "03-bilan-electrique-2025.txt",
+      "role": "facts",
+      "kind": "standard"
+    },
+    {
+      "document_id": "energie-04",
+      "filename": "04-incident-reseau-2026.txt",
+      "role": "facts",
+      "kind": "standard"
+    },
+    {
+      "document_id": "energie-05",
+      "filename": "05-programme-reglementaire-2026.txt",
+      "role": "reference",
+      "kind": "long"
+    }
+  ]
+}

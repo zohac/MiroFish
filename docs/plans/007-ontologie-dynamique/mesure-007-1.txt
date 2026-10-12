@@ -1,0 +1,64 @@
+==============================================================================
+MESURE 007-1 — PERSISTANCE EFFECTIVE DES LABELS D'ONTOLOGIE
+Mesure sur : 2026-10-12T10:25:45.228714+00:00
+Run : 4ff664bd
+Mode LLM : REEL (OpenCode Go)
+Fragments ingeres par document : 3
+Seuil C1 : 80.0 % de noeuds avec un label custom non `Entity`
+==============================================================================
+
+Domaine | Documents | Fragments | Noeuds :Entity | Avec label custom | % | Max labels/nœud
+--------------------------------------------------------------------------------------------------------------
+telecom | 5/5 | 15 | 15 | 15 | 100.0 % | 1
+energie | 5/5 | 15 | 15 | 15 | 100.0 % | 1
+
+Empreintes SHA-256 des fixtures
+--------------------------------------------------------------------------------------------------------------
+  telecom : documents=1cc2f3db7c2e26026fb93a0f0a760864ce5b08814e8b5b71bd584deca54350f3
+  telecom : ontologie=ea7e4778b1501e52af4302c0e71d61f8c1c9d7b78d3a8984f44abe6a1fd2ee72
+    telecom-01 (minimal, 1527 car.) : ab029c2bfd0f5f6aff9df228e4a762bc0b7457c3423cc5df568047ceba8aca32
+    telecom-02 (minimal, 1677 car.) : 063500bd28db75a5730d72418903359e0c925c7fdd8cbd5de47c562ad8cb2adc
+    telecom-03 (standard, 1788 car.) : 0a137a68d0720f3a7e599ad9c52a607fe8ba84ee3fef0aa08fafdedb47ef4945
+    telecom-04 (standard, 2241 car.) : b6586083390bb0c2a08353e23cfea1a43ca01269fee2b0961b6ebc11d637312e
+    telecom-05 (long, 20163 car.) : 84784233b928f46fe0518be9967f9de730e2009d9aad497299adedd946c71fbc
+  energie : documents=c5477bc710130736a662415f13ebfda25dd23739c92ebbd7486a08fc4cb5d66a
+  energie : ontologie=d6b362732261416d950e4f0da6022e9c74bf8c696e23ae107928584bce558cf4
+    energie-01 (minimal, 1493 car.) : ca591f26db95170e7ecb32f3d0d4795b03c76306ab30bd8c788ba3c063bb8afd
+    energie-02 (minimal, 1614 car.) : 90b4d87fd508e240b38e2fc629a44116b6a182d3207c4d2ca4fccb2109db64d0
+    energie-03 (standard, 2402 car.) : 38585cffaf90dbfda4e4eda6379d33b2add252d597785599f274034f9a584b77
+    energie-04 (standard, 2415 car.) : 0d51dd91112aefe5759adb560f82ee7e658d5ebee6f6b2e6073504ee8be168fc
+    energie-05 (long, 20236 car.) : 69ce834a8ee8f50478dee9b20a928de9a3f3c9276b4a11ba0164876c17ca3a57
+
+Detail par label d'ontologie
+--------------------------------------------------------------------------------------------------------------
+  telecom (c1_telecom_4ff664bd) :
+    types declares : Subscriber, NetworkOperator, NetworkInfrastructure, CoverageArea, RegulatoryDecision, ComplaintCase, ServiceTariff, TelecomPolicy
+    NetworkInfrastructure : 7
+    TelecomPolicy : 3
+    CoverageArea : 2
+    ComplaintCase : 1
+    NetworkOperator : 1
+    ServiceTariff : 1
+    aretes : 22 | duree d'ingestion : 161.4 s
+  energie (c1_energie_4ff664bd) :
+    types declares : GridOperator, EnergyRegulator, RegulatoryDecision, GridInfrastructure, RenewableProducer, EnergyConsumer, TariffGrid, EnergyPolicy
+    GridInfrastructure : 7
+    TariffGrid : 3
+    EnergyPolicy : 2
+    EnergyConsumer : 1
+    EnergyRegulator : 1
+    RegulatoryDecision : 1
+    aretes : 22 | duree d'ingestion : 138.2 s
+
+Controle de l'invariant architecture §9.2
+--------------------------------------------------------------------------------------------------------------
+Un nœud doit porter au plus un label non `Entity`.
+  telecom : max 1 label(s) specifique(s) -> TENU
+  energie : max 1 label(s) specifique(s) -> TENU
+
+==============================================================================
+C1 / telecom : 100.0 % (seuil 80.0 %) -> CONFORME
+C1 / energie : 100.0 % (seuil 80.0 %) -> CONFORME
+
+VERDICT GLOBAL : GO — les labels d'ontologie sont persistes
+==============================================================================

@@ -1,0 +1,45 @@
+Incident reseau du 14 janvier 2026 - analyse du gestionnaire de distribution
+
+Une coupure d'electricite a affecte le 14 janvier 2026 pendant quatre heures et
+vingt minutes, 14 200 consommateurs de la zone desservie par le poste de
+Derive. Le gestionnaire de distribution a publie un rapport d'analyse le
+9 mars.
+
+L'origine de l'incident est un defaut d'isolement sur un disjoncteur de liaison,
+provenu d'une impregnation d'huile dans la chambre de coupure. L'equipement
+avait ete livre en 2019 et n'avait jamais presente d'anomalie jusqu'a la
+persistance du froid.
+
+Le gestionnaire indique que la strategie de bascule automatique a fonctionne
+conformement aux parametres reglementaires. La zone a ete realimentee en
+back-up par le poste voisin de Vallon, ce qui a limite l'impact a 4 200
+consommateurs pendant les quarante premieres minutes.
+
+Trois consommateurs professionnels, dont une usine
+agroalimentaire, ont subi un arret de production complet. L'un d'eux demande
+l'indemnisation de la perte de marche d'un atelier integre dans le dossier
+de litige qu'il a ouvert le 22 janvier.
+
+Le gestionnaire a verse des avoirs commerciaux aux 14 200 consommateurs
+concernes, a hauteur d'un mois d'abonnement en moyenne. La commission de
+regulation de l'energie a ete saisie et a ouvert une enquete.
+
+La commission a rendu le 2 avril une deliberation dans laquelle elle met en demeure le gestionnaire de produire un plan de renouvellement anticipe des
+disjoncteurs de liaison de sa zone de desserte. Le gestionnaire dispose d'un
+delai de six mois.
+
+Un second incident de moindre ampleur s'est produit le 3 mars 2026 sur le reseau
+de transport, affectant 3 100 consommateurs pendant cinquante minutes. L'origine
+en est un arbre branche sur une ligne haute tension en zone Feeder. Le
+gestionnaire a annonce une campagne d'elagage sur quarante kilometres de lignes
+au printemps.
+
+L'analyse du gestionnaire indique que le taux de disponibilite du reseau de
+distribution sur sa zone de desserte s'est eleve a 99,93 pour cent en 2025,
+soit un gain de 0,08 point par rapport a 2024. La commission rappelle que la
+cible reglementaire est de 99,9 pour cent pour le reseau de transport et de 99
+pour cent pour le reseau de distribution.
+
+Le gestionnaire annonce enfin la mise en service d'une douzaine de nouveaux
+disjoncteurs de liaison d'ici fin 2026, sur un programme de renouvellement de
+quatre ans portant sur 340 equipements.

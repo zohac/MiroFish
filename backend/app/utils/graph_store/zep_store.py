@@ -25,10 +25,12 @@ from zep_cloud.external_clients.ontology import (
 from ..logger import get_logger
 from ..ontology import (
     MAX_ONTOLOGY_TYPES,
-    RESERVED_ONTOLOGY_ATTRIBUTE_NAMES,
+    is_valid_ontology_name,
     normalize_ontology_attributes,
     normalize_ontology_source_targets,
+    safe_ontology_attribute_name,
 )
+from .ontology_pydantic import valider_nom_de_type
 from ..zep import (
     call_zep_read_with_retry,
     get_zep_client,
@@ -38,6 +40,7 @@ from ..zep import (
 )
 from ..zep_paging import fetch_all_edges, fetch_all_nodes
 from .base import (
+    AppliedOntology,
     BatchSubmissionRecord,
     EpisodeRecord,
     GraphEdge,
@@ -55,9 +58,43 @@ from .errors import (
     GraphStoreError,
     GraphTimeoutError,
     GraphValidationError,
+    OntologyValidationError,
 )
 
 logger = get_logger("mirofish.graph_store.zep")
+
+
+def _declared_entity_type_names(ontology: Dict[str, Any]) -> List[str]:
+    """Noms des types d'entité réellement transmis à Zep, dans l'ordre déclaré.
+
+    Une entrée inutilisable — chaîne vide, dictionnaire sans nom — n'est jamais
+    transmise, donc elle ne doit pas non plus figurer dans l'empreinte utilisée
+    pour éviter de réappliquer une ontologie déjà posée (ADR 0014 §2).
+    """
+    return _declared_names(ontology.get("entity_types", []))
+
+
+def _declared_edge_type_names(ontology: Dict[str, Any]) -> List[str]:
+    """Noms des types de relation réellement transmis à Zep."""
+    return _declared_names(ontology.get("edge_types", []))
+
+
+def _declared_names(raw_types: Any) -> List[str]:
+    """Noms exploits d'une liste de types, chaîne ou dictionnaire."""
+    if not isinstance(raw_types, list):
+        return []
+
+    names: List[str] = []
+    for type_def in raw_types[:MAX_ONTOLOGY_TYPES]:
+        if isinstance(type_def, str):
+            name = type_def.strip()
+        elif isinstance(type_def, dict):
+            name = str(type_def.get("name", "")).strip()
+        else:
+            continue
+        if name:
+            names.append(name)
+    return names
 
 
 class ZepGraphStore(GraphStore):
@@ -85,6 +122,12 @@ class ZepGraphStore(GraphStore):
                 raise GraphValidationError(str(exc)) from exc
             except Exception as exc:
                 raise GraphStoreError(f"Échec d'initialisation du client Zep : {exc}") from exc
+
+        # Ontologies effectivement posées, par `graph_id` (ADR 0014 §2). Mémorisées
+        # sur l'instance : Zep les applique de son côté, le store ne mémorise que
+        # ce qu'il a transmis, pour ne pas réappliquer la même ontologie à chaque
+        # fragment d'un lot.
+        self._applied_ontologies: Dict[str, AppliedOntology] = {}
 
     @staticmethod
     def _translate_error(error: Exception, operation_name: str) -> GraphStoreError:
@@ -295,20 +338,40 @@ class ZepGraphStore(GraphStore):
 
     # --- Ontologie ---
 
-    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
-        """Configure l'ontologie des types d'entités et d'arêtes pour un graphe Zep."""
-        if not graph_id or not graph_id.strip():
+    def set_ontology(
+        self, graph_id: str, ontology: Dict[str, Any], *, strict: bool = False
+    ) -> None:
+        """Configure l'ontologie des types d'entités et d'arêtes pour un graphe Zep.
+
+        Zep Cloud applique l'ontologie **côté serveur** : il n'existe pas de
+        paramètre d'ontologie par épisode. La seule façon d'en consommer une à
+        l'écriture est donc de l'appliquer au graphe avant d'ajouter l'épisode —
+        ce que fait `add_episode` quand une ontologie lui est confiée.
+
+        `strict` est mémorisé et documenté, pas appliqué : le refus effectif d'un
+        type hors ontologie est l'objet de la story 007-2 (ADR 0014).
+        """
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
+        target_graph_id = graph_id.strip()
 
-        with self._translate_errors(f"définition de l'ontologie pour {graph_id}"):
+        # La validation de noms et de cardinalité est **partagée** avec
+        # GraphitiGraphStore : les deux implémentations doivent refuser la même
+        # entrée pour la même raison (ADR 0014 §2). Zep n'écrit pas les mêmes
+        # labels Cypher, mais un nom qui ne serait pas un identifiant produirait
+        # chez lui la même erreur, en plus loin.
+        entity_type_names = _declared_entity_type_names(ontology)
+        edge_type_names = _declared_edge_type_names(ontology)
+        if not entity_type_names and not edge_type_names:
+            raise OntologyValidationError(
+                "Ontologie refusée : aucun type d'entité ni type de relation "
+                "exploitable"
+            )
+
+        with self._translate_errors(f"définition de l'ontologie pour {target_graph_id}"):
             warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
-
-            def safe_attr_name(attr_name: str) -> str:
-                if attr_name.lower() in RESERVED_ONTOLOGY_ATTRIBUTE_NAMES:
-                    return f"entity_{attr_name}"
-                return attr_name
 
             entity_types: Dict[str, Any] = {}
             for entity_def in ontology.get("entity_types", [])[:MAX_ONTOLOGY_TYPES]:
@@ -327,11 +390,18 @@ class ZepGraphStore(GraphStore):
                 else:
                     continue
 
+                valider_nom_de_type(name, "type")
+
                 attrs = {"__doc__": description}
                 annotations: Dict[str, Any] = {}
 
                 for normalized in normalize_ontology_attributes(raw_attrs):
-                    attr_name = safe_attr_name(normalized["name"])
+                    attr_name = safe_ontology_attribute_name(normalized["name"])
+                    if not is_valid_ontology_name(attr_name):
+                        raise OntologyValidationError(
+                            f"L'attribut '{normalized['name']}' du type '{name}' "
+                            "n'est pas un identifiant valide"
+                        )
                     attr_desc = normalized["description"]
                     attrs[attr_name] = Field(description=attr_desc, default=None)
                     annotations[attr_name] = Optional[EntityText]
@@ -360,11 +430,18 @@ class ZepGraphStore(GraphStore):
                 else:
                     continue
 
+                valider_nom_de_type(name, "relation")
+
                 attrs = {"__doc__": description}
                 annotations = {}
 
                 for normalized in normalize_ontology_attributes(raw_attrs):
-                    attr_name = safe_attr_name(normalized["name"])
+                    attr_name = safe_ontology_attribute_name(normalized["name"])
+                    if not is_valid_ontology_name(attr_name):
+                        raise OntologyValidationError(
+                            f"L'attribut '{normalized['name']}' de la relation "
+                            f"'{name}' n'est pas un identifiant valide"
+                        )
                     attr_desc = normalized["description"]
                     attrs[attr_name] = Field(description=attr_desc, default=None)
                     annotations[attr_name] = Optional[str]
@@ -392,10 +469,34 @@ class ZepGraphStore(GraphStore):
 
             if entity_types or edge_definitions:
                 self._client.graph.set_ontology(
-                    graph_ids=[graph_id],
+                    graph_ids=[target_graph_id],
                     entities=entity_types,
                     edges=edge_definitions if edge_definitions else None,
                 )
+                self._applied_ontologies[target_graph_id] = AppliedOntology(
+                    entity_type_names=tuple(entity_type_names),
+                    edge_type_names=tuple(edge_type_names),
+                    strict=bool(strict),
+                )
+                logger.debug(
+                    "set_ontology : %d type(s) d'entité et %d type(s) de relation "
+                    "posés sur le graphe Zep %s (strict=%s, ADR 0014)",
+                    len(entity_type_names),
+                    len(edge_type_names),
+                    target_graph_id,
+                    bool(strict),
+                )
+
+    def get_applied_ontology(self, graph_id: str) -> Optional[AppliedOntology]:
+        """Ontologie en vigueur sur ce graphe Zep, décrite de façon neutre.
+
+        Les noms sont conservés plutôt que les classes : Zep applique l'ontologie
+        de son côté, le store n'a donc rien à construire pour la rappeler, et
+        rien à refaire si le SDK change sa représentation interne (ADR 0014 §2).
+        """
+        if not isinstance(graph_id, str) or not graph_id.strip():
+            raise GraphValidationError("graph_id est requis")
+        return self._applied_ontologies.get(graph_id.strip())
 
     # --- Ingestion et épisodes ---
 
@@ -406,8 +507,15 @@ class ZepGraphStore(GraphStore):
         source_description: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
+        *,
+        ontology: Optional[Dict[str, Any]] = None,
     ) -> EpisodeRecord:
-        """Ajoute un épisode textuel unitaire au graphe Zep."""
+        """Ajoute un épisode textuel unitaire au graphe Zep.
+
+        Zep n'a pas d'ontologie par épisode : si une ontologie est fournie ou
+        déjà posée pour ce graphe, elle est appliquée au graphe **avant** l'ajout,
+        pour que l'extraction distant s'exécute sous ces types (ADR 0014 §2).
+        """
         if not graph_id or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not text or not text.strip():
@@ -415,9 +523,12 @@ class ZepGraphStore(GraphStore):
         if metadata is not None and not isinstance(metadata, dict):
             raise GraphValidationError("metadata doit être un dictionnaire")
 
-        with self._translate_errors(f"ajout d'épisode dans le graphe {graph_id}"):
+        target_graph_id = graph_id.strip()
+        self._apply_ontology_for_episode(target_graph_id, ontology)
+
+        with self._translate_errors(f"ajout d'épisode dans le graphe {target_graph_id}"):
             episode = self._client.graph.add(
-                graph_id=graph_id,
+                graph_id=target_graph_id,
                 type="text",
                 data=text,
                 created_at=created_at,
@@ -431,10 +542,44 @@ class ZepGraphStore(GraphStore):
             ep_created_at = getattr(episode, "created_at", None)
             return EpisodeRecord(
                 uuid=str(ep_uuid),
-                graph_id=graph_id,
+                graph_id=target_graph_id,
                 processed=is_processed,
                 created_at=str(ep_created_at) if ep_created_at else created_at,
             )
+
+    def _apply_ontology_for_episode(
+        self, graph_id: str, ontology: Optional[Dict[str, Any]]
+    ) -> None:
+        """Applique au graphe Zep l'ontologie effective de l'épisode à venir.
+
+        Zep applique l'ontologie au graphe, pas à l'épisode : c'est donc le seul
+        geste possible. Elle est appliquée une seule fois par ontologie distincte
+        — un lot de fragments ne doit pas multiplier les appels distants, et
+        l'idempotence de `set_ontology` côté Zep rend l'opération sans risque.
+        """
+        if ontology is None:
+            return
+        if not isinstance(ontology, dict):
+            raise GraphValidationError("L'ontologie doit être un dictionnaire")
+
+        # L'empreinte couvre les **relations** aussi : deux ontologies qui
+        # déclarent les mêmes entités mais des relations différentes sont deux
+        # ontologies, et ne pas les distinguer reviendrait à n'appliquer que la
+        # première en silence.
+        fingerprint = (
+            tuple(_declared_entity_type_names(ontology)),
+            tuple(_declared_edge_type_names(ontology)),
+        )
+        if fingerprint == ((), ()):
+            return
+
+        appliquee = self._applied_ontologies.get(graph_id)
+        if appliquee is not None:
+            courante = (appliquee.entity_type_names, appliquee.edge_type_names)
+            if courante == fingerprint:
+                return
+
+        self.set_ontology(graph_id, ontology)
 
     def _find_batch_by_operation_id(
         self,

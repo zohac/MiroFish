@@ -234,7 +234,17 @@ def run_provenance_validation(
         # 4. ingestion avec provenance
         print("\n[4/6] Ingestion avec métadonnées de provenance...")
         created_gid = store.create_graph("Sonde provenance", graph_id=test_graph_id)
-        store.set_ontology(created_gid, {"entity_types": [], "edge_types": []})
+        # Une ontologie sans type d'entité est désormais **refusée** (ADR 0014) :
+        # poser une ontologie vide et compter sur son no-op n'est plus possible.
+        # Cette sonde mesure la provenance, pas l'ontologie — elle pose donc une
+        # ontologie minimale et valide.
+        store.set_ontology(
+            created_gid,
+            {
+                "entity_types": [{"name": "DocumentedFact"}],
+                "edge_types": [],
+            },
+        )
         submission = store.add_text_batch(
             graph_id=created_gid,
             chunks=plan.chunks,

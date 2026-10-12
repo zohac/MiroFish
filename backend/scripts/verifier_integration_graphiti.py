@@ -262,7 +262,7 @@ def run_integration_validation(
         store.set_ontology(graph_alpha, {"entity_types": ["Organization", "Person"]})
         store.set_ontology(graph_beta, {"entity_types": ["Organization", "Topic"]})
         methodes_testees.add("set_ontology")
-        print("   ✓ Ontologies configurées (no-op gracieux v1)")
+        print("   ✓ Ontologies configurées (pose effective, ADR 0014)")
 
         # add_episode (3)
         ep_alpha_1 = store.add_episode(

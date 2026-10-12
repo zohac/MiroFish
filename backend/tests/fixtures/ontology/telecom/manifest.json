@@ -1,0 +1,37 @@
+{
+  "domain": "telecom",
+  "description": "Fixture d'épreuve C1 (story 007-1) — domaine télécommunication. Cinq documents, dont un long de plus de 20 000 caractères destiné à l'échantillonnage. L'ontologie associée couvre huit types d'entité et six types de relation.",
+  "ontology": "ontology.json",
+  "documents": [
+    {
+      "document_id": "telecom-01",
+      "filename": "01-cahier-des-charges-valmont.txt",
+      "role": "reference",
+      "kind": "minimal"
+    },
+    {
+      "document_id": "telecom-02",
+      "filename": "02-soutenabilite-reseaux.txt",
+      "role": "facts",
+      "kind": "minimal"
+    },
+    {
+      "document_id": "telecom-03",
+      "filename": "03-litige-raccordement.txt",
+      "role": "facts",
+      "kind": "standard"
+    },
+    {
+      "document_id": "telecom-04",
+      "filename": "04-offres-fibre-marche.txt",
+      "role": "facts",
+      "kind": "standard"
+    },
+    {
+      "document_id": "telecom-05",
+      "filename": "05-consultation-couverture-2026.txt",
+      "role": "reference",
+      "kind": "long"
+    }
+  ]
+}

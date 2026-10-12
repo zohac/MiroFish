@@ -48,6 +48,9 @@ L'**Epic 009 (Éligibilité des acteurs et fiabilisation des sources) est intég
 - **Story 009-3 (done)** : Modèle `ActorSelection` et persistance atomique `actors.json` rattachée à la simulation avec empreinte SHA-256 déterministe et journal d'audit. Endpoints Flask `POST /api/simulation/actors/preview` et `review` (409 sur désynchronisation optimiste, rejet des non-acteurs, motif obligatoire). Intégration dans `prepare_simulation` et IHM Vue 3 (`Step2EnvSetup.vue`) avec panneau de prévalidation et blocage volontaire. Filet porté à 1130 tests verts.
 - **Story 009-4 (done, revue BMAD du 12 oct. 2026)** : Outils de provenance dans `ZepToolsService` (transport complet des épisodes, `ProvenanceRecord`, `origin` et `origins`), modèle `InformationOrigin` (5 origines d'information étanches), service `SimulationActionVerifier` appliquant la règle d'or anti-affabulation C7 (requalification des intentions non actées, validation déterministe d'événements `compute_event_id`, contrôle verbatim des citations textuelles, formatage des contradictions `SourceConflict`). Intégration `ReportAgent` avec section normalisée « Sources & Provenance » et étanchéité NFR-5. Banc autonome `verifier_qualification_epic_009.py` validant l'intégralité des critères C1 à C7 avec le rapport formel [`rapport-qualification-epic-009.md`](plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md) et **VERDICT GO**. Filet global porté à **1157 tests verts** (0 échec). Revue BMAD code-review menée le 12 octobre 2026 : story rétrogradée en `review` (violation `backlog → done`), 10 patches de moyen et haut impact appliqués (AC6 via chargement du document source, NFR-5 dans les prompts LLM, C5 sous Docker, batch `get_edges_provenance`, `get_edge_by_uuid`, invalidation du cache, déterminisme `compute_event_id`, `verify_citation` strict, `source_filename` dans le classifieur, motifs d'intention étendus à 9 types). 15 findings différés dans [`deferred-work.md`](deferred-work.md), 6 rejets vérifiés. L'Epic 009 reste **clos**.
 
+L'**Epic 007 (Ontologie dynamique, v2) est en cours — story 007-1 passée en `review`** :
+- **Story 007-1 (review)** : [ADR 0014](../decisions/0014-pose-effective-ontology-graphstore.md) rompt le no-op de `set_ontology`, qui produisait des types métier à coût LLM puis les perdait — tous les nœuds du graphe ne portaient que le label générique `:Entity`. `GraphStore` est versionné (`version = 2`) et gagne deux paramètres keyword-only (`strict`, `ontology`) ; `OntologyToPydantic` traduit le dict d'ontologie en classes Pydantic en deux temps (schéma puis constructibilité) ; les deux implémentations sont alignées par une table de conformité testée. **C1 mesuré sur deux fixtures de domaines distincts** (télécom, énergie — 5 documents chacune, dont un long de plus de 20 000 caractères), sortie consignée dans [`mesure-007-1.txt`](plans/007-ontologie-dynamique/mesure-007-1.txt).
+
 ## Fait
 
 | Livrable | Où |
@@ -67,14 +70,18 @@ L'**Epic 009 (Éligibilité des acteurs et fiabilisation des sources) est intég
 | Environnement Docker de référence (Epic 005) : 5 stories validées, docker-compose unifié, persistance Neo4j, pipeline e2e conteneurisé, qualification Docker (711 tests verts, Verdict GO) | [`docs/plans/005-docker-local/`](plans/005-docker-local/rapport-qualification-epic-005.md) |
 | Migration des données Zep (Epic 006) : 3 stories validées, sonde d'audit, pipeline ETL direct Neo4j, validation relecture GraphStore/OASIS et outil de purge sécurisé (800 tests verts) | [`docs/plans/006-migration-donnees-zep/`](plans/006-migration-donnees-zep/prd.md) |
 | Éligibilité des acteurs et fiabilisation des sources (Epic 009) : 4 stories validées, barrière d'éligibilité, contrats ADR 0012/0013, sélection persistée, rapport vérifiable, anti-affabulation C7, qualification C1-C7 (1145 tests verts, Verdict GO) | [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md) |
+| Ontologie dynamique (Epic 007) : story 007-1 validée en revue, ADR 0014 (pose effective des labels), mesure C1 sur deux domaines | [`docs/plans/007-ontologie-dynamique/`](plans/007-ontologie-dynamique/story-007-1.md) |
 
 ## En cours / Prochaine étape
 
-L'**Epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est intégralement clos avec succès (4/4 stories validées — 1145 tests verts, VERDICT GO)**.
+L'**Epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est intégralement clos avec succès (4/4 stories validées — 1157 tests verts, VERDICT GO)**.
 
-Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`, `rapport-qualification-epic-009.md`).  
+Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`, `rapport-qualification-epic-009.md`).
+
+L'**Epic 007 (« Ontologie dynamique (v2) ») est en cours** : dossier complet dans [`docs/plans/007-ontologie-dynamique/`](plans/007-ontologie-dynamique/prd.md), story 007-1 en `review`.
+
 Chantiers à venir :
-- **Epic 007** : Ontologie dynamique (v2) — conception d'un schéma d'ontologie évolutif et typage dynamique basé sur la sélection d'acteurs assainie.
+- **Epic 007 (suite)** : Ontologie dynamique (v2) — **007-2** (validation à l'écriture et politique `strict_ontology`, qui branchera le paramètre `strict` déjà accepté puis mémorisé), puis 007-3 à 007-7.
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
 - **Epic 010** : Documentation et alignement amont — publication du bilan local-first et documentation d'intégration.
 
@@ -279,8 +286,8 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | Epic | Titre | Dépend de |
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
-| 009 | Éligibilité des acteurs et fiabilisation des sources (`in-progress`, stories 009-1 et 009-2 `done`) | 004, 005 |
-| 007 | Ontologie dynamique (v2) | 003, 009 |
+| 009 | Éligibilité des acteurs et fiabilisation des sources (clos, 1157 tests verts) | 004, 005 |
+| 007 | Ontologie dynamique (v2) — `in-progress`, story 007-1 en `review` | 003, 004, 005, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
 ---
@@ -322,10 +329,10 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **1130 réussis** sur l'hôte, sans `.env` ni réseau externe, le 11 octobre 2026 (stories 009-1, 009-2 et 009-3 closes). Filet enrichi de 18 nouveaux tests unitaires et d'intégration hermétiques pour `ActorSelection` et les endpoints de prévalidation/arbitrage, revue contradictoire BMAD validée avec 7 patches appliqués. |
+| Tests | **1318 réussis** sur l'hôte, sans `.env` ni réseau externe, le 12 octobre 2026 (Epic 009 clos, story 007-1 en revue). Story 007-1 en apporte **161** : factory d'ontologie, contrat des deux stores avec table de conformité, garde-fou d'assainissement LLM, sonde C1. |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 13 acceptés, 0 supersédé |
+| ADR | 14 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker opérationnel (ADR 0006, Epic 005 clos) — stack 3 services (`neo4j`, `backend`, `frontend`) unifiée |
 | Fork audités | 6 — 0 adopté |

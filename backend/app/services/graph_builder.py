@@ -425,7 +425,19 @@ class GraphBuilderService:
         return hashlib.sha256(f"{graph_id}:{payload_hash}".encode("utf-8")).hexdigest()
 
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
-        """Définit l'ontologie du graphe via le GraphStore."""
+        """Définit l'ontologie du graphe via le GraphStore.
+
+        Depuis l'ADR 0014 l'ontologie est **effectivement posée** : le store la
+        retient pour ce `graph_id`, et les écritures suivantes — y compris
+        celles déclenchées par `add_text_batches` sur ce même `self.store` —
+        consomment les types déclarés. L'ordre `set_ontology` puis ingestion est
+        donc porteur, et c'est cet ordre que `_build_graph_worker` garantit.
+
+        Returns:
+            None. La signature est inchangée depuis la v1 : aucun appelant aval ne
+            consommait de retour, et le store n'a rien à rendre — l'ontologie
+            appliquée se relit par `store.get_applied_ontology(graph_id)`.
+        """
         self.store.set_ontology(graph_id=graph_id, ontology=ontology)
 
     def add_text_batches(

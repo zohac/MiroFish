@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .errors import GraphValidationError
 
@@ -476,8 +476,50 @@ class GraphInfo:
         }
 
 
+@dataclass(frozen=True)
+class AppliedOntology:
+    """Ontologie effectivement posée sur un graphe, décrite de façon neutre.
+
+    Deliberément **des noms, pas des classes** : Zep applique l'ontologie de son
+    côté et n'a rien à construire, Graphiti construit des classes Pydantic. Ce
+    qu'un appelant peut vérifier sans connaître le store, c'est « quels types
+    sont en vigueur sur ce graphe » — et cela doit être la même réponse des deux
+    côtés (ADR 0014 §2).
+
+    Les classes traduites restent un détail du store concret et ne sont pas
+    exposées ici.
+    """
+
+    entity_type_names: Tuple[str, ...] = ()
+    edge_type_names: Tuple[str, ...] = ()
+    strict: bool = False
+
+    def __bool__(self) -> bool:
+        return bool(self.entity_type_names or self.edge_type_names)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "entity_type_names": list(self.entity_type_names),
+            "edge_type_names": list(self.edge_type_names),
+            "strict": self.strict,
+        }
+
+
 class GraphStore(ABC):
     """Interface unifiée pour le magasin de graphe de connaissances temporel."""
+
+    #: Version du contrat (ADR 0014 §1).
+    #:
+    #: `1` — `set_ontology` est un no-op et `add_episode` n'accepte pas
+    #: d'ontologie : le typage métier est produit puis perdu.
+    #: `2` — `set_ontology` pose effectivement l'ontologie et `add_episode`
+    #:       consomme les classes qu'elle a produites.
+    #:
+    #: Attribut **déclaré, pas imposé** : une sous-classe qui ne le redéclare pas
+    #: hérite de la valeur de sa classe mère, et une sous-classe externe qui
+    #: l'ignore reste utilisable. Un appelant qui a besoin de la pose effective
+    #: lit `store.version >= 2` au lieu de le supposer.
+    version: int = 2
 
     # --- Cycle de vie ---
 
@@ -538,16 +580,56 @@ class GraphStore(ABC):
     # --- Ontologie ---
 
     @abstractmethod
-    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
+    def set_ontology(
+        self, graph_id: str, ontology: Dict[str, Any], *, strict: bool = False
+    ) -> None:
         """Définit ou synchronise l'ontologie des types d'entités du graphe.
+
+        Depuis l'ADR 0014, cette méthode **pose** l'ontologie : elle n'est plus un
+        no-op. Les écritures suivantes de ce `graph_id` consomment les types
+        déclarés et les nœuds produits portent ces labels.
 
         Args:
             graph_id: Identifiant unique du graphe.
             ontology: Dictionnaire décrivant l'ontologie (ex: entity_types).
+            strict: Politique de validation retenue pour les écritures
+                suivantes. Accepte et mémorisé ici ; le refus effectif d'un type
+                hors ontologie appartient à la story 007-2, qui ajoute le modèle
+                de warning et `get_ontology_warnings`. Ce paramètre n'est pas
+                appliqué par `set_ontology` lui-même.
+
+        Raises:
+            GraphValidationError: `graph_id` vide ou `ontology` non dictionnaire.
+            OntologyValidationError: Ontologie inexploitable — nom de type
+                invalide (il devient un label Cypher), plus de
+                `MAX_ONTOLOGY_TYPES` types, attribut non primitif sans référence,
+                cycle de références, ou classe Pydantic non constructible.
         """
         pass
 
     # --- Ingestion et épisodes ---
+
+    def get_applied_ontology(self, graph_id: str) -> Optional[AppliedOntology]:
+        """Ontologie actuellement en vigueur sur ce graphe, ou `None`.
+
+        Lecture explicite plutôt qu'attribut : un appelant doit pouvoir constater
+        l'absence d'ontologie sans connaître la mécanique interne, et les deux
+        implémentations doivent répondre la même chose (ADR 0014 §2).
+
+        Args:
+            graph_id: Identifiant unique du graphe.
+
+        Returns:
+            `AppliedOntology` — dont les listes de noms peuvent être vides si
+            aucune ontologie n'a été posée — ou `None` si le graphe n'en a
+            aucune.
+
+        Raises:
+            GraphValidationError: `graph_id` vide ou non chaîne.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} n'expose pas l'ontologie appliquée"
+        )
 
     @abstractmethod
     def add_episode(
@@ -557,8 +639,15 @@ class GraphStore(ABC):
         source_description: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
+        *,
+        ontology: Optional[Dict[str, Any]] = None,
     ) -> EpisodeRecord:
         """Ajoute un épisode textuel unitaire au graphe.
+
+        L'ontologie appliquée est résolue dans cet ordre : celle passée
+        explicitement, celle que `set_ontology` a mémorisée pour ce `graph_id`,
+        puis aucune — comportement historique où le nœud ne porte que le label
+        générique `:Entity` (ADR 0014 §2).
 
         Args:
             graph_id: Identifiant unique du graphe.
@@ -566,6 +655,10 @@ class GraphStore(ABC):
             source_description: Description facultative de la source (ex: 'turn_1').
             metadata: Métadonnées additionnelles facultatives.
             created_at: Horodatage optionnel au format ISO 8601.
+            ontology: Ontologie à consommer pour cet épisode. Keyword-only pour
+                qu'un ajout de paramètre ne puisse pas être raté par un appelant
+                positionnel. `None` — le cas de tous les appels existants —
+                conserve le comportement Epic 003-2.
 
         Returns:
             EpisodeRecord représentant l'épisode enregistré.

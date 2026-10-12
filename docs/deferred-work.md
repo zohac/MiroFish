@@ -175,3 +175,67 @@ Revue contradictoire à quatre couches (Blind Hunter, Edge Case Hunter, Verifica
 - **Cas None dans `SimulationActionVerifier`/`build_sources_provenance_section`** (post_content None, source_documents avec None, document_text None, Config.UPLOAD_FOLDER None, action_args non-dict, ref None dans `format_conflicts_for_report`). *Différé : aucun de ces cas n'est atteint en pratique avec les appelants actuels.*
 - **`verify_action` construit un `claim_text` non utilisé** [backend/app/services/report_agent.py:1069]. `f"{agent_id} a fait {action_type}"` est stocké dans `original_claim` mais jamais affiché. *Différé : la décision est portée par `agent_id` et `action_type`.*
 - **`compute_event_id` sensible à la précision de timestamp** [backend/app/services/simulation_action_verifier.py:184-195]. Un round-trip JSONL qui tronque à la seconde peut fusionner deux événements distincts. *Différé : la couche d'écriture actuelle préserve la précision.*
+
+## Deferred from: revue BMAD de la story 007-1 (2026-10-12)
+
+Revue contradictoire à quatre couches (blind-hunter, edge-case-hunter,
+verification-gap, acceptance-auditor) des changements non commités de la story
+007-1, sur le code du lot A. Les findings traités sont dans
+`story-007-1.md § Revue` ; ceux-ci restent ouverts et sont **réellement** du
+travail différé.
+
+- **L'ontologie appliquée est mémorisée par instance de store, donc par requête**
+  [`GraphitiGraphStore._applied_ontologies`, `factory.get_graph_store`]. Une
+  ontologie posée par `GraphBuilderService` pendant une requête est perdue pour
+  l'écrivain suivant : `ZepGraphMemoryUpdater` obtient son propre store et écrit
+  donc des nœuds `:Entity` **dans un graphe dont les nœuds ingérés portent le
+  label déclaré**. Sur Zep l'ontologie est côté serveur et survit : les deux
+  stores divergent donc précisément ici, ce que l'ADR 0014 ne dit pas assez
+  explicitement. *Ce qui déclencherait : la story 007-4, qui doit pouvoir relire
+  l'ontologie d'un projet à la volée ; elle imposera une persistance réelle
+  (`OntologyVersionStore`), pas une mémoire d'instance.*
+- **`close()` ne purge pas l'ontologie appliquée** [`GraphitiGraphStore.close`].
+  Après fermeture — puis ré-initialisation — `get_applied_ontology` affirme encore
+  une ontologie en vigueur. Sans effet aujourd'hui (les classes sont du Python
+  pur), mais l'état annoncé dépasse le cycle de vie. *Différé : à traiter avec la
+  persistance réelle, ou par un `close()` qui purge.*
+- **Un champ d'attribut qui masque un attribut de `BaseModel` ne passe qu'avec un
+  simple `UserWarning`** [`ontology_pydantic`, mesuré sur pydantic 2.12.5].
+  `model_fields`, `copy`, `dict`, `json`, `schema`, `construct`, `validate` sont
+  acceptés par `OntologyToPydantic.from_dict`, et `graphiti_core` lit
+  `entity_type.model_fields` en plusieurs endroits. Aucun crash aujourd'hui,
+  surface durable en cas de montée de version. *Différé : refus des noms réservés
+  de `BaseModel`, quand la liste sera jugée stable.*
+- **Un nom de type d'ontologie ne peut pas être un label interne, mais un nom
+  d'attribut peut être un mot de `BaseModel`** : voir ci-dessus. Les *noms de
+  types* sont refusés (`RESERVED_ONTOLOGY_TYPE_NAMES`).
+
+## Deferred from: cadrage de l'epic 007 (2026-10-12)
+
+Deux chantiers que l'[epic 007](../plans/007-ontologie-dynamique/epic-007.md) et
+son [PRD](../plans/007-ontologie-dynamique/prd.md) §3.2 et §10 déclarent hors
+périmètre. Le hub et le PRD annonçaient tous deux « note consignée dans
+`deferred-work.md` » — **elle ne l'était pas**, et la revue d'acceptation de la
+story 007-1 l'a relevé. La note manquante est écrite ici plutôt que retirée de
+la promesse : le renvoi était juste, c'est la note qui n'existait pas.
+
+- **La boucle auto-évolutive acteur → ontologie → extraction.** Aujourd'hui
+  l'ontologie est inférée du corpus et du brief, puis figée ; les entités
+  extraites ne la nourrissent pas. Une boucle fermée — où ce que la simulation
+  fait émerger enrichit les types et où un type enrichi change l'extraction
+  suivante — est **écartée par l'arbitrage du 12 octobre 2026**, qui restreint la
+  v2 à « persistance + validation ». La raison est mesurable : une boucle
+  ouverte rend la **régénération non déterministe** (NFR-3 exige l'inverse), et
+  elle couple deux mécanismes qui doivent rester dissociés pour que le filet
+  d'éligibilité de l'Epic 009 reste vérifiable seul. *Ce qui la déclencherait :
+  un besoin produit où le typage figé est démontré insuffisant sur un corpus
+  réel — pas une intuition.*
+- **La migration rétroactive des graphes de l'Epic 006 vers l'ontologie v2.**
+  Les graphes migrés portent `:Entity` sans label custom (ADR 0012) et la v2 ne
+  les re-type pas : `set_ontology` ne retouche jamais des nœuds déjà écrits
+  (ADR 0014, § « Conséquences »). Une passe de typage a posteriori — inférence
+  du type d'un nœud `:Entity` déjà présent, puis `SET n:TypeInféré` — est
+  techniquement possible et n'a pas été arbitrée sur le fond. *Ce qui la
+  déclencherait : la story 007-4, si la régénération doit s'appliquer à un
+  projet dont le graphe a été migré ; l'arbitrage se fera alors sur un cas réel
+  plutôt que sur une hypothèse.*

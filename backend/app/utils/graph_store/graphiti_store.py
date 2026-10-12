@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Coroutine
 import concurrent.futures
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import inspect
@@ -20,12 +21,14 @@ from graphiti_core import Graphiti
 from graphiti_core.cross_encoder.client import CrossEncoderClient
 from graphiti_core.driver.neo4j_driver import Neo4jDriver
 from graphiti_core.nodes import EpisodeType
+from pydantic import BaseModel
 
 from ...config import Config
 from ..graphiti_embedder import SentenceTransformerEmbedder
 from ..graphiti_llm_client import MiroFishLLMClient
 from ..logger import get_logger
 from .base import (
+    AppliedOntology,
     BatchSubmissionRecord,
     EpisodeRecord,
     GraphEdge,
@@ -46,10 +49,26 @@ from .errors import (
     GraphTimeoutError,
     GraphValidationError,
 )
+from .ontology_pydantic import OntologyToPydantic
 
 logger = get_logger("mirofish.graph_store.graphiti")
 
 T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class _OntologyTraduite:
+    """Ontologie en vigueur sur un graphe, avec ses classes Pydantic.
+
+    Les classes sont **construites à la pose** et réutilisées telles quelles à
+    chaque ingestion : les retraduire par fragment les rendrait dépendantes de
+    l'ordre d'écriture, et une ontologie invalide échouerait au milieu d'un lot
+    (ADR 0014, alternative « traduire à chaque ingestion »).
+    """
+
+    entity_types: Dict[str, type[BaseModel]]
+    edge_types: Dict[str, type[BaseModel]]
+    neutre: AppliedOntology
 
 
 class LocalPassthroughCrossEncoder(CrossEncoderClient):
@@ -223,6 +242,12 @@ class GraphitiGraphStore(GraphStore):
                 )
             except Exception as exc:
                 raise self._translate_error(exc, "initialisation du moteur Graphiti") from exc
+
+        # 7. Ontologies effectivement posées, par `graph_id` (ADR 0014 §2).
+        # Mémorisées sur l'instance, jamais en variable de module : un store
+        # partagé entre requêtes transporterait l'ontologie d'un projet dans un
+        # autre.
+        self._applied_ontologies: Dict[str, _OntologyTraduite] = {}
 
     def close(self) -> None:
         """Libère les ressources du runner asynchrone."""
@@ -459,16 +484,74 @@ class GraphitiGraphStore(GraphStore):
 
     # --- Ontologie ---
 
-    def set_ontology(self, graph_id: str, ontology: Dict[str, Any]) -> None:
-        """Définit ou synchronise l'ontologie des types d'entités du graphe (no-op en v1, ADR 0003)."""
-        if not graph_id or not graph_id.strip():
+    def set_ontology(
+        self, graph_id: str, ontology: Dict[str, Any], *, strict: bool = False
+    ) -> None:
+        """Pose l'ontologie du graphe et la retient pour les écritures suivantes.
+
+        Traduit le dict en classes Pydantic **avant** toute mutation d'état : une
+        ontologie refusée laisse l'instance exactement dans son état précédent,
+        donc un graphe ne se retrouve jamais avec une ontologie à moitié appliquée
+        (ADR 0014).
+
+        `strict` est mémorisé et documenté, pas appliqué : le refus effectif d'un
+        type hors ontologie est l'objet de la story 007-2.
+        """
+        if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
         if not isinstance(ontology, dict):
             raise GraphValidationError("L'ontologie doit être un dictionnaire")
         target_graph_id = graph_id.strip()
+
+        entity_types = OntologyToPydantic.from_dict(ontology)
+        edge_types = OntologyToPydantic.edge_types_from_dict(ontology)
+        neutre = AppliedOntology(
+            entity_type_names=tuple(entity_types),
+            edge_type_names=tuple(edge_types),
+            strict=bool(strict),
+        )
+
+        self._applied_ontologies[target_graph_id] = _OntologyTraduite(
+            entity_types=entity_types, edge_types=edge_types, neutre=neutre
+        )
         logger.debug(
-            "set_ontology appelé pour le graphe %s (no-op en v1 conformément à l'ADR 0003)",
+            "set_ontology : %d type(s) d'entité et %d type(s) de relation posés "
+            "sur le graphe %s (strict=%s, ADR 0014)",
+            len(entity_types),
+            len(edge_types),
             target_graph_id,
+            bool(strict),
+        )
+
+    def get_applied_ontology(self, graph_id: str) -> Optional[AppliedOntology]:
+        """Ontologie en vigueur sur ce graphe, décrite de façon neutre (ADR 0014 §2)."""
+        if not isinstance(graph_id, str) or not graph_id.strip():
+            raise GraphValidationError("graph_id est requis")
+        traduite = self._applied_ontologies.get(graph_id.strip())
+        return traduite.neutre if traduite is not None else None
+
+    def _resolve_applied_ontology(
+        self, graph_id: str, ontology: Optional[Dict[str, Any]]
+    ) -> Optional[_OntologyTraduite]:
+        """Ontologie effective d'une écriture : explicite, puis mémorisée.
+
+        L'ontologie explicite est traduite à chaque appel : c'est le seul chemin
+        qui permette à un appelant de poser, pour un épisode, une ontologie que
+        `set_ontology` n'a jamais vue. Elle ne modifie **pas** l'ontologie
+        mémorisée du graphe.
+        """
+        if ontology is None:
+            return self._applied_ontologies.get(graph_id)
+
+        entity_types = OntologyToPydantic.from_dict(ontology)
+        edge_types = OntologyToPydantic.edge_types_from_dict(ontology)
+        return _OntologyTraduite(
+            entity_types=entity_types,
+            edge_types=edge_types,
+            neutre=AppliedOntology(
+                entity_type_names=tuple(entity_types),
+                edge_type_names=tuple(edge_types),
+            ),
         )
 
     # --- Ingestion et épisodes ---
@@ -480,6 +563,8 @@ class GraphitiGraphStore(GraphStore):
         source_description: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
+        *,
+        ontology: Optional[Dict[str, Any]] = None,
     ) -> EpisodeRecord:
         """Ajoute un épisode textuel unitaire au graphe avec partitionnement group_id.
 
@@ -487,6 +572,10 @@ class GraphitiGraphStore(GraphStore):
         valide `episode_metadata` mais ne l'écrit pas dans sa requête de
         sauvegarde Neo4j, donc l'annotation est posée ici, par Cypher, sur l'UUID
         que Graphiti a réellement retourné (ADR 0012 §2).
+
+        Si une ontologie est effective — passée explicitement ou posée par
+        `set_ontology` sur ce `graph_id` — ses classes sont passées à Graphiti,
+        qui en dérive le label Cypher de chaque nœud extrait (ADR 0014 §2).
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
@@ -496,6 +585,7 @@ class GraphitiGraphStore(GraphStore):
             raise GraphValidationError("metadata doit être un dictionnaire")
 
         target_graph_id = graph_id.strip()
+        applied = self._resolve_applied_ontology(target_graph_id, ontology)
         with self._translate_errors(f"ajout d'épisode dans le graphe {target_graph_id}"):
             if created_at:
                 try:
@@ -523,16 +613,23 @@ class GraphitiGraphStore(GraphStore):
                 else "MiroFish episode"
             )
 
-            res = self._run_async(
-                self._graphiti.add_episode(
-                    name=episode_name,
-                    episode_body=text.strip(),
-                    source=EpisodeType.text,
-                    source_description=src_desc,
-                    reference_time=ref_time,
-                    group_id=target_graph_id,
-                )
-            )
+            # Sans ontologie, l'appel est construit **exactement** comme avant :
+            # c'est ce qui rend la rétrocompatibilité Epic 003-2 vérifiable
+            # plutôt que déclarative (ADR 0014 §3).
+            episode_kwargs: Dict[str, Any] = {
+                "name": episode_name,
+                "episode_body": text.strip(),
+                "source": EpisodeType.text,
+                "source_description": src_desc,
+                "reference_time": ref_time,
+                "group_id": target_graph_id,
+            }
+            if applied is not None and applied.entity_types:
+                episode_kwargs["entity_types"] = dict(applied.entity_types)
+            if applied is not None and applied.edge_types:
+                episode_kwargs["edge_types"] = dict(applied.edge_types)
+
+            res = self._run_async(self._graphiti.add_episode(**episode_kwargs))
 
             ep_uuid = None
             if hasattr(res, "episode") and getattr(res, "episode") is not None:

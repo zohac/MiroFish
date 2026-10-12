@@ -1,0 +1,125 @@
+{
+  "domain": "energie",
+  "description": "Ontologie figée du domaine énergie, appliquée au graphe de la fixture energie. Les huit types couvrent le vocabulaire réel du dossier : le gestionnaire de réseau, le régulateur, la décision de régulation, l'infrastructure de transport, le producteur renouvelable, le consommateur, la grille tarifaire et la politique énergétique.",
+  "entity_types": [
+    {
+      "name": "GridOperator",
+      "description": "Un gestionnaire de réseau d'énergie assurant le transport et la distribution d'électricité ou de gaz sur une zone donnée.",
+      "attributes": [
+        {"name": "operator_id", "type": "text", "description": "Identifiant du gestionnaire"},
+        {"name": "network_area", "type": "text", "description": "Zone de concession ou de service public"}
+      ],
+      "examples": ["gestionnaire de distribution", "transporteur d'électricité"]
+    },
+    {
+      "name": "EnergyRegulator",
+      "description": "Une autorité de régulation du marché de l'énergie, chargée de fixer les tarifs et de contrôler les obligations des opérateurs.",
+      "attributes": [
+        {"name": "regulator_name", "type": "text", "description": "Dénomination de l'autorité"},
+        {"name": "mandate_since", "type": "integer", "description": "Année de prise de mandat"}
+      ],
+      "examples": ["commission de régulation", "direction générale de l'énergie"]
+    },
+    {
+      "name": "RegulatoryDecision",
+      "description": "Une délibération, un arrêté ou une sanction prise par une autorité de régulation de l'énergie.",
+      "attributes": [
+        {"name": "decision_id", "type": "text", "description": "Numéro de la décision"},
+        {"name": "publication_date", "type": "text", "description": "Date de publication"}
+      ],
+      "examples": ["délibération tarifaire", "sanction administrative"]
+    },
+    {
+      "name": "GridInfrastructure",
+      "description": "Un ouvrage de transport ou de distribution d'énergie : ligne électrique, poste source, conduite de gaz, stockage.",
+      "attributes": [
+        {"name": "infrastructure_type", "type": "text", "description": "Nature de l'ouvrage"},
+        {"name": "commissioning_year", "type": "integer", "description": "Année de mise en service"}
+      ],
+      "examples": ["ligne haute tension", "poste de transformation"]
+    },
+    {
+      "name": "RenewableProducer",
+      "description": "Un producteur d'énergie renouvelable : éolien, solaire, hydraulique, biogaz ou géothermie.",
+      "attributes": [
+        {"name": "technology", "type": "text", "description": "Technologie employée"},
+        {"name": "installed_capacity_mw", "type": "integer", "description": "Puissance installée en mégawatts"}
+      ],
+      "examples": ["parc éolien", "centrale solaire au sol"]
+    },
+    {
+      "name": "EnergyConsumer",
+      "description": "Un consommateur final d'énergie, particulier, entreprise ou collectivité.",
+      "attributes": [
+        {"name": "site_id", "type": "text", "description": "Identifiant du point de livraison"},
+        {"name": "annual_consumption_mwh", "type": "integer", "description": "Consommation annuelle en mégawattheures"}
+      ],
+      "examples": ["usine", "hôpital", "foyer"]
+    },
+    {
+      "name": "TariffGrid",
+      "description": "Une grille tarifaire, un barème ou une option d'achat appliquée à un consommateur ou à un producteur.",
+      "attributes": [
+        {"name": "tariff_name", "type": "text", "description": "Nom du barème"},
+        {"name": "unit_price", "type": "text", "description": "Prix unitaire indicatif"}
+      ],
+      "examples": ["tarif réglementé d'usage", "tarif de rachat de l'injecté"]
+    },
+    {
+      "name": "EnergyPolicy",
+      "description": "Un texte d'orientation, une programmation ou une trajectoire fixant des objectifs au secteur de l'énergie.",
+      "attributes": [
+        {"name": "policy_name", "type": "text", "description": "Intitulé du texte"},
+        {"name": "target_year", "type": "integer", "description": "Horizon de la trajectoire"}
+      ],
+      "examples": ["programmation pluriannuelle de l'énergie"]
+    }
+  ],
+  "edge_types": [
+    {
+      "name": "OPERATES_GRID",
+      "description": "Un gestionnaire exploite un ouvrage de transport ou de distribution.",
+      "source_targets": [
+        {"source": "GridOperator", "target": "GridInfrastructure"}
+      ]
+    },
+    {
+      "name": "SUPPLIES_ENERGY",
+      "description": "Un gestionnaire fournit de l'énergie à un consommateur final.",
+      "source_targets": [
+        {"source": "GridOperator", "target": "EnergyConsumer"}
+      ]
+    },
+    {
+      "name": "PRODUCES_POWER",
+      "description": "Un producteur renouvelable injecte sa production dans un ouvrage de réseau.",
+      "source_targets": [
+        {"source": "RenewableProducer", "target": "GridInfrastructure"}
+      ]
+    },
+    {
+      "name": "REGULATES_OPERATOR",
+      "description": "Une autorité de régulation contrôle un gestionnaire de réseau.",
+      "source_targets": [
+        {"source": "EnergyRegulator", "target": "GridOperator"}
+      ]
+    },
+    {
+      "name": "DECIDED_ON",
+      "description": "Une décision de régulation vise un gestionnaire, un consommateur ou un projet.",
+      "source_targets": [
+        {"source": "RegulatoryDecision", "target": "GridOperator"},
+        {"source": "RegulatoryDecision", "target": "RenewableProducer"},
+        {"source": "RegulatoryDecision", "target": "EnergyConsumer"}
+      ]
+    },
+    {
+      "name": "APPLIES_TO_CONSUMER",
+      "description": "Une grille tarifaire s'applique à un consommateur ou à un producteur.",
+      "source_targets": [
+        {"source": "TariffGrid", "target": "EnergyConsumer"},
+        {"source": "TariffGrid", "target": "RenewableProducer"}
+      ]
+    }
+  ]
+}

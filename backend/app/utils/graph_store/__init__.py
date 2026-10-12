@@ -1,6 +1,7 @@
 """Package GraphStore : abstraction unifiée pour l'accès aux graphes de connaissances."""
 
 from .base import (
+    AppliedOntology,
     BatchSubmissionRecord,
     EpisodeRecord,
     GraphEdge,
@@ -18,6 +19,7 @@ from .errors import (
     GraphStoreError,
     GraphTimeoutError,
     GraphValidationError,
+    OntologyValidationError,
 )
 from .factory import (
     get_graph_store,
@@ -25,6 +27,7 @@ from .factory import (
     set_graph_store_override,
 )
 from .graphiti_store import GraphitiGraphStore, LocalPassthroughCrossEncoder
+from .ontology_pydantic import OntologyToPydantic
 from .zep_store import ZepGraphStore
 
 __all__ = [
@@ -49,5 +52,8 @@ __all__ = [
     "GraphConnectionError",
     "GraphTimeoutError",
     "GraphValidationError",
+    "OntologyValidationError",
+    "OntologyToPydantic",
+    "AppliedOntology",
 ]
 

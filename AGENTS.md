@@ -26,7 +26,8 @@ reproductible.**
 | Graphe de connaissances local (Graphiti + Neo4j) à la place de Zep Cloud | ✅ fait — Epics 001, 002, 003 et 004 clos (632 tests verts) |
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
-| Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1145 tests verts, Verdict GO) |
+| Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 en `review` (pose effective des labels, ADR 0014) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -119,10 +120,17 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet de référence du
-12 octobre 2026 est de **1145 réussis sur l'hôte, 1107 réussis + 3 ignorés sous
+12 octobre 2026 est de **1318 réussis sur l'hôte, 1315 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
-921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; [preuves et
+921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
+hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
+**1318** (1157 + 161 tests hermétiques) ; [preuves et
 limites](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md).
+
+Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
+l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais
+ne sont pas exécutables **dans** le conteneur ; leurs motifs sont consignés dans
+la story 007-1.
 
 Règles de qualité des tests :
 
@@ -170,6 +178,9 @@ est un artefact amont, ne pas y ajouter de dépendance). Toute nouvelle
 dépendance doit être justifiée, déclarée dans le groupe `dev` si c'est un
 outillage, et le lock régénéré : l'image utilise `uv sync --frozen` et échoue
 si le lock est désynchronisé.
+
+`pydantic` n'est pas une nouvelle dépendance : il entre par `graphiti-core`, il
+est donc déjà dans le lock, et `OntologyToPydantic` l'utilise sans l'ajouter.
 
 **Node** — **pnpm uniquement** (ADR 0008). La version est écrite **une seule
 fois**, dans le champ `packageManager` de `package.json`. Installations et
@@ -384,7 +395,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 1145 réussis sur l'hôte au 12 octobre 2026 (Epic 009 clos) |
+| Tests | `backend/tests/` | pytest — 1318 réussis sur l'hôte au 12 octobre 2026 (Epic 009 clos, story 007-1 en revue) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -397,6 +408,8 @@ Variables d'environnement utiles :
 | Vérification de l'embedder | `backend/scripts/verifier_embedder_graphiti.py` | test d'encodage local & intégration Graphiti (001-4) |
 | Validation intégration | `backend/scripts/verifier_integration_graphiti.py` | test d'intégration réelle Graphiti + Neo4j local (003-5), critères C1-C6 |
 | Vérification ingestion | `backend/scripts/verifier_ingestion_graphiti.py` | test d'ingestion et construction de graphe local (004-3), critère C3 |
+| Vérification ontologie | `backend/scripts/verifier_ontology_persistence.py` | test de persistance effective des labels d'ontologie (007-1), critère C1 — sortie [`mesure-007-1.txt`](docs/plans/007-ontologie-dynamique/mesure-007-1.txt) |
+| Qualification Epic 007 | *(à créer en 007-7)* | banc de qualification C1–C8 de l'ontologie dynamique |
 | Vérification personas | `backend/scripts/verifier_personas_simulation_graphiti.py` | test d'extraction d'entités, personas et simulation (004-4), critère C4 |
 | Qualification globale | `backend/scripts/verifier_qualification_local_first.py` | test de qualification globale local-first et clôture Epic 004 (004-5), critères C1-C5 |
 | Persistance Neo4j Docker | `backend/scripts/verifier_persistance_neo4j_docker.py` | test de persistance et cycle de vie des volumes (005-4), critère C3 |
@@ -453,6 +466,8 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | OpenCode Go exige un identifiant de session | HTTP 400 `MissingSessionID` | en-têtes via `utils/llm_compat.py` — **Graphiti n'est pas couvert** |
 | Structured output non honoré | échec d'extraction | `response_format={"type": "json_object"}` côté MiroFish (`llm_client.py:183`), mode `json_object` explicite côté Graphiti |
 | `camel-oasis` vs `graphiti-core` | `neo4j==5.23.0` (pin exact) vs `neo4j>=5.26.0` (plancher) — **conflit structurel, vérifié** | story 001-1 : aucune combinaison publiée ne résout. Parade mesurée et rejouable : `override-dependencies`. **Un second conflit identique** (`sentence-transformers==3.0.0` vs `>=3.2.1`) bloque la story 001-4 |
+| **Une ontologie vide n'est plus un no-op** | `set_ontology(gid, {"entity_types": [], "edge_types": []})` lève `OntologyValidationError` depuis l'ADR 0014 ; avant, c'était un appel silencieux | poser une ontologie **réellement** typée ; `verifier_provenance_documents.py` a été corrigé pour ça |
+| **Un nom de type d'ontologie devient un label Cypher** | `Media Organization` ou un nom commençant par un chiffre produirait une erreur de syntaxe **en aval**, loin de sa cause | `OntologyToPydantic` refuse ; le même validateur sert les deux stores |
 
 ---
 
@@ -473,7 +488,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 ## 8. Hors périmètre (pour l'instant)
 
 - Ré-auditer les forks communautaires → fait, ADR 0002
-- Ontologie dynamique → reportée en v2, ADR 0003
+- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est passée en `review`
 - Moderniser le frontend ou l'i18n
 - Exposer l'application en réseau sans lire l'ADR 0005
 - GitHub Projects : uniquement comme vue générée, et seulement quand
@@ -513,6 +528,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0011 | Relevé réel de la surface `neo4j` (pas de `neo4j.Version`), version résolue consignée, marqueur de format de story |
 | 0012 | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation `:Episodic` vérifiée, lecture neutre `get_edge_provenance` |
 | 0013 | Sémantique des sources : statut de validation, conflits conservés avec règle déclarée, budget de contexte explicite |
+| 0014 | Pose effective de l'ontologie : `set_ontology` cesse d'être un no-op, `strict` et `ontology` sont keyword-only, le contrat `GraphStore` est versionné `version = 2` |
 
 ---
 
@@ -525,7 +541,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 |---|---|
 | Zep Community Edition est déprécié ; Graphiti est la voie OSS | ADR 0001 |
 | Aucun fork communautaire n'est adoptable : bugs silencieux, zéro test, gelés depuis mars | ADR 0002, `LOCAL-FIRST.md` §12 |
-| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003 |
+| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `review`) |
 | `zep_entity_reader.py:262` filtre les nœuds sans label d'ontologie → **le graphe revient vide en silence** | ADR 0003 |
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |
@@ -547,6 +563,12 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | Un nom d'index avec un tiret | `mirofish-verification_fulltext` est une faute de syntaxe Cypher : les identifiants ne prennent que lettres, chiffres et `_` |
 | Le `docker-compose.yml` pointe l'image amont, pas la nôtre | ADR 0006 |
 | Les tests passent sans `.env` — ils sont hermétiques | `LOCAL-FIRST.md` §2 |
+| **Un label d'ontologie persiste, mesuré sur deux domaines** : `add_episode(..., entity_types=...)` fait porter aux nœuds le nom de la classe ; 100 % des nœuds du fixture télécom et du fixture énergie portent un label custom, invariant « au plus un label non-`Entity` » tenu | story 007-1 · [`mesure-007-1.txt`](docs/plans/007-ontologie-dynamique/mesure-007-1.txt) · ADR 0014 |
+| **Le nom de la classe Pydantic, pas son index, devient le label Cypher** : `Graphiti.add_episode` attend un **dictionnaire** `entity_types`, et `_build_entity_types_context` insère un type générique `Entity` en identifiant **0** — les types déclarés commencent à **1**. Un `entity_type_id = 0` produit donc un nœud `:Entity`, par construction | story 007-1 · `graphiti_core/utils/maintenance/node_operations.py:156` |
+| **Neo4j Community refuse toute propriété-map, même vide** : `SET n.attributes = {}` échoue en `Property values can only be of primitive types or arrays thereof`. Graphiti écrit chaque attribut d'ontologie comme une **propriété scalaire** à plat (`entity_data.update(node.attributes)`) — donc un attribut nommé comme une clé de `attributes` casserait l'écriture | mesuré sur `neo4j:5.26.31-community` · story 007-1 |
+| **Un LLM peut renvoyer le fragment de schéma JSON d'un champ au lieu de sa valeur**, et ce fragment est un dictionnaire qui traverse la validation Pydantic (qui ignore l'inconnu) puis devient une propriété. `MiroFishLLMClient._filtrer_champs_valides` l'écarte : sans ce filet, une seule valeur inventée fait échouer tout un épisode | story 007-1 · `tests/test_llm_response_sanitizer.py` |
+| **Les noms réservés par le moteur de graphe doivent être refusés dans une ontologie** : un type nommé `Episodic`, `Community`, `Node` ou `Entity` poserait sur chaque nœud un label indistinguable d'un nœud interne, et la relecture ascendrait des entités comme des épisodes | `RESERVED_ONTOLOGY_TYPE_NAMES` · story 007-1 |
+| `EntityNode.model_fields` est la source de vérité des noms réservés | `attributes`, `created_at`, `group_id`, `labels`, `name`, `name_embedding`, `summary`, `uuid` — mesuré, et un test échoue si la liste `RESERVED_ONTOLOGY_ATTRIBUTE_NAMES` s'en écarte |
 
 ---
 

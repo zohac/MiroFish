@@ -1,0 +1,126 @@
+{
+  "domain": "telecom",
+  "description": "Ontologie figée du domaine télécommunication, appliquée au graphe de la fixture telecom. Les huit types couvrent le vocabulaire réel du dossier : l'abonné, l'opérateur, l'infrastructure, la zone de couverture, la décision de régulation, la plainte, la grille tarifaire et la politique publique.",
+  "entity_types": [
+    {
+      "name": "Subscriber",
+      "description": "Un abonné personne physique ou morale ayant souscrit un service de télécommunication auprès d'un opérateur.",
+      "attributes": [
+        {"name": "customer_id", "type": "text", "description": "Identifiant client chez l'opérateur"},
+        {"name": "line_count", "type": "integer", "description": "Nombre de lignes actives"},
+        {"name": "contract_type", "type": "text", "description": "Formule contractuelle : mobile, fixe, fibre"}
+      ],
+      "examples": ["abonné résidentiel fibre", "entreprise cliente"]
+    },
+    {
+      "name": "NetworkOperator",
+      "description": "Un opérateur de réseaux de télécommunication titulaire d'une autorisation ou d'un agrément national.",
+      "attributes": [
+        {"name": "authorization_id", "type": "text", "description": "Numéro d'autorisation"},
+        {"name": "market_share", "type": "text", "description": "Part de marché déclarée"}
+      ],
+      "examples": ["opérateur historique", "opérateur newcomer"]
+    },
+    {
+      "name": "NetworkInfrastructure",
+      "description": "Un équipement ou un ouvrage de réseau : fibre optique, antenne, centre de données, boucle locale.",
+      "attributes": [
+        {"name": "infrastructure_type", "type": "text", "description": "Nature de l'ouvrage"},
+        {"name": "deployment_year", "type": "integer", "description": "Année de mise en service"}
+      ],
+      "examples": ["faisceau de fibre", "antenne 4G"]
+    },
+    {
+      "name": "CoverageArea",
+      "description": "Une zone géographique couverte ou à couvrir par un réseau, identifiée par son code postal ou son commune.",
+      "attributes": [
+        {"name": "postal_code", "type": "text", "description": "Code postal"},
+        {"name": "population", "type": "integer", "description": "Population résidante"}
+      ],
+      "examples": ["commune rurale", "quartier ddense"]
+    },
+    {
+      "name": "RegulatoryDecision",
+      "description": "Une décision, un arrêté ou une injonction prise par une autorité de régulation des télécommunications.",
+      "attributes": [
+        {"name": "decision_id", "type": "text", "description": "Numéro de la décision"},
+        {"name": "publication_date", "type": "text", "description": "Date de publication"}
+      ],
+      "examples": ["injonction de mise en conformité"]
+    },
+    {
+      "name": "ComplaintCase",
+      "description": "Une réclamation, un litige ou une demande de mediation déposée par un abonné auprès d'un opérateur ou d'un médiateur.",
+      "attributes": [
+        {"name": "case_id", "type": "text", "description": "Numéro de dossier"},
+        {"name": "resolution", "type": "text", "description": "Issue obtenue"}
+      ],
+      "examples": ["litige de raccordement"]
+    },
+    {
+      "name": "ServiceTariff",
+      "description": "Une grille tarifaire ou une offre commerciale publiée par un opérateur pour un service donné.",
+      "attributes": [
+        {"name": "offer_name", "type": "text", "description": "Nom commercial de l'offre"},
+        {"name": "monthly_price", "type": "text", "description": "Prix mensuel indicatif"}
+      ],
+      "examples": ["offre fibre 1 Gbit/s"]
+    },
+    {
+      "name": "TelecomPolicy",
+      "description": "Un texte d'orientation, un schéma directeur ou une trajectoire réglementaire fixant des objectifs au secteur.",
+      "attributes": [
+        {"name": "policy_name", "type": "text", "description": "Intitulé du texte"},
+        {"name": "target_year", "type": "integer", "description": "Horizon de la trajectoire"}
+      ],
+      "examples": ["trajectoire France fibre"]
+    }
+  ],
+  "edge_types": [
+    {
+      "name": "SUBSCRIBES_TO",
+      "description": "Un abonné est rattaché à un opérateur au titre d'un contrat.",
+      "source_targets": [
+        {"source": "Subscriber", "target": "NetworkOperator"}
+      ]
+    },
+    {
+      "name": "OPERATES_INFRASTRUCTURE",
+      "description": "Un opérateur exploite un équipement ou un ouvrage de réseau.",
+      "source_targets": [
+        {"source": "NetworkOperator", "target": "NetworkInfrastructure"}
+      ]
+    },
+    {
+      "name": "COVERS_AREA",
+      "description": "Une infrastructure ou un réseau couvre une zone géographique.",
+      "source_targets": [
+        {"source": "NetworkInfrastructure", "target": "CoverageArea"},
+        {"source": "NetworkOperator", "target": "CoverageArea"}
+      ]
+    },
+    {
+      "name": "DECIDED_UPON",
+      "description": "Une décision de régulation vise un opérateur ou un dossier précis.",
+      "source_targets": [
+        {"source": "RegulatoryDecision", "target": "NetworkOperator"},
+        {"source": "RegulatoryDecision", "target": "ComplaintCase"}
+      ]
+    },
+    {
+      "name": "FILED_BY",
+      "description": "Un dossier de litige a été déposé par un abonné.",
+      "source_targets": [
+        {"source": "ComplaintCase", "target": "Subscriber"}
+      ]
+    },
+    {
+      "name": "APPLIES_TARIFF",
+      "description": "Une grille tarifaire s'applique à un abonné ou à une offre commerciale.",
+      "source_targets": [
+        {"source": "ServiceTariff", "target": "Subscriber"},
+        {"source": "ServiceTariff", "target": "NetworkOperator"}
+      ]
+    }
+  ]
+}

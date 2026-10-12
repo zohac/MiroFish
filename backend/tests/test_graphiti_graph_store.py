@@ -475,13 +475,16 @@ class TestGraphitiGraphStoreLifecycle:
             store_with_mocks.delete_graph(graph_id="sim-err")
         assert "Cypher syntax error" in str(exc_info.value)
 
-    def test_set_ontology_noop_graceful(self, store_with_mocks):
-        """set_ontology valide le dictionnaire et s'exécute en no-op gracieux (ADR 0003)."""
+    def test_set_ontology_poses_effectivement_les_types(self, store_with_mocks):
+        """set_ontology retient les classes traduites pour les écritures suivantes (ADR 0014)."""
         res = store_with_mocks.set_ontology(
             graph_id="sim-onto",
             ontology={"entity_types": [{"name": "Person"}, {"name": "Institution"}]},
         )
         assert res is None
+        assert sorted(
+            store_with_mocks.get_applied_ontology("sim-onto").entity_type_names
+        ) == ["Institution", "Person"]
 
 
 class TestGraphitiGraphStoreEpisodeIngestion:

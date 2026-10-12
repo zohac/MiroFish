@@ -1,0 +1,474 @@
+Programme reglementaire de l'energie 2026-2035 - document de travail
+
+La commission de regulation de l'energie met a disposition le 12 janvier 2026 son
+document de travail sur le prochain programme reglementaire de l'energie. Le
+document couvre la periode 2026-2035 et Prevoit deux revisions a mi-parcours, en
+2030 et en 2033.
+
+Le document est structure en vingt-quatre sections. Les sections une a six
+traitent des objectifs chiffres et de la methode de construction. Les sections
+sept a quinze portent sur les dispositifs reglementaires par secteur. Les
+sections seize a vingt traitent des questions de gouvernance et de financement. Les
+sections vingt et une a vingt-quatre constituent les annexes techniques.
+
+1. OBJECTIFS CHIFFRES RETENUS
+
+La programmation pluriannuelle de l'energie fixe un objectif de 50 pour cent
+d'autonomie electricite a l'horizon 2030, mesure par le rapport de la production
+nette d'electricite d'origine renouvelable a la consommation brute. Cet objectif
+sera evalue au regard de la production nette, et non de la production brute, afin
+d'eliminer l'effet des importations et des exports.
+
+L'objectifs de reduction des emissions de gaz a effet de serre hors
+compensations est fixe a -55 pour cent en 2035 par rapport a 1990. La trajectoire
+intermediaire retient -40 pour cent en 2030.
+
+La consommation finale d'energie doit baisse de 15 pour cent en 2035 par rapport
+a 2022. Cette reduction se decompose en -20 pour cent dans le bâtiment, -25 pour
+cent dans le transport et -12 pour cent dans l'industrie.
+
+Le taux de renovation energetique des logarithements est fixe a 500 000 logements
+par an a l'horizon 2030, contre 130 000 en 2024.
+
+2. METHODE DE CONSTRUCTION DES OBJECTIFS
+
+La methode repose sur une analyse des scenarios de reference conduites par la
+direction generale de l'energie, completées par les travaux de l'agence
+nationale pour la maitrise de l'environnement.
+
+Trois scenarios ont ete retenus pour le transport: le scenario de reference, le
+scenario electrophobe et le scenario accelere. Le scenario de reference
+retient une part de 58 pour cent pour l'electricite dans le transport
+routier en 2035.
+
+La commission indique que l'incertitude sur le prix du carbone constitue la
+variable la plus structurante. Un doublement du prix du carbone en 2030 modifie
+la part de l'electricite dans le transport routier de 11 points.
+
+3. PRODUCTION ELECTRIQUE RENOUVELABLE
+
+L'objectif de production d'electricite renouvelable est fixe a 65 pour cent de la
+consommation brute en 2030 et a 80 pour cent en 2035. Cette cible porte sur
+l'electricite, le chaleur et l'hydrogene renouvelable.
+
+L'eolien terrestre est retenue pour 22 GW supplementaires d'ici 2035. L'eolien
+en mer est retenue pour 12 GW a l'horizon 2035, sous reserve des resultats de la
+consultation en cours sur le gisement de la Manche.
+
+Le solaire photovoltaique est retenu pour 65 GW supplementaires d'ici 2035, dont
+40 GW sur les toitures et 25 GW au sol. La commission insiste sur le
+developpement de l'autoconsommation individuelle et collective.
+
+La biomasse solide est retenue pour 6 GW supplementaires, avec un objectif de
+durabilite des ressources forestieres qui conditionne le volume.
+
+L'hydroelectricite est retenue pour 1,4 GW supplementaires, uniquement par
+renouvellement d'installations existantes. Aucune nouvelle grande retenue n'est
+envisagee sur la periode.
+
+4. PRODUCTION ELECTRIQUE NUCLEAIRE
+
+La commission maintient l'objectif de 50 pour cent d'electricite nucleaire en
+2035, en part du total de la production. Cet objectif suppose la prolongation de
+la duree de vie de trente ans pour les reacteurs existants et la mise en service
+de deux reacteurs de EPR 2.
+
+Le debat public sur la multiplication des reacteurs de petite puissance reste
+ouvert. La commission a demande un supplement d'etude sur le modele
+economique de ces reacteurs, dont les conclusions sont attendues pour 2028.
+
+Un producteur d'electricite nucleaire exploite les reacteurs de la valley du
+Rhone et a annonce un investissement de 4,2 milliards d'euros pour la
+modernisation du parc de la vall@@ee.
+
+5. RESEAU DE TRANSPORT ET DE DISTRIBUTION
+
+Le besoin d'investissement sur le reseau de transport est estime a 37 milliards
+d'euros entre 2026 et 2035, dont 14 sur la periode 2026-2030. Le besoin sur le reseau
+de distribution est estime a 26 milliards d'euros sur la meme periode.
+
+Le gestionnaire de reseau de transport argue que le renforcement du reseau est la
+condition de l'atteinte des objectifs de production renouvelable. La commission
+estime que le rythme actuel des travaux ne permet pas de mettre en service les
+2,3 GW de raccordement prevus au programme.
+
+Le renforcement des liaisons 400 kV entre le sud-ouest et le nord de la France
+est identifie comme le projet de transport prioritaire. Sa mise en service est
+prevue pour 2031.
+
+6. STOCKAGE ET FLEXICITE
+
+Le besoin de stockage est estime a 15 GW de puissance et 45 GWh de capacite en
+2030. Le developpement du stockage par batteries est retenu, avec un objectif de
+6 GW en 2030.
+
+Le developpement d'un stockage thermique est encourage dans les zones
+fortement eoliennes. Deux projets industriels sont identifies en Normandie et
+dans les Hauts-de-France.
+
+La commission propose la creation d'une cadre de contractualisation entre
+producteurs et gestionnaires de reseau pour les services de reserves. Le cadre
+existant est juge insuffisant pour financer l'equipement necessaire.
+
+7. SECTEUR BATIMENT
+
+La renovation energetique des logements est un axe principal du programme. Le
+dispositif d'aide sera reecrit autour de trois niveaux de performance
+energetique, avec un renforcement du nombre de niveaux exige.
+
+Le chauffage collectif represente un enjeu particulier dans le tertiaire. La
+commission estime que 41 pour cent des emissions du secteur proviennent des
+bureaux et des commerces.
+
+Le chauffage au fioul dans les logements reste concerne par une interdiction de
+raccordement nouvelle a partir de 2027. Cette interdiction concerne egalement
+les chaudieres a gaz neuves dans les logements neufs.
+
+8. SECTEUR TRANSPORT
+
+L'electrification du transport routier constitue le principal levier de la
+trajectoire. La commission retient un objectif de 58 pour cent de vehicules
+electriques en 2035 pour le parc des vehicules légers.
+
+Le reseau de recharge est un obstacle identifie. Le nombre de points de recharge
+publics est passe de 38 000 en 2023 a 216 000 en 2025. La densite de recharge
+reste insuffisante sur les axes autoroutiers longs.
+
+La commission propose l'obligation de recharge a haute puissance sur lesaires de
+stationnement des entreprises de plus de cinquante salaries, a compter de 2028.
+
+9. SECTEUR INDUSTRIE
+
+L'industrie est le premier consommateur final d'energie du pays, avec une part de
+39 pour cent. La reduction de sa consommation constitue le levier le plus
+efficace a court terme.
+
+Le prix de l'electricite pour les industriels reste superieur de 12 pour cent a la
+moyenne europeenne. La commission maintient son opposition a la convergence
+tarifaire, qui limiterait la compétitivite des sites fortement consumers.
+
+Un producteur d'energie a conclu un contrat de long terme de quinze ans avec une
+usine de production d'aluminium. Le prix negocie est inferieur de 8 pour cent au
+tarif de marche.
+
+10. SECTEUR AGRICOLE ET BIOMASSE
+
+Le secteur agricole est concerne par la contractualisation de l'injection de
+biomethane dans le reseau de gaz. 214 projets sont records a ce jour, pour
+une capacite injectee de 1,8 TWh.
+
+La commission identifie un obstacle: le reseau de distribution de gaz dispose de
+peu de capacite de raccordement dans les zones rurales ou la densite de
+production est faible.
+
+Une enveloppe de 40 millions d'euros est proposee pour lever cette contrainte par
+le renforcement de la capacite de compression.
+
+11. SECTEUR TRANSPORTS ET HYDROGENE
+
+La production d'hydrogene vert est retenue a titre d'incitation, sans objectif
+chiffre contraignant. La commission estime que l'hydrogene doit etre reserve aux
+usages pour lesquels il n'existe pas d'alternative electrique directe.
+
+La consommation d'hydrogene dans la chimie et la metallurgie est estimee a 140
+kt par an en 2025. L'objectif de substitution de 30 pour cent a l'horizon 2035
+impliquerait une production d'hydrogene vert de 1,2 Mt par an.
+
+La commission reserve son avis sur le stockage souterrain d'hydrogene, dont la
+legitimite n'est etabliee par aucune étude independente.
+
+12. PRECARITE ENERGETIQUE ET TARIFS
+
+Le dispositif d'aide aux menages modestes est maintenu. Son budget est porte a
+1,9 milliard d'euros en 2026, en hausse de 220 millions d'euros par rapport a
+2025.
+
+La commission propose d'etendre ce dispositif aux menages renters proches du
+seuil de la quotite de consommation unitaire, aujourd'hui exclus du fait d'un
+controle des ressources.
+
+Le nombre de menages beneficiaires est estime a 2,9 millions. Le taux de
+recouvrement des droits acquis s'eleve a 71 pour cent, en progression de quatre
+points par an.
+
+13. GOUVERNANCE DU MARCHE
+
+La commission propose la creation d'un comite de suivi des prix de l'electricite
+couvert par le tarif reglemente, associant la commission, la direction generale
+de l'energie et les representants des consommateurs.
+
+La transparence sur la formation des prix est un point de debat recurrent. Le
+gestionnaire de reseau de transport publie depuis 2025 ses couts de services aux
+utilisateurs de son reseau, ce qui est appris comme une avance notable.
+
+La commission recommande l'extension de cette publication aux couts complets de
+la fonction de transport, qui restent secrets.
+
+14. FINANCEMENT DU SECTEUR
+
+Le financement repose principalement sur la contribution au service public de
+l'electricite, qui represente 8,6 milliards d'euros en 2026. La part du budget
+consacree au soutien aux energies renouvelables en est de 6,3 milliards.
+
+La commission identifie une tension entre le niveau de la contribution et les
+besoins de financement. Le taux moyen de la contribution pour une consommation
+domestique annuelle de 4 200 kilowattheures atteint 27 euros par an.
+
+La reduction de la contribution est un objectif affichage par la programmations
+pluriannuelle, mais elle se heurte a la baisse des recettes du marché de l'electricite.
+
+15. RELATIONS AVEC LES COLLECTIVITES
+
+Les collectivites detiennent 63 pour cent du reseau de distribution d'electricite
+sous forme de concessions. Les contrats arrives a echeance representent un
+enjeu majeur pour les collectivites concernees.
+
+La commission a publie un guide sur le renouvellement des contrats de
+concession, qui rappelle que la collectivite dispose d'un droit de proposition
+sur le maintien en delegation de service public.
+
+Plusieurs collectivites ont engage des etudes d'eternalisation. Une
+communalite de la zone Feeder a ainsi repris directement l'exploitation de son
+reseau de distribution en 2025.
+
+16. RELATIONS INTERNATIONALES
+
+Le marche de l'electricite est integre au marche européen. La France est
+importatrice en electricite a 39 TWh en 2025 et exportatrice vers ses voisins a
+81 TWh, ce qui represente un solde exportateur de 42 TWh.
+
+Le prix de l'electricite sur le marche spot a varie de 48 a 190 euros le
+megawattheure en 2025. Le gestionnaire de reseau de transport a propose de
+developper une strategie de couverture pour les Enlight.
+
+La commission rappelle que les quotas d'echanges entre pays voisins sont
+augmentes de 15 pour cent a la demande de l'Allemagne, dans le cadre de la
+revision du plan regional de transport decennal.
+
+17. NUMERIQUE ET RESEAUX INTELLIGENTS
+
+Le compteur communicant.generalise est le support du pilotage de la demande. Le
+taux de couverture national approche 95 pour cent fin 2025.
+
+Le gestionnaire de distribution de la zone Feeder a deploie un dispositif de
+pilotage de 214 000 points de livraison, qui reduit la pointe de 62 MW sans
+modification du parc de production.
+
+La commission identifie les cybersecurite des reseaux d'energie comme un enjeu
+majeur. Trois incidents de tentative d'intrusion ont ete signales en 2025 sur des
+systemes de supervision d'organes de transport, sans prise de controle.
+
+18. QUALITE DE L'AIR ET POLLUTIONS
+
+Les pollutions atmosphériques liees a l'energie representent 41 pour cent des
+emissions de particules fines en France. Les renovatees combustions de charbon et
+de fioul en representent l'essentiel.
+
+La commission propose un renforcement du dispositif de surveillance des
+emissions des installations de combustion, avec un renforcement des controles
+sur les installations de moins de 20 MW.
+
+Le seuil de declenchement d'un procede de securite en cas d'episode de pollution
+est propose a la baisse de 50 microgrammes par metre cube a 25, ce qui
+suspendrait davantage de combustion en agglomeration.
+
+19. EMPLOI ET FORMATION
+
+Le programme est accompanied d'un volet emploi estime a 340 000 emplois
+maintenus ou crees a l'horizon 2035. Les besoins de main d'oeuvre portent
+principalement sur l'electricien qualifie, les travaux publics et les
+techniques de maintenance de reseau.
+
+La commission a finance une cartographie des besoins professionnels a l'horizon
+2030. Le deficit de main d'oeuvre qualifie est estime a 38 000 personnes en 2030
+sur les metiers de l'electricite et du reseau.
+
+Un dispositif de financement de la formation a ete mis en place avec les
+organismes professionnels. Il porte sur 4 200 actions de formation par an.
+
+20. SUIVI ET EVALUATION
+
+Le suivi du programme s'appuie sur un tableau de bord de 96 indicateurs. Le
+premier tableau de bord annuel sera publie au second trimestre 2027.
+
+La commission prevoit une evaluation a mi-parcours en 2030, conduite par un
+comite independant. L'evaluation portee sur les objectifs chiffres, sur les
+effets distributes et sur la coherence du financement.
+
+Un registre des ecarts est maintenu. Sur les onze indicateurs deja disponibles,
+quatre presents un ecart defavorable par rapport a la trajectoire.
+
+21. ANNEXE A - HYPOTHESES RETENUES POUR LES SCENARIOS
+
+Les scenarios retiennent un prix du carbone de 60 euros la tonne en 2030 et de
+95 euros en 2035. Un scenario a prix du carbone haut retient 130 euros la tonne
+en 2035.
+
+Le prix du gaz importe est retenu a 45 euros le megawattheure thermique en 2027,
+en baisse de 8 pour cent par an en valeur reelle.
+
+Le taux de progression du prix de l'electricite pour les industriels est retenu
+a 1,2 pour cent par an en valeur reelle.
+
+La demande d'electricite des centres de donnees est retenue en croissance de 14
+pour cent par an a l'horizon 2030.
+
+22. ANNEXE B - REPARTITION DU BESOIN D'INVESTISSEMENT SUR LE RESEAU
+
+Sur le reseau de transport, le besoin se repartit en 5,9 milliards d'euros pour
+les lignes 400 kV, 4,8 pour les lignes 225 kV, 2,1 pour les postes sources et
+1,2 pour le raccordement des productions renouvelables.
+
+Sur le reseau de distribution, le besoin se repartit en 9,4 milliards d'euros
+pour le renouvellement, 7,8 pour le renforcement lie aux productions
+renouvelables, 4,6 pour le raccordement des consommateurs et 4,2 pour les
+equipements de mesure et de communication.
+
+Le gestionnaire de distribution de la zone Feeder estime son besoin a 3,1
+milliards d'euros sur la periode, en hausse de 44 pour cent par rapport a la
+periode precedente.
+
+23. ANNEXE C - CALENDRIER DES REVISIONS
+
+La premiere revision est prevue en 2030. Elle portera sur les objectifs de
+production et sur le besoin d'investissement sur le reseau.
+
+La seconde revision est prevue en 2033. Elle portera sur les dispositifs de
+soutien et sur la trajectoire du tarif reglemente.
+
+Toute revision s'accompagne d'une consultation publique d'une duree minimale de
+trois mois, avec publication des contributions recues.
+
+24. ANNEXE D - GLOSSAIRE
+
+Autoconsommation: consommation d'electricite produite par un consommateur sur son
+propre site.
+
+Biomethane: gaz combustible produit par methanisation de matieres organiques.
+
+CRE: commission de regulation de l'energie.
+
+DSSE: dispositifs de service de systeme electrique, equilibre et echange de
+frequences.
+
+EPR: reacteur a eau pressurise.
+
+Feeder: zone de distribution caracterisee par des productions renouvelables
+injectees en amont.
+
+PPE: programmation pluriannuelle de l'energie.
+
+TURPE: tarif d'utilisation des reseaux electriques.
+
+ZNI: zone non interconnectee au reseau continental europeen.
+
+25. ANNEXE E - REPARTITION PAR CATEGORIE DE PRODUCTEUR
+
+Les producteurs d'electricite connectes representent 14 200 sites de production
+enregistres fin 2025, pour une puissance installee de 218 GW.
+
+Les sites de moins de 100 kW representent 78 pour cent des sites mais 1,2 pour
+cent de la puissance. Leur nombre a augmente de 24 pour cent en un an.
+
+Les producteurs d'energie renouvelable representent 9 640 sites, en progression
+de 31 pour cent, contre une progression de 2 pour cent pour les sites
+thermiques.
+
+Un producteur d'energie solaire de la zone Feeder exploite huit sites cumulant
+62 MW, contre un seul site de 4 MW en 2022.
+
+26. ANNEXE F - REPARTITION PAR CATEGORIE DE CONSOMMATEUR
+
+Les consommateurs raccordes en basse tension representent 39 millions de points
+de livraison, contre 118 000 en haute tension et 2 400 en tres haute tension.
+
+Les consommateurs industriels representent 24 000 sites, pour une consommation
+annuelle de 63 TWh, soit 28 pour cent de la consommation finale.
+
+Les sites datas d'un consortium de recherche consomment 4,1 TWh par an, en
+croissance de 19 pour cent.
+
+27. ANNEXE G - EVENEMENTS DE L'ANNEE 2025
+
+Le 12 mars 2025, le gestionnaire de distribution de la zone Feeder a publie un
+rapport d'audit sur la qualite de son reseau, a la suite d'un incident ayant
+affecte 11 300 consommateurs.
+
+Le 2 juillet 2025, la commission de regulation a prononce une sanction contre un
+fournisseur de services energetiques pour des pratiques commerciales
+trompeuses.
+
+Le 18 septembre 2025, un producteur d'energie eolienne situe a Vallon a obtenu
+l'extension de son permis d'exploitation pour un parc de 42 MW.
+
+Le 4 novembre 2025, le gestionnaire de reseau de transport a publie ses couts de
+services aux utilisateurs de son reseau, document jusqu'ici confidentiel.
+
+28. ANNEXE H - LISTE DES SIGLES
+
+AFNOR: association francaise de normalisation.
+
+AMF: autorite des marches financiers.
+
+CEPE: comite d'experts pour la transition energetique.
+
+CMP: comite des parties prenantes du programme reglementaire.
+
+DGE: direction generale de l'energie.
+
+EnR: energies renouvelables.
+
+ERC: etat des lieux energetique.
+
+GW: gigawatt.
+
+GWh: gigawattheure.
+
+MW: megawatt.
+
+MWh: megawattheure.
+
+NIAT: niveau d'injection des actifs supplementaires de transport.
+
+PSE: plan strategique energetique.
+
+PV: photovoltaique.
+
+TEV: terminal electrique de vehicule.
+
+TWh: terawattheure.
+
+29. ANNEXE I - CONVENTIONS DE NOMINATION DES ZONES
+
+Les zones de distribution utilisees dans le present document sont designees par
+le nom du poste source dont elles dependent. Les zones de transport sont
+designees par le nom de la zone de transformation structurante.
+
+La zone Feeder couvre les departements de l'Aude, de l'Aveyron, du Cantal, du
+Gers, du Lot, du Tarn et du Tarn-et-Garonne, ainsi que la partie nord du
+departement de l'Herault.
+
+La zone Vallon couvre les departements de l'Allier, du Cher, de la Creuse, de
+l'Indre, du Puy-de-Dome et de la Haute-Vienne.
+
+La zone Derive couvre les departements du Cher, de l'Indre-et-Loire, du Loir-et-
+Cher, du Loiret et de l'Indre.
+
+30. ANNEXE J - PRECISIONS SUR LES CHIFFRES DU BILAN 2025
+
+La production nette d'electricite d'origine renouvelable s'eleve a 129,7 TWh en
+2025, en hausse de 5,6 pour cent par rapport a 2024. Ce chiffre differe du
+taux d'autonomie de 30,1 pour cent retenu dans le bilan, qui rapporte la
+production nette renouvelable a la consommation brute et non a la consommation
+nette.
+
+Les importations nettes d'electricite representent 39,4 TWh en 2025 et les
+exportations 81,5 TWh, soit un solde exportateur de 42,1 TWh.
+
+Les pertes en ligne et en marche de la distribution representent 6,8 pour cent
+de la production, dont 4,9 points de pertes physiques et 1,9 point de pertes
+commerciales.
+
+La production des installations de moins de 100 kW represente 5,2 TWh, en
+progression de 24 pour cent, et se repartit entre 62 pour cent de solaire et 34
+pour cent d'eolien.
