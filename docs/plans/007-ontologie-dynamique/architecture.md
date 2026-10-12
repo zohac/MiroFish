@@ -570,3 +570,16 @@ son Batch ne délègue pas à `add_episode`. Le contrôle avant sauvegarde doit
 être démontré pour chacun de ces chemins avant développement. Ni une
 inspection après écriture, ni une suppression compensatoire ne prouvent le
 refus strict. Voir la définition de prêt du [ticket 007-2](story-007-2.md).
+
+## 14. Faisabilité du contrôle avant persistance — 12 octobre 2026
+
+[ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md) :
+contrôle de la réponse brute avant conversion de l’ID en label, puis des nœuds
+hydratés dans `_process_episode_data`, avant délégation à la sauvegarde ; mécanisme Graphiti éprouvé sur
+11 cas, y compris le batch séquentiel applicatif. Le bulk natif Graphiti
+contourne cette frontière et n’est pas autorisé comme substitution transparente.
+
+Zep sait transmettre `strict_ontology`, mais aucun contrôle applicatif avant
+persistance ni diagnostic par candidat conforme à C2 n’est établi. Le DoR de
+007-2 reste non satisfait ; l’implémentation est suspendue. Voir l’[étude
+rejouable](faisabilite-007-2.md) pour la distinction transport/garantie serveur.

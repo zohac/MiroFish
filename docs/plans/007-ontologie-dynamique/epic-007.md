@@ -55,7 +55,7 @@
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `done` | [story-007-1.md](story-007-1.md) |
-| 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `backlog` | [story-007-2.md](story-007-2.md) |
+| 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `blocked` | [story-007-2.md](story-007-2.md) |
 | 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `backlog` | [story-007-3.md](story-007-3.md) |
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `backlog` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `backlog` | [story-007-5.md](story-007-5.md) |
@@ -126,8 +126,16 @@ L'Epic 006 (migration Zep) est close : les graphes migrés portent `:Entity` san
 ## 6. Passage à 007-2 — 12 octobre 2026
 
 007-1 est `done` après relectures et mesure C1. Le [ticket 007-2](story-007-2.md)
-est rédigé en `backlog` : sa définition de prêt exige encore de démontrer le
+a été initialement rédigé en `backlog` : sa définition de prêt exige de démontrer le
 contrôle des types avant persistance sur les deux moteurs, y compris les lots
 Zep. L’epic reste `in-progress` (1/7 stories terminée). La politique est
 persistée par projet et les warnings ont un journal dédié ; le versionnement
 et `Project.ontology_history` restent réservés à 007-4.
+
+### Étude de faisabilité 007-2 — 12 octobre 2026
+
+La story 007-2 est `blocked` avant implémentation : [étude](faisabilite-007-2.md)
+achevée, 11 cas Graphiti contre Neo4j conformes, mais C2 Zep non démontré.
+L’[ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md)
+consigne le NO-GO du contrat commun. C2 est conservé ; une restriction du
+périmètre ou une nouvelle capacité Zep doit être arbitrée avant reprise.

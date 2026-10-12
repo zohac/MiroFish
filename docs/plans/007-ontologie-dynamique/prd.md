@@ -200,3 +200,11 @@ corrigées. Les warnings sont conservés dans un journal dédié par graphe, san
 mélange avec l’historique d’identifiants de versions prévu en 007-4. La garantie
 de refus exige un contrôle avant persistance ; sa faisabilité est une condition
 de prêt explicite de 007-2.
+
+## 12. Résultat de faisabilité C2 — 12 octobre 2026
+
+[Étude 007-2](faisabilite-007-2.md), [ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md) :
+point pré-persistance Graphiti démontré ; garanties C2 Zep non démontrées.
+C2 reste inchangé. La story 007-2 est `blocked` avant implémentation ; une
+modification de périmètre ou une nouvelle architecture d’ingestion devra être
+arbitrée explicitement avant reprise.

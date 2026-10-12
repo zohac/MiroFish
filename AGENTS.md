@@ -27,7 +27,7 @@ reproductible.**
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
-| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 `done`, ticket 007-2 préparé en `backlog` (pose effective des labels, ADR 0014, mesure C1 100 %/100 %) |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 `done`, story 007-2 `blocked` (DoR C2 Zep non démontré, ADR 0015) (pose effective des labels, ADR 0014, mesure C1 100 %/100 %) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -488,7 +488,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 ## 8. Hors périmètre (pour l'instant)
 
 - Ré-auditer les forks communautaires → fait, ADR 0002
-- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est `done`, le ticket 007-2 est préparé en `backlog`
+- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est `done`, la story 007-2 est `blocked` (ADR 0015)
 - Moderniser le frontend ou l'i18n
 - Exposer l'application en réseau sans lire l'ADR 0005
 - GitHub Projects : uniquement comme vue générée, et seulement quand
@@ -529,6 +529,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0012 | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation `:Episodic` vérifiée, lecture neutre `get_edge_provenance` |
 | 0013 | Sémantique des sources : statut de validation, conflits conservés avec règle déclarée, budget de contexte explicite |
 | 0014 | Pose effective de l'ontologie : `set_ontology` cesse d'être un no-op, `strict` et `ontology` sont keyword-only, le contrat `GraphStore` est versionné `version = 2` |
+| 0015 | Contrôle ontologique avant persistance : preuve Graphiti, NO-GO commun tant que C2 Zep n’est pas démontré |
 
 ---
 
@@ -541,7 +542,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 |---|---|
 | Zep Community Edition est déprécié ; Graphiti est la voie OSS | ADR 0001 |
 | Aucun fork communautaire n'est adoptable : bugs silencieux, zéro test, gelés depuis mars | ADR 0002, `LOCAL-FIRST.md` §12 |
-| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; ticket 007-2 préparé en `backlog`) |
+| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; story 007-2 `blocked` (DoR C2 Zep non démontré, ADR 0015)) |
 | `zep_entity_reader.py:262` filtre les nœuds sans label d'ontologie → **le graphe revient vide en silence** | ADR 0003 |
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |

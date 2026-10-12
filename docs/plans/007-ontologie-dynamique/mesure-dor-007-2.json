@@ -1,0 +1,171 @@
+{
+  "date_utc": "2026-10-12T16:32:19.192137+00:00",
+  "versions": {
+    "graphiti-core": "0.30.2",
+    "zep-cloud": "3.25.0",
+    "neo4j": "5.28.6"
+  },
+  "sources_sha256": {
+    "graphiti_core/graphiti.py": "2d0ffbb8b6de59787269326a9255d875f74da63ed66fd4f4fad3f159538d0fdd",
+    "graphiti_core/utils/maintenance/node_operations.py": "a5874fa63bb38ff6a5d89fedcb6c07701b81ca736d435b69fb26ce26bd6bd921",
+    "zep_cloud/graph/raw_client.py": "a1f50ebf176a89dc2eb7e7ffd9c395e1c6e3e486bd86004bd3eebc823f214018",
+    "zep_cloud/batch/raw_client.py": "4c865eac675a74948a0e3d101a11a454cae6d6065a65a1aa30f5ba5e7cb79c22"
+  },
+  "zep": {
+    "graph_add_strict_serialize": true,
+    "batch_create_strict_typed": false,
+    "batch_create_strict_additional_body_serialize": true,
+    "rejets_par_entite_dans_modeles_sdk": false,
+    "preuve_serveur": false,
+    "requêtes_interceptees": [
+      {
+        "path": "/api/v2/graph",
+        "body": {
+          "data": "preuve",
+          "graph_id": "probe",
+          "strict_ontology": true,
+          "type": "text"
+        }
+      },
+      {
+        "path": "/api/v2/batches",
+        "body": {
+          "strict_ontology": true
+        }
+      }
+    ]
+  },
+  "graphiti": [
+    {
+      "cas": "temoin_type_declare",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "relations": 1,
+      "warnings": [],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 1,
+      "message_refus": ""
+    },
+    {
+      "cas": "temoin_hors_plage_silencieux",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "relations": 1,
+      "warnings": [],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 1,
+      "message_refus": ""
+    },
+    {
+      "cas": "brut_hors_plage_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "relations": 0,
+      "warnings": [],
+      "controles_finaux": 0,
+      "delegations_sauvegarde": 0,
+      "message_refus": "Type extrait refusé : id=999"
+    },
+    {
+      "cas": "brut_generique_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "relations": 0,
+      "warnings": [],
+      "controles_finaux": 0,
+      "delegations_sauvegarde": 0,
+      "message_refus": "Type extrait refusé : id=0"
+    },
+    {
+      "cas": "brut_hors_plage_permissif",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "relations": 1,
+      "warnings": [
+        "id=999"
+      ],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 1,
+      "message_refus": ""
+    },
+    {
+      "cas": "controle_final_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "relations": 0,
+      "warnings": [],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 0,
+      "message_refus": "Type final refusé : ['UnknownType']"
+    },
+    {
+      "cas": "controle_final_permissif",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "relations": 1,
+      "warnings": [
+        "UnknownType"
+      ],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 1,
+      "message_refus": ""
+    },
+    {
+      "cas": "lot_mixte_strict",
+      "refus": true,
+      "noeuds": 1,
+      "episodes": 1,
+      "relations": 1,
+      "warnings": [],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 1,
+      "message_refus": "Type extrait refusé : id=999"
+    },
+    {
+      "cas": "lot_mixte_permissif",
+      "refus": false,
+      "noeuds": 2,
+      "episodes": 2,
+      "relations": 2,
+      "warnings": [
+        "id=999"
+      ],
+      "controles_finaux": 2,
+      "delegations_sauvegarde": 2,
+      "message_refus": ""
+    },
+    {
+      "cas": "lot_controle_final_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "relations": 0,
+      "warnings": [],
+      "controles_finaux": 1,
+      "delegations_sauvegarde": 0,
+      "message_refus": "Type final refusé : ['UnknownType']"
+    },
+    {
+      "cas": "lot_controle_final_permissif",
+      "refus": false,
+      "noeuds": 2,
+      "episodes": 2,
+      "relations": 2,
+      "warnings": [
+        "UnknownType",
+        "UnknownType"
+      ],
+      "controles_finaux": 2,
+      "delegations_sauvegarde": 2,
+      "message_refus": ""
+    }
+  ],
+  "verdict_dor_contractuel": "NO-GO : C2 Zep non démontré"
+}

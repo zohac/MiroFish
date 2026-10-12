@@ -2,7 +2,7 @@
 id: "007-2"
 epic: "007"
 titre: "Validation à l’écriture et politique strict_ontology"
-statut: backlog
+statut: blocked
 auteur: agent
 format: "2"
 ---
@@ -17,7 +17,8 @@ incomplète ne produise pas de typage métier silencieusement invalide.
 Dépendance : **007-1 `done`**, ADR 0014 accepté, mesure C1 télécom et énergie
 versionnée. Couverture : **FR-2**, politique et lecture des avertissements de
 **FR-7**, **NFR-2**, **NFR-4**, **C2** et contribution à **C8**.
-Le ticket est préparé en `backlog` ; le développement n’est pas commencé.
+Le ticket est `blocked` après étude de faisabilité du 12 octobre 2026 ;
+le développement n’est pas commencé (ADR 0015).
 
 ## Définition de prêt
 
@@ -30,6 +31,10 @@ Le ticket est préparé en `backlog` ; le développement n’est pas commencé.
 - [ ] Point de contrôle avant persistance démontré pour chaque moteur, y compris
   les lots ; faisabilité du refus et de la rétrogradation établie sur les versions
   verrouillées. Consigner la décision avant de démarrer l’implémentation.
+  **Non satisfait au 12 octobre 2026** : Graphiti démontré ; C2 Zep non démontré.
+- [x] Étude de faisabilité menée sous Docker, décision consignée dans
+  l’[ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md),
+  [11 cas Graphiti et transport SDK Zep éprouvés](faisabilite-007-2.md).
 
 ### Critères d’acceptation
 
@@ -61,10 +66,12 @@ Le ticket est préparé en `backlog` ; le développement n’est pas commencé.
 
 ## Tâches
 
-- [ ] T1 — Établir le point de contrôle sur `graphiti-core==0.30.2` et le SDK Zep
+- [x] T1 — Établir le point de contrôle sur `graphiti-core==0.30.2` et le SDK Zep
   verrouillé : extraction, normalisation, sauvegarde, lots asynchrones. Définir
   le sort de `Entity` et du type absent. Une ontologie mal formée reste une
   `OntologyValidationError`, distincte d’un type extrait hors ontologie. (AC1–3)
+  Étude achevée : **NO-GO commun**, capacités et limites consignées ;
+  AC1–AC3 restent à satisfaire, aucun développement autorisé par cette case.
 - [ ] T2 — Ajouter le record neutre `GraphValidationWarning` dans la couche
   `utils/graph_store/`, réutiliser `GraphValidationError` de `errors.py`, et
   implémenter validation commune, journal durable et filtre `since`. (AC1, AC6)
@@ -107,6 +114,12 @@ Le ticket est préparé en `backlog` ; le développement n’est pas commencé.
 | `backend/app/services/graph_builder.py` | Appelle `set_ontology` et utilise le store neutre. Transmettre strict, propager les refus vers une tâche en échec, collecter les warnings sans déclarer l’ingestion entièrement conforme. |
 | `backend/app/api/graph.py`, `api/__init__.py`, `app/__init__.py` | Les routes de projet sont aujourd’hui dans le blueprint graph. `api/project.py` est à créer pour les nouvelles URL du contrat, puis à enregistrer ; ne pas renommer les routes existantes. |
 | `backend/app/services/zep_entity_reader.py` | Résout label custom puis attribut `entity_type/type/category`. Tester la relecture après rétrogradation pour éviter un type refusé réintroduit par les attributs. |
+
+**Résultat de l’étude du 12 octobre 2026.** Le mécanisme Graphiti est
+démontré dans l’[étude de faisabilité](faisabilite-007-2.md) et sa sonde
+rejouable. Zep ne fournit pas de garantie de diagnostic par candidat établie ;
+le contrat commun reste non prêt. Voir l’ADR 0015, qui conserve C2 et précise
+le chemin batch Zep distinct.
 
 **Limite à lever avant développement.** `Graphiti.add_episode` ne propose pas
 ici une validation applicative avant écriture ; Zep est asynchrone. Une simple
@@ -172,6 +185,9 @@ cadrage. Revue de l’implémentation à effectuer après développement.
 ## Notes de complétion
 
 Rédaction du ticket terminée ; aucune implémentation de 007-2 effectuée.
-La faisabilité du contrôle avant persistance reste une condition de prêt.
+L’étude demandée est terminée : **Graphiti démontré, C2 Zep non démontré**.
+Le prérequis commun reste ouvert et la story passe en `blocked` avant
+implémentation. Aucun critère d’acceptation n’a été affaibli.
+Décision et voies de sortie : ADR 0015 et `faisabilite-007-2.md`.
 Les résultats de C2, les commandes exécutées et les divergences du plan seront
 consignés ici à la clôture, après revue.

@@ -46,6 +46,9 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0012](0012-contrat-de-provenance-graphstore.md) | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation vérifiée, lecture neutre | accepté — 2026-10-11 |
 | [0013](0013-semantique-des-sources.md) | Sémantique des sources : statut de validation, conflits conservés, budget de contexte explicite | accepté — 2026-10-11 |
 
+| [0014](0014-pose-effective-ontology-graphstore.md) | Pose effective des labels d’ontologie, contrat GraphStore version 2 | accepté — 2026-10-12 |
+| [0015](0015-controle-ontologie-avant-persistance.md) | Preuve pré-persistance Graphiti, NO-GO commun tant que C2 Zep n’est pas démontré | accepté — 2026-10-12 |
+
 ## Règles
 
 - **Un ADR = une décision.** Si deux décisions doivent être prises ensemble,

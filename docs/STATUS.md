@@ -78,7 +78,7 @@ L'**Epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est 
 
 Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`, `rapport-qualification-epic-009.md`).
 
-L'**Epic 007 (« Ontologie dynamique (v2) ») est en cours** : dossier complet dans [`docs/plans/007-ontologie-dynamique/`](plans/007-ontologie-dynamique/prd.md), story 007-1 `done`, ticket 007-2 préparé en `backlog`.
+L'**Epic 007 (« Ontologie dynamique (v2) ») est en cours** : dossier complet dans [`docs/plans/007-ontologie-dynamique/`](plans/007-ontologie-dynamique/prd.md), story 007-1 `done`, story 007-2 `blocked` après étude DoR (ADR 0015).
 
 Chantiers à venir :
 - **Epic 007 (suite)** : Ontologie dynamique (v2) — **007-2** (validation à l'écriture et politique `strict_ontology`, qui branchera le paramètre `strict` déjà accepté puis mémorisé), puis 007-3 à 007-7.
@@ -287,7 +287,7 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 |---|---|---|
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
 | 009 | Éligibilité des acteurs et fiabilisation des sources (clos, 1157 tests verts) | 004, 005 |
-| 007 | Ontologie dynamique (v2) — `in-progress`, story 007-1 `done`, ticket 007-2 préparé en `backlog` | 003, 004, 005, 009 |
+| 007 | Ontologie dynamique (v2) — `in-progress`, story 007-1 `done`, story 007-2 `blocked` après étude DoR (ADR 0015) | 003, 004, 005, 009 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
 ---
@@ -311,7 +311,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Préparer le développement de [007-2](plans/007-ontologie-dynamique/story-007-2.md)** : ticket rédigé en `backlog`, validation à l’écriture et politique `strict_ontology`. Démontrer d’abord le point de contrôle avant persistance sur Graphiti et Zep (lots compris).
+1. **Lever le blocage de [007-2](plans/007-ontologie-dynamique/story-007-2.md)** : [étude de faisabilité terminée](plans/007-ontologie-dynamique/faisabilite-007-2.md), 11 cas Graphiti conformes contre Neo4j, mais garanties C2 Zep non démontrées. [ADR 0015](decisions/0015-controle-ontologie-avant-persistance.md) : NO-GO commun ; arbitrer le périmètre ou obtenir une capacité distante avant implémentation.
 2. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
@@ -332,7 +332,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 | Tests | **1367 tests collectés**, **1364 réussis + 3 ignorés sous Docker**, le 12 octobre 2026 (Epic 009 clos, story 007-1 terminée après revue). Story 007-1 porte le filet de 1157 à **1367**, relectures comprises : factory d'ontologie, contrat des deux stores avec table de conformité, garde-fou d'assainissement LLM, sonde C1. |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
-| ADR | 14 acceptés, 0 supersédé |
+| ADR | 15 acceptés, 0 supersédé |
 | Node | pnpm 10.23.0, version figée dans `packageManager`, `package-lock.json` supprimés |
 | Environnement de référence | Docker opérationnel (ADR 0006, Epic 005 clos) — stack 3 services (`neo4j`, `backend`, `frontend`) unifiée |
 | Fork audités | 6 — 0 adopté |
