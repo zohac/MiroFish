@@ -3,7 +3,7 @@
 - **Statut** : `in-progress` · **Dépend de** : 003, 004, 005, 009 · **Bloque** : 010
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **Origine** : [ADR 0003](../../decisions/0003-ontologie-differee-en-v2.md) (« l'ontologie dynamique est une v2 ; le chemin de lecture d'abord »), [`docs/LOCAL-FIRST.md` §6.1](../../LOCAL-FIRST.md) (« le point dur »), reprise de l'epic 009 (qui a qualifié le verrou d'éligibilité et aiguisé le besoin d'un typage plus fin que `:Entity`).
-- **Nature** : cible proposée, aucune story démarrée. Le périmètre est délibérément restreint à **persistance + validation** (cf. arbitrage de cadrage du 12 octobre 2026) : l'ontologie devient effective, pas un raffinement auto-évolutif.
+- **Nature** : cible proposée, story 007-1 close et story 007-2 en cours. Le périmètre est délibérément restreint à **persistance + validation** ; la garantie de validation avant persistance est portée par Graphiti, moteur local de référence (ADR 0016). Zep conserve son parcours historique sans que C2 soit annoncé.
 
 > L'Epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est close (4/4 stories, **1157 tests verts**, Verdict GO). L'actor selection est qualifiée, l'anti-affabulation C7 tient, la section « Sources & Provenance » est dans le rapport.  
 >
@@ -47,7 +47,7 @@ L'ADR 0003 §3 nomme ces trois questions à arbitrer en v2 :
 Rendre l'ontologie **effective, validée et régénérable** sur événement, sans dupliquer ce que l'Epic 009 pose déjà. À la fin de l'epic :
 
 1. **L'ontologie générée pose réellement ses labels sur les nœuds du graphe.** `GraphStore.add_episode` consomme l'ontologie du projet et l'utilise pour contraindre l'extraction, et les nœuds résultants portent les labels déclarés (`PersonEntity`, `MediaOrganization`, etc.).
-2. **L'écriture est validée** : un nœud dont le type n'est pas dans l'ontologie est soit rejeté avec un diagnostic explicite, soit rétrogradé vers `:Entity` avec un `warning` tracé, selon la politique configurée (rétrogradation avec warning par défaut, refus via `strict_ontology=True`).
+2. **L'écriture Graphiti est validée** : un nœud dont le type n'est pas dans l'ontologie est soit rejeté avec un diagnostic explicite, soit rétrogradé vers `:Entity` avec un `warning` tracé, selon la politique configurée (rétrogradation avec warning par défaut, refus via `strict_ontology=True`). Zep reste sur son parcours historique jusqu'à preuve d'un contrat distant équivalent.
 3. **La régénération est déclenchée sur événement** : ajout de document au projet, modification du brief de simulation, demande explicite via API. La régénération préserve les labels existants et ajoute les types nouveaux.
 4. **L'ontologie est une par projet** : deux simulations du même projet partagent l'ontologie ; un nouveau projet génère la sienne. Pas d'ontologie globale, pas de duplication.
 5. **L'ontologie est composable avec l'actor selection 009** : `ActorClassifierService` lit le label d'ontologie comme signal primaire quand il existe, conserve sa cascade de repli sinon, et n'est jamais contredit par un label absent.
@@ -61,7 +61,7 @@ Rendre l'ontologie **effective, validée et régénérable** sur événement, sa
 ### 3.1 Dans le périmètre
 
 - **Persistance effective des labels d'ontologie** : `GraphStore.add_episode` accepte l'ontologie et la passe au store concret ; `GraphitiGraphStore` la traduit en Pydantic pour Graphiti, et après ingestion, les nœuds portent les labels déclarés. `ZepGraphStore` aligne son comportement (le contrat `GraphStore` est commun, ADR 0001).
-- **Validation à l'écriture** : un nœud dont le `entity_type` n'est pas dans l'ontologie déclenche un `GraphValidationWarning` et, selon la politique, un refus. La politique par défaut est « rétrograder vers `:Entity` avec `warning` » ; un override `strict_ontology=True` active le refus explicite.
+- **Validation à l'écriture Graphiti** : un nœud dont le `entity_type` n'est pas dans l'ontologie déclenche un `GraphValidationWarning` et, selon la politique, un refus. La politique par défaut est « rétrograder vers `:Entity` avec `warning` » ; un override `strict_ontology=True` active le refus explicite. Le backend Zep historique n'est pas couvert par cette garantie.
 - **Régénération sur événement** : ajout de document, modification du brief (`SimulationBrief` de 009-2), demande explicite via endpoint. L'événement est tracé dans le journal du projet.
 - **Stockage projet** : `Project` porte un champ `applied_ontology` (référence à la dernière ontologie appliquée, versionnée), avec un identifiant d'ontologie permettant de tracer le delta entre deux versions.
 - **Compatibilité avec `ActorClassifierService` (009-1)** : le classifieur consulte d'abord le label d'ontologie, puis seulement ensuite applique sa cascade. Le test d'actor classification de 009-1 reste vert ; un test dédié à l'orchestration ajoute les deux nouveaux cas (label présent et label absent).
@@ -84,7 +84,7 @@ Rendre l'ontologie **effective, validée et régénérable** sur événement, sa
 | Réf. | Critère | Seuil chiffré | Méthode de mesure |
 |---|---|---|---|
 | **C1** | Persistance effective des labels d'ontologie | ≥ 80 % des entités extraites sur un corpus d'épreuve (≥ 5 documents, ≥ 2 domaines) portent un label custom non-`:Entity` après `add_episode` avec ontologie. | Banc d'intégration contre Neo4j local (`docker-compose.yml`), exécution sur 2 fixtures distinctes, comptage Cypher sur les nœuds `:Entity` du `group_id`, en excluant `:Entity` et `:Node` de la liste des labels. **Mesuré** : le contexte d'extraction de Graphiti place toujours un type générique `Entity` en identifiant 0 et les types déclarés à partir de 1 ; un nœud que le LLM n'a pas su typer porte donc `:Entity` seul, et compte au dénominateur sans compter au numérateur. Le seuil de 80 % se mesure malgré cette ponctuation, pas grâce à elle. |
-| **C2** | Validation à l'écriture | 100 % des écritures avec un `entity_type` hors ontologie déclenchent un `GraphValidationWarning` (mode défaut) ou un `GraphValidationError` (mode `strict_ontology`). Aucun nœud écrit avec un label non déclaré n'est laissé silencieux. | Tests unitaires sur `GraphitiGraphStore` et `ZepGraphStore` exerçant chacune des branches (mode défaut + mode strict, type absent + type présent), captures des logs et exceptions. |
+| **C2** | Validation à l'écriture Graphiti | 100 % des écritures Graphiti avec un `entity_type` hors ontologie déclenchent un `GraphValidationWarning` (mode défaut) ou un `GraphValidationError` (mode `strict_ontology`). Aucun nœud écrit avec un label non déclaré n'est laissé silencieux ; le refus est observé avant toute délégation de sauvegarde. | Tests unitaires sur `GraphitiGraphStore`, lots applicatifs et essai Neo4j local. Le parcours Zep est testé pour son refus explicite lorsqu'une garantie stricte est demandée, sans être compté dans C2. |
 | **C3** | Régénération sous budget | Pour un corpus de 50 000 caractères, la régénération d'ontologie (de la lecture des documents à la pose de l'ontologie) prend **< 30 secondes** sur l'hôte et **< 45 secondes** sous Docker, avec `temperature=0.0` et un corpus identique deux fois produisant deux ontologies identiques au mot près (champs stables : `entity_types[].name`, `edge_types[].name`, `attributes[].name`). | Sonde de mesure `verifier_qualification_epic_007.py` exerçant 2 corpus (50K et 10K) deux fois chacun, comparant les diffs JSON. |
 | **C4** | Régénération sur ajout de document | Ajouter un document à un projet dont l'ontologie est déjà appliquée déclenche une régénération **dans les 5 secondes** suivant l'upload. Les nœuds existants conservent leur label ; les nouveaux types du delta apparaissent dans l'ontologie. | Test d'intégration : ingestion d'un premier document, vérification des labels, ajout d'un second document, vérification que les labels anciens sont préservés et qu'au moins un type nouveau est apparu. |
 | **C5** | Cohérence projet (une ontologie par projet) | Deux simulations successives d'un même projet, sans ajout de document ni modification de brief entre les deux, **partagent la même ontologie** (même `applied_ontology_id`, même contenu). Une simulation d'un autre projet a une ontologie distincte. | Test d'intégration créant 2 projets à corpus distincts, simulant 2 fois le premier, comparant les `applied_ontology_id`. |
@@ -208,3 +208,13 @@ point pré-persistance Graphiti démontré ; garanties C2 Zep non démontrées.
 C2 reste inchangé. La story 007-2 est `blocked` avant implémentation ; une
 modification de périmètre ou une nouvelle architecture d’ingestion devra être
 arbitrée explicitement avant reprise.
+
+
+## 13. État livré et préparation C3 — 13 octobre 2026
+
+007-1 et 007-2 sont closes ; la mention de blocage au §12 décrit l’étude
+historique avant le recentrage accepté par l’ADR 0016. La preuve du code livré
+est la [qualification 007-2](qualification-007-2.md), distincte du prototype.
+[007-3](story-007-3.md) formalise C3 sans modifier ses seuils : comparaison
+canonique des champs stables après deux générations indépendantes, mesure
+lecture→pose sur 10K/50K et preuve hôte séparée de la référence Docker.

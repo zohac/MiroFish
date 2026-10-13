@@ -169,7 +169,7 @@ class GraphStore(ABC):
         """
 ```
 
-L'implémentation `GraphitiGraphStore` traduit `entity_types` en `Pydantic` via la factory `OntologyToPydantic.from_dict(ontology)` (cf. §4) et passe le résultat à `Graphiti.add_episode(..., entity_types=...)` pour les écritures suivantes. `ZepGraphStore` aligne son implémentation sur le même contrat (scaffolding laissé en suspens, à finaliser).
+L'implémentation `GraphitiGraphStore` traduit `entity_types` en `Pydantic` via la factory `OntologyToPydantic.from_dict(ontology)` (cf. §4) et passe le résultat à `Graphiti.add_episode(..., entity_types=...)` pour les écritures suivantes. La validation avant persistance et le journal de 007-2 sont garantis par Graphiti. `ZepGraphStore` conserve le contrat historique de 007-1 ; il refuse l'annonce d'une garantie stricte non démontrée (ADR 0016).
 
 ### 3.2 `GraphStore.add_episode` accepte l'ontologie
 
@@ -571,7 +571,7 @@ son Batch ne délègue pas à `add_episode`. Le contrôle avant sauvegarde doit
 inspection après écriture, ni une suppression compensatoire ne prouvent le
 refus strict. Voir la définition de prêt du [ticket 007-2](story-007-2.md).
 
-## 14. Faisabilité du contrôle avant persistance — 12 octobre 2026
+## 14. Faisabilité et recentrage du contrôle avant persistance — 12 octobre 2026
 
 [ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md) :
 contrôle de la réponse brute avant conversion de l’ID en label, puis des nœuds
@@ -580,6 +580,24 @@ hydratés dans `_process_episode_data`, avant délégation à la sauvegarde ; m�
 contourne cette frontière et n’est pas autorisé comme substitution transparente.
 
 Zep sait transmettre `strict_ontology`, mais aucun contrôle applicatif avant
-persistance ni diagnostic par candidat conforme à C2 n’est établi. Le DoR de
-007-2 reste non satisfait ; l’implémentation est suspendue. Voir l’[étude
-rejouable](faisabilite-007-2.md) pour la distinction transport/garantie serveur.
+persistance ni diagnostic par candidat conforme à C2 n’est établi. L’ADR 0016
+reporte cette garantie Zep et limite la validation avant persistance de 007-2 à
+Graphiti. Voir l’[étude rejouable](faisabilite-007-2.md) pour la distinction
+transport/garantie serveur.
+
+
+## 14. État livré et préparation C3 — 13 octobre 2026
+
+007-1 et 007-2 sont closes. Les labels sont effectifs ; la validation Graphiti,
+le journal durable et les routes de politique/audit sont livrés. La politique
+réellement appliquée est durable (ADR 0017) ; la limite Zep est celle de
+l’ADR 0016. Les modèles versionnés et déclencheurs restent des cibles de 007-4.
+
+[007-3](story-007-3.md) précise C3 : même ordre documentaire, brief, contexte,
+langue et modèle ; deux générations indépendantes sur 10K/50K. Le diff compare
+les noms de types et d’attributs rattachés à leur parent, avec tri des listes,
+sans effacer les doublons. Descriptions/exemples restent hors champs stables.
+Le chronométrage va de la lecture des fichiers à la pose durable réussie,
+reprises incluses ; initialisation du store publiée séparément. Les seuils
+45 s Docker et 30 s hôte sont conservés ; la preuve hôte est exécutée dans une
+session de secours distincte. La sonde dédiée sera orchestrée par 007-7.

@@ -76,3 +76,11 @@ def get_graph_store(
         raise GraphValidationError(
             f"Backend de graphe non supporté : '{selected_backend}'. Valeurs autorisées : 'cloud', 'graphiti'."
         )
+
+
+def release_graph_store(store: GraphStore) -> None:
+    """Ferme une instance créée par la factory ; l'override reste à son propriétaire."""
+    if store is not _store_override:
+        close = getattr(store, "close", None)
+        if close is not None:
+            close()

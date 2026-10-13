@@ -89,12 +89,11 @@ def test_run_integration_validation_handles_connection_failure(monkeypatch):
     monkeypatch.setenv("NEO4J_PASSWORD", "test-pass")
     monkeypatch.setenv("LLM_API_KEY", "test-pass-llm")
 
-    def _mock_fail(coro):
-        if hasattr(coro, "close"):
-            coro.close()
-        raise ConnectionError("Échec de connexion réseau")
-
-    with patch("scripts.verifier_integration_graphiti.GraphitiGraphStore._run_async", side_effect=_mock_fail):
+    # Doubler la connexion, pas le runner utilisé aussi pour fermer le driver.
+    with patch(
+        "graphiti_core.driver.neo4j_driver.Neo4jDriver.build_indices_and_constraints",
+        new=AsyncMock(side_effect=ConnectionError("Échec de connexion réseau")),
+    ):
         rapport = run_integration_validation(use_mock_llm=True, keep_graph=False)
 
         assert rapport["statut"] == "ECHEC"

@@ -1,0 +1,112 @@
+{
+  "date_utc": "2026-10-12T21:43:09.589104+00:00",
+  "versions": {
+    "graphiti-core": "0.30.2",
+    "neo4j": "5.28.6"
+  },
+  "sources_sha256": {
+    "graphiti_store.py": "69a2a30f47e3232891f2f80bd43d07f1d4ee4ed9d2e9dc91b3a3d1dd9675d80c",
+    "verifier_ontology_validation.py": "348b19cb5f669034d193582175c6cdb69cda54f2a2b7c0c0df364a77a5dec43b"
+  },
+  "moteur": "_OntologyValidatingGraphiti livré, sans substitution",
+  "limites": "LLM/vecteurs déterministes ; MENTIONS réels, relations métier non générées ; aucune qualification Zep distante",
+  "cas": [
+    {
+      "cas": "declare",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 0
+    },
+    {
+      "cas": "id_inconnu_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "mentions": 0,
+      "warnings": 0
+    },
+    {
+      "cas": "generique_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "mentions": 0,
+      "warnings": 0
+    },
+    {
+      "cas": "id_inconnu_permissif",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 1
+    },
+    {
+      "cas": "final_inconnu_strict",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "mentions": 0,
+      "warnings": 0
+    },
+    {
+      "cas": "final_inconnu_permissif",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 1
+    },
+    {
+      "cas": "contradiction_stricte",
+      "refus": true,
+      "noeuds": 0,
+      "episodes": 0,
+      "mentions": 0,
+      "warnings": 0
+    },
+    {
+      "cas": "contradiction_permissive",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 1
+    },
+    {
+      "cas": "attribut_generique",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 2
+    },
+    {
+      "cas": "lot_mixte_strict",
+      "refus": true,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 0
+    },
+    {
+      "cas": "lot_mixte_permissif",
+      "refus": false,
+      "noeuds": 2,
+      "episodes": 2,
+      "mentions": 2,
+      "warnings": 1
+    },
+    {
+      "cas": "noeud_existant_retrograde",
+      "refus": false,
+      "noeuds": 1,
+      "episodes": 1,
+      "mentions": 1,
+      "warnings": 1
+    }
+  ],
+  "verdict": "GO C2 Graphiti"
+}

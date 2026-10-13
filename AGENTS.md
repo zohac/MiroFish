@@ -4,7 +4,7 @@ Constitution du dépôt. Elle vaut pour toute contribution, humaine ou agent.
 En cas de conflit entre ce fichier et une demande ponctuelle : **ce fichier
 gagne**, et on le corrige explicitement dans un commit dédié.
 
-> Révision : 10 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
+> Révision : 13 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
 
 ---
 
@@ -27,7 +27,7 @@ reproductible.**
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
-| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 `done`, story 007-2 `blocked` (DoR C2 Zep non démontré, ADR 0015) (pose effective des labels, ADR 0014, mesure C1 100 %/100 %) |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 `done`, story 007-2 `done` (C2 Graphiti qualifié, ADR 0016/0017), story 007-3 rédigée en `backlog` (pose effective des labels, ADR 0014, mesure C1 100 %/100 %) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -94,6 +94,14 @@ reproductible.**
 > les critères C1 à C7 de bout en bout avec [rapport de qualification formel](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md)
 > et **VERDICT GO** validé (1157 tests verts sur l'hôte, 0 échec, revue BMAD 4 couches conforme).
 
+La **story 007-2 est close** après revue BMAD, 14 correctifs appliqués et
+qualification réelle C2 Graphiti : [12 cas conformes](docs/plans/007-ontologie-dynamique/mesure-007-2.json).
+L’ADR 0016 limite la garantie à Graphiti ; l’ADR 0017 formalise la politique
+durable et la rétrogradation transactionnelle. Le refus strict Zep reste
+explicite. **007-3 est rédigée en `backlog`** : générations indépendantes,
+comparaison des champs stables et budget lecture→pose ; figer les corpus avant
+implémentation. Epic 007 : 2/7 stories closes, **1428 réussis + 3 ignorés Docker**.
+
 ---
 
 ## 2. Règles
@@ -120,11 +128,12 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-12 octobre 2026 compte **1367 tests collectés ; 1364 réussis + 3 ignorés sous
+12 octobre 2026 compte **1431 tests collectés ; 1428 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
-**1367** (1157 + 210 tests hermétiques, relectures comprises) ; [preuves et
+**1367** (1157 + 210 tests hermétiques, relectures comprises) ; post-007-2 :
+**1431** (1367 + 64 cas, dont les régressions de revue) ; [preuves et
 limites](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
@@ -395,7 +404,7 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 1367 tests collectés au 12 octobre 2026 (Epic 009 clos, story 007-1 `done`) |
+| Tests | `backend/tests/` | pytest — 1431 tests collectés au 12 octobre 2026 (Epic 009 clos, stories 007-1/007-2 `done`) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
@@ -488,7 +497,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 ## 8. Hors périmètre (pour l'instant)
 
 - Ré-auditer les forks communautaires → fait, ADR 0002
-- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est `done`, la story 007-2 est `blocked` (ADR 0015)
+- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est `done`, la story 007-2 est `done` (ADR 0016/0017) et 007-3 est rédigée en `backlog`
 - Moderniser le frontend ou l'i18n
 - Exposer l'application en réseau sans lire l'ADR 0005
 - GitHub Projects : uniquement comme vue générée, et seulement quand
@@ -542,7 +551,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 |---|---|
 | Zep Community Edition est déprécié ; Graphiti est la voie OSS | ADR 0001 |
 | Aucun fork communautaire n'est adoptable : bugs silencieux, zéro test, gelés depuis mars | ADR 0002, `LOCAL-FIRST.md` §12 |
-| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; story 007-2 `blocked` (DoR C2 Zep non démontré, ADR 0015)) |
+| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; story 007-2 `done` (C2 Graphiti qualifié, ADR 0016/0017), story 007-3 rédigée en `backlog`) |
 | `zep_entity_reader.py:262` filtre les nœuds sans label d'ontologie → **le graphe revient vide en silence** | ADR 0003 |
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |

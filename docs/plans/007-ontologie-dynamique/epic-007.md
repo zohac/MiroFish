@@ -8,7 +8,7 @@
 
 > L'Epic 009 a clos le verrou d'éligibilité des acteurs (**1157 tests verts**, Verdict GO, 4/4 stories). L'actor selection est qualifiée, l'anti-affabulation C7 tient, la section « Sources & Provenance » du rapport est en place, et l'étanchéité NFR-5 est maintenue au niveau des prompts LLM.  
 >
-> **L'Epic 007 transforme l'ontologie générée en typage réel du graphe.** La story 007-1 a rendu effectif le `set_ontology` de l'interface `GraphStore` (ADR 0014) ; la suite de la v2 valide l'écriture, régénère sur événement, et expose l'ontologie dans le rapport. Le filet de référence passe de **1157** à **1177+ tests verts** sans casser la rétrocompatibilité des epics antérieurs.
+> **L'Epic 007 transforme l'ontologie générée en typage réel du graphe.** La story 007-1 a rendu effectif le `set_ontology` de l'interface `GraphStore` (ADR 0014) ; la suite de la v2 valide l'écriture, régénère sur événement, et expose l'ontologie dans le rapport. Le filet de référence passe à **1431 tests collectés / 1428 réussis + 3 ignorés sous Docker** après 007-2 sans casser la rétrocompatibilité des epics antérieurs.
 
 ---
 
@@ -55,7 +55,7 @@
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `done` | [story-007-1.md](story-007-1.md) |
-| 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `blocked` | [story-007-2.md](story-007-2.md) |
+| 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `done` | [story-007-2.md](story-007-2.md) |
 | 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `backlog` | [story-007-3.md](story-007-3.md) |
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `backlog` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `backlog` | [story-007-5.md](story-007-5.md) |
@@ -77,8 +77,8 @@
 | Story | Dépend de | Exigences | Critères de sortie |
 |---|---|---|---|
 | 007-1 | 003, 004, 005, 009 (`done`) ; ADR 0010 (override neo4j) et ADR 0011 (surface) respectés, fixtures de test sous 2 domaines | FR-1 ; NFR-2 | C1, contribution C8 |
-| 007-2 | 007-1 ; politique de validation fixée dans le PRD | FR-2 ; NFR-2, NFR-4 | C2, contribution C8 |
-| 007-3 | 007-1 ; `OntologyGenerator` instrumenté avec `temperature=0.0` | FR-1 (déterminisme), FR-3 ; NFR-3, NFR-6 | C3, contribution C8 |
+| 007-2 | 007-1 ; politique de validation fixée dans le PRD ; ADR 0016 | FR-2 ; NFR-2, NFR-4 | C2, contribution C8 |
+| 007-3 | 007-1, 007-2 ; corpus et protocole C3 définis dans le ticket | FR-1 (déterminisme), FR-3 ; NFR-3, NFR-6 | C3, contribution C8 |
 | 007-4 | 007-1, 007-2, 007-3 ; événements projet (E1-E3) identifiés, seuil de diff du brief fixé | FR-3, FR-4 ; NFR-3 | C4, contribution C8 |
 | 007-5 | 007-4 ; table de correspondance label → `ActorRole` déclarée | FR-5 ; NFR-1, NFR-4 | C5, C6, contribution C8 |
 | 007-6 | 007-4 ; sous-section rapport + outil LLM spécifiés | FR-6 ; NFR-4, NFR-5 | C7, contribution C8 |
@@ -126,16 +126,32 @@ L'Epic 006 (migration Zep) est close : les graphes migrés portent `:Entity` san
 ## 6. Passage à 007-2 — 12 octobre 2026
 
 007-1 est `done` après relectures et mesure C1. Le [ticket 007-2](story-007-2.md)
-a été initialement rédigé en `backlog` : sa définition de prêt exige de démontrer le
+a été initialement rédigé en `backlog` : sa définition de prêt exigeait de démontrer le
 contrôle des types avant persistance sur les deux moteurs, y compris les lots
-Zep. L’epic reste `in-progress` (1/7 stories terminée). La politique est
+Zep. L’epic reste `in-progress` (2/7 stories terminées). La politique est
 persistée par projet et les warnings ont un journal dédié ; le versionnement
 et `Project.ontology_history` restent réservés à 007-4.
 
 ### Étude de faisabilité 007-2 — 12 octobre 2026
 
-La story 007-2 est `blocked` avant implémentation : [étude](faisabilite-007-2.md)
+La story 007-2 était `blocked` avant implémentation : [étude](faisabilite-007-2.md)
 achevée, 11 cas Graphiti contre Neo4j conformes, mais C2 Zep non démontré.
 L’[ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md)
-consigne le NO-GO du contrat commun. C2 est conservé ; une restriction du
-périmètre ou une nouvelle capacité Zep doit être arbitrée avant reprise.
+consigne le NO-GO du contrat commun. Le périmètre est désormais restreint à
+Graphiti par [ADR 0016](../../decisions/0016-perimetre-validation-ontologie-graphiti.md) ; la capacité Zep équivalente reste différée.
+
+
+## 7. Clôture 007-2 et préparation 007-3 — 13 octobre 2026
+
+007-2 est `done` après revue BMAD, 14 correctifs appliqués et clôture du suivi
+D1. La [qualification du code livré](qualification-007-2.md) valide 12 cas C2
+Graphiti contre Neo4j. La suite Docker du 12 octobre compte **1431 collectés,
+1428 réussis et 3 ignorés**, sans échec ; lint et plans sont verts.
+Les ADR 0016 et 0017 précisent périmètre Graphiti, politique durable et
+rétrogradation transactionnelle ; l’ADR 0015 reste la preuve historique Zep.
+
+Le [ticket 007-3](story-007-3.md) est rédigé en `backlog` : température zéro,
+générations indépendantes, comparaison des champs stables et mesures 10K/50K
+de la lecture des documents à la pose. Les corpus doivent être figés avant
+implémentation. L’epic reste `in-progress` (2/7) ; la mesure hôte est prévue
+dans une session de secours distincte de la référence Docker.

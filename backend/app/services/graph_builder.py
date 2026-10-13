@@ -20,6 +20,7 @@ from ..utils.graph_store import (
     GraphStore,
     GraphStoreError,
     GraphTimeoutError,
+    GraphValidationError,
     get_graph_store,
 )
 from ..utils.locale import get_locale, set_locale, t
@@ -447,6 +448,11 @@ class GraphBuilderService:
             None. Aucun appelant aval ne consomme de retour ; l'ontologie
             appliquée se relit par `store.get_applied_ontology(graph_id)`.
         """
+        if strict and not self.store.supports_pre_persistence_ontology_validation:
+            raise GraphValidationError(
+                "La politique strict_ontology exige une validation avant persistance "
+                "que ce backend de graphe ne garantit pas"
+            )
         self.store.set_ontology(graph_id=graph_id, ontology=ontology, strict=strict)
 
     def add_text_batches(

@@ -2,7 +2,7 @@
 id: "007-2"
 epic: "007"
 titre: "Validation à l’écriture et politique strict_ontology"
-statut: blocked
+statut: done
 auteur: agent
 format: "2"
 ---
@@ -17,8 +17,8 @@ incomplète ne produise pas de typage métier silencieusement invalide.
 Dépendance : **007-1 `done`**, ADR 0014 accepté, mesure C1 télécom et énergie
 versionnée. Couverture : **FR-2**, politique et lecture des avertissements de
 **FR-7**, **NFR-2**, **NFR-4**, **C2** et contribution à **C8**.
-Le ticket est `blocked` après étude de faisabilité du 12 octobre 2026 ;
-le développement n’est pas commencé (ADR 0015).
+Le ticket a été recentré par l’ADR 0016 : la garantie C2 est portée par
+Graphiti ; le parcours Zep historique reste disponible sans garantie stricte.
 
 ## Définition de prêt
 
@@ -28,10 +28,10 @@ le développement n’est pas commencé (ADR 0015).
 - [x] Critères C2 déclinés ci-dessous avec une stratégie de test des deux stores.
 - [x] Écarts du cadrage identifiés : politique par projet, journal distinct de
   l’historique de versions, absence de route projet dédiée et extraction distante.
-- [ ] Point de contrôle avant persistance démontré pour chaque moteur, y compris
-  les lots ; faisabilité du refus et de la rétrogradation établie sur les versions
-  verrouillées. Consigner la décision avant de démarrer l’implémentation.
-  **Non satisfait au 12 octobre 2026** : Graphiti démontré ; C2 Zep non démontré.
+- [x] Point de contrôle avant persistance démontré pour le moteur de référence
+  Graphiti, y compris les lots ; le périmètre Zep a été explicitement retiré de
+  C2 par l’ADR 0016, qui conserve son parcours historique et refuse toute
+  garantie stricte non démontrée.
 - [x] Étude de faisabilité menée sous Docker, décision consignée dans
   l’[ADR 0015](../../decisions/0015-controle-ontologie-avant-persistance.md),
   [11 cas Graphiti et transport SDK Zep éprouvés](faisabilite-007-2.md).
@@ -52,16 +52,20 @@ le développement n’est pas commencé (ADR 0015).
 
 ## Définition de fini
 
-- [ ] AC1 à AC9 satisfaits, preuves et limites rattachées à chaque critère.
-- [ ] Deux implémentations alignées par la même table de conformité ; aucun
+- [x] AC1 à AC9 satisfaits sur le périmètre Graphiti défini par l’ADR 0016,
+  avec la limite Zep rattachée aux critères concernés.
+- [x] Les parcours Graphiti et Zep sont alignés par le contrat neutre : Graphiti
+  garantit la validation avant persistance ; Zep refuse explicitement la
+  garantie stricte non démontrée ; aucun
   service ou endpoint ne choisit lui-même un client de graphe.
-- [ ] Point de contrôle avant écriture expliqué et réellement exercé ; aucune
+- [x] Point de contrôle avant écriture expliqué et réellement exercé ; aucune
   réussite annoncée sur la seule inspection d’un résultat déjà persisté.
-- [ ] Journal durable, politique persistée et parcours API → métier → store vérifiés.
-- [ ] Suite Docker, `ruff check .`, `validate_plans.py` et contrôle du diff exécutés.
-- [ ] Revue réalisée, corrections traitées, passage `in-progress → review → done`
-  respecté ; notes de complétion, hub et agrégat actualisés.
-- [ ] Aucun secret dans le diff ; ADR complémentaire accepté si le contrat
+- [x] Journal durable, politique persistée et parcours API → métier → store vérifiés.
+- [x] Suite Docker, `ruff check .`, `validate_plans.py` et contrôle du diff exécutés.
+- [x] Clôture documentaire le 13 octobre 2026 : contexte, hub, compteurs et
+  index ADR actualisés ; D1 traité. L’agrégat d’epic reste `in-progress` ;
+  aucun statut de story n’est dupliqué dans le YAML.
+- [x] Aucun secret dans le diff ; ADR complémentaire accepté si le contrat
   d’extraction ou la garantie transactionnelle doit changer (ADR 0014 immuable).
 
 ## Tâches
@@ -70,25 +74,26 @@ le développement n’est pas commencé (ADR 0015).
   verrouillé : extraction, normalisation, sauvegarde, lots asynchrones. Définir
   le sort de `Entity` et du type absent. Une ontologie mal formée reste une
   `OntologyValidationError`, distincte d’un type extrait hors ontologie. (AC1–3)
-  Étude achevée : **NO-GO commun**, capacités et limites consignées ;
-  AC1–AC3 restent à satisfaire, aucun développement autorisé par cette case.
-- [ ] T2 — Ajouter le record neutre `GraphValidationWarning` dans la couche
+  Étude achevée : **NO-GO Zep**, capacités et limites consignées ; le périmètre
+  Graphiti est autorisé par l’ADR 0016, tandis que la garantie Zep reste différée.
+- [x] T2 — Ajouter le record neutre `GraphValidationWarning` dans la couche
   `utils/graph_store/`, réutiliser `GraphValidationError` de `errors.py`, et
   implémenter validation commune, journal durable et filtre `since`. (AC1, AC6)
-- [ ] T3 — Câbler validation/rétrogradation/refus dans Graphiti avant sauvegarde,
+- [x] T3 — Câbler validation/rétrogradation/refus dans Graphiti avant sauvegarde,
   avec la politique résolue par `_resolve_applied_ontology`. (AC1–3, AC8)
-- [ ] T4 — Câbler les mêmes garanties dans Zep, y compris le chemin Batch et
-  `wait_for_batch`, sans perdre la politique lors d’une ontologie explicite.
-  Préserver réconciliation, provenance et progression des lots. (AC1–3, AC8)
-- [ ] T5 — Étendre `Project.to_dict/from_dict` et la persistance existante avec
+- [x] T4 — Préserver le parcours historique Zep et refuser explicitement une
+  construction demandant la garantie stricte 007-2 ; ne pas compter Zep dans C2
+  ni filtrer après écriture. Préserver réconciliation, provenance et progression
+  des lots historiques. (AC8)
+- [x] T5 — Étendre `Project.to_dict/from_dict` et la persistance existante avec
   `strict_ontology`, transmettre cette préférence aux constructions futures et
   mettre à jour la politique effective d’un graphe existant. (AC4)
-- [ ] T6 — Ajouter le service métier de gestion de politique et les deux routes
+- [x] T6 — Ajouter le service métier de gestion de politique et les deux routes
   de projet, enregistrer le blueprint dans l’application ; conserver les routes
   historiques sous `/api/graph/project/...`. (AC5, AC7)
-- [ ] T7 — Construire table de conformité, tests API, persistance, lots, absence
+- [x] T7 — Construire table de conformité, tests API, persistance, lots, absence
   d’ontologie, concurrence ciblée et régressions de lecture. (AC1–9)
-- [ ] T8 — Exécuter la suite et les contrôles sous Docker, consigner la preuve
+- [x] T8 — Exécuter la suite et les contrôles sous Docker, consigner la preuve
   C2, faire relire et actualiser les artefacts. (AC9)
 
 ## Notes de développement
@@ -178,16 +183,154 @@ docker compose run --rm backend uv run python scripts/validate_plans.py
 
 ## Revue
 
-Ticket préparé le **12 octobre 2026**, après clôture de 007-1. Analyse du PRD,
-de l’architecture et des chemins des deux stores ; écarts relevés intégrés au
-cadrage. Revue de l’implémentation à effectuer après développement.
+Revue effectuée le **12 octobre 2026** après recentrage par l’ADR 0016. Le
+contrôle porte sur le code Graphiti, le journal durable, la politique projet,
+les routes d’audit et la régression des contrats de store. Le point bloquant
+Zep est conservé comme limite explicite : aucune garantie distante n’est
+annoncée, et une politique stricte y est refusée avant ingestion.
+
+Résultat : corrections de contexte par requête, validation du client LLM
+effectivement utilisé par Graphiti et verrou inter-processus du journal
+appliquées. Les tests ciblés et la suite complète Docker sont verts.
+
+### Review Findings
+
+Revue BMAD du **12 octobre 2026**, sur le diff non commité : 20 fichiers,
+890 ajouts et 80 suppressions. Quatre couches achevées : blind-hunter,
+edge-case-hunter, verification-gap et acceptance-auditor. **14 correctifs,
+1 suivi différé, 4 constats rejetés ; aucune décision produit nécessaire.**
+La story revient à `in-progress` : les critères cochés précédemment ne
+constituent pas une preuve de résolution des constats ci-dessous.
+
+Les 30 tests dédiés passent sous Docker. Les empreintes des trois fichiers
+principaux de l’image correspondent au dépôt. Une reproduction hermétique
+sous Docker, sans réseau ni graphe réel, confirme : le PATCH concurrent peut
+remplacer `graph_building` par `graph_completed` ; deux labels métier déclarés
+sont délégués en strict sans warning ; un label métier survit à la rétrogradation
+permissive ; un attribut `entity_type` inconnu survit sur un nœud générique.
+La frontière parent de sauvegarde est remplacée par une doublure qui observe
+les arguments : ces reproductions démontrent le défaut applicatif, pas une
+qualification Neo4j de l’implémentation.
+
+Vérification globale achevée pendant cette revue : **1394 réussis, 3 ignorés**
+sous Docker en 316,31 s ; `ruff check .` vert ; `validate_plans.py` valide
+(9 epics, 37 stories). Le validateur a aussi été relancé avec les documents
+du dépôt montés en lecture seule après consignation des constats : valide.
+`git diff --check` est propre. Ces contrôles ne couvrent pas les lacunes de
+vérification détaillées en P11–P14.
+
+#### Correctifs appliqués
+
+- [x] [Review][Patch] **P1 — Haut : rendre le PATCH effectif sur les écrivains existants.** Le service ne modifie que `project.json` ; le cache d’un écrivain conserve son ancien `strict` après la réponse 200. AC4–AC5/T5 exigent une politique effective. Ajouter une vérification des écritures après changement, dans les deux sens. [backend/app/services/ontology_policy.py:28]
+- [x] [Review][Patch] **P2 — Haut : restaurer ontologie et politique sur un store neuf.** `_applied_ontologies` démarre vide ; la factory et le gestionnaire de mémoire de simulation créent de nouvelles instances. Le gestionnaire écrit sans ontologie explicite : la validation d’un projet strict disparaît. Restaurer la politique durable avant ces écritures sans bifurcation métier par backend. AC4. [backend/app/utils/graph_store/graphiti_store.py:384 ; backend/app/services/zep_graph_memory_updater.py:437]
+- [x] [Review][Patch] **P3 — Haut : partager le verrou du changement de politique et du démarrage d’ingestion.** `_policy_lock` est indépendant du verrou de `/api/graph/build`. Une copie lue avant le démarrage peut être sauvegardée après celui-ci, effacer `GRAPH_BUILDING` et modifier la politique malgré l’ingestion active. Course reproduite avec une lecture entrelacée contrôlée. AC5. [backend/app/services/ontology_policy.py:22 ; backend/app/api/graph.py:710]
+- [x] [Review][Patch] **P4 — Haut : détecter plusieurs labels métier déclarés.** `['Entity', 'Person', 'Company']` est délégué en strict sans diagnostic quand les deux types sont déclarés. Le contrôle ne cherche que les inconnus. Appliquer l’invariant d’un seul label custom et la politique des contradictions. AC1–AC2. [backend/app/utils/graph_store/graphiti_store.py:209]
+- [x] [Review][Patch] **P5 — Haut : rétrograder entièrement le candidat invalide vers Entity.** `['Entity', 'Person', 'Unknown']` devient `['Entity', 'Person']` avec un warning `downgrade`. Le comportement diverge de la rétrogradation générique prescrite et du prototype de faisabilité. AC1. [backend/app/utils/graph_store/graphiti_store.py:226]
+- [x] [Review][Patch] **P6 — Haut : vérifier le retrait effectif des labels déjà persistés lors d’une réécriture.** La déduplication peut retourner un nœud existant. Filtrer son objet ne retire pas le label Neo4j : les requêtes verrouillées appliquent `SET n:...` sans `REMOVE` des anciens labels. Le warning peut donc annoncer un retrait que la relecture dément. Corriger à la frontière d’écriture et tester un candidat résolu vers un nœud existant ; aucun retypage au seul changement de politique. AC1–AC2/AC8. [backend/app/utils/graph_store/graphiti_store.py:226]
+- [x] [Review][Patch] **P7 — Haut : empêcher les attributs de réaffirmer un type refusé après rétrogradation brute.** Après normalisation d’un ID inconnu vers 0, le nœud générique n’a aucun label inconnu : le `continue` évite le nettoyage de `entity_type/type/category`. Les attributs d’un candidat existant peuvent survivre ; `ZepEntityReader` les utilise ensuite pour typer le nœud. Vérifier la cascade de lecture. AC8. [backend/app/utils/graph_store/graphiti_store.py:197 ; :210 ; backend/app/services/zep_entity_reader.py:305]
+- [x] [Review][Patch] **P8 — Moyen : protéger les écritures Zep directes demandant strict.** Le refus de capacité n’existe que dans `GraphBuilderService`. `ZepGraphStore.set_ontology(..., strict=True)` puis `add_episode/add_text_batch` reste autorisé sans cette garantie. Porter le refus dans le store et préserver son chemin historique permissif. ADR 0016/T4. [backend/app/services/graph_builder.py:451 ; backend/app/utils/graph_store/zep_store.py:490]
+- [x] [Review][Patch] **P9 — Moyen : fermer les ressources créées par le GET des warnings.** Chaque appel construit un store avec runner asynchrone et clients ; la route ne le ferme jamais, y compris sur erreur. Les threads restent vivants au fil des consultations d’un journal pourtant local. Respecter la propriété des ressources, notamment avec un store injecté. [backend/app/api/project.py:42]
+- [x] [Review][Patch] **P10 — Moyen : distinguer ontologie générée et ontologie appliquée pour le GET.** `graph_id` est enregistré avant `set_ontology`. Une construction en cours ou échouée avant application satisfait néanmoins le garde actuel et reçoit 200 au lieu de 404. Vérifier un état d’application effectif et durable. AC7. [backend/app/services/ontology_policy.py:42]
+- [x] [Review][Patch] **P11 — Haut : fournir une preuve C2 rejouable du code livré.** La seule sonde et mesure versionnées identifiées utilisent `ProbeLLM/ProbeGraphiti`, expressément qualifiés de prototype. Elles ne prouvent pas `_OntologyValidatingGraphiti`, son journal durable ni ses lots applicatifs. Ajouter une sonde de qualification du store livré avec sortie versionnée, puis préciser les preuves des notes de complétion. AC2–AC3/AC9. [docs/plans/007-ontologie-dynamique/verifier-dor-007-2.py:5]
+- [x] [Review][Patch] **P12 — Moyen : tester le branchement réel du contrôle brut dans le parcours du store.** Les tests appellent `_validate_response` directement ; les autres injectent un moteur factice. Retirer les proxies de `_resolve_request_scope` peut donc supprimer le refus réel sans faire échouer ces tests. Exercer `add_episode` et `add_text_batch` avec extraction déterministe et sauvegarde observée, y compris l’isolation de requêtes. [backend/app/utils/graph_store/graphiti_store.py:148 ; backend/tests/test_ontology_validation_graphiti.py:28]
+- [x] [Review][Patch] **P13 — Moyen : tester la frontière finale avant délégation.** Aucun test pytest trouvé n’exécute `_process_episode_data`. Supprimer sa boucle laisse les tests actuels verts. Vérifier refus avant sauvegarde, labels et attributs délégués, et relecture permissive. Ce filet doit protéger aussi les corrections P4–P7. [backend/app/utils/graph_store/graphiti_store.py:200]
+- [x] [Review][Patch] **P14 — Moyen : tester la transmission d’un projet strict rechargé vers la construction.** Le test e2e utilise la préférence par défaut et son faux store ne mémorise pas strict. Remplacer `strict=project.strict_ontology` par `strict=False` n’est pas détecté. Ajouter une construction d’un projet strict persisté, rechargé, puis une extraction hors ontologie refusée. [backend/app/api/graph.py:985 ; backend/tests/test_graph_builder_e2e.py:286]
+- [x] [Review][Defer] **D1 — Moyen : actualiser les documents de contexte et suivi avant clôture.** L’index du hub, `STATUS.md` et `AGENTS.md` annoncent encore `blocked` et un arbitrage préalable, alors que la story était en `review` et l’ADR 0016 accepté. Les compteurs de tests et l’index ADR sont également antérieurs. Différé conformément au routage du skill pour les fichiers de contexte agent/spec ; aucun ADR accepté ne doit être réécrit. [AGENTS.md ; docs/STATUS.md ; epic-007.md:58]
+
+#### Traçabilité du tri individuel
+
+Chaque constat reçu a été jugé avant regroupement. B = blind-hunter,
+E = edge-case-hunter, V = verification-gap, A = acceptance-auditor.
+Les preuves des constats retenus figurent dans les entrées correspondantes.
+
+| Constat | Verdict | Destination / preuve |
+|---|---|---|
+| B1 politique effective | high | P1 — aucun appel au store dans update |
+| B2 restauration | high | P2 — cache vide et écrivain de simulation neuf |
+| B3 concurrence | high | P3 — course reproduite |
+| B4 plusieurs labels | high | P4 — sauvegarde déléguée sans signal |
+| B5 rétrogradation partielle | high | P5 — label Person conservé |
+| B6 labels Neo4j existants | high | P6 — sauvegarde additive du moteur verrouillé |
+| B7 attributs de typage | high | P7 — attribut inconnu conservé, lecteur le consulte |
+| B8 strict Zep direct | medium | P8 — seule barrière ajoutée dans le builder |
+| B9 ressources GET | medium | P9 — runner démarré, aucun close dans la route |
+| B10 ontologie appliquée | medium | P10 — graph_id enregistré avant application |
+| B11 qualification livrée | high | P11 — sonde prototype, aucune mesure livrée identifiable |
+| E1 politique effective | high | P1 — même défaut que B1 |
+| E2 concurrence | high | P3 — même défaut que B3 |
+| E3 moteur injecté | low | Rejet R1 |
+| E4 élément extrait null | false | Rejet R2 |
+| E5 journal structurellement corrompu | low | Rejet R3 |
+| E6 ordre des offsets | false | Rejet R4 |
+| V1 branchement proxies | medium | P12 — preuves et recherche de tests de la couche |
+| V2 contrôle final | medium | P13 — aucune exécution pytest identifiée |
+| V3 transmission strict | medium | P14 — e2e seulement en politique par défaut |
+| A1 politique effective | high | P1 — AC4–AC5 |
+| A2 restauration | high | P2 — AC4 |
+| A3 plusieurs labels | high | P4 — invariant et AC1–AC2 |
+| A4 rétrogradation | high | P5 — AC1 |
+| A5 concurrence | high | P3 — AC5 |
+| A6 preuve réelle | high | P11 — AC2–AC3/AC9 |
+| A7 strict Zep | medium | P8 — ADR 0016 |
+| A8 suivi contradictoire | medium | D1 — contexte agent/spec, routage différé |
+
+#### Constats rejetés
+
+- **R1 / E3 — low : moteur non validant injecté.** Le chemin de production de la factory construit la sous-classe validante ; l’injection sert aux doublures. Aucun consommateur produit injectant un moteur non validant n’a été identifié. Ajouter une garde compliquerait ces doublures sans défaut courant démontré.
+- **R2 / E4 — false : extracted_entities contenant null.** Le client de production normalise et valide la réponse contre le modèle Pydantic avant le proxy. Cette entrée malformée est filtrée ou remplacée avant le `dict(item)` cité ; la reproduction à partir d’une doublure brute ne démontre pas le défaut annoncé dans le parcours livré.
+- **R3 / E5 — low : journal JSON valide mais structure arbitraire.** L’écrivain produit une liste de records complets par remplacement atomique. Aucun producteur de cette structure invalide n’a été montré ; ajouter une validation défensive pour une altération manuelle dépasse une correction directe du parcours courant.
+- **R4 / E6 — false : ordre avec offsets différents.** Le seul producteur applicatif des warnings utilise `datetime.now(timezone.utc).isoformat()`. Les offsets différents concernent le filtre `since`, déjà normalisé ; aucun journal applicatif à offsets mixtes n’est produit.
+
+#### Traitement des correctifs — 12 octobre 2026
+
+Les **14 patches P1–P14 sont appliqués** après choix 1 de l’utilisateur.
+La relecture indépendante des correctifs a confirmé la couverture P11–P14
+et relevé trois ajustements intégrés : ne pas construire de store pour un
+projet absent ou sans graphe ; invalider le cache Zep lorsque son état durable
+disparaît ; préserver la politique sur une création de graphe échouée.
+
+| Correctifs | Résolution et preuve |
+|---|---|
+| P1–P2 | État réellement appliqué durable, relu par les instances neuves et les écrivains ouverts ; changements de politique dans les deux sens |
+| P3 | Verrou commun au PATCH et au démarrage de construction ; concurrence contrôlée avec événements |
+| P4–P7 | Contrôle final des labels et attributs, rétrogradation complète ; retrait Neo4j dans la transaction de sauvegarde, vérifié sur nœud existant |
+| P8 | Refus strict dans les deux chemins d’écriture Zep, même après recréation du store |
+| P9–P10 | Construction tardive du store, fermeture des ressources possédées, préservation du store emprunté ; GET exige un état appliqué |
+| P11 | Sonde du store livré, 12 cas réels Neo4j conformes ; protocole et mesure versionnés |
+| P12–P14 | Régressions du pipeline réel avec accès externes doublés, frontière finale exercée, projet strict rechargé puis refus avant sauvegarde |
+
+La décision de persistance et de rétrogradation transactionnelle est consignée
+par l’[ADR 0017](../../decisions/0017-politique-ontologique-durable-et-retrogradation-transactionnelle.md).
+D1 a été conservé pendant le traitement des patches, puis résolu le
+**13 octobre 2026**, lors de la préparation de 007-3 et du commit de l’ensemble :
+contexte, hub, compteurs et index ADR synchronisés. Les relectures et les
+contrôles sont consignés ; passage final par `review`, puis clôture `done`.
 
 ## Notes de complétion
 
-Rédaction du ticket terminée ; aucune implémentation de 007-2 effectuée.
-L’étude demandée est terminée : **Graphiti démontré, C2 Zep non démontré**.
-Le prérequis commun reste ouvert et la story passe en `blocked` avant
-implémentation. Aucun critère d’acceptation n’a été affaibli.
-Décision et voies de sortie : ADR 0015 et `faisabilite-007-2.md`.
-Les résultats de C2, les commandes exécutées et les divergences du plan seront
-consignés ici à la clôture, après revue.
+Le parcours livré valide les types avant persistance sur Graphiti, conserve
+un journal durable et expose les routes PATCH/GET de politique et d’audit.
+La politique effectivement appliquée survit aux changements d’instance ; le
+PATCH affecte les écritures suivantes sans retyper les données existantes.
+Zep refuse la garantie stricte non démontrée dans ses écritures directes.
+
+La [qualification rejouable](qualification-007-2.md) produit une
+[mesure du code livré](mesure-007-2.json) : **12 cas conformes, GO C2 Graphiti**,
+avec LLM et vecteurs déterministes, Neo4j et `MENTIONS` réels. Les limites
+sont explicites : aucune qualification distante Zep, aucune relation métier
+générée, et aucune atomicité globale promise pour un lot. La précédente
+sonde de faisabilité reste une preuve de prototype distincte.
+
+Validation finale dans l’image Docker reconstruite : **1428 réussis,
+3 ignorés, aucun échec**, en **317,75 s** (1431 tests collectés). Le filet
+augmente de 34 cas par rapport aux 1397 collectés avant les correctifs :
+33 régressions du pipeline et la compilation de la nouvelle sonde.
+Les 63 tests dédiés et les 4 tests de la sonde d’intégration sont verts.
+`ruff check .` est vert ; `validate_plans.py` valide 9 epics et 37 stories.
+`git diff --check` est propre ; les empreintes de la mesure correspondent
+au code du dépôt. Les trois ignorés restent ceux qui requièrent le CLI
+Docker absent de l’image backend.
+La doublure de panne d’initialisation Neo4j a été précisée pour préserver
+le vrai runner et sa fermeture, sans appel réseau dans pytest. Le cache de
+compilation est dirigé vers `/tmp` pendant la suite avec sources montées en
+lecture seule. Aucun secret n’est ajouté. D1 est résolu le 13 octobre 2026 ; aucun correctif de revue restant.

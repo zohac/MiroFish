@@ -31,3 +31,9 @@ def hermetic_env_defaults(monkeypatch):
         monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
     if not os.environ.get("NEO4J_USER"):
         monkeypatch.setenv("NEO4J_USER", "neo4j")
+
+
+@pytest.fixture(autouse=True)
+def hermetic_ontology_storage(tmp_path, monkeypatch):
+    """Les états durables du store et ses warnings ne traversent jamais les tests."""
+    monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path / "uploads"))

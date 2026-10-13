@@ -17,10 +17,14 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-12
+mis_a_jour: 2026-10-13
+# 13 oct. 2026 : 007-2 close après revue/correctifs et qualification C2 Graphiti ;
+# 007-3 rédigée en backlog. Epic 007 reste in-progress (2/7 stories closes).
 # 12 oct. 2026 : étude DoR 007-2 terminée, NO-GO commun (ADR 0015).
 # Graphiti pré-persistance éprouvé ; garantie distante C2 Zep non démontrée.
-# Epic 007 reste in-progress, aucun critère C2 affaibli.
+# 12 oct. 2026 : ADR 0016 accepté ; C2 recentré sur Graphiti, Zep conserve son
+# parcours historique et une garantie stricte non démontrée est refusée.
+# Epic 007 reste in-progress, aucun critère C2 Graphiti affaibli.
 # 12 oct. 2026 : 007-1 done après relectures ; ticket 007-2 préparé en backlog.
 # Epic 007 reste in-progress ; contrôle avant persistance à démontrer en 007-2.
 # 12 oct. 2026 : epic 007 passe de backlog à in-progress (story 007-1 en cours).

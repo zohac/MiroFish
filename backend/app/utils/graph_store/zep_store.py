@@ -28,6 +28,7 @@ from ..ontology import (
     safe_ontology_attribute_name,
 )
 from .ontology_pydantic import OntologyToPydantic
+from .ontology_state import read_state, write_state, update_policy, delete_state
 from ..zep import (
     call_zep_read_with_retry,
     get_zep_client,
@@ -91,6 +92,7 @@ class ZepGraphStore(GraphStore):
         # ce qu'il a transmis, pour ne pas réappliquer la même ontologie à chaque
         # fragment d'un lot.
         self._applied_ontologies: Dict[str, AppliedOntology] = {}
+        self._durable_ontologies: set[str] = set()
 
     @staticmethod
     def _translate_error(error: Exception, operation_name: str) -> GraphStoreError:
@@ -157,7 +159,6 @@ class ZepGraphStore(GraphStore):
             raise GraphValidationError("graph_id ne peut pas être une chaîne vide")
 
         target_graph_id = graph_id.strip() if graph_id else f"mirofish_{uuid.uuid4().hex[:16]}"
-        self._applied_ontologies.pop(target_graph_id, None)
         with self._translate_errors(f"création du graphe {target_graph_id}"):
             try:
                 self._client.graph.create(
@@ -192,6 +193,9 @@ class ZepGraphStore(GraphStore):
                 if reconciliation_error is not None:
                     raise error from reconciliation_error
 
+            self._applied_ontologies.pop(target_graph_id, None)
+            delete_state(target_graph_id, "zep")
+            self._durable_ontologies.discard(target_graph_id)
             return target_graph_id
 
     def delete_graph(self, graph_id: str) -> None:
@@ -208,6 +212,8 @@ class ZepGraphStore(GraphStore):
         with self._translate_errors(f"suppression du graphe {target_graph_id}"):
             self._client.graph.delete(graph_id=target_graph_id)
         self._applied_ontologies.pop(target_graph_id, None)
+        delete_state(target_graph_id, "zep")
+        self._durable_ontologies.discard(target_graph_id)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         """Retourne la totalité des nœuds, arêtes et statistiques compatibles API/UI."""
@@ -436,6 +442,8 @@ class ZepGraphStore(GraphStore):
                     entities=entity_types,
                     edges=edge_definitions if edge_definitions else None,
                 )
+                write_state(target_graph_id, "zep", ontology, strict)
+                self._durable_ontologies.add(target_graph_id)
                 self._applied_ontologies[target_graph_id] = AppliedOntology(
                     entity_type_names=tuple(entity_type_names),
                     edge_type_names=tuple(edge_type_names),
@@ -459,7 +467,33 @@ class ZepGraphStore(GraphStore):
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        return self._applied_ontologies.get(graph_id.strip())
+        target = graph_id.strip()
+        state = read_state(target, "zep")
+        if state is not None:
+            self._durable_ontologies.add(target)
+            ontology = state["ontology"]
+            self._applied_ontologies[target] = AppliedOntology(
+                tuple(OntologyToPydantic.from_dict(ontology)),
+                tuple(OntologyToPydantic.edge_types_from_dict(ontology)),
+                state["strict"],
+            )
+        elif target in self._durable_ontologies:
+            self._durable_ontologies.discard(target)
+            self._applied_ontologies.pop(target, None)
+        return self._applied_ontologies.get(target)
+
+    def update_ontology_policy(self, graph_id: str, strict: bool) -> None:
+        if strict:
+            raise GraphValidationError("Zep ne garantit pas la validation avant persistance")
+        update_policy(graph_id, "zep", strict)
+        self.get_applied_ontology(graph_id)
+
+    def _require_write_capability(self, graph_id: str) -> None:
+        applied = self.get_applied_ontology(graph_id)
+        if applied is not None and applied.strict:
+            raise GraphValidationError(
+                f"Zep ne garantit pas la validation avant persistance du graphe {graph_id}"
+            )
 
     # --- Ingestion et épisodes ---
 
@@ -487,6 +521,7 @@ class ZepGraphStore(GraphStore):
             raise GraphValidationError("metadata doit être un dictionnaire")
 
         target_graph_id = graph_id.strip()
+        self._require_write_capability(target_graph_id)
         self._apply_ontology_for_episode(target_graph_id, ontology)
 
         with self._translate_errors(f"ajout d'épisode dans le graphe {target_graph_id}"):
@@ -541,7 +576,7 @@ class ZepGraphStore(GraphStore):
             if courante == (entity_type_names, edge_type_names):
                 return
 
-        self.set_ontology(graph_id, ontology)
+        self.set_ontology(graph_id, ontology, strict=appliquee.strict if appliquee else False)
 
     def _find_batch_by_operation_id(
         self,
@@ -652,6 +687,7 @@ class ZepGraphStore(GraphStore):
         # Validation partagée avec Graphiti, avant toute écriture (ADR 0012 §1).
         metadata_entries = validate_chunk_metadata(chunks, chunk_metadata)
 
+        self._require_write_capability(graph_id)
         total_chunks = len(chunks)
         operation_id = self._build_operation_id(graph_id, chunks, metadata_entries)
 

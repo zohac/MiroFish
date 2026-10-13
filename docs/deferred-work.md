@@ -377,3 +377,18 @@ la promesse : le renvoi était juste, c'est la note qui n'existait pas.
   déclencherait : la story 007-4, si la régénération doit s'appliquer à un
   projet dont le graphe a été migré ; l'arbitrage se fera alors sur un cas réel
   plutôt que sur une hypothèse.*
+
+## Deferred from: code review de story-007-2 (2026-10-12)
+
+- **D1 — Actualiser contexte et suivi avant clôture.** `AGENTS.md`,
+  `docs/STATUS.md` et l’index `epic-007.md` conservent le blocage de 007-2
+  malgré le recentrage accepté par l’ADR 0016 et l’implémentation en revue.
+  Le routage du skill diffère les changements de fichiers de contexte agent
+  et de spécification ; synchroniser leur vue après traitement des correctifs,
+  avec les compteurs effectivement vérifiés et l’index ADR à jour.
+  Les ADR acceptés restent immuables. Voir `### Review Findings` de la story.
+
+  **Résolu le 13 octobre 2026** lors de la préparation de 007-3 et du commit
+  de 007-2 : contexte, suivi humain, hub et index ADR synchronisés ; preuve
+  Docker de 1431 collectés / 1428 réussis + 3 ignorés conservée. Les ADR acceptés
+  restent inchangés.

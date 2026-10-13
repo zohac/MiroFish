@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine
 import concurrent.futures
+from contextvars import ContextVar
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ from ...config import Config
 from ..graphiti_embedder import SentenceTransformerEmbedder
 from ..graphiti_llm_client import MiroFishLLMClient
 from ..logger import get_logger
+from .ontology_state import read_state, write_state, update_policy, delete_state
 from .base import (
     AppliedOntology,
     BatchSubmissionRecord,
@@ -36,6 +38,7 @@ from .base import (
     GraphNode,
     GraphSearchResult,
     GraphStore,
+    GraphValidationWarning,
     ProvenanceOrigin,
     ProvenanceRecord,
     validate_chunk_metadata,
@@ -79,6 +82,212 @@ class LocalPassthroughCrossEncoder(CrossEncoderClient):
         return [(p, max(0.0, 1.0 - (i * 0.001))) for i, p in enumerate(passages)]
 
 
+class _ValidatingLLMClient:
+    """Proxy du client LLM utilisé directement par les helpers Graphiti."""
+
+    def __init__(self, client: Any, validator: Callable[..., Dict[str, Any]], group_id: str) -> None:
+        self._client = client
+        self._validator = validator
+        self._group_id = group_id
+
+    async def generate_response(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        response = await self._client.generate_response(*args, **kwargs)
+        response_model = kwargs.get("response_model")
+        if response_model is None and len(args) >= 2:
+            response_model = args[1]
+        return self._validator(response, response_model, self._group_id)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._client, name)
+
+
+class _ValidatingClients:
+    """Vue par requête des clients Graphiti avec contrôle de l'extraction brute."""
+
+    def __init__(self, clients: Any, validator: Callable[..., Dict[str, Any]], group_id: str) -> None:
+        self._clients = clients
+        self._validator = validator
+        self.llm_client = _ValidatingLLMClient(clients.llm_client, validator, group_id)
+
+    async def generate_response(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        response = await self._clients.generate_response(*args, **kwargs)
+        response_model = kwargs.get("response_model")
+        if response_model is None and len(args) >= 2:
+            response_model = args[1]
+        group_id = kwargs.get("group_id")
+        return self._validator(response, response_model, group_id)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._clients, name)
+
+
+class _DowngradingSession:
+    """Retire les anciens labels dans la transaction de sauvegarde du moteur."""
+
+    def __init__(self, session: Any, graph_id: str, node_ids: list[str]) -> None:
+        self._session = session
+        self._graph_id = graph_id
+        self._node_ids = node_ids
+
+    async def execute_write(self, callback: Any, *args: Any, **kwargs: Any):
+        async def write(tx):
+            await tx.run(
+                "MATCH (n:Entity {group_id: $graph_id}) "
+                "WHERE n.uuid IN $node_ids "
+                "REMOVE n:$(labels(n)) SET n:Entity",
+                graph_id=self._graph_id, node_ids=self._node_ids,
+            )
+            return await callback(tx, *args, **kwargs)
+        return await self._session.execute_write(write)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._session, name)
+
+
+class _DowngradingDriver:
+    def __init__(self, driver: Any, graph_id: str, node_ids: list[str]) -> None:
+        self._driver = driver
+        self._graph_id = graph_id
+        self._node_ids = node_ids
+
+    def session(self, *args: Any, **kwargs: Any):
+        return _DowngradingSession(self._driver.session(*args, **kwargs), self._graph_id, self._node_ids)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._driver, name)
+
+
+class _PersistenceClients:
+    def __init__(self, clients: Any, driver: Any) -> None:
+        self._clients = clients
+        self.driver = driver
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._clients, name)
+
+
+class _OntologyValidatingGraphiti(Graphiti):
+    """Graphiti avec frontières de validation avant `add_nodes_and_edges_bulk`."""
+
+    def __init__(
+        self,
+        *,
+        ontology_resolver: Callable[[str], Optional[_OntologyTraduite]],
+        warning_callback: Callable[..., None],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._ontology_resolver = ontology_resolver
+        self._warning_callback = warning_callback
+        self._request_ontology: ContextVar[Optional[_OntologyTraduite]] = ContextVar(
+            "mirofish_request_ontology", default=None
+        )
+
+    async def add_episode(self, *args: Any, **kwargs: Any):
+        request_ontology = kwargs.pop("_mirofish_ontology_validation", None)
+        token = self._request_ontology.set(request_ontology)
+        try:
+            return await super().add_episode(*args, **kwargs)
+        finally:
+            self._request_ontology.reset(token)
+
+    def _resolve_request_scope(self, group_id: Optional[str]):
+        resolved_group, driver, clients = super()._resolve_request_scope(group_id)
+        return resolved_group, driver, _ValidatingClients(clients, self._validate_response, resolved_group)
+
+    def _effective_ontology(self, group_id: str) -> Optional[_OntologyTraduite]:
+        request_ontology = getattr(self, "_request_ontology", None)
+        return (request_ontology.get() if request_ontology is not None else None) or self._ontology_resolver(group_id)
+
+    def _validate_response(
+        self, response: Dict[str, Any], response_model: Any, group_id: Optional[str]
+    ) -> Dict[str, Any]:
+        if response_model is None or getattr(response_model, "__name__", "") != "ExtractedEntities":
+            return response
+        if not group_id:
+            return response
+        applied = self._effective_ontology(group_id)
+        if applied is None or not applied.entity_types:
+            return response
+
+        allowed_count = len(applied.entity_types)
+        extracted = response.get("extracted_entities")
+        if not isinstance(extracted, list):
+            raise GraphValidationError(
+                f"Réponse ExtractedEntities invalide pour le graphe {group_id}"
+            )
+        normalized = dict(response)
+        normalized["extracted_entities"] = [dict(item) for item in extracted]
+        for item in normalized["extracted_entities"]:
+            type_id = item.get("entity_type_id")
+            if isinstance(type_id, bool) or not isinstance(type_id, int):
+                raise GraphValidationError(
+                    f"Type extrait invalide pour le graphe {group_id} : {type_id!r}"
+                )
+            if 1 <= type_id <= allowed_count:
+                continue
+            attempted = "Entity" if type_id == 0 else f"id={type_id}"
+            message = (
+                f"Type extrait hors ontologie pour le graphe {group_id} : {attempted}"
+            )
+            if applied.neutre.strict:
+                raise GraphValidationError(message)
+            self._warning_callback(
+                group_id,
+                attempted,
+                None,
+                "Graphiti.extract_nodes",
+                message,
+                "downgrade",
+            )
+            item["entity_type_id"] = 0
+        return normalized
+
+    async def _process_episode_data(self, *args: Any, **kwargs: Any):
+        bound = inspect.signature(Graphiti._process_episode_data).bind(self, *args, **kwargs)
+        nodes = bound.arguments["nodes"]
+        group_id = bound.arguments["group_id"]
+        applied = self._effective_ontology(group_id)
+        downgraded_ids = []
+        if applied is not None and applied.entity_types:
+            allowed = set(applied.entity_types)
+            technical = {"Entity", "Node"}
+            for node in nodes:
+                custom = list(dict.fromkeys(label for label in node.labels if label not in technical))
+                unknown = [label for label in custom if label not in allowed]
+                contradictory = len(custom) > 1
+                generic = not custom
+                invalid_attribute = generic and any(
+                    node.attributes.get(key) not in (None, "", "Entity", "Node")
+                    for key in ("entity_type", "type", "category")
+                )
+                invalid = unknown or contradictory or invalid_attribute
+                if invalid or (generic and applied.neutre.strict):
+                    attempted = ", ".join(custom) if custom else str(
+                        node.attributes.get("entity_type") or node.attributes.get("type")
+                        or node.attributes.get("category") or "Entity"
+                    )
+                    message = f"Type final hors ontologie ou contradictoire pour le graphe {group_id} : {attempted}"
+                    if applied.neutre.strict:
+                        raise GraphValidationError(message)
+                    self._warning_callback(
+                        group_id, attempted, node.uuid,
+                        "Graphiti._process_episode_data", message, "downgrade",
+                    )
+                if invalid or generic:
+                    node.labels = ["Entity"]
+                    for key in ("entity_type", "type", "category"):
+                        node.attributes.pop(key, None)
+                    downgraded_ids.append(node.uuid)
+        if downgraded_ids:
+            clients = bound.arguments.get("clients") or self.clients
+            bound.arguments["clients"] = _PersistenceClients(
+                clients, _DowngradingDriver(clients.driver, group_id, downgraded_ids)
+            )
+        return await super()._process_episode_data(*bound.args[1:], **bound.kwargs)
+
+
+
 class _AsyncLoopRunner:
     """Runner maintenant un event loop asyncio dédié dans un thread d'arrière-plan pour isoler les drivers asynchrones."""
 
@@ -118,6 +327,8 @@ class _AsyncLoopRunner:
 
 class GraphitiGraphStore(GraphStore):
     """Magasin de graphe de connaissances s'appuyant sur Graphiti et Neo4j en local."""
+
+    supports_pre_persistence_ontology_validation = True
 
     # Clés réservées Neo4j / Graphiti à exclure des dictionnaires attributes (Patch 1)
     _NODE_SYSTEM_KEYS = {
@@ -174,6 +385,8 @@ class GraphitiGraphStore(GraphStore):
             graphiti: Instance personnalisée ou mockée de Graphiti.
         """
         self._async_runner = _AsyncLoopRunner()
+        self._owns_driver = driver is None
+        self._closed = False
 
         # 1. Enforcer l'interdiction de télémétrie posthog (AGENTS.md, config.py)
         if "GRAPHITI_TELEMETRY_ENABLED" not in os.environ:
@@ -229,30 +442,64 @@ class GraphitiGraphStore(GraphStore):
             cross_encoder if cross_encoder is not None else LocalPassthroughCrossEncoder()
         )
 
+        # Ontologies effectivement posées, par `graph_id` (ADR 0014 §2).
+        self._applied_ontologies: Dict[str, _OntologyTraduite] = {}
+        self._ontology_states: Dict[str, Dict[str, Any]] = {}
+
         # 6. Instance Graphiti
         if graphiti is not None:
             self._graphiti = graphiti
         else:
             try:
-                self._graphiti = Graphiti(
-                    graph_driver=self._driver,
-                    llm_client=self._llm_client,
-                    embedder=self._embedder,
-                    cross_encoder=self._cross_encoder,
-                )
+                graphiti_kwargs = {
+                    "graph_driver": self._driver,
+                    "llm_client": self._llm_client,
+                    "embedder": self._embedder,
+                    "cross_encoder": self._cross_encoder,
+                }
+                if isinstance(Graphiti, type):
+                    self._graphiti = _OntologyValidatingGraphiti(
+                        **graphiti_kwargs,
+                        ontology_resolver=lambda graph_id: self._applied_ontologies.get(graph_id),
+                        warning_callback=self._record_warning,
+                    )
+                else:
+                    self._graphiti = Graphiti(**graphiti_kwargs)
             except Exception as exc:
                 raise self._translate_error(exc, "initialisation du moteur Graphiti") from exc
 
-        # 7. Ontologies effectivement posées, par `graph_id` (ADR 0014 §2).
-        # Mémorisées sur l'instance, jamais en variable de module : un store
-        # partagé entre requêtes transporterait l'ontologie d'un projet dans un
-        # autre.
-        self._applied_ontologies: Dict[str, _OntologyTraduite] = {}
+    def _record_warning(
+        self,
+        graph_id: str,
+        attempted_type: str,
+        node_uuid: Optional[str],
+        source_call: str,
+        message: str,
+        policy: str,
+    ) -> None:
+        warning = GraphValidationWarning(
+            graph_id=graph_id,
+            attempted_type=attempted_type,
+            node_uuid=node_uuid,
+            source_call=source_call,
+            message=message,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            policy=policy,
+        )
+        self._record_ontology_warning(warning)
+        logger.warning(message)
 
     def close(self) -> None:
-        """Libère les ressources du runner asynchrone."""
-        if hasattr(self, "_async_runner"):
-            self._async_runner.stop()
+        """Ferme le driver possédé et le runner ; une dépendance injectée reste empruntée."""
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        try:
+            if getattr(self, "_owns_driver", False) and hasattr(self, "_driver"):
+                self._run_async(self._driver.close())
+        finally:
+            if hasattr(self, "_async_runner"):
+                self._async_runner.stop()
 
     def __del__(self) -> None:
         """Nettoyage défensif lors du ramasse-miettes."""
@@ -420,9 +667,11 @@ class GraphitiGraphStore(GraphStore):
             raise GraphValidationError("graph_id ne peut pas être une chaîne vide")
 
         target_graph_id = graph_id.strip() if graph_id else f"mirofish_{uuid.uuid4().hex[:16]}"
-        self._applied_ontologies.pop(target_graph_id, None)
         with self._translate_errors(f"création du graphe {target_graph_id}"):
             self._run_async(self._check_connection())
+            self._applied_ontologies.pop(target_graph_id, None)
+            self._ontology_states.pop(target_graph_id, None)
+            delete_state(target_graph_id, "graphiti")
             return target_graph_id
 
     def delete_graph(self, graph_id: str) -> None:
@@ -447,6 +696,8 @@ class GraphitiGraphStore(GraphStore):
                 )
             )
         self._applied_ontologies.pop(target_graph_id, None)
+        self._ontology_states.pop(target_graph_id, None)
+        delete_state(target_graph_id, "graphiti")
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         """Retourne les nœuds, arêtes et statistiques complètes du graphe pour l'API."""
@@ -506,8 +757,8 @@ class GraphitiGraphStore(GraphStore):
         donc un graphe ne se retrouve jamais avec une ontologie à moitié appliquée
         (ADR 0014).
 
-        `strict` est mémorisé et documenté, pas appliqué : le refus effectif d'un
-        type hors ontologie est l'objet de la story 007-2.
+        La politique est persistée et relue avant chaque écriture ; la frontière
+        de validation est exercée avant toute délégation de sauvegarde (007-2).
         """
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
@@ -525,6 +776,8 @@ class GraphitiGraphStore(GraphStore):
             strict=bool(strict),
         )
 
+        write_state(target_graph_id, "graphiti", ontology, strict)
+        self._ontology_states[target_graph_id] = {"ontology": ontology, "strict": strict}
         self._applied_ontologies[target_graph_id] = _OntologyTraduite(
             entity_types=entity_types, edge_types=edge_types, neutre=neutre
         )
@@ -541,8 +794,29 @@ class GraphitiGraphStore(GraphStore):
         """Ontologie en vigueur sur ce graphe, décrite de façon neutre (ADR 0014 §2)."""
         if not isinstance(graph_id, str) or not graph_id.strip():
             raise GraphValidationError("graph_id est requis")
-        traduite = self._applied_ontologies.get(graph_id.strip())
+        traduite = self._load_applied_ontology(graph_id.strip())
         return traduite.neutre if traduite is not None else None
+
+    def update_ontology_policy(self, graph_id: str, strict: bool) -> None:
+        update_policy(graph_id, "graphiti", strict)
+        self._load_applied_ontology(graph_id.strip())
+
+    def _load_applied_ontology(self, graph_id: str) -> Optional[_OntologyTraduite]:
+        state = read_state(graph_id, "graphiti")
+        if state is not None and state != self._ontology_states.get(graph_id):
+            ontology = state["ontology"]
+            entity_types = OntologyToPydantic.from_dict(ontology)
+            edge_types = OntologyToPydantic.edge_types_from_dict(ontology)
+            self._applied_ontologies[graph_id] = _OntologyTraduite(
+                entity_types=entity_types,
+                edge_types=edge_types,
+                neutre=AppliedOntology(tuple(entity_types), tuple(edge_types), state["strict"]),
+            )
+            self._ontology_states[graph_id] = state
+        elif state is None and graph_id in self._ontology_states:
+            self._ontology_states.pop(graph_id, None)
+            self._applied_ontologies.pop(graph_id, None)
+        return self._applied_ontologies.get(graph_id)
 
     def _resolve_applied_ontology(
         self, graph_id: str, ontology: Optional[Dict[str, Any]]
@@ -559,12 +833,12 @@ class GraphitiGraphStore(GraphStore):
         qu'elle n'est pas changée » (ADR 0014). Sans graphe posé, défaut à
         `False`.
         """
+        appliquee = self._load_applied_ontology(graph_id)
         if ontology is None:
-            return self._applied_ontologies.get(graph_id)
+            return appliquee
 
         entity_types = OntologyToPydantic.from_dict(ontology)
         edge_types = OntologyToPydantic.edge_types_from_dict(ontology)
-        appliquee = self._applied_ontologies.get(graph_id)
         strict = appliquee.neutre.strict if appliquee is not None else False
         return _OntologyTraduite(
             entity_types=entity_types,
@@ -650,6 +924,8 @@ class GraphitiGraphStore(GraphStore):
                 episode_kwargs["entity_types"] = dict(applied.entity_types)
             if applied is not None and applied.edge_types:
                 episode_kwargs["edge_types"] = dict(applied.edge_types)
+            if isinstance(self._graphiti, _OntologyValidatingGraphiti):
+                episode_kwargs["_mirofish_ontology_validation"] = applied
 
             res = self._run_async(self._graphiti.add_episode(**episode_kwargs))
 

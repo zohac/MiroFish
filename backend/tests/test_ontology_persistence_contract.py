@@ -635,21 +635,16 @@ def test_create_graph_avec_id_explicite_purge_l_ontologie_appliquee_graphiti(
     politique posée avant lui (bug de cycle de vie relecturé le 12 octobre
     2026)."""
     from app.utils.graph_store.base import AppliedOntology
-    from app.utils.graph_store.errors import GraphConnectionError
-
-    store_graphiti._check_connection = AsyncMock(
-        side_effect=GraphConnectionError("non testé")
-    )
+    store_graphiti._check_connection = AsyncMock(return_value=None)
 
     store_graphiti._applied_ontologies["g-reuse"] = _FakeTraduite(
         neutre=AppliedOntology(entity_type_names=("Person",), edge_type_names=())
     )
     assert store_graphiti.get_applied_ontology("g-reuse") is not None
 
-    # create_graph lève _après_ la purge si la connexion échoue.
-    with pytest.raises(GraphConnectionError):
-        store_graphiti.create_graph("graphe recyclé", graph_id="g-reuse")
-
+    # La création réussie invalide l'état ancien ; les échecs le préservent
+    # (régressions dans test_ontology_validation_pipeline.py).
+    assert store_graphiti.create_graph("graphe recyclé", graph_id="g-reuse") == "g-reuse"
     assert "g-reuse" not in store_graphiti._applied_ontologies
 
 

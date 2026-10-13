@@ -505,8 +505,36 @@ class AppliedOntology:
         }
 
 
+@dataclass(frozen=True)
+class GraphValidationWarning:
+    """Avertissement durable produit par une validation ontologique permissive."""
+
+    graph_id: str
+    attempted_type: str
+    node_uuid: Optional[str]
+    source_call: str
+    message: str
+    timestamp: str
+    policy: str = "downgrade"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "graph_id": self.graph_id,
+            "attempted_type": self.attempted_type,
+            "node_uuid": self.node_uuid,
+            "source_call": self.source_call,
+            "message": self.message,
+            "timestamp": self.timestamp,
+            "policy": self.policy,
+        }
+
+
 class GraphStore(ABC):
     """Interface unifiée pour le magasin de graphe de connaissances temporel."""
+
+    #: Une implémentation peut annoncer une frontière de validation avant
+    #: persistance seulement si elle l'a démontrée sur son moteur réel.
+    supports_pre_persistence_ontology_validation: bool = False
 
     #: Version du contrat (ADR 0014 §1).
     #:
@@ -632,6 +660,28 @@ class GraphStore(ABC):
             GraphValidationError: `graph_id` vide ou non chaîne.
         """
         return None
+
+    def update_ontology_policy(self, graph_id: str, strict: bool) -> None:
+        """Change la politique durable sans régénérer ni retyper le graphe."""
+        raise GraphValidationError("La mise à jour de politique n'est pas supportée")
+
+    def get_ontology_warnings(
+        self, graph_id: str, since: Optional[str] = None
+    ) -> List[GraphValidationWarning]:
+        """Retourne le journal durable des avertissements du graphe.
+
+        La méthode concrète conserve la compatibilité avec les doublures
+        historiques qui héritent de ``GraphStore`` sans implémenter ce contrat.
+        """
+        from .ontology_warnings import read_ontology_warnings
+
+        return read_ontology_warnings(graph_id, since=since)
+
+    def _record_ontology_warning(self, warning: GraphValidationWarning) -> None:
+        """Persiste un avertissement sans exposer le mécanisme aux services."""
+        from .ontology_warnings import append_ontology_warning
+
+        append_ontology_warning(warning)
 
     @abstractmethod
     def add_episode(

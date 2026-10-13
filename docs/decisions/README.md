@@ -45,9 +45,10 @@ Ce qu'on a écarté, et pourquoi. C'est la section la plus utile six mois plus t
 | [0011](0011-inventaire-driver-et-format-de-story.md) | Relevé réel de la surface `neo4j`, version résolue consignée, marqueur de format de story | accepté — 2026-10-03 |
 | [0012](0012-contrat-de-provenance-graphstore.md) | Contrat de provenance commun aux deux stores : métadonnées alignées, annotation vérifiée, lecture neutre | accepté — 2026-10-11 |
 | [0013](0013-semantique-des-sources.md) | Sémantique des sources : statut de validation, conflits conservés, budget de contexte explicite | accepté — 2026-10-11 |
-
 | [0014](0014-pose-effective-ontology-graphstore.md) | Pose effective des labels d’ontologie, contrat GraphStore version 2 | accepté — 2026-10-12 |
 | [0015](0015-controle-ontologie-avant-persistance.md) | Preuve pré-persistance Graphiti, NO-GO commun tant que C2 Zep n’est pas démontré | accepté — 2026-10-12 |
+| [0016](0016-perimetre-validation-ontologie-graphiti.md) | Garantie pré-persistance limitée à Graphiti ; refus strict Zep non démontré | accepté — 2026-10-12 |
+| [0017](0017-politique-ontologique-durable-et-retrogradation-transactionnelle.md) | Politique durable et retrait des labels dans la transaction de sauvegarde | accepté — 2026-10-12 |
 
 ## Règles
 

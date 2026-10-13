@@ -9,6 +9,7 @@ from .base import (
     GraphNode,
     GraphSearchResult,
     GraphStore,
+    GraphValidationWarning,
     ProvenanceOrigin,
     ProvenanceRecord,
     validate_chunk_metadata,
@@ -55,5 +56,6 @@ __all__ = [
     "OntologyValidationError",
     "OntologyToPydantic",
     "AppliedOntology",
+    "GraphValidationWarning",
 ]
 

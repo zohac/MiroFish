@@ -51,6 +51,7 @@ class Project:
     simulation_requirement: Optional[str] = None
     chunk_size: int = 500
     chunk_overlap: int = 50
+    strict_ontology: bool = False
     
     # 错误信息
     error: Optional[str] = None
@@ -86,6 +87,7 @@ class Project:
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
+            "strict_ontology": self.strict_ontology,
             "error": self.error,
             "source_documents": self.source_documents,
             "simulation_brief": self.simulation_brief,
@@ -117,6 +119,11 @@ class Project:
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
+            strict_ontology=(
+                data.get('strict_ontology', False)
+                if type(data.get('strict_ontology', False)) is bool
+                else False
+            ),
             error=data.get('error'),
             source_documents=data.get('source_documents', []),
             simulation_brief=data.get('simulation_brief'),

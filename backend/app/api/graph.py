@@ -39,11 +39,10 @@ from ..services.simulation_manager import SimulationManager
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
 from ..utils.llm_client import LLMResponseError
+from ..utils.project_locks import project_lock
 
 # 获取日志器
 logger = get_logger('mirofish.api')
-_build_locks: dict[str, threading.Lock] = {}
-_build_locks_guard = threading.Lock()
 
 
 class GraphInUseError(RuntimeError):
@@ -116,8 +115,7 @@ def _clear_project_graph_reference(project) -> None:
 
 
 def _project_build_lock(project_id: str) -> threading.Lock:
-    with _build_locks_guard:
-        return _build_locks.setdefault(project_id, threading.Lock())
+    return project_lock(project_id)
 
 
 def _project_has_active_build(project) -> bool:
@@ -982,7 +980,11 @@ def _build_graph_impl():
                         message=t('progress.settingOntology'),
                         progress=15
                     )
-                    builder.set_ontology(graph_id, ontology)
+                    builder.set_ontology(
+                        graph_id,
+                        ontology,
+                        strict=project.strict_ontology,
+                    )
 
                     # 添加文本（progress_callback 签名是 (msg, progress_ratio)）
                     def add_progress_callback(msg, progress_ratio):

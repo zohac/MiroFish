@@ -140,23 +140,18 @@ démontré réalisable avec le contrat public inspecté**.
 
 ## Décision et effet sur la story
 
-**L’étude demandée est terminée ; le DoR commun n’est pas satisfait.** La story
-est `blocked` par la capacité distante non démontrée, avant implémentation.
-C2 et AC1–AC3 sont conservés ; aucun affaiblissement du contrat n’est adopté.
-L’ADR 0015 consigne ce NO-GO et les points démontrés.
+**L’étude demandée est terminée.** Le DoR commun n’était pas satisfaisable sur
+les deux moteurs, car la capacité distante Zep n’est pas démontrée. L’ADR 0016
+acte donc le recentrage : C2 et la garantie de refus avant persistance portent
+sur Graphiti ; le chemin Zep reste historique et refuse explicitement toute
+construction qui demanderait cette garantie stricte. Aucun filtrage après
+écriture n’est utilisé comme preuve.
 
-Deux sorties sont identifiées, à arbitrer avant de reprendre :
-
-1. restreindre explicitement C2 à Graphiti, avec refus préalable des écritures
-   ontologiques Zep qui demandent cette garantie ; conserver le chemin Zep
-   historique sans ontologie. Ce serait une modification de périmètre à
-   reporter dans PRD, architecture et story ;
-2. conserver C2 sur les deux moteurs et obtenir une API Zep de préparation /
-   validation avant commit, ou concevoir une extraction applicative contrôlée
-   et une ingestion structurée. C’est une nouvelle architecture, à éprouver.
-
-Un appel cloud supplémentaire peut préciser le filtrage natif, mais un test
-heureux ne crée pas le contrat de diagnostic par candidat qui manque.
+La story peut reprendre sur ce périmètre : validation Graphiti avant
+persistance, politique projet, journal durable des rétrogradations et routes
+d’audit. Une future extension Zep devra apporter son propre contrat de
+préparation/validation avant commit et un nouvel ADR ; elle ne fait pas partie
+de 007-2.
 
 
 ## Contrôles de clôture de l’étude
