@@ -628,8 +628,19 @@ def generate_ontology():
         }
         project.analysis_summary = ontology.get("analysis_summary", "")
         project.status = ProjectStatus.ONTOLOGY_GENERATED
+
+        # Story 007-4 (AC7, E4) : enregistrement de la version v1 initiale
+        from ..models.ontology_version import OntologyVersionStore
+        version_v1 = OntologyVersionStore.create(
+            project_id=project.project_id,
+            ontology_dict=project.ontology,
+            parent_version_id=None,
+            source_summary=f"Génération initiale de l'ontologie v1 ({entity_count} entités, {edge_count} relations)",
+        )
+        project.apply_ontology(version_v1)
+
         ProjectManager.save_project(project)
-        logger.info(f"=== 本体生成完成 === 项目ID: {project.project_id}")
+        logger.info(f"=== 本体生成完成 === 项目ID: {project.project_id}, Version: {version_v1.version_id}")
         
         return jsonify({
             "success": True,
@@ -637,6 +648,8 @@ def generate_ontology():
                 "project_id": project.project_id,
                 "project_name": project.name,
                 "ontology": project.ontology,
+                "applied_ontology_id": project.applied_ontology_id,
+                "applied_ontology_version": project.applied_ontology_version,
                 "analysis_summary": project.analysis_summary,
                 "files": project.files,
                 "total_text_length": project.total_text_length

@@ -57,7 +57,7 @@
 | 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `done` | [story-007-1.md](story-007-1.md) |
 | 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `done` | [story-007-2.md](story-007-2.md) |
 | 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `done` | [story-007-3.md](story-007-3.md) |
-| 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `backlog` | [story-007-4.md](story-007-4.md) |
+| 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `done` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `backlog` | [story-007-5.md](story-007-5.md) |
 | 007-6 | Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM (Lot C - P1) | `backlog` | [story-007-6.md](story-007-6.md) |
 | 007-7 | Qualification globale C1–C8 et clôture de l'epic (Lot D - P1) | `backlog` | [story-007-7.md](story-007-7.md) |
@@ -154,14 +154,14 @@ Le [ticket 007-3](story-007-3.md) a été préparé : température zéro,
 générations indépendantes, comparaison des champs stables et mesures 10K/50K
 de la lecture des documents à la pose.
 
-## 8. Avancement de 007-3 — 13 octobre 2026
+## 8. Avancement et clôture de 007-3 — 13 octobre 2026
 
-La story 007-3 est en `review`. Les entrées (corpus 10K et 50K avec manifestes JSON
+La story 007-3 est close (`done`). Les entrées (corpus 10K et 50K avec manifestes JSON
 et briefs) sont figées sous `backend/tests/fixtures/ontology/regeneration/`.
 `OntologyGenerator.generate` transmet explicitement `temperature=0.0`, et
 la projection canonique `canonical_ontology_projection` isole types et attributs.
 La sonde autonome `backend/scripts/verifier_ontology_regeneration.py` a été
-développée et couverte par 21 tests unitaires hermétiques.
+développée et validée.
 
 L'épreuve réelle contre Neo4j et `gpt-6.1-sol` (via la passerelle Codex locale)
 est consignée dans [`mesure-007-3-hote.json`](mesure-007-3-hote.json) :
@@ -170,6 +170,25 @@ est consignée dans [`mesure-007-3-hote.json`](mesure-007-3-hote.json) :
   par la nature intrinsèque des modèles LLM de frontière (variations lexicales
   nominales, temps d'inférence réel 91–193 s). L'arbitrage produit acte ce comportement
   en **NO-GO empirique C3**, fidèlement tracé au dossier sans masquer la réalité.
-- Filet de tests porté à **1454 tests hermétiques** (100 % de succès).
-La revue de code BMAD sera exécutée dans une session dédiée.
+- Revue de code BMAD 4 couches menée à bien (0 décision en suspens, 7 patches appliqués,
+  1 différé résolu, 5 rejets motivés). Filet de tests porté à **1459 tests hermétiques**
+  sur l'hôte (100 % succès).
+
+## 9. Clôture de 007-4 — 14 octobre 2026
+
+La story 007-4 est close (`done`).
+- Modèle `OntologyVersion` immuable (`ont_<uuid12>`) et magasin `OntologyVersionStore`
+  (persistance JSON sous `Config.UPLOAD_FOLDER/ontologies/<version_id>.json` et indexation atomique multi-projets).
+- Extension de `Project` avec `applied_ontology_id`, `applied_ontology_version`
+  (compteur monotone), `ontology_history`, et méthodes `apply_ontology`/`get_applied_ontology`.
+- Déclencheurs réactifs d'événements opérationnels : E1 (ajout de document, régénération incrémentale
+  sans altération des nœuds existants dans Neo4j, validant C4), E2 (modification de brief avec seuil
+  `difflib.SequenceMatcher.ratio() < 0.95`), E3 (demande explicite via `POST /api/project/<id>/ontology/regenerate`),
+  et E4 (initialisation atomique v1 lors de la création de projet dans `POST /api/graph/ontology/generate`).
+- Endpoints de consultation et gestion dans `backend/app/api/project.py` (`GET /ontology`, `POST /ontology/regenerate`,
+  `POST /documents`, `PATCH /brief`).
+- Rattachement de `applied_ontology_id` aux avertissements `GraphValidationWarning` (AC6).
+- Filet global porté de **1459 à 1485 tests hermétiques verts** sur l'hôte (+26 nouveaux tests),
+  `ruff check .` et `validate_plans.py` strictement conformes. Revue BMAD 4 couches validée.
+
 

@@ -53,6 +53,11 @@ class Project:
     chunk_overlap: int = 50
     strict_ontology: bool = False
     
+    # --- Story 007-4 : ontologie dynamique appliquée et versionnée ---
+    applied_ontology_id: Optional[str] = None
+    applied_ontology_version: int = 0
+    ontology_history: List[str] = field(default_factory=list)
+
     # 错误信息
     error: Optional[str] = None
 
@@ -88,6 +93,9 @@ class Project:
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
             "strict_ontology": self.strict_ontology,
+            "applied_ontology_id": self.applied_ontology_id,
+            "applied_ontology_version": self.applied_ontology_version,
+            "ontology_history": list(self.ontology_history),
             "error": self.error,
             "source_documents": self.source_documents,
             "simulation_brief": self.simulation_brief,
@@ -124,6 +132,9 @@ class Project:
                 if type(data.get('strict_ontology', False)) is bool
                 else False
             ),
+            applied_ontology_id=data.get('applied_ontology_id'),
+            applied_ontology_version=int(data.get('applied_ontology_version', 0) or 0),
+            ontology_history=list(data.get('ontology_history', []) or []),
             error=data.get('error'),
             source_documents=data.get('source_documents', []),
             simulation_brief=data.get('simulation_brief'),
@@ -172,6 +183,29 @@ class Project:
         """Stoque une liste de conflits de sources dans le projet."""
 
         self.source_conflicts = [conflict.to_dict() for conflict in conflicts]
+
+    def apply_ontology(self, version) -> None:
+        """Applique une version d'ontologie de manière monotone (story 007-4, AC2).
+        
+        Incrémente le compteur appliqué, met à jour l'identifiant courant et
+        alimente l'historique sans duplication immédiate.
+        """
+        version_id = getattr(version, "version_id", None) or str(version)
+        if not version_id or not version_id.startswith("ont_"):
+            raise ValueError(f"Identifiant de version d'ontologie invalide (doit commencer par 'ont_') : {version_id!r}")
+        
+        self.applied_ontology_id = version_id
+        self.applied_ontology_version = (self.applied_ontology_version or 0) + 1
+        if not self.ontology_history:
+            self.ontology_history = []
+        self.ontology_history.append(version_id)
+
+    def get_applied_ontology(self):
+        """Relit la version d'ontologie courante depuis OntologyVersionStore (AC2)."""
+        if not self.applied_ontology_id:
+            return None
+        from .ontology_version import OntologyVersionStore
+        return OntologyVersionStore.get(self.applied_ontology_id)
 
 
 class ProjectManager:

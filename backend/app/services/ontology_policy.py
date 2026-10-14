@@ -57,7 +57,26 @@ class OntologyPolicyService:
         try:
             if store.get_applied_ontology(project.graph_id) is None:
                 raise GraphNotFoundError(f"Aucune ontologie appliquée au projet : {project_id}")
-            return store.get_ontology_warnings(project.graph_id, since=since)
+            raw_warnings = store.get_ontology_warnings(project.graph_id, since=since)
+            # AC6 : Rattachement de applied_ontology_id aux warnings
+            enriched: list[GraphValidationWarning] = []
+            for w in raw_warnings:
+                if w.applied_ontology_id:
+                    enriched.append(w)
+                else:
+                    enriched.append(
+                        GraphValidationWarning(
+                            graph_id=w.graph_id,
+                            attempted_type=w.attempted_type,
+                            node_uuid=w.node_uuid,
+                            source_call=w.source_call,
+                            message=w.message,
+                            timestamp=w.timestamp,
+                            policy=w.policy,
+                            applied_ontology_id=project.applied_ontology_id,
+                        )
+                    )
+            return enriched
         finally:
             if owned:
                 release_graph_store(store)

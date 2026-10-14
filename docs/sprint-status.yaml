@@ -17,7 +17,16 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-13
+mis_a_jour: 2026-10-14
+# 14 oct. 2026 : story 007-4 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches. Modèle OntologyVersion (ont_<uuid12>), magasin atomique
+# OntologyVersionStore (JSON sous uploads/ontologies/<id>.json), extension de Project
+# (applied_ontology_id, applied_ontology_version, ontology_history), gestion réactive
+# des événements E1 (ajout doc, préservation des labels existants C4), E2 (diff brief < 0.95),
+# E3 (demande explicite API /regenerate), E4 (initialisation atomique v1 lors de la création
+# de projet). Rattachement de la version active aux GraphValidationWarning (AC6).
+# 26 nouveaux tests hermétiques ajoutés, filet global porté à 1485 tests passants sur l'hôte.
+# Epic 007 in-progress (4/7 closes : 007-1, 007-2, 007-3, 007-4 done).
 # 13 oct. 2026 : story 007-3 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches. 0 décision en suspens, 7 patches appliqués (P1 à P7 :
 # détection doublons asymétriques, robustesse NoneType et attributs chaînes,
@@ -476,6 +485,16 @@ epics:
     # Revue contradictoire BMAD 4 couches validée : 7 patches appliqués (P1 à P7,
     # dont 5 tests unitaires hermétiques supplémentaires), 1 différé, 5 rejets motivés.
     # Filet global porté à 1459 tests passants sur l'hôte (+5 tests). Story 007-3 close (done).
+    # Story 007-4 (done au 14 oct. 2026) : Modèle OntologyVersion (ont_<uuid12>),
+    # magasin OntologyVersionStore atomique (JSON sous uploads/ontologies/<id>.json),
+    # extension Project (applied_ontology_id, applied_ontology_version, ontology_history,
+    # apply_ontology/get_applied_ontology). Déclencheurs réactifs d'événements E1
+    # (ajout de document, non-régression labels C4), E2 (diff brief substantiel
+    # difflib.SequenceMatcher.ratio() < 0.95), E3 (demande explicite API /regenerate),
+    # E4 (initialisation v1 atomique à la création de projet). Endpoints Flask dans
+    # app/api/project.py et enrichissement des GraphValidationWarning (AC6).
+    # Filet global porté à 1485 tests passants sur l'hôte (+26 tests hermétiques).
+    # Revue contradictoire BMAD 4 couches validée. Story 007-4 close (done).
 
   - id: "008"
     slug: support-langue-francaise

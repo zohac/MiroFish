@@ -27,7 +27,7 @@ reproductible.**
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
-| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, stories 007-1, 007-2 et 007-3 closes (`done`), 1459 tests verts sur l'hôte, NO-GO empirique C3 consigné |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, stories 007-1, 007-2, 007-3 et 007-4 closes (`done`), 1485 tests verts sur l'hôte, NO-GO empirique C3 consigné |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -104,7 +104,13 @@ L'épreuve réelle contre Neo4j et `gpt-6.1-sol` valide la pose (< 10 ms), mais
 le non-déterminisme nominal et le délai d'inférence (91–193 s) inhérents au LLM
 sont actés en NO-GO empirique C3 dans [`mesure-007-3-hote.json`](docs/plans/007-ontologie-dynamique/mesure-007-3-hote.json).
 Revue contradictoire BMAD 4 couches validée (7 patches appliqués, 1 différé, 5 rejets).
-Epic 007 : 3/7 closes, **1459 tests verts sur l'hôte**.
+**007-4 est close (`done`)** : modèle `OntologyVersion` immuable (`ont_<uuid12>`), magasin atomique `OntologyVersionStore`,
+extension monotone du `Project` (`applied_ontology_id`, `applied_ontology_version`, `ontology_history`),
+et câblage réactif des événements : E1 (ajout de document, préservation des labels existants C4),
+E2 (diff brief substantiel `difflib.SequenceMatcher.ratio() < 0.95`), E3 (demande explicite API `POST /api/project/<id>/ontology/regenerate`),
+et E4 (initialisation atomique v1 lors de la création de projet). Endpoints d'API dans `backend/app/api/project.py`
+et rattachement de la version aux avertissements `GraphValidationWarning` (AC6). Revue contradictoire BMAD 4 couches validée.
+Epic 007 : 4/7 closes, **1485 tests verts sur l'hôte**.
 
 ---
 
@@ -132,13 +138,14 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-13 octobre 2026 compte **1459 tests collectés et réussis sur l'hôte ; 1456 réussis + 3 ignorés sous
+14 octobre 2026 compte **1485 tests collectés et réussis sur l'hôte ; 1482 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1367** (1157 + 210 tests hermétiques, relectures comprises) ; post-007-2 :
 **1431** (1367 + 64 cas, dont les régressions de revue) ; post-007-3 :
-**1459** (1431 + 23 tests de sonde hermétiques + 5 tests BMAD) ; [mesure réelle](docs/plans/007-ontologie-dynamique/mesure-007-3-hote.json).
+**1459** (1431 + 23 tests de sonde hermétiques + 5 tests BMAD) ; post-007-4 :
+**1485** (1459 + 26 tests hermétiques, événements E1-E4 et magasin versionné compris).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais

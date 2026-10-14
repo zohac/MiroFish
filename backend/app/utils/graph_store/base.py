@@ -516,6 +516,7 @@ class GraphValidationWarning:
     message: str
     timestamp: str
     policy: str = "downgrade"
+    applied_ontology_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -526,6 +527,7 @@ class GraphValidationWarning:
             "message": self.message,
             "timestamp": self.timestamp,
             "policy": self.policy,
+            "applied_ontology_id": self.applied_ontology_id,
         }
 
 
