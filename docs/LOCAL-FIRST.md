@@ -145,6 +145,96 @@ cessé d'être testée.
 
 ---
 
+## 2.bis LLM via passerelle locale Codex (`gpt-6.1-sol`)
+
+Pour exécuter MiroFish avec des modèles de pointe (ex. `gpt-6.1-sol`, `gpt-6-astra`)
+via un abonnement local sans API payante cloud :
+
+### 1. Démarrage de la passerelle Codex
+
+Sur la machine hôte :
+
+```bash
+uvx openai-api-server-via-codex \
+  -drop-params "temperature,top_p,presence_penalty,frequency_penalty,response_format" \
+  -port 18080 \
+  -verbose
+```
+
+*Important* : Le flag `-drop-params` est indispensable pour écarter les paramètres stricts non supportés par le backend Codex amont (qui lèverait des erreurs HTTP 400).
+
+### 2. Configuration `.env`
+
+```env
+LLM_API_KEY=codex-local
+# Dans la stack Docker (docker-compose) :
+LLM_BASE_URL=http://host.docker.internal:18080/v1
+# Hors Docker (scripts locaux hôte) :
+# LLM_BASE_URL=http://127.0.0.1:18080/v1
+LLM_MODEL_NAME=gpt-6.1-sol
+LLM_REASONING_EFFORT=low
+```
+
+### 3. Santé et test direct
+
+```bash
+curl -s http://127.0.0.1:18080/v1/models
+curl -s http://127.0.0.1:18080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-6.1-sol", "messages": [{"role": "user", "content": "PONG"}]}'
+```
+
+---
+
+## 2.ter LLM via passerelle locale Antigravity (`gemini-3-pro`, `claude-sonnet-4.6`, etc.)
+
+Pour exploiter les modèles de l'écosystème Google Antigravity sans clé payante,
+un script serveur proxy autonome est disponible : `backend/scripts/antigravity_proxy.py`.
+
+### 1. Démarrage de la passerelle
+
+```bash
+python backend/scripts/antigravity_proxy.py --host 0.0.0.0 --port 18081
+```
+
+*Note : Le script extrait automatiquement la session OAuth active depuis la base SQLite locale de l'IDE Antigravity (`~/Library/Application Support/Antigravity IDE/User/globalStorage/state.vscdb`) et gère le renouvellement continu du jeton sans nécessiter d'intervention interactive dans le navigateur.*
+
+Pour forcer un flux web alternatif en cas de besoin :
+```bash
+python backend/scripts/antigravity_proxy.py --host 0.0.0.0 --port 18081 --auth
+```
+
+### 2. Configuration `.env`
+
+```env
+LLM_API_KEY=antigravity-local
+# Dans la stack Docker :
+LLM_BASE_URL=http://host.docker.internal:18081/v1
+# Hors Docker (scripts locaux hôte) :
+# LLM_BASE_URL=http://127.0.0.1:18081/v1
+LLM_MODEL_NAME=gemini-3.8-flash
+LLM_REASONING_EFFORT=high
+```
+
+Modèles de l'IDE disponibles :
+- `gemini-3.8-flash` (défaut, reasoning High)
+- `claude-opus-5.5` (reasoning Medium)
+- `claude-sonnet-5.5` (reasoning Medium)
+- `gpt-oss-120b` (reasoning Medium)
+- *(et modèles antérieurs : `gemini-3-pro`, `gemini-2.5-pro`, `claude-sonnet-4.6`, etc.)*
+
+### 3. Santé et test direct
+
+```bash
+curl -s http://127.0.0.1:18081/health
+curl -s http://127.0.0.1:18081/v1/models
+curl -s http://127.0.0.1:18081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gemini-3.8-flash", "messages": [{"role": "user", "content": "PONG"}]}'
+```
+
+---
+
 ## 3. À quoi sert Zep
 
 **Zep est le graphe de connaissances temporel du monde simulé** — l'état

@@ -659,3 +659,21 @@ epics:
       - "C5 : 0 échec sous Docker sans .env ni réseau ; filet de référence 771 collectés, résultats et skips consignés"
       - "C6 : 2 routes POST, 1 parcours de révision, 1 parcours simple et 1 blocage volontaire ; diagnostics visibles, arbitrages durables et sélections fraîches"
       - "C7 : 5 origines et 1 contradiction avec ses sources ; références résolues, 0 citation inventée ni action observée sans trace du run"
+
+  - id: "010"
+    slug: fiabilisation-cycle-simulation
+    titre: "Fiabilisation du cycle de vie et de la complétion des simulations"
+    statut: backlog
+    plan: docs/plans/010-fiabilisation-cycle-simulation
+    depend_de: ["005", "007", "009"]
+    pourquoi: >-
+      Résoudre les blocages en fin de simulation (deadlock lié au mode veille
+      IPC sans --no-wait, cache mémoire Flask désynchronisé du disque, détection
+      de fin dans l'IHM Vue 3 et sécurisation thread-safe de SentenceTransformers
+      lors de la vidange mémoire du graphe).
+    criteres_de_sortie:
+      - "C1 : 100 % des simulations terminent automatiquement au statut COMPLETED en moins de 5s sans appel manuel à /stop"
+      - "C2 : Bouton 'Générer le rapport' de l'IHM débloqué dès que progress_percent === 100 ou que les plateformes ont fini"
+      - "C3 : Réconciliation immédiate si un processus n'est plus actif dans l'OS (fin des statuts running/stopping fantômes)"
+      - "C4 : 0 exception PyTorch 'Cannot copy out of meta tensor' sur appels concurrents et drain tolérant aux fautes"
+      - "C5 : 1550+ tests au vert avec suite hermétique dédiée à l'Epic 010"

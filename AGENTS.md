@@ -28,6 +28,7 @@ reproductible.**
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
 | Ontologie dynamique (v2) | ✅ fait — Epic 007 clos (1550 tests verts, Verdict GO, NO-GO empirique C3 consigné) |
+| Fiabilisation du cycle de vie et complétion des simulations | 📋 planifié — Epic 010 (Backlog, dossier de plan complet) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -340,6 +341,88 @@ Règles d'or de l'environnement de référence :
   les fichiers du dépôt.
 - Les ports sont exposés **explicitement** dans le compose. Sur cette machine,
   3000 et 3001 sont déjà pris par les conteneurs d'un autre projet.
+
+### 2.9.1 Lancer MiroFish avec la passerelle Codex locale (modèles avancés)
+
+Pour utiliser un modèle de frontière via Codex (ex. `gpt-6.1-sol`) dans MiroFish :
+
+1. **Configuration `.env`** (à la racine) :
+   ```env
+   LLM_API_KEY=codex-local
+   # Pour exécution dans la stack Docker de référence (recommandé) :
+   LLM_BASE_URL=http://host.docker.internal:18080/v1
+   # Pour exécution locale directe sur l'hôte (scripts CLI / tests réels) :
+   # LLM_BASE_URL=http://127.0.0.1:18080/v1
+   LLM_MODEL_NAME=gpt-6.1-sol
+   LLM_REASONING_EFFORT=low
+   ```
+2. **Démarrage de la passerelle Codex locale** (sur la machine hôte) :
+   ```bash
+   uvx openai-api-server-via-codex \
+     -drop-params "temperature,top_p,presence_penalty,frequency_penalty,response_format" \
+     -port 18080 \
+     -verbose
+   ```
+   *Note : Le flag `-drop-params` est requis pour filtrer les paramètres non supportés par l'API backend Codex amont (rejet HTTP 400).*
+
+3. **Vérification de santé** :
+   ```bash
+   # Lister les modèles disponibles
+   curl -s http://127.0.0.1:18080/v1/models
+   # Test d'inférence direct
+   curl -s http://127.0.0.1:18080/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -d '{"model": "gpt-6.1-sol", "messages": [{"role": "user", "content": "PONG"}]}'
+   ```
+
+4. **Exécution de MiroFish** :
+   - **Mode Docker de référence** (recommandé) :
+     ```bash
+     docker compose up -d
+     ```
+     Interface Web accessible sur `http://localhost:3000`.
+   - **Mode Hôte** (scripts locaux, bancs réels) :
+     Veiller à ce que `LLM_BASE_URL` pointe sur `http://127.0.0.1:18080/v1`.
+
+### 2.9.2 Lancer MiroFish avec la passerelle Antigravity locale (Gemini & Claude)
+
+Une passerelle autonome Python (`backend/scripts/antigravity_proxy.py`) permet
+d'utiliser les modèles de l'IDE Antigravity (`gemini-3.8-flash`, `claude-opus-5.5`,
+`claude-sonnet-5.5`, `gpt-oss-120b`, etc.) au format compatible OpenAI via les
+quotas de l'IDE sans clé payante :
+
+1. **Démarrage de la passerelle Antigravity locale** (sur la machine hôte) :
+   ```bash
+   python backend/scripts/antigravity_proxy.py --host 0.0.0.0 --port 18081
+   ```
+   *Note : Le script extrait automatiquement la session OAuth active depuis la base SQLite locale de l'IDE Antigravity (`~/Library/Application Support/Antigravity IDE/User/globalStorage/state.vscdb`) et assure le renouvellement transparent du jeton d'accès sans aucune intervention manuelle.*
+
+2. **Configuration `.env`** (à la racine) :
+   ```env
+   LLM_API_KEY=antigravity-local
+   # Dans la stack Docker :
+   LLM_BASE_URL=http://host.docker.internal:18081/v1
+   # Hors Docker (scripts hôte) :
+   # LLM_BASE_URL=http://127.0.0.1:18081/v1
+   LLM_MODEL_NAME=gemini-3.8-flash
+   LLM_REASONING_EFFORT=high
+   ```
+
+   *Modèles de l'IDE disponibles* :
+   - `gemini-3.8-flash` (défaut, reasoning High)
+   - `claude-opus-5.5` (reasoning Medium)
+   - `claude-sonnet-5.5` (reasoning Medium)
+   - `gpt-oss-120b` (reasoning Medium)
+   - *(rétrocompatibilité : `gemini-3-pro`, `gemini-2.5-pro`, `claude-sonnet-4.6`, etc.)*
+
+3. **Vérification de santé** :
+   ```bash
+   curl -s http://127.0.0.1:18081/health
+   curl -s http://127.0.0.1:18081/v1/models
+   curl -s http://127.0.0.1:18081/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -d '{"model": "gemini-3.8-flash", "messages": [{"role": "user", "content": "PONG"}]}'
+   ```
 
 ### 2.10 Langue
 

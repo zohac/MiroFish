@@ -90,7 +90,7 @@ Dossier de plan complet : [`docs/plans/007-ontologie-dynamique/`](plans/007-onto
 
 Chantiers à venir :
 - **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
-- **Epic 010** : Documentation et alignement amont — publication du bilan local-first et documentation d'intégration.
+- **Epic 010** : Fiabilisation du cycle de vie et de la complétion des simulations — arrêt déterministe `--no-wait`, détection active de fin, réconciliation OS/cache et sécurisation thread-safe des embeddings.
 
 ### Bilan consolidé de l'Epic 006 — Migration des données Zep (Clos — 800 tests verts)
 
