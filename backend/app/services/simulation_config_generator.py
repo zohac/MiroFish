@@ -181,6 +181,9 @@ class SimulationParameters:
     # ni sur quels excerpts il a été produit (AC6, AC7).
     simulation_brief: Optional[Dict[str, Any]] = None
     context_budgets: List[Dict[str, Any]] = field(default_factory=list)
+
+    # Story 007-5 : référence immuable à l'ontologie projet appliquée (AC1, C5).
+    applied_ontology_id: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -201,6 +204,7 @@ class SimulationParameters:
             "generation_reasoning": self.generation_reasoning,
             "simulation_brief": self.simulation_brief,
             "context_budgets": list(self.context_budgets),
+            "applied_ontology_id": self.applied_ontology_id,
         }
     
     def to_json(self, indent: int = 2) -> str:
@@ -319,6 +323,7 @@ class SimulationConfigGenerator:
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         simulation_brief: Optional[SimulationBrief] = None,
         document_sections: Optional[List[Dict[str, Any]]] = None,
+        applied_ontology_id: Optional[str] = None,
     ) -> SimulationParameters:
         """
         智能生成完整的模拟配置（分步生成）
@@ -446,6 +451,7 @@ class SimulationConfigGenerator:
                 simulation_brief.to_dict() if simulation_brief is not None else None
             ),
             context_budgets=[budget.to_dict() for budget in self.context_budgets],
+            applied_ontology_id=applied_ontology_id,
         )
         
         logger.info(f"模拟配置生成完成: {len(params.agent_configs)} 个Agent配置")

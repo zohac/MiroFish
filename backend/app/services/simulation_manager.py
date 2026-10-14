@@ -166,6 +166,9 @@ class SimulationState:
     ineligible_count: int = 0
     policy_version: str = ""
     qualified_actor_uuids: List[str] = field(default_factory=list)
+
+    # Référence ontologique appliquée du projet (Story 007-5, AC1, C5)
+    applied_ontology_id: Optional[str] = None
     
     # 配置生成信息
     profiles_generated: bool = False
@@ -201,6 +204,7 @@ class SimulationState:
             "ineligible_count": self.ineligible_count,
             "policy_version": self.policy_version,
             "qualified_actor_uuids": self.qualified_actor_uuids,
+            "applied_ontology_id": self.applied_ontology_id,
             "profiles_generated": self.profiles_generated,
             "config_generated": self.config_generated,
             "config_reasoning": self.config_reasoning,
@@ -235,6 +239,7 @@ class SimulationState:
             "review_count": self.review_count,
             "ineligible_count": self.ineligible_count,
             "policy_version": self.policy_version,
+            "applied_ontology_id": self.applied_ontology_id,
             "profiles_generated": self.profiles_generated,
             "config_generated": self.config_generated,
             "error": self.error,
@@ -312,6 +317,7 @@ class SimulationManager:
             ineligible_count=data.get("ineligible_count", 0),
             policy_version=data.get("policy_version", ""),
             qualified_actor_uuids=data.get("qualified_actor_uuids", []),
+            applied_ontology_id=data.get("applied_ontology_id"),
             profiles_generated=data.get("profiles_generated", False),
             config_generated=data.get("config_generated", False),
             config_reasoning=data.get("config_reasoning", ""),
@@ -554,19 +560,22 @@ class SimulationManager:
         if not state:
             raise ValueError(f"模拟不存在: {simulation_id}")
 
-        if simulation_brief is None:
-            project = ProjectManager.get_project(state.project_id)
-            if project:
-                simulation_brief = project.get_brief()
+        project = ProjectManager.get_project(state.project_id)
+        if simulation_brief is None and project:
+            simulation_brief = project.get_brief()
         if simulation_brief is None:
             simulation_brief = build_minimal_brief(goal=simulation_requirement)
         
+        # Récupération de l'ontologie projet appliquée (Événement E5, AC1, C5)
+        applied_ontology_id = getattr(project, "applied_ontology_id", None) if project else None
+
         try:
             state.status = SimulationStatus.PREPARING
             state.error = None
             state.profiles_generated = False
             state.config_generated = False
             state.config_reasoning = ""
+            state.applied_ontology_id = applied_ontology_id
             self._save_simulation_state(state)
             
             sim_dir = self._get_simulation_dir(simulation_id)
@@ -651,24 +660,22 @@ class SimulationManager:
                 self._save_simulation_state(state)
                 raise ValueError(error_msg)
 
-            if block_on_conflict:
-                project = ProjectManager.get_project(state.project_id)
-                if project:
-                    open_conflicts = [
-                        c
-                        for c in project.get_source_conflicts()
-                        if getattr(c, "status", None) == ConflictStatus.OPEN
-                    ]
-                    if open_conflicts:
-                        claims = [c.claim for c in open_conflicts]
-                        error_msg = (
-                            f"Blocage préventif activé : {len(open_conflicts)} conflit(s) documentaire(s) "
-                            f"non résolu(s) : {', '.join(claims[:5])}"
-                        )
-                        state.status = SimulationStatus.FAILED
-                        state.error = error_msg
-                        self._save_simulation_state(state)
-                        raise ValueError(error_msg)
+            if block_on_conflict and project:
+                open_conflicts = [
+                    c
+                    for c in project.get_source_conflicts()
+                    if getattr(c, "status", None) == ConflictStatus.OPEN
+                ]
+                if open_conflicts:
+                    claims = [c.claim for c in open_conflicts]
+                    error_msg = (
+                        f"Blocage préventif activé : {len(open_conflicts)} conflit(s) documentaire(s) "
+                        f"non résolu(s) : {', '.join(claims[:5])}"
+                    )
+                    state.status = SimulationStatus.FAILED
+                    state.error = error_msg
+                    self._save_simulation_state(state)
+                    raise ValueError(error_msg)
 
             eligible_uuids = {a.entity_uuid for a in selection.eligible_actors}
             eligible_entities = [
@@ -843,6 +850,7 @@ class SimulationManager:
                 enable_reddit=state.enable_reddit,
                 simulation_brief=simulation_brief,
                 document_sections=document_sections,
+                applied_ontology_id=applied_ontology_id,
             )
             
             if progress_callback:

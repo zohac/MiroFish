@@ -27,7 +27,7 @@ reproductible.**
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
-| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, stories 007-1, 007-2, 007-3 et 007-4 closes (`done`), 1485 tests verts sur l'hôte, NO-GO empirique C3 consigné |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, stories 007-1 à 007-5 closes (`done`), 1519 tests verts sur l'hôte, NO-GO empirique C3 consigné |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -110,7 +110,10 @@ et câblage réactif des événements : E1 (ajout de document, préservation des
 E2 (diff brief substantiel `difflib.SequenceMatcher.ratio() < 0.95`), E3 (demande explicite API `POST /api/project/<id>/ontology/regenerate`),
 et E4 (initialisation atomique v1 lors de la création de projet). Endpoints d'API dans `backend/app/api/project.py`
 et rattachement de la version aux avertissements `GraphValidationWarning` (AC6). Revue contradictoire BMAD 4 couches validée.
-Epic 007 : 4/7 closes, **1485 tests verts sur l'hôte**.
+**007-5 est close (`done`)** : composition `ActorClassifier` / ontologie dynamique (AC1-AC5), propagation
+dans `SimulationConfigGenerator` et cohérence de projet E5 (AC6), isolation hermétique des tests.
+Revue contradictoire BMAD 4 couches validée (5 patches appliqués, 1 différé, 2 rejets).
+Epic 007 : 5/7 closes, **1519 tests verts sur l'hôte**.
 
 ---
 
@@ -138,14 +141,15 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-14 octobre 2026 compte **1485 tests collectés et réussis sur l'hôte ; 1482 réussis + 3 ignorés sous
+14 octobre 2026 compte **1519 tests collectés et réussis sur l'hôte ; 1516 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1367** (1157 + 210 tests hermétiques, relectures comprises) ; post-007-2 :
 **1431** (1367 + 64 cas, dont les régressions de revue) ; post-007-3 :
 **1459** (1431 + 23 tests de sonde hermétiques + 5 tests BMAD) ; post-007-4 :
-**1485** (1459 + 26 tests hermétiques, événements E1-E4 et magasin versionné compris).
+**1485** (1459 + 26 tests hermétiques, événements E1-E4 et magasin versionné compris) ; post-007-5 :
+**1519** (1485 + 34 tests hermétiques, composition acteurs et cohérence projet).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais

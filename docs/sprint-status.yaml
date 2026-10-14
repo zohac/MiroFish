@@ -18,6 +18,17 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-14
+# 14 oct. 2026 : story 007-5 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches. Signal primaire d'ontologie dans ActorClassifierService
+# via ONTOLOGY_ROLE_MAPPING (injective et conservative, court-circuit LLM confidence=1.0
+# prouvé par mock espion, rationales explicites). Sécurité anti-adversariale 009-1 préservée
+# par redirection vers la cascade LLM sur détection d'attributs hostiles ("instruction").
+# Événement E5 (cohérence projet C5) raccordé dans SimulationManager.prepare_simulation :
+# propagation stable de project.applied_ontology_id vers SimulationState et SimulationParameters
+# (simulation_config.json) sans recalcul superflu. Preuve d'isolation stricte inter-projets
+# et transmission du type d'ontologie d'origine dans OASISProfileGenerator.
+# 34 nouveaux tests hermétiques ajoutés, filet global porté à 1519 tests passants sur l'hôte.
+# Epic 007 in-progress (5/7 closes : 007-1, 007-2, 007-3, 007-4, 007-5 done).
 # 14 oct. 2026 : story 007-4 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches. Modèle OntologyVersion (ont_<uuid12>), magasin atomique
 # OntologyVersionStore (JSON sous uploads/ontologies/<id>.json), extension de Project
@@ -495,6 +506,17 @@ epics:
     # app/api/project.py et enrichissement des GraphValidationWarning (AC6).
     # Filet global porté à 1485 tests passants sur l'hôte (+26 tests hermétiques).
     # Revue contradictoire BMAD 4 couches validée. Story 007-4 close (done).
+    # Story 007-5 (done au 14 oct. 2026) : Cohérence projet (E5, C5), transmission
+    # ontologique et composition avec ActorClassifierService (AC3, AC4, C6).
+    # Table ONTOLOGY_ROLE_MAPPING posée dans actor_classifier.py, court-circuit LLM
+    # déterministe avec confidence=1.0 et motivation explicite prouvé par mock espion.
+    # Barrière anti-adversariale Epic 009 préservée (attributs hostiles redirigés vers
+    # la cascade LLM). Événement E5 branché dans prepare_simulation sans recalcul
+    # superflu ; propagation vers SimulationState, SimulationParameters et simulation_config.json.
+    # Preuve d'isolation stricte multi-projets et traçabilité du type d'ontologie dans
+    # les personas OASIS (source_entity_type).
+    # Filet global porté à 1519 tests passants sur l'hôte (+34 tests hermétiques).
+    # Revue contradictoire BMAD 4 couches validée. Story 007-5 close (done).
 
   - id: "008"
     slug: support-langue-francaise

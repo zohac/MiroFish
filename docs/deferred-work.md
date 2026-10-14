@@ -399,3 +399,9 @@ la promesse : le renvoi était juste, c'est la note qui n'existait pas.
 
   **Résolu le 13 octobre 2026** lors de la clôture de la story 007-3 : contexte `AGENTS.md`, suivi humain `docs/STATUS.md`, agrégat `sprint-status.yaml`, hub `epic-007.md` et table des ADRs synchronisés avec le nouveau filet validé à 1459 tests verts sur l'hôte.
 
+## Deferred from: code review of story-007-5.md (2026-10-14)
+
+Revue des modifications de la story 007-5 (`local-first`), le 14 octobre 2026.
+
+- **`backend/app/services/simulation_manager.py:357` — Initialisation anticipée de `applied_ontology_id` dès `create_simulation`.** Lors de l'instanciation initiale de `SimulationState`, `applied_ontology_id` reste à `None` jusqu'à l'exécution de `prepare_simulation`. L'événement E5 spécifie formellement le rattachement de la version d'ontologie lors de la préparation/lancement de la simulation (AC1) ; anticiper cette affectation dès la création initiale n'apporte pas de gain immédiat et ne casse aucun consommateur. *Différé : amélioration architecturale de confort, non bloquante pour l'éligibilité ni la cohérence E5.*
+

@@ -16,7 +16,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import ValidationError
 
@@ -33,6 +33,73 @@ from ..models.simulation_brief import SimulationBrief
 from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.actor_classifier')
+
+
+# Table de correspondance ontologique vers rôles d'acteurs (Story 007-5, AC3, AC4).
+# Injective et conservative :
+# - Types personnes -> ActorRole.PERSON, EligibilityStatus.ELIGIBLE
+# - Types organisations -> ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE
+# - Types passifs -> ActorRole passif associé, EligibilityStatus.INELIGIBLE
+# - Types ambigus / non déclarés -> retombée cascade 009-1 (ou ActorRole.UNKNOWN, EligibilityStatus.REVIEW)
+ONTOLOGY_ROLE_MAPPING: Dict[str, Tuple[ActorRole, EligibilityStatus]] = {
+    # Personnes actives
+    "personentity": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "person": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "citizen": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "actor": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "individual": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "user": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "official": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "expert": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "leader": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "spokesperson": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "journalist": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "student": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "alumni": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "professor": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "faculty": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "publicfigure": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+    "activist": (ActorRole.PERSON, EligibilityStatus.ELIGIBLE),
+
+    # Organisations actives
+    "mediaorganization": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "organization": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "company": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "institution": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "association": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "enterprise": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "agency": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "regulatorybody": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "government": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "ministry": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "politicalparty": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "university": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+    "union": (ActorRole.ORGANIZATION, EligibilityStatus.ELIGIBLE),
+
+    # Types passifs inéligibles
+    "product": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+    "software": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+    "service": (ActorRole.SERVICE, EligibilityStatus.INELIGIBLE),
+    "infrastructure": (ActorRole.PLACE, EligibilityStatus.INELIGIBLE),
+    "equipment": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+    "facility": (ActorRole.PLACE, EligibilityStatus.INELIGIBLE),
+    "location": (ActorRole.PLACE, EligibilityStatus.INELIGIBLE),
+    "place": (ActorRole.PLACE, EligibilityStatus.INELIGIBLE),
+    "event": (ActorRole.EVENT, EligibilityStatus.INELIGIBLE),
+    "incident": (ActorRole.EVENT, EligibilityStatus.INELIGIBLE),
+    "concept": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "topic": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "theme": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "domain": (ActorRole.DOMAIN, EligibilityStatus.INELIGIBLE),
+    "url": (ActorRole.DOMAIN, EligibilityStatus.INELIGIBLE),
+    "document": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+    "standard": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "metric": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "law": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "treaty": (ActorRole.CONCEPT, EligibilityStatus.INELIGIBLE),
+    "material": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+    "vehicle": (ActorRole.PRODUCT, EligibilityStatus.INELIGIBLE),
+}
 
 
 # Sentinelle distinguant « client non fourni » (création paresseuse) de
@@ -201,19 +268,72 @@ class ActorClassifierService:
             )
 
         passive = self._classify_whole_value(name)
-        if passive is None:
+        if passive is not None:
+            role, rationale = passive
+            return ActorEligibility(
+                entity_uuid=entity.uuid,
+                entity_name=name,
+                role=role,
+                status=EligibilityStatus.INELIGIBLE,
+                rationale=rationale,
+                confidence=1.0,
+                original_type=self._entity_type(entity),
+                attributes=dict(attributes),
+            )
+
+        # Signal primaire d'ontologie (Story 007-5, AC3, AC4, C6)
+        onto_qualification = self._classify_from_ontology(entity, name, attributes)
+        if onto_qualification is not None:
+            return onto_qualification
+
+        return None
+
+    def _classify_from_ontology(
+        self, entity: Any, name: str, attributes: Dict[str, Any]
+    ) -> Optional[ActorEligibility]:
+        """Qualifie l'entité par son label d'ontologie custom comme signal primaire (C6).
+
+        Court-circuite l'appel LLM si le label correspond à une entrée de
+        ONTOLOGY_ROLE_MAPPING (confiance 1.0, rationale motivée par l'ontologie appliquée).
+        Ignore les labels génériques :Entity et :Node.
+        Si l'entité présente des attributs de contournement hostiles (injection d'instructions),
+        elle n'est pas court-circuitée aveuglément et est transmise à la cascade standard.
+        Si aucun label custom n'est présent, retourne None pour retomber sur la cascade.
+        """
+        # Sécurité anti-injection (Story 009-1 / AC5) : si les attributs contiennent des instructions
+        # de contournement (ex. prompt injection "instruction"), laisser la cascade évaluer.
+        if attributes and any(
+            isinstance(k, str) and k.strip().lower() in ("instruction", "untrusted_eligibility")
+            for k in attributes
+        ):
             return None
-        role, rationale = passive
-        return ActorEligibility(
-            entity_uuid=entity.uuid,
-            entity_name=name,
-            role=role,
-            status=EligibilityStatus.INELIGIBLE,
-            rationale=rationale,
-            confidence=1.0,
-            original_type=self._entity_type(entity),
-            attributes=dict(attributes),
-        )
+
+        labels = getattr(entity, "labels", None) or []
+        for raw_label in labels:
+            if not isinstance(raw_label, str):
+                continue
+            lbl = raw_label.strip()
+            if not lbl or lbl in ("Entity", "Node"):
+                continue
+            lbl_key = lbl.lower()
+            if lbl_key in ONTOLOGY_ROLE_MAPPING:
+                role, status = ONTOLOGY_ROLE_MAPPING[lbl_key]
+                rationale = (
+                    f"Déduit par le signal d'ontologie appliquée : label custom '{lbl}' "
+                    f"associé à {role.value} ({status.value})."
+                )
+                return ActorEligibility(
+                    entity_uuid=entity.uuid,
+                    entity_name=name,
+                    role=role,
+                    status=status,
+                    rationale=rationale,
+                    confidence=1.0,
+                    original_type=lbl,
+                    attributes=dict(attributes),
+                )
+
+        return None
 
     @staticmethod
     def _classify_whole_value(name: str):
