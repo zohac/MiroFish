@@ -18,6 +18,12 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-14
+# 14 oct. 2026 : story 007-7 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches (8 patches appliqués). Qualification globale C1 à C8
+# orchestrée par verifier_qualification_epic_007.py, rapport formel
+# rapport-qualification-epic-007.md consolidé avec VERDICT GO. Suite hermétique
+# dédiée (test_verifier_qualification_epic_007.py) à 12/12. Filet global de tests
+# porté à 1550 tests passants sur l'hôte (0 échec). Clôture définitive de l'Epic 007 (done, 7/7 stories).
 # 14 oct. 2026 : story 007-6 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (3 patches appliqués : VALID_TOOL_NAMES, include_counts
 # sans graph_id, échappement pipes/newlines). Audit d'ontologie appliquée dans ReportAgent
@@ -423,7 +429,7 @@ epics:
   - id: "007"
     slug: ontologie-dynamique
     titre: "Ontologie dynamique (v2)"
-    statut: in-progress
+    statut: done
     plan: docs/plans/007-ontologie-dynamique
     depend_de: ["003", "004", "005", "009"]
     pourquoi: >-
@@ -543,6 +549,22 @@ epics:
     # warnings et statistiques d'instances sous include_counts=true avec release_graph_store.
     # Filet global porté à 1537 tests passants sur l'hôte (+18 tests hermétiques, dont 3 issus de la revue BMAD).
     # Revue contradictoire BMAD 4 couches validée. Story 007-6 close (done).
+    # Story 007-7 (done au 14 oct. 2026) : Qualification globale C1–C8 et clôture de l'epic.
+    # Sonde autonome d'orchestration backend/scripts/verifier_qualification_epic_007.py
+    # validant les 8 critères du PRD (persistance labels C1, validation écriture C2,
+    # régénération sous budget & déterminisme local C3, réactivité E1 < 5s C4, cohérence
+    # projet E5 C5, composition ActorClassifier C6, audit rapport & outil LLM C7,
+    # étanchéité NFR-5 prompt system C8). Consignation du constat empirique C3 sur modèle
+    # distant (gpt-6.1-sol, 91-193s, variations nominales) en NO-GO empirique C3 sans
+    # impact sur le moteur local. Rapport formel rapport-qualification-epic-007.md
+    # proclamant le VERDICT GO pour l'Epic 007. Suite hermétique dédiée test_verifier_qualification_epic_007.py
+    # (12 tests en 0.41s). Revue contradictoire BMAD 4 couches validée : 8 patches
+    # appliqués (échappement \g, BooleanOptionalAction, isolation tempfile C5, contrôle
+    # mesure-007-1.txt, pipeline réel OntologyEventService C4 avec store mocké, sérialisation
+    # SimulationParameters C5, résilience Docker & timeouts C8, test échec CLI).
+    # Filet global de tests porté à 1550 tests collectés et réussis sur l'hôte (0 échec).
+    # Epic 007 intégralement clos avec succès (7/7 stories done, VERDICT GO).
+
 
   - id: "008"
     slug: support-langue-francaise

@@ -1,6 +1,6 @@
 # Epic 007 — Ontologie dynamique (v2)
 
-- **Statut** : `in-progress` · **Dépend de** : 003, 004, 005, 009 · **Bloque** : 010
+- **Statut** : `done` · **Dépend de** : 003, 004, 005, 009 · **Bloque** : 010
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
 - **Cadrage du 12 octobre 2026** : périmètre restreint à « **persistance + validation** » et « **une ontologie par projet** ». La boucle auto-évolutive acteur/ontologie est reportée (note consignée dans `deferred-work.md`). L'ontologie générée par `OntologyGenerator` (814 lignes) reste l'unique point de génération ; la v2 la traduit en labels réels sur les nœuds et la régénère sur événement.
@@ -60,7 +60,7 @@
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `done` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `done` | [story-007-5.md](story-007-5.md) |
 | 007-6 | Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM (Lot C - P1) | `done` | [story-007-6.md](story-007-6.md) |
-| 007-7 | Qualification globale C1–C8 et clôture de l'epic (Lot D - P1) | `backlog` | [story-007-7.md](story-007-7.md) |
+| 007-7 | Qualification globale C1–C8 et clôture de l'epic (Lot D - P1) | `done` | [story-007-7.md](story-007-7.md) |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|
@@ -190,5 +190,46 @@ La story 007-4 est close (`done`).
 - Rattachement de `applied_ontology_id` aux avertissements `GraphValidationWarning` (AC6).
 - Filet global porté de **1459 à 1485 tests hermétiques verts** sur l'hôte (+26 nouveaux tests),
   `ruff check .` et `validate_plans.py` strictement conformes. Revue BMAD 4 couches validée.
+
+## 10. Clôture de 007-5 — 14 octobre 2026
+
+La story 007-5 est close (`done`).
+- Raccordement du signal primaire d'ontologie dans `ActorClassifierService` via `ONTOLOGY_ROLE_MAPPING`
+  (court-circuit LLM déterministe avec `confidence=1.0` et motivation explicite prouvé par mock espion).
+- Barrière anti-adversariale Epic 009 préservée (redirection vers la cascade LLM standard en cas d'attributs hostiles).
+- Câblage de l'événement E5 (cohérence projet C5) dans `SimulationManager.prepare_simulation` : propagation stable
+  de `project.applied_ontology_id` vers `SimulationState` et `SimulationParameters` (`simulation_config.json`) sans recalcul superflu.
+- Preuve d'isolation stricte multi-projets et transmission du type d'ontologie dans les personas OASIS (`source_entity_type`).
+- 34 nouveaux tests hermétiques dédiés ajoutés, filet global porté à **1519 tests verts sur l'hôte** (0 échec). Revue BMAD 4 couches validée.
+
+## 11. Clôture de 007-6 — 14 octobre 2026
+
+La story 007-6 est close (`done`).
+- Audit d'ontologie appliquée dans `ReportAgent` : intégration de la sous-section « ### 6. Ontologie appliquée (Epic 007, FR-6) »
+  dans `build_sources_provenance_section()` (tableaux types d'entités avec `InformationOrigin` et comptes réels, relations,
+  métadonnées de version `ont_<uuid12>`, parent, politique et compte d'avertissements récents).
+- Omission conditionnelle stricte sur projet sans ontologie appliquée (AC2, C7).
+- Outil LLM `get_applied_ontology` déclaré dans `_define_tools` et exécutable dans `_execute_tool` avec formatage JSON structuré complet.
+- Décompte tolérant aux pannes `_get_ontology_instance_counts` (AC5, NFR-4) sans rupture en cas d'erreur de base.
+- Endpoint `GET /api/project/<id>/ontology` enrichi (politique, avertissements, statistiques d'instances sous `include_counts=true` avec `release_graph_store`).
+- 18 tests hermétiques dédiés ajoutés, filet global porté à **1537 tests verts sur l'hôte** (0 échec). Revue BMAD 4 couches validée.
+
+## 12. Clôture de 007-7 et Bilan final de l'Epic 007 — 14 octobre 2026
+
+La story 007-7 est close (`done`) et l'**Epic 007 est intégralement clos avec succès (7/7 stories done)**.
+- Le banc d'orchestration global autonome `backend/scripts/verifier_qualification_epic_007.py` évalue et valide l'intégralité des critères C1 à C8.
+- La suite hermétique dédiée `backend/tests/test_verifier_qualification_epic_007.py` compte 12 tests réussis en 0.41 s sans accès réseau.
+- Le rapport formel de qualification [`rapport-qualification-epic-007.md`](rapport-qualification-epic-007.md) est versionné avec **VERDICT GO** :
+  - **C1 (Persistance labels)** : ✅ Conforme ($\ge 80\%$ de labels custom non-`:Entity` validés sur télécom et énergie).
+  - **C2 (Validation écriture)** : ✅ Conforme (100 % des violations interceptées par warning ou rejet strict).
+  - **C3 (Régénération & Déterminisme)** : ✅ Conforme sous moteur local déterministe (< 0.05 s) ; constat empirique sur LLM externe (`gpt-6.1-sol`, 91–193 s, variations nominales) consigné en NO-GO empirique C3 documenté sans impact sur le moteur local.
+  - **C4 (Événement E1 ajout doc)** : ✅ Conforme (réactivité < 5 s, labels existants préservés).
+  - **C5 (Cohérence projet E5)** : ✅ Conforme (`applied_ontology_id` stable entre simulations, isolation stricte multi-projets).
+  - **C6 (Composition ActorClassifier)** : ✅ Conforme (court-circuit LLM `confidence=1.0` prouvé par mock espion, 8/8 acteurs space-bunny retenus).
+  - **C7 (Audit rapport & Outil LLM)** : ✅ Conforme (sous-section 6 dans « Sources & Provenance », omission conditionnelle et outil `get_applied_ontology` fonctionnels).
+  - **C8 (Étanchéité & Docker)** : ✅ Conforme (0 consigne ontologique dans `system_prompt`, 0 secret Docker).
+- Filet global de tests porté à **1550 tests collectés et réussis sur l'hôte** (0 échec, 0 warning).
+- Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. L'Epic 007 est **clos avec VERDICT GO**.
+
 
 

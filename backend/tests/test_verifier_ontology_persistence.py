@@ -775,7 +775,7 @@ def test_main_rejette_seuil_hors_plage(monkeypatch, capsys):
         assert "--seuil" in captured.err, captured.err
 
 
-def test_seuil_zero_et_cent_sont_acceptes(monkeypatch):
+def test_seuil_zero_et_cent_sont_acceptes(monkeypatch, tmp_path):
     """P4 — bornes `[0, 100]` inclusives. `--seuil 0` et `--seuil 100`
     sont des choix de l'opérateur, pas des erreurs ; ils passent la
     validation (mais aucun graphe ne les atteindra — 100 % nécessite
@@ -783,6 +783,7 @@ def test_seuil_zero_et_cent_sont_acceptes(monkeypatch):
     """
     import scripts.verifier_ontology_persistence as sonde
 
+    monkeypatch.chdir(tmp_path)
     for seuil_borne in (0.0, 100.0):
         monkeypatch.setattr(
             "sys.argv",

@@ -2,7 +2,7 @@
 id: "007-7"
 epic: "007"
 titre: "Qualification globale C1–C8 et clôture de l'epic"
-statut: backlog
+statut: done
 auteur: "Simon"
 format: "2"
 ---
@@ -19,19 +19,19 @@ Cette story constitue l'étape finale de l'Epic 007 (« Ontologie dynamique (v2)
 
 ## Définition de prêt
 
-- [ ] Objectif de qualification compris : valider les 8 critères C1 à C8 sous un banc d'orchestration unifié, produire le rapport d'audit formel et vérifier la reproductibilité Docker.
-- [ ] Documents consultés : [PRD](prd.md) §3.1/§4 (critères C1 à C8), [architecture](architecture.md) §7/§8, [hub epic-007](epic-007.md), [AGENTS.md](../../../AGENTS.md) §2.1/2.2/2.8/2.9/2.10, [ADR 0014](../../decisions/0014-pose-effective-ontologie-graphstore.md), [ADR 0015](../../decisions/0015-statut-c3-determinisme-ontologie.md), [ADR 0016](../../decisions/0016-perimetre-validation-ecriture-graphiti.md), [ADR 0017](../../decisions/0017-politique-durable-et-retrogradation-ontologie.md), rapports et mesures réelles des stories antérieures ([mesure C1](mesure-007-1.txt), [mesure C2](mesure-007-2.json), [mesure C3](mesure-007-3-hote.json)).
-- [ ] Dépendances résolues : Stories 007-1 à 007-6 toutes closes (`done`) :
+- [x] Objectif de qualification compris : valider les 8 critères C1 à C8 sous un banc d'orchestration unifié, produire le rapport d'audit formel et vérifier la reproductibilité Docker.
+- [x] Documents consultés : [PRD](prd.md) §3.1/§4 (critères C1 à C8), [architecture](architecture.md) §7/§8, [hub epic-007](epic-007.md), [AGENTS.md](../../../AGENTS.md) §2.1/2.2/2.8/2.9/2.10, [ADR 0014](../../decisions/0014-pose-effective-ontologie-graphstore.md), [ADR 0015](../../decisions/0015-statut-c3-determinisme-ontologie.md), [ADR 0016](../../decisions/0016-perimetre-validation-ecriture-graphiti.md), [ADR 0017](../../decisions/0017-politique-durable-et-retrogradation-ontologie.md), rapports et mesures réelles des stories antérieures ([mesure C1](mesure-007-1.txt), [mesure C2](mesure-007-2.json), [mesure C3](mesure-007-3-hote.json)).
+- [x] Dépendances résolues : Stories 007-1 à 007-6 toutes closes (`done`) :
   - **007-1** : persistance effective des labels custom dans `GraphStore` / `GraphitiGraphStore` (C1, ADR 0014).
   - **007-2** : validation à l'écriture et politique `strict_ontology` (C2, ADRs 0016 et 0017).
   - **007-3** : régénération déterministe sous budget < 30 s hôte / < 45 s Docker sous mock/pipeline déterministe et consignation du NO-GO empirique C3 sur LLM externe dans `mesure-007-3-hote.json`.
   - **007-4** : régénération réactive sur événements E1 (ajout document, préservation labels C4), E2 (diff brief), E3 (API `/regenerate`), E4 (init projet v1) et magasin immuable `OntologyVersionStore`.
   - **007-5** : cohérence projet E5 (stabilité `applied_ontology_id` C5) et composition `ActorClassifierService` (court-circuit LLM C6 avec `confidence=1.0`).
   - **007-6** : audit d'ontologie appliquée dans `ReportAgent` (sous-section 6 dans « Sources & Provenance » C7), outil LLM `get_applied_ontology`, omission conditionnelle stricte et endpoint API `GET /api/project/<id>/ontology`.
-- [ ] Filet de référence de 1537 tests réussis sur l'hôte au 14 octobre 2026.
-- [ ] Architecture du banc de qualification `backend/scripts/verifier_qualification_epic_007.py` arrêtée : script CLI autonome avec modes `--mock-llm` (pour validation CI/locale rapide, déterministe et sans coût) et évaluation directe des composants en conditions réelles, avec génération du rapport Markdown (`--output`).
-- [ ] Règles de traçabilité et d'arbitrage de qualification C1 à C8 figées.
-- [ ] Stratégie de tests hermétiques identifiée : création de `backend/tests/test_verifier_qualification_epic_007.py` testant les sondes C1 à C8, le formatage Markdown, la gestion d'erreurs et le code de retour CLI.
+- [x] Filet de référence de 1537 tests réussis sur l'hôte au 14 octobre 2026 (mesuré à 1538 passants).
+- [x] Architecture du banc de qualification `backend/scripts/verifier_qualification_epic_007.py` arrêtée : script CLI autonome avec modes `--mock-llm` (pour validation CI/locale rapide, déterministe et sans coût) et évaluation directe des composants en conditions réelles, avec génération du rapport Markdown (`--output`).
+- [x] Règles de traçabilité et d'arbitrage de qualification C1 à C8 figées.
+- [x] Stratégie de tests hermétiques identifiée : création de `backend/tests/test_verifier_qualification_epic_007.py` testant les sondes C1 à C8, le formatage Markdown, la gestion d'erreurs et le code de retour CLI.
 
 ---
 
@@ -53,29 +53,44 @@ Cette story constitue l'étape finale de l'Epic 007 (« Ontologie dynamique (v2)
 
 ## Définition de fini
 
-- [ ] AC1 à AC9 satisfaits avec preuves vérifiables et tests hermétiques.
-- [ ] Script autonome `backend/scripts/verifier_qualification_epic_007.py` développé, testé et exécuté avec succès.
-- [ ] Rapport formel de qualification `docs/plans/007-ontologie-dynamique/rapport-qualification-epic-007.md` généré avec succès et validé.
-- [ ] Suite de tests hermétiques dédiée (`test_verifier_qualification_epic_007.py`) au vert.
-- [ ] Filet global de tests maintenu ou accru ($\ge 1537$ tests passants sur l'hôte, 0 échec sous Docker).
-- [ ] Lint et formatage `ruff check .` sans erreur ni avertissement.
-- [ ] Validation constitutionnelle `validate_plans.py` conforme.
-- [ ] Revue contradictoire BMAD 4 couches exécutée et documentée.
-- [ ] Notes de complétion rédigées, suivi `STATUS.md`, `sprint-status.yaml`, `AGENTS.md` et `epic-007.md` actualisés.
+- [x] AC1 à AC9 satisfaits avec preuves vérifiables et tests hermétiques.
+- [x] Script autonome `backend/scripts/verifier_qualification_epic_007.py` développé, testé et exécuté avec succès.
+- [x] Rapport formel de qualification `docs/plans/007-ontologie-dynamique/rapport-qualification-epic-007.md` généré avec succès et validé.
+- [x] Suite de tests hermétiques dédiée (`test_verifier_qualification_epic_007.py`) au vert.
+- [x] Filet global de tests maintenu ou accru ($\ge 1537$ tests passants sur l'hôte, 0 échec sous Docker).
+- [x] Lint et formatage `ruff check .` sans erreur ni avertissement.
+- [x] Validation constitutionnelle `validate_plans.py` conforme.
+- [x] Revue contradictoire BMAD 4 couches exécutée et documentée.
+- [x] Notes de complétion rédigées, suivi `STATUS.md`, `sprint-status.yaml`, `AGENTS.md` et `epic-007.md` actualisés.
 
 ---
 
 ## Tâches
 
-- [ ] T1 — Conception de l'architecture du banc et squelette CLI de `verifier_qualification_epic_007.py` avec arguments standard (`--output`, `--mock-llm`, `--verbose`) (AC1).
-- [ ] T2 — Implémentation des sondes de vérification C1 (persistance labels $\ge 80\%$) et C2 (validation écriture et politique stricte) (AC2).
-- [ ] T3 — Implémentation des sondes de vérification C3 (régénération et budget sous mock déterministe) et C4 (réactivité événement E1 document < 5 s) (AC3, AC4).
-- [ ] T4 — Implémentation des sondes de vérification C5 (cohérence projet E5) et C6 (composition actor classifier et court-circuit LLM) (AC5, AC6).
-- [ ] T5 — Implémentation des sondes de vérification C7 (audit rapport et outil LLM) et C8 (étanchéité NFR-5 prompt system) (AC7, AC8).
-- [ ] T6 — Formatage automatisé du rapport Markdown formel `rapport-qualification-epic-007.md` avec matrice de conformité et formulation du verdict (AC1, AC9).
-- [ ] T7 — Rédaction de la suite de tests hermétiques `backend/tests/test_verifier_qualification_epic_007.py` (AC1 à AC9).
-- [ ] T8 — Exécution de la qualification globale sur l'hôte et sous Docker, consolidation des mesures et rédaction du rapport final (AC9).
-- [ ] T9 — Revue contradictoire de code BMAD 4 couches, traitement des findings et clôture définitive de la story et de l'Epic 007 (AC9).
+- [x] T1 — Conception de l'architecture du banc et squelette CLI de `verifier_qualification_epic_007.py` avec arguments standard (`--output`, `--mock-llm`, `--verbose`) (AC1).
+- [x] T2 — Implémentation des sondes de vérification C1 (persistance labels $\ge 80\%$) et C2 (validation écriture et politique stricte) (AC2).
+- [x] T3 — Implémentation des sondes de vérification C3 (régénération et budget sous mock déterministe) et C4 (réactivité événement E1 document < 5 s) (AC3, AC4).
+- [x] T4 — Implémentation des sondes de vérification C5 (cohérence projet E5) et C6 (composition actor classifier et court-circuit LLM) (AC5, AC6).
+- [x] T5 — Implémentation des sondes de vérification C7 (audit rapport et outil LLM) et C8 (étanchéité NFR-5 prompt system) (AC7, AC8).
+- [x] T6 — Formatage automatisé du rapport Markdown formel `rapport-qualification-epic-007.md` avec matrice de conformité et formulation du verdict (AC1, AC9).
+- [x] T7 — Rédaction de la suite de tests hermétiques `backend/tests/test_verifier_qualification_epic_007.py` (AC1 à AC9).
+- [x] T8 — Exécution de la qualification globale sur l'hôte et sous Docker, consolidation des mesures et rédaction du rapport final (AC9).
+- [x] T9 — Revue contradictoire de code BMAD 4 couches, traitement des findings et clôture définitive de la story et de l'Epic 007 (AC9).
+
+### Review Findings
+
+- [x] [Review][Patch] Échappement des séquences `\g` dans le gabarit de rapport Markdown [backend/scripts/verifier_qualification_epic_007.py:758]
+- [x] [Review][Patch] Rendre l'option CLI `--mock-llm` réversible via `BooleanOptionalAction` [backend/scripts/verifier_qualification_epic_007.py:810]
+- [x] [Review][Patch] Isolation temporaire hermétique dans `verifier_critere_c5` contre la pollution de `uploads/projects` [backend/scripts/verifier_qualification_epic_007.py:459]
+- [x] [Review][Patch] Contrôle strict de la présence et de la cohérence de `mesure-007-1.txt` dans la sonde C1 [backend/scripts/verifier_qualification_epic_007.py:126]
+- [x] [Review][Patch] Exécution du pipeline réel `OntologyEventService.on_document_added` dans la sonde C4 [backend/scripts/verifier_qualification_epic_007.py:411]
+- [x] [Review][Patch] Validation de la propagation de `applied_ontology_id` via `SimulationParameters` dans la sonde C5 [backend/scripts/verifier_qualification_epic_007.py:469]
+- [x] [Review][Patch] Résilience face à l'indisponibilité du daemon Docker et timeouts subprocess dans C8 [backend/scripts/verifier_qualification_epic_007.py:679]
+- [x] [Review][Patch] Couverture de la branche d'échec CLI et fiabilisation des mocks dans la suite de tests [backend/tests/test_verifier_qualification_epic_007.py:129]
+
+#### Rejected Findings
+
+- [Review][Rejected] Répétition du chargement de `.env` dans `verifier_qualification_epic_007.py:43` : rejeté (false), pattern défensif standardisé pour l'exécution directe des scripts CLI du projet.
 
 ---
 
@@ -139,18 +154,49 @@ Comme acté dans l'ADR 0015 et lors de la clôture de la Story 007-3, la mesure 
 2. Un temps d'inférence LLM amont de 91 à 193 secondes et un non-déterminisme nominal des descriptions, intrinsèques aux API LLM de raisonnement sans contrôle direct de seed.
 3. Un **NO-GO empirique C3** consigné dans `docs/plans/007-ontologie-dynamique/mesure-007-3-hote.json`.
 
-Le banc de qualification 007-7 respectera scrupuleusement la vérité du terrain :
-- Il validera formellement sous pipeline déterministe que le moteur interne respecte le budget (< 30 s hôte / < 45 s Docker) et le déterminisme parfait des types stables.
-- Il rappellera et citera le rapport d'épreuve réelle `mesure-007-3-hote.json` dans `rapport-qualification-epic-007.md`, justifiant un **VERDICT GO global d'ingénierie pour l'architecture locale de MiroFish** tout en maintenant la réserve empirique documentée sur l'inférence du modèle distant.
+Le banc de qualification 007-7 respecte scrupuleusement la vérité du terrain :
+- Il valide formellement sous pipeline déterministe que le moteur interne respecte le budget (< 30 s hôte / < 45 s Docker) et le déterminisme parfait des types stables.
+- Il rappelle et cite le rapport d'épreuve réelle `mesure-007-3-hote.json` dans `rapport-qualification-epic-007.md`, justifiant un **VERDICT GO global d'ingénierie pour l'architecture locale de MiroFish** tout en maintenant la réserve empirique documentée sur l'inférence du modèle distant.
 
 ---
 
 ## Revue
 
-*(Section réservée à la revue contradictoire BMAD 4 couches : architecture, sécurité/robustesse, tests/QA, conformité constitutionnelle)*
+Revue contradictoire de code BMAD à 4 couches menée le 14 octobre 2026 sur les livrables de la Story 007-7 (`backend/scripts/verifier_qualification_epic_007.py`, `backend/tests/test_verifier_qualification_epic_007.py`, `docs/plans/007-ontologie-dynamique/rapport-qualification-epic-007.md`) :
+
+### 1. Composition des couches de relecture
+1. **Blind Hunter (Architecture & Contrats)** : Analyse de la conformité aux contrats PRD C1–C8, neutralité LLM et absence d'appels réseau non contrôlés.
+2. **Edge Case Hunter (Robustesse & Isolation)** : Examen des effets de bord disque (`uploads/projects`), gestion des timeouts subprocess et tolérance aux pannes environnementales (indisponibilité du daemon Docker).
+3. **Verification Gap (Couverture & Filet de tests)** : Analyse de la couverture des branches CLI, de la validité des mocks et de l'interception de la warning syntaxique `\g`.
+4. **Acceptance Auditor (Critères d'acceptation & Constitution)** : Contrôle d'adéquation stricte AC1 à AC9, vérification de l'étanchéité NFR-5 et respect de la politique de non-régression.
+
+### 2. Triage et application des findings
+- **Findings bruts identifiés** : 11 findings.
+- **Triage final** : 0 `decision-needed`, 8 `patch` appliqués, 0 `defer`, 1 `rejected` motivé (rejet de la duplication de `.env`, pratique défensive standard des CLI).
+
+| Patch | Composant / Fichier | Nature de la correction |
+|---|---|---|
+| **Patch 1** | `verifier_qualification_epic_007.py:797,804` | Remplacement des séquences brutes `\g` par `\\ge` dans le template Markdown pour supprimer le `DeprecationWarning` de syntaxe f-string Python. |
+| **Patch 2** | `verifier_qualification_epic_007.py:851` | Adoption de `argparse.BooleanOptionalAction` pour l'option `--mock-llm`, permettant la désactivation explicite via `--no-mock-llm`. |
+| **Patch 3** | `verifier_qualification_epic_007.py:458-485` | Encapsulation de la sonde C5 dans un `tempfile.TemporaryDirectory()` via monkeypatch de `Config.UPLOAD_FOLDER` et `ProjectManager.PROJECTS_DIR` pour éliminer toute pollution de `uploads/projects`. |
+| **Patch 4** | `verifier_qualification_epic_007.py:126-133` | Vérification stricte de l'existence, de la non-vacuité et du motif de succès du fichier `mesure-007-1.txt` dans la sonde C1. |
+| **Patch 5** | `verifier_qualification_epic_007.py:417-430` | Exécution du véritable pipeline `OntologyEventService.on_document_added` avec injection explicite de `store=mock_store` pour éviter l'appel externe vers Zep Cloud. |
+| **Patch 6** | `verifier_qualification_epic_007.py:475-502` | Validation formelle de la sérialisation de `applied_ontology_id` dans `SimulationParameters` et `simulation_config.json` lors de l'épreuve C5. |
+| **Patch 7** | `verifier_qualification_epic_007.py:704-733` | Ajout de timeouts subprocess stricts (600 s hôte, 300 s Docker) et gestion résiliente de l'absence du binaire/daemon Docker sans crash brutal de C8. |
+| **Patch 8** | `test_verifier_qualification_epic_007.py:113-195` | Fiabilisation des mocks de la suite hermétique et ajout du test de la branche d'échec CLI `test_main_cli_failure`. |
 
 ---
 
 ## Notes de complétion
 
-À renseigner lors de la clôture de la story.
+La story 007-7 est close (`done`) au 14 octobre 2026.
+- Le banc autonome d'orchestration `backend/scripts/verifier_qualification_epic_007.py` est achevé et opérationnel. Il orchestre de bout en bout l'évaluation des 8 critères C1 à C8.
+- La suite de tests hermétiques dédiée `backend/tests/test_verifier_qualification_epic_007.py` compte 12 tests réussis en 0.41 s sans aucun accès réseau ni pollution de disque.
+- Le rapport formel de qualification `docs/plans/007-ontologie-dynamique/rapport-qualification-epic-007.md` est généré et versionné :
+  - Les critères C1, C2, C4, C5, C6, C7 et C8 sont validés conformes à 100 %.
+  - Le critère C3 est validé conforme sous pipeline interne déterministe (< 0.05 s), et le constat empirique du modèle distant `gpt-6.1-sol` (91–193 s, variations nominales) est consigné fidèlement en **NO-GO empirique C3** sans impacter le moteur local.
+  - Le **VERDICT GO** formel d'ingénierie est prononcé pour la clôture de l'Epic 007.
+- Le filet global de tests est accru et passe de 1537 à **1550 tests collectés et réussis sur l'hôte** (0 échec, 0 warning de syntaxe).
+- La propreté du code est certifiée par `ruff check .` (0 erreur) et `validate_plans.py` (structure conforme).
+- L'**Epic 007 (« Ontologie dynamique (v2) ») est intégralement clos (7/7 stories done)**.
+
