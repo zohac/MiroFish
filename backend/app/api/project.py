@@ -52,8 +52,9 @@ def get_ontology_warnings(project_id: str):
 
 @project_bp.get("/<project_id>/ontology")
 def get_project_ontology(project_id: str):
-    """Retourne la version courante d'ontologie appliquée au projet (AC6)."""
+    """Retourne la version courante d'ontologie appliquée au projet (AC6, AC7, PRD Q4)."""
     from ..models.project import ProjectManager
+    from ..services.ontology_policy import OntologyPolicyService
 
     project = ProjectManager.get_project(project_id)
     if project is None:
@@ -66,9 +67,65 @@ def get_project_ontology(project_id: str):
             "error": f"Aucune ontologie appliquée au projet : {project_id}",
         }), 404
 
+    data = version.to_dict()
+
+    # Enrichissement avec la politique et statistiques optionnelles pour l'audit et l'IHM (AC7)
+    warnings_count = 0
+    try:
+        warns = OntologyPolicyService.warnings(project.project_id)
+        warnings_count = len(warns)
+    except Exception:
+        pass
+
+    data["policy"] = {
+        "strict_ontology": bool(project.strict_ontology),
+        "warnings_count": warnings_count,
+    }
+
+    # Statistiques optionnelles si demandé (include_counts=true)
+    include_counts_param = request.args.get("include_counts", "false")
+    include_counts = include_counts_param.lower() in ["true", "1", "yes"]
+    if include_counts:
+        data["statistics"] = {
+            "entity_counts": {},
+            "edge_counts": {},
+            "total_nodes": 0,
+            "total_edges": 0,
+        }
+        if project.graph_id:
+            from ..utils.graph_store.factory import release_graph_store
+            store = None
+            try:
+                store = get_graph_store()
+                nodes = store.get_all_nodes(project.graph_id)
+                entity_counts = {}
+                for n in nodes:
+                    for label in getattr(n, "labels", []):
+                        if label not in ["Entity", "Node"]:
+                            entity_counts[label] = entity_counts.get(label, 0) + 1
+
+                edges = store.get_all_edges(project.graph_id, include_temporal=False)
+                edge_counts = {}
+                for e in edges:
+                    name = getattr(e, "name", None) or getattr(e, "relation_type", None)
+                    if name:
+                        edge_counts[name] = edge_counts.get(name, 0) + 1
+
+                data["statistics"] = {
+                    "entity_counts": entity_counts,
+                    "edge_counts": edge_counts,
+                    "total_nodes": len(nodes),
+                    "total_edges": len(edges),
+                }
+            except Exception:
+                pass
+            finally:
+                if store is not None:
+                    release_graph_store(store)
+
     return jsonify({
         "success": True,
-        "data": version.to_dict(),
+        "data": data,
     }), 200
 
 

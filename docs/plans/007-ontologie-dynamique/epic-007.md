@@ -59,7 +59,7 @@
 | 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `done` | [story-007-3.md](story-007-3.md) |
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `done` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `done` | [story-007-5.md](story-007-5.md) |
-| 007-6 | Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM (Lot C - P1) | `backlog` | [story-007-6.md](story-007-6.md) |
+| 007-6 | Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM (Lot C - P1) | `done` | [story-007-6.md](story-007-6.md) |
 | 007-7 | Qualification globale C1–C8 et clôture de l'epic (Lot D - P1) | `backlog` | [story-007-7.md](story-007-7.md) |
 
 | Story | Critères d'acceptation (résumé) |

@@ -113,7 +113,14 @@ et rattachement de la version aux avertissements `GraphValidationWarning` (AC6).
 **007-5 est close (`done`)** : composition `ActorClassifier` / ontologie dynamique (AC1-AC5), propagation
 dans `SimulationConfigGenerator` et cohérence de projet E5 (AC6), isolation hermétique des tests.
 Revue contradictoire BMAD 4 couches validée (5 patches appliqués, 1 différé, 2 rejets).
-Epic 007 : 5/7 closes, **1519 tests verts sur l'hôte**.
+**007-6 est close (`done`)** : audit d'ontologie appliquée dans `ReportAgent` et exposition outillée LLM / API.
+Sous-section « ### 6. Ontologie appliquée (Epic 007, FR-6) » intégrée dans `build_sources_provenance_section()`
+(types d'entités avec `InformationOrigin`, relations, métadonnées de version `ont_<uuid12>`, politique et avertissements).
+Omission conditionnelle stricte sur projet sans ontologie appliquée (AC2, C7). Outil LLM `get_applied_ontology`
+déclaré dans `_define_tools` et exécutable dans `_execute_tool` avec formatage JSON structuré. Décompte tolérant
+aux pannes `_get_ontology_instance_counts` (AC5, NFR-4). Endpoint `GET /api/project/<id>/ontology` consolidé
+(AC7, PRD Q4) avec politique, avertissements et statistiques sous `include_counts=true` et restitution sécurisée des connexions via `release_graph_store`.
+Revue contradictoire BMAD 4 couches validée. Epic 007 : 6/7 closes, **1537 tests verts sur l'hôte**.
 
 ---
 
@@ -141,7 +148,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-14 octobre 2026 compte **1519 tests collectés et réussis sur l'hôte ; 1516 réussis + 3 ignorés sous
+14 octobre 2026 compte **1537 tests collectés et réussis sur l'hôte ; 1534 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
@@ -149,7 +156,8 @@ hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1431** (1367 + 64 cas, dont les régressions de revue) ; post-007-3 :
 **1459** (1431 + 23 tests de sonde hermétiques + 5 tests BMAD) ; post-007-4 :
 **1485** (1459 + 26 tests hermétiques, événements E1-E4 et magasin versionné compris) ; post-007-5 :
-**1519** (1485 + 34 tests hermétiques, composition acteurs et cohérence projet).
+**1519** (1485 + 34 tests hermétiques, composition acteurs et cohérence projet) ; post-007-6 :
+**1537** (1519 + 18 tests hermétiques, audit rapport, outil LLM et 3 patches BMAD compris).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais

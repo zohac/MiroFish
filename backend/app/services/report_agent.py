@@ -1004,6 +1004,14 @@ class ReportAgent:
                     "char_start": "起始字符位置（可选）",
                     "char_end": "结束字符位置（可选）"
                 }
+            },
+            "get_applied_ontology": {
+                "name": "get_applied_ontology",
+                "description": "Consulter l'ontologie appliquée au projet courant (types d'entités, types de relations, origines, politique, métadonnées de version et statistiques d'instances)",
+                "parameters": {
+                    "include_counts": "Inclure le décompte des entités et relations par type (booléen, défaut true)",
+                    "since": "Horodatage ISO 8601 optionnel pour filtrer les avertissements de validation récents"
+                }
             }
         }
 
@@ -1158,6 +1166,78 @@ class ReportAgent:
                     return f"【引用有效】Citation exacte validée dans les sources : \"{citation}\""
                 return f"【引用异常】{res.error or 'Citation non trouvée dans les sources'}"
             
+            elif tool_name == "get_applied_ontology":
+                include_counts = parameters.get("include_counts", True)
+                if isinstance(include_counts, str):
+                    include_counts = include_counts.lower() in ["true", "1", "yes"]
+                since = parameters.get("since")
+                
+                project = self._resolve_project()
+                if not project or not project.applied_ontology_id:
+                    return json.dumps({
+                        "status": "no_ontology_applied",
+                        "message": "Aucune ontologie appliquée n'est rattachée au projet de cette simulation."
+                    }, ensure_ascii=False, indent=2)
+
+                version = project.get_applied_ontology()
+                if not version:
+                    return json.dumps({
+                        "status": "no_ontology_applied",
+                        "message": f"Version d'ontologie introuvable pour l'identifiant {project.applied_ontology_id}."
+                    }, ensure_ascii=False, indent=2)
+
+                # Compte des avertissements
+                warnings_count = 0
+                try:
+                    from .ontology_policy import OntologyPolicyService
+                    warns = OntologyPolicyService.warnings(project.project_id, since=since)
+                    warnings_count = len(warns)
+                except Exception as e:
+                    logger.debug(f"Erreur lors de la récupération des avertissements d'ontologie: {e}")
+
+                entity_counts = {}
+                edge_counts = {}
+                if include_counts:
+                    entity_counts, edge_counts = self._get_ontology_instance_counts(project.graph_id or self.graph_id)
+
+                entity_types_data = []
+                for et in version.entity_types:
+                    et_dict = {
+                        "name": et.name,
+                        "description": et.description,
+                        "source": et.source.value if hasattr(et.source, "value") else str(et.source),
+                        "attributes": list(et.attributes),
+                    }
+                    if include_counts:
+                        et_dict["count"] = entity_counts.get(et.name, 0)
+                    entity_types_data.append(et_dict)
+
+                edge_types_data = []
+                for ed in version.edge_types:
+                    ed_dict = {
+                        "name": ed.name,
+                        "description": ed.description,
+                        "source_types": list(ed.source_types),
+                        "target_types": list(ed.target_types),
+                    }
+                    if include_counts:
+                        ed_dict["count"] = edge_counts.get(ed.name, 0)
+                    edge_types_data.append(ed_dict)
+
+                result_data = {
+                    "status": "applied",
+                    "version_id": version.version_id,
+                    "created_at": version.created_at,
+                    "source_summary": version.source_summary or "",
+                    "policy": {
+                        "strict_ontology": bool(project.strict_ontology),
+                        "warnings_count": warnings_count,
+                    },
+                    "entity_types": entity_types_data,
+                    "edge_types": edge_types_data,
+                }
+                return json.dumps(result_data, ensure_ascii=False, indent=2)
+            
             # ========== 向后兼容的旧工具（内部重定向到新工具） ==========
             
             elif tool_name == "search_graph":
@@ -1200,7 +1280,16 @@ class ReportAgent:
             return f"工具执行失败: {str(e)}"
     
     # 合法的工具名称集合，用于裸 JSON 兜底解析时校验
-    VALID_TOOL_NAMES = {"insight_forge", "panorama_search", "quick_search", "interview_agents"}
+    VALID_TOOL_NAMES = {
+        "insight_forge",
+        "panorama_search",
+        "quick_search",
+        "interview_agents",
+        "get_edge_provenance",
+        "verify_action",
+        "verify_citation",
+        "get_applied_ontology",
+    }
 
     def _parse_tool_calls(self, response: str) -> List[Dict[str, Any]]:
         """
@@ -2019,7 +2108,78 @@ class ReportAgent:
         lines.append("- **Couverture documentaire :** Intégrité des fragments et positions en caractères préservées.")
         lines.append("- **Séparation stricte données et consignes :** Les contenus documentaires sont traités exclusivement comme données d'entrée factuelles et ne sont jamais promus en instructions système.")
 
+        # Sous-section 6. Ontologie appliquée (Epic 007, FR-6, C7)
+        # Condition stricte : uniquement si le projet rattaché a une ontologie appliquée (AC2).
+        if project and project.applied_ontology_id:
+            version = project.get_applied_ontology()
+            if version:
+                lines.append("\n### 6. Ontologie appliquée (Epic 007, FR-6)")
+                
+                # Décompte tolérant aux pannes
+                entity_counts, edge_counts = self._get_ontology_instance_counts(project.graph_id or self.graph_id)
+
+                # Tableau 1 : Types d'entités
+                lines.append("\n| Type d'entité | Description | Origine | Compte |")
+                lines.append("|---|---|---|---|")
+                for et in version.entity_types:
+                    origin_val = et.source.value if hasattr(et.source, "value") else str(et.source)
+                    count_val = entity_counts.get(et.name, 0)
+                    desc_val = (et.description or "N/A").replace("\n", " ").replace("|", "\\|")
+                    lines.append(f"| `{et.name}` | {desc_val} | {origin_val} | {count_val} |")
+
+                # Tableau 2 : Types de relations
+                lines.append("\n| Type de relation | Source | Cible | Description | Compte |")
+                lines.append("|---|---|---|---|---|")
+                for ed in version.edge_types:
+                    src_str = ", ".join(f"`{s}`" for s in ed.source_types) if ed.source_types else "N/A"
+                    tgt_str = ", ".join(f"`{t}`" for t in ed.target_types) if ed.target_types else "N/A"
+                    count_val = edge_counts.get(ed.name, 0)
+                    desc_val = (ed.description or "N/A").replace("\n", " ").replace("|", "\\|")
+                    lines.append(f"| `{ed.name}` | {src_str} | {tgt_str} | {desc_val} | {count_val} |")
+
+                # Métadonnées de version
+                source_info = f", source : {version.source_summary}" if version.source_summary else ""
+                lines.append(f"\n**Version d'ontologie appliquée** : `{version.version_id}` (créée le {version.created_at}{source_info}).")
+
+                # Politique de validation et avertissements
+                policy_desc = "mode strict (rejet des types non déclarés)" if project.strict_ontology else "mode permissif (avertissement + rétrogradation)"
+                warnings_count = 0
+                try:
+                    from .ontology_policy import OntologyPolicyService
+                    warns = OntologyPolicyService.warnings(project.project_id)
+                    warnings_count = len(warns)
+                except Exception as e:
+                    logger.debug(f"Erreur lors de la lecture des warnings d'ontologie: {e}")
+                lines.append(f"**Politique de validation** : {policy_desc}. {warnings_count} avertissement(s) actif(s).")
+
         return "\n".join(lines)
+
+    def _get_ontology_instance_counts(self, graph_id: str) -> tuple[Dict[str, int], Dict[str, int]]:
+        """Décompte robuste et tolérant aux pannes des entités et relations par type (AC5, NFR-4)."""
+        entity_counts: Dict[str, int] = {}
+        edge_counts: Dict[str, int] = {}
+        if not graph_id:
+            return entity_counts, edge_counts
+
+        try:
+            nodes = self.zep_tools.get_all_nodes(graph_id)
+            for node in nodes:
+                for label in getattr(node, "labels", []):
+                    if label not in ["Entity", "Node"]:
+                        entity_counts[label] = entity_counts.get(label, 0) + 1
+        except Exception as e:
+            logger.warning(f"Impossible de récupérer les nœuds pour le décompte d'ontologie ({graph_id}): {e}")
+
+        try:
+            edges = self.zep_tools.get_all_edges(graph_id, include_temporal=False, resolve_provenance=False)
+            for edge in edges:
+                name = getattr(edge, "name", None) or getattr(edge, "relation_type", None)
+                if name:
+                    edge_counts[name] = edge_counts.get(name, 0) + 1
+        except Exception as e:
+            logger.warning(f"Impossible de récupérer les arêtes pour le décompte d'ontologie ({graph_id}): {e}")
+
+        return entity_counts, edge_counts
     
     def chat(
         self, 

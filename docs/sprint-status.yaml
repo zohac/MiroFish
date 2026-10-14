@@ -18,6 +18,18 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-14
+# 14 oct. 2026 : story 007-6 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches (3 patches appliqués : VALID_TOOL_NAMES, include_counts
+# sans graph_id, échappement pipes/newlines). Audit d'ontologie appliquée dans ReportAgent
+# via sous-section « ### 6. Ontologie appliquée (Epic 007, FR-6) » intégrée à
+# build_sources_provenance_section() (tableaux types d'entités avec InformationOrigin et
+# types de relations avec comptes, métadonnées de version et politique). Absence conditionnelle
+# stricte sur projet sans ontologie (AC2). Outil LLM get_applied_ontology défini et
+# exécutable dans _execute_tool. Décompte tolérant aux pannes _get_ontology_instance_counts
+# (AC5) sans rupture de flux. Enrichissement de l'endpoint GET /api/project/<id>/ontology
+# (politique, avertissements et statistiques sur include_counts avec release_graph_store sécurisé).
+# 18 tests hermétiques dédiés ajoutés, filet global porté à 1537 tests passants sur l'hôte.
+# Epic 007 in-progress (6/7 closes : 007-1, 007-2, 007-3, 007-4, 007-5, 007-6 done).
 # 14 oct. 2026 : story 007-5 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches. Signal primaire d'ontologie dans ActorClassifierService
 # via ONTOLOGY_ROLE_MAPPING (injective et conservative, court-circuit LLM confidence=1.0
@@ -517,6 +529,20 @@ epics:
     # les personas OASIS (source_entity_type).
     # Filet global porté à 1519 tests passants sur l'hôte (+34 tests hermétiques).
     # Revue contradictoire BMAD 4 couches validée. Story 007-5 close (done).
+    # Story 007-6 (done au 14 oct. 2026) : Audit d'ontologie appliquée dans ReportAgent.
+    # Sous-section « ### 6. Ontologie appliquée (Epic 007, FR-6) » intégrée dans
+    # build_sources_provenance_section() avec tableaux types d'entités (InformationOrigin,
+    # descriptions, comptes) et relations (source, cible, description, comptes),
+    # métadonnées de version (ont_<uuid12>, created_at, source_summary) et politique
+    # (strict/permissif, compte warnings récents). Omission conditionnelle stricte
+    # sur projet sans ontologie appliquée (AC2, C7). Outil LLM get_applied_ontology
+    # déclaré dans _define_tools et exécutable dans _execute_tool avec charge JSON complète.
+    # Décompte tolérant aux pannes _get_ontology_instance_counts sans rupture en cas
+    # d'erreur Neo4j/Cypher (AC5, NFR-4). Séparation stricte données/consignes (AC6, NFR-5).
+    # Endpoint GET /api/project/<id>/ontology consolidé (AC7, PRD Q4) avec politique,
+    # warnings et statistiques d'instances sous include_counts=true avec release_graph_store.
+    # Filet global porté à 1537 tests passants sur l'hôte (+18 tests hermétiques, dont 3 issus de la revue BMAD).
+    # Revue contradictoire BMAD 4 couches validée. Story 007-6 close (done).
 
   - id: "008"
     slug: support-langue-francaise

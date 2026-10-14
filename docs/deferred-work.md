@@ -405,3 +405,9 @@ Revue des modifications de la story 007-5 (`local-first`), le 14 octobre 2026.
 
 - **`backend/app/services/simulation_manager.py:357` — Initialisation anticipée de `applied_ontology_id` dès `create_simulation`.** Lors de l'instanciation initiale de `SimulationState`, `applied_ontology_id` reste à `None` jusqu'à l'exécution de `prepare_simulation`. L'événement E5 spécifie formellement le rattachement de la version d'ontologie lors de la préparation/lancement de la simulation (AC1) ; anticiper cette affectation dès la création initiale n'apporte pas de gain immédiat et ne casse aucun consommateur. *Différé : amélioration architecturale de confort, non bloquante pour l'éligibilité ni la cohérence E5.*
 
+## Deferred from: code review of story-007-6.md (2026-10-14)
+
+Revue des modifications de la story 007-6 (`local-first`), le 14 octobre 2026.
+
+- **`backend/app/services/report_agent.py:2163` — Requête Cypher agrégée pour décompte d'instances sur très grands graphes.** `_get_ontology_instance_counts` rapatrie les nœuds en mémoire Python via `get_all_nodes` pour agréger les labels. Sur des graphes massifs (>100k nœuds), une requête Cypher directe `MATCH (n) RETURN labels(n), count(n)` optimiserait l'empreinte mémoire. *Différé : choix architectural préexistant aligné avec l'abstraction GraphStore, les simulations locales actuelles portant sur des graphes de taille modérée (<1000 nœuds).*
+

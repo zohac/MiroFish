@@ -2,7 +2,7 @@
 id: "007-6"
 epic: "007"
 titre: "Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM"
-statut: backlog
+statut: done
 auteur: "Simon"
 format: "2"
 ---
@@ -25,12 +25,12 @@ de la capacité d'interrogation outillée de l'ontologie appliquée au projet co
 
 ## Définition de prêt
 
-- [ ] PRD §3.1/§4/C7, architecture §7, epic-007 §1/§4 et constitution consultés.
-- [ ] Stories 007-4 et 007-5 terminées (`done`) : modèle `OntologyVersion`, magasin `OntologyVersionStore`, méthode `Project.get_applied_ontology()` et rattachement `applied_ontology_id` opérationnels.
-- [ ] Code source existant analysé : `ReportAgent` (`app/services/report_agent.py`), section « Sources & Provenance » (`build_sources_provenance_section`), gestion des outils LLM (`_define_tools`, `_execute_tool`).
-- [ ] Modèle de provenance `InformationOrigin` (ADR 0012, 009-2) réutilisé pour qualifier l'origine de chaque type (`documentary`, `hypothesis`, `inherited`, etc.).
-- [ ] Stratégie de décompte Cypher par type de nœud et d'arête définie avec tolérance aux pannes et résilience en cas de base inaccessible.
-- [ ] Scénarios de test hermétiques C7 conçus : présence de la sous-section sur projet typé, absence stricte sur projet non typé (graphe hérité Epic 006 ou sans ontologie), appel d'outil LLM unitaire et intégration.
+- [x] PRD §3.1/§4/C7, architecture §7, epic-007 §1/§4 et constitution consultés.
+- [x] Stories 007-4 et 007-5 terminées (`done`) : modèle `OntologyVersion`, magasin `OntologyVersionStore`, méthode `Project.get_applied_ontology()` et rattachement `applied_ontology_id` opérationnels.
+- [x] Code source existant analysé : `ReportAgent` (`app/services/report_agent.py`), section « Sources & Provenance » (`build_sources_provenance_section`), gestion des outils LLM (`_define_tools`, `_execute_tool`).
+- [x] Modèle de provenance `InformationOrigin` (ADR 0012, 009-2) réutilisé pour qualifier l'origine de chaque type (`documentary`, `hypothesis`, `inherited`, etc.).
+- [x] Stratégie de décompte Cypher par type de nœud et d'arête définie avec tolérance aux pannes et résilience en cas de base inaccessible.
+- [x] Scénarios de test hermétiques C7 conçus : présence de la sous-section sur projet typé, absence stricte sur projet non typé (graphe hérité Epic 006 ou sans ontologie), appel d'outil LLM unitaire et intégration.
 
 ### Critères d’acceptation
 
@@ -47,25 +47,35 @@ de la capacité d'interrogation outillée de l'ontologie appliquée au projet co
 
 ## Définition de fini
 
-- [ ] AC1 à AC8 satisfaits avec preuves de tests unitaires et d'intégration hermétiques associées.
-- [ ] Sous-section « Ontologie appliquée » intégrée à `build_sources_provenance_section()` de `ReportAgent`.
-- [ ] Outil LLM `get_applied_ontology` défini dans `_define_tools` et exécutable dans `_execute_tool`.
-- [ ] Absence stricte de la sous-section validée sur les projets sans ontologie appliquée.
-- [ ] Comptage Cypher robuste avec repli gracieux en cas de panne.
-- [ ] Préservation absolue des 1157+ tests de l'Epic 009 sans régression.
-- [ ] Filet global $\ge 1534$ tests passants sur l'hôte, `ruff check .` propre, `validate_plans.py` conforme.
-- [ ] Revue contradictoire BMAD 4 couches effectuée et patches traités.
-- [ ] Notes de complétion rédigées, suivi `sprint-status.yaml`, `STATUS.md` et `epic-007.md` actualisés.
+- [x] AC1 à AC8 satisfaits avec preuves de tests unitaires et d'intégration hermétiques associées.
+- [x] Sous-section « Ontologie appliquée » intégrée à `build_sources_provenance_section()` de `ReportAgent`.
+- [x] Outil LLM `get_applied_ontology` défini dans `_define_tools` et exécutable dans `_execute_tool`.
+- [x] Absence stricte de la sous-section validée sur les projets sans ontologie appliquée.
+- [x] Comptage Cypher robuste avec repli gracieux en cas de panne.
+- [x] Préservation absolue des 1157+ tests de l'Epic 009 sans régression.
+- [x] Filet global $\ge 1534$ tests passants sur l'hôte, `ruff check .` propre, `validate_plans.py` conforme.
+- [x] Revue contradictoire BMAD 4 couches effectuée et patches traités.
+- [x] Notes de complétion rédigées, suivi `sprint-status.yaml`, `STATUS.md` et `epic-007.md` actualisés.
 
 ## Tâches
 
-- [ ] T1 — Conception de la méthode d'inspection et de décompte des entités et relations par type d'ontologie (AC5).
-- [ ] T2 — Intégration de la sous-section « 6. Ontologie appliquée (Epic 007, FR-6) » dans `ReportAgent.build_sources_provenance_section()` (AC1, AC2, AC6).
-- [ ] T3 — Déclaration du schéma d'outil `get_applied_ontology` dans `ReportAgent._define_tools()` (AC3, AC6).
-- [ ] T4 — Implémentation du dispatch d'exécution dans `ReportAgent._execute_tool()` avec formatage JSON structuré (AC4, AC5).
-- [ ] T5 — Intégration / consolidation du endpoint API `GET /api/project/<project_id>/ontology` pour exposition des métadonnées appliquées (AC7).
-- [ ] T6 — Écriture de la suite de tests hermétiques dédiée `backend/tests/test_report_ontology_audit.py` (AC1-AC8).
-- [ ] T7 — Revue contradictoire BMAD 4 couches et validation globale outillée (AC8).
+- [x] T1 — Conception de la méthode d'inspection et de décompte des entités et relations par type d'ontologie (AC5).
+- [x] T2 — Intégration de la sous-section « 6. Ontologie appliquée (Epic 007, FR-6) » dans `ReportAgent.build_sources_provenance_section()` (AC1, AC2, AC6).
+- [x] T3 — Déclaration du schéma d'outil `get_applied_ontology` dans `ReportAgent._define_tools()` (AC3, AC6).
+- [x] T4 — Implémentation du dispatch d'exécution dans `ReportAgent._execute_tool()` avec formatage JSON structuré (AC4, AC5).
+- [x] T5 — Intégration / consolidation du endpoint API `GET /api/project/<project_id>/ontology` pour exposition des métadonnées appliquées (AC7).
+- [x] T6 — Écriture de la suite de tests hermétiques dédiée `backend/tests/test_report_ontology_audit.py` (AC1-AC8).
+- [x] T7 — Revue contradictoire BMAD 4 couches et validation globale outillée (AC8).
+
+### Review Findings
+
+- [x] [Review][Patch] Reconnaissance des appels d'outils en JSON brut via VALID_TOOL_NAMES [backend/app/services/report_agent.py:1283]
+- [x] [Review][Patch] Déterminisme du schéma de réponse GET /api/project/<id>/ontology?include_counts=true [backend/app/api/project.py:65-98]
+- [x] [Review][Patch] Échappement défensif des descriptions dans les tableaux Markdown du rapport [backend/app/services/report_agent.py:2118,2127]
+- [x] [Review][Defer] Requête Cypher agrégée pour décompte d'instances sur très grands graphes [backend/app/services/report_agent.py:2163] — deferred: choix architectural préexistant aligné avec GraphStore, simulations locales actuelles portant sur des graphes de taille modérée (<1000 nœuds).
+
+#### Rejected Findings
+- Redondance d'acquisition de store dans get_project_ontology (backend/app/api/project.py:54,71) : rejeté car le pool GraphStore gère efficacement les ouvertures et le couplage n'apporterait pas de gain mesurable.
 
 ## Notes de développement
 
@@ -154,8 +164,40 @@ sequenceDiagram
 
 ## Revue
 
-*(Section réservée à la revue contradictoire BMAD 4 couches lors du passage en statut `review`.)*
+Revue contradictoire BMAD à 4 couches réalisée le **14 octobre 2026** sur la branche `local-first` :
+- **Couche 1 : blind-hunter** :
+  - Détection de l'absence de `get_applied_ontology` et des outils de provenance dans `ReportAgent.VALID_TOOL_NAMES`, empêchant la reconnaissance des appels en JSON brut (fallback LLM). Patch appliqué immédiatement.
+  - Détection de l'omission du dictionnaire `statistics` dans `GET /api/project/<id>/ontology?include_counts=true` lorsque `project.graph_id` est `None`. Patch appliqué pour initialiser la structure par défaut (0 comptes).
+  - Échappement défensif des descriptions dans les tableaux Markdown (`|` et `\n`) pour prévenir toute corruption de colonnes. Patch appliqué.
+  - Détection de la double ouverture de connexion GraphStore dans `get_project_ontology` : analysé et rejeté en `low` sans régression ni anomalie démontrée.
+- **Couche 2 : edge-case-hunter** :
+  - Tolérance aux pannes du graphe (AC5) : si Neo4j ou le driver Cypher est indisponible, `_get_ontology_instance_counts` intercepte l'erreur sans propager d'exception et retombe sur des dictionnaires vides (comptes à 0), garantissant la continuité de génération du rapport (NFR-4).
+  - Échappement et étanchéité NFR-5 (AC6) : les métadonnées de types injectées dans le markdown ou l'outil LLM sont traitées strictement comme des données d'entrée factuelles sans concaténation dans les consignes système des prompts.
+  - Absence conditionnelle stricte (AC2) : omission totale de la sous-section 6 si `applied_ontology_id` est `None` (projets hérités Epic 006 ou non typés), avec préservation absolue des sous-sections 1 à 5 de provenance.
+- **Couche 3 : verification-gap** :
+  - Création de la suite hermétique `backend/tests/test_report_ontology_audit.py` avec **18 tests unitaires et d'intégration** (15 tests initiaux + 3 tests de régression couvrant les patches BMAD : parsing JSON brut, réponse sans graph_id, échappement de pipes).
+  - Exécution complète de la suite de tests backend : **1537 tests passants** sur l'hôte (1537 réussis, 0 échec). Filet de sécurité grossi de +18 tests hermétiques par rapport à la story 007-5 (1519 tests).
+- **Couche 4 : acceptance-auditor** :
+  - 100 % des critères d'acceptation AC1 à AC8 validés avec preuves de tests.
+  - `ruff check .` rigoureusement propre (0 warning, 0 erreur).
+  - `validate_plans.py` conforme (9 epics, 41 fichiers validés).
 
 ## Notes de complétion
 
-À renseigner lors de la clôture de la story.
+- **Sous-section « Ontologie appliquée » dans le rapport (FR-6, C7)** :
+  - Intégration dans `ReportAgent.build_sources_provenance_section()` d'une sous-section dédiée « ### 6. Ontologie appliquée (Epic 007, FR-6) ».
+  - Affichage structuré en deux tableaux Markdown : types d'entités (nom, description échappée, origine `InformationOrigin`, compte d'instances) et types de relations (nom, source, cible, description échappée, compte d'instances).
+  - Métadonnées de traçabilité complètes : identifiant de version (`ont_<uuid12>`), date de création ISO 8601, résumé de source, et politique de validation avec compte des avertissements récents.
+- **Outil LLM `get_applied_ontology` (FR-6)** :
+  - Déclaration formelle du schéma de l'outil dans `ReportAgent._define_tools()` avec paramètres `include_counts` et `since`.
+  - Intégration dans `VALID_TOOL_NAMES` pour reconnaissance nominale et repli JSON brut.
+  - Dispatch d'exécution dans `ReportAgent._execute_tool()` renvoyant une charge JSON structurée et exhaustive avec repli propre si aucune ontologie n'est appliquée.
+- **Comptage tolérant aux pannes (AC5, NFR-4)** :
+  - Méthode `_get_ontology_instance_counts()` inspectant les nœuds et arêtes du graphe partitionné par `group_id` via `zep_tools`.
+  - Résilience totale en cas de coupure réseau ou d'indisponibilité du store (repli à 0 sans bloquer la génération du rapport).
+- **API d'audit et IHM (AC7, PRD Q4)** :
+  - Enrichissement de `GET /api/project/<project_id>/ontology` dans `backend/app/api/project.py` pour retourner la politique (`strict_ontology`, `warnings_count`) et, sur paramètre optionnel `include_counts=true`, le dictionnaire complet des statistiques d'instances avec restitution propre des connexions et schéma déterministe même en l'absence de `graph_id`.
+- **Filet de tests et non-régression** :
+  - 18 tests hermétiques dédiés dans `tests/test_report_ontology_audit.py` (15 initiaux + 3 issus de la revue BMAD).
+  - Suite globale portée de 1519 à **1537 tests passants sur l'hôte** (0 échec).
+  - Lint `ruff check .` impeccable et validation de la gouvernance `validate_plans.py`.
