@@ -18,9 +18,21 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-13
-# 13 oct. 2026 : 007-2 close après revue/correctifs et qualification C2 Graphiti ;
-# 007-3 rédigée en backlog. Epic 007 reste in-progress (2/7 stories closes).
-# 12 oct. 2026 : étude DoR 007-2 terminée, NO-GO commun (ADR 0015).
+# 13 oct. 2026 : story 007-3 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches. 0 décision en suspens, 7 patches appliqués (P1 à P7 :
+# détection doublons asymétriques, robustesse NoneType et attributs chaînes,
+# nouvelle instance et fermeture store.close(), chronométrage lecture disque,
+# formalisation ~~AC3~~/~~AC5~~, 5 tests hermétiques), 1 différé (D1 dans deferred-work.md),
+# 5 rejets motivés. Filet porté à 1459 tests passants sur l'hôte (+5 tests).
+# Epic 007 in-progress (3/7 closes : 007-1, 007-2, 007-3 done).
+# 13 oct. 2026 : story 007-3 passe in-progress puis review. Sonde réelle exécutée
+# via passerelle Codex locale (gpt-6.1-sol). Reproductibilité nominale stricte (AC3)
+# et budget < 30 s (AC5) actés non satisfaits par nature du modèle LLM (NO-GO empirique
+# consigné dans mesure-007-3-hote.json). 21 tests de sonde hermétiques ajoutés, filet
+# porté à 1454 tests passants.
+# 13 oct. 2026 : DoR 007-3 réglé (corpus 10K/50K et briefs figés, config LLM),
+# story 007-3 passe in-progress. Epic 007 in-progress (2/7 closes, 1 en review).
+# 13 oct. 2026 : 007-2 close après revue/correctifs et qualification C2 Graphiti.
 # Graphiti pré-persistance éprouvé ; garantie distante C2 Zep non démontrée.
 # 12 oct. 2026 : ADR 0016 accepté ; C2 recentré sur Graphiti, Zep conserve son
 # parcours historique et une garantie stricte non démontrée est refusée.
@@ -453,6 +465,17 @@ epics:
     # mock auto-fulfilling, shell script rejouable, UTF-8 BOM), 1
     # rejeté (async sans wrapper). Filet porté à 1366 sur l'hôte (+11
     # tests par la relecture D). Story 007-1 close.
+    # Story 007-3 (done au 13 oct. 2026) : Sonde autonome de régénération et
+    # budget de performance (`verifier_ontology_regeneration.py`). Entrées figées
+    # (corpus 10K et 50K sous tests/fixtures/ontology/regeneration/), température 0.0
+    # transmise dans OntologyGenerator.generate, projection canonique canonical_ontology_projection
+    # isolant types et attributs. Sonde réelle exécutée via passerelle Codex locale
+    # (gpt-6.1-sol) contre Neo4j réel : intégrité de pose set_ontology et isolation
+    # 100 % conformes ; non-déterminisme nominal et dépassement budget (> 90 s) actés
+    # NO-GO empirique C3 consigné dans mesure-007-3-hote.json.
+    # Revue contradictoire BMAD 4 couches validée : 7 patches appliqués (P1 à P7,
+    # dont 5 tests unitaires hermétiques supplémentaires), 1 différé, 5 rejets motivés.
+    # Filet global porté à 1459 tests passants sur l'hôte (+5 tests). Story 007-3 close (done).
 
   - id: "008"
     slug: support-langue-francaise

@@ -1,0 +1,28 @@
+Cahier des charges de la boucle locale — commune de Valmont
+
+La commune de Valmont a publié le 14 mars le cahier des charges de son réseau
+d'accès. Le document fixe trois objectifs opposables : la couverture de
+l'ensemble du territoire communal d'ici fin 2027, un débit minimal de
+100 Mbit/s descendant dans chaque logement, et une transparence tarifaire
+applicable aux offres de détail.
+
+Le réseau sera exploité par un attributaire unique désigné après une procédure
+de mise en concurrence. La commune se réserve la propriété des équipements de
+passage, la fibre optique étant posée en fourreau municipal. L'attributaire
+construit, exploite et entretient les parties terminales du réseau, y compris
+les prises d'immeuble.
+
+Valmont compte 4 120 habitants répartis sur 34 hameaux. La commune estime que
+210 logements, soit 5 pour cent du parc, ne sont aujourd'hui desservis par aucun
+accès haut débit, et que la zone de 400 à 800 Mbit/s n'atteint pas le
+centre-bourg.
+
+La consultation sera ouverte aux opérateurs de télécommunication titulaires d'une
+autorisation et aux opérateurs de réseaux virtuels. Les candidatures devront
+produire un bilan de capacité et un plan de déploiement par hameau. Le cahier
+des charges impose une mise à jour trimestrielle du plan de déploiement.
+
+L'annexe fixe enfin le régime de sanctions : le défaut de couverture constaté à
+la date butoir entraîne une mise en demeure, puis une résiliation pour faute au
+terme de six mois. Les données de couverture seront publiées en open data, au
+trimestre.

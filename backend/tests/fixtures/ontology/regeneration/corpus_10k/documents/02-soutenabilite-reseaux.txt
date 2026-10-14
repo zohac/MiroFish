@@ -1,0 +1,29 @@
+Soutenabilite des reseaux de fibre — rapport de l'autorite de regulation
+
+L'autorite de regulation des telecommunications publie son rapport annuel sur la
+soutenabilite des reseaux. Le rapport couvre les consommations electriques des
+equipements de reseau, l'empreinte carbone de la phase de construction et le
+devenir des debris d'equipements retires au fil de l'eau.
+
+Les operateurs ont declare une consommation electrique cumulee de 412
+gigawattheures en 2025 pour l'ensemble des reseaux fixes, en hausse de 6 pour
+cent par rapport a 2024. Cette progression suit l'extension du deploiement de la
+fibre et la generalisation de la virtualisation des fonctions reseau, qui
+deplacent la charge vers des centres de donnees de petite taille situes en bord
+de reseau.
+
+Le rapport recommande aux operateurs de documenter le comportement de leurs
+equipements en cas de coupure reseau de longue duree, situation devenue
+frequente lors des episodes de chaleur. Deux operateurs testent actuellement des
+modes d'economie d'energie sur leurs equipements radio, avec un effet mesure de
+12 pour cent sur la consommation des antennes.
+
+Le rapport rappelle enfin que le remplacement des equipements au-dela de leur
+duree de vie reglementaire pese davantage, dans le bilan carbone, que la phase
+d'usage. L'autorite recommande l'allongement de la duree d'usage des equipements
+de niveau 1 et le renforcement duemploi des equipements de niveau 2.
+
+Une consultation publique a ete ouverte jusqu'au 30 juin. L'autorite indique
+qu'elle adoptera des prescriptions contraignantes sur la consommation des
+equipements de niveau 1 au second semestre 2027, apres presentation des reponses
+des operateurs.

@@ -27,7 +27,7 @@ reproductible.**
 | Environnement Docker de référence (Docker-first) | ✅ fait — Epic 005 clos (711 tests verts, Verdict GO) |
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
-| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, story 007-1 `done`, story 007-2 `done` (C2 Graphiti qualifié, ADR 0016/0017), story 007-3 rédigée en `backlog` (pose effective des labels, ADR 0014, mesure C1 100 %/100 %) |
+| Ontologie dynamique (v2) | 🔄 en cours — Epic 007, stories 007-1, 007-2 et 007-3 closes (`done`), 1459 tests verts sur l'hôte, NO-GO empirique C3 consigné |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -98,9 +98,13 @@ La **story 007-2 est close** après revue BMAD, 14 correctifs appliqués et
 qualification réelle C2 Graphiti : [12 cas conformes](docs/plans/007-ontologie-dynamique/mesure-007-2.json).
 L’ADR 0016 limite la garantie à Graphiti ; l’ADR 0017 formalise la politique
 durable et la rétrogradation transactionnelle. Le refus strict Zep reste
-explicite. **007-3 est rédigée en `backlog`** : générations indépendantes,
-comparaison des champs stables et budget lecture→pose ; figer les corpus avant
-implémentation. Epic 007 : 2/7 stories closes, **1428 réussis + 3 ignorés Docker**.
+explicite. **007-3 est close (`done`)** : entrées figées (corpus 10K/50K), température zéro,
+projection canonique, sonde autonome `verifier_ontology_regeneration.py`.
+L'épreuve réelle contre Neo4j et `gpt-6.1-sol` valide la pose (< 10 ms), mais
+le non-déterminisme nominal et le délai d'inférence (91–193 s) inhérents au LLM
+sont actés en NO-GO empirique C3 dans [`mesure-007-3-hote.json`](docs/plans/007-ontologie-dynamique/mesure-007-3-hote.json).
+Revue contradictoire BMAD 4 couches validée (7 patches appliqués, 1 différé, 5 rejets).
+Epic 007 : 3/7 closes, **1459 tests verts sur l'hôte**.
 
 ---
 
@@ -128,13 +132,13 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-12 octobre 2026 compte **1431 tests collectés ; 1428 réussis + 3 ignorés sous
+13 octobre 2026 compte **1459 tests collectés et réussis sur l'hôte ; 1456 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1367** (1157 + 210 tests hermétiques, relectures comprises) ; post-007-2 :
-**1431** (1367 + 64 cas, dont les régressions de revue) ; [preuves et
-limites](docs/plans/009-eligibilite-acteurs-et-sources/rapport-qualification-epic-009.md).
+**1431** (1367 + 64 cas, dont les régressions de revue) ; post-007-3 :
+**1459** (1431 + 23 tests de sonde hermétiques + 5 tests BMAD) ; [mesure réelle](docs/plans/007-ontologie-dynamique/mesure-007-3-hote.json).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais
@@ -497,7 +501,7 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 ## 8. Hors périmètre (pour l'instant)
 
 - Ré-auditer les forks communautaires → fait, ADR 0002
-- Ontology dynamique → **en cours**, epic 007 ; la story 007-1 est `done`, la story 007-2 est `done` (ADR 0016/0017) et 007-3 est rédigée en `backlog`
+- Ontology dynamique → **en cours**, epic 007 ; stories 007-1, 007-2 et 007-3 `done` (ADR 0016/0017), 1459 tests verts
 - Moderniser le frontend ou l'i18n
 - Exposer l'application en réseau sans lire l'ADR 0005
 - GitHub Projects : uniquement comme vue générée, et seulement quand
@@ -539,6 +543,8 @@ permettra de basculer `ZEP_BACKEND` sans réécrire les services.
 | 0013 | Sémantique des sources : statut de validation, conflits conservés avec règle déclarée, budget de contexte explicite |
 | 0014 | Pose effective de l'ontologie : `set_ontology` cesse d'être un no-op, `strict` et `ontology` sont keyword-only, le contrat `GraphStore` est versionné `version = 2` |
 | 0015 | Contrôle ontologique avant persistance : preuve Graphiti, NO-GO commun tant que C2 Zep n’est pas démontré |
+| 0016 | Périmètre de validation d'ontologie Graphiti : C2 recentré sur Graphiti, refus strict de garantie distante Zep |
+| 0017 | Politique ontologique durable et rétrogradation transactionnelle Graphiti |
 
 ---
 
@@ -551,7 +557,7 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 |---|---|
 | Zep Community Edition est déprécié ; Graphiti est la voie OSS | ADR 0001 |
 | Aucun fork communautaire n'est adoptable : bugs silencieux, zéro test, gelés depuis mars | ADR 0002, `LOCAL-FIRST.md` §12 |
-| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; story 007-2 `done` (C2 Graphiti qualifié, ADR 0016/0017), story 007-3 rédigée en `backlog`) |
+| L'ontologie custom est une v2, **pas** le premier chantier | ADR 0003, désormais **en cours** : epic 007, la pose effective est faite (story 007-1, `done` ; story 007-2 `done` (C2 Graphiti qualifié, ADR 0016/0017), story 007-3 `done` (sonde C3 et revue BMAD)) |
 | `zep_entity_reader.py:262` filtre les nœuds sans label d'ontologie → **le graphe revient vide en silence** | ADR 0003 |
 | L'endpoint gratuit exige un en-tête de session, et **le client de Graphiti n'en envoie pas** | ADR 0004 |
 | `chunk_size` compte des **caractères** (500), pas des mots → ~54 mots par chunk | PRD de l'epic 001 |

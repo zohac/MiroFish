@@ -1,0 +1,3304 @@
+{
+  "run_id": "4a68a4e8",
+  "date_iso": "2026-10-13T16:00:53Z",
+  "environnement": "hote",
+  "mode_mock_llm": false,
+  "duree_initialisation_froide_s": 0.023,
+  "configuration_llm": {
+    "temperature": 0.0,
+    "max_tokens": null,
+    "max_attempts": 2,
+    "model_name": "gpt-6.1-sol",
+    "base_url": "http://127.0.0.1:18080/v1"
+  },
+  "seuils": {
+    "seuil_50k_s": 30.0,
+    "seuil_10k_s": 30.0
+  },
+  "corpora": {
+    "corpus_10k": {
+      "corpus_id": "corpus_10k",
+      "target_chars": 10000,
+      "actual_chars": 10000,
+      "combined_chars": 10028,
+      "essai_1": {
+        "graph_id": "c3_corpus_10k_1_4a68a4e8",
+        "corpus_id": "corpus_10k",
+        "duree_totale_s": 193.71,
+        "duree_lecture_s": 0.0,
+        "duree_generation_s": 193.705,
+        "duree_pose_s": 0.005,
+        "diagnostics": {
+          "stage": "ontology",
+          "truncated": false,
+          "sampled": false,
+          "original_chars": 10028,
+          "used_chars": 10028,
+          "documents": [
+            {
+              "document_index": 1,
+              "original_chars": 1527,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 2,
+              "original_chars": 1677,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 3,
+              "original_chars": 1788,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 4,
+              "original_chars": 2241,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 5,
+              "original_chars": 2767,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            }
+          ]
+        },
+        "ontology_raw": {
+          "entity_types": [
+            {
+              "name": "Subscriber",
+              "description": "电信服务用户，包括已订约用户和申请接入的居民；区别于一般个人。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "用户姓名或公开账号标识"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "所在地及农村、城郊等区域类别"
+                },
+                {
+                  "name": "service_status",
+                  "type": "text",
+                  "description": "接入进度、实际网速及资费体验"
+                }
+              ],
+              "examples": [
+                "Belleroche resident in mediation case 2026-0417"
+              ]
+            },
+            {
+              "name": "LocalElectedOfficial",
+              "description": "就地方网络建设发声的民选官员；不包含地方政府机构账号。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识"
+                },
+                {
+                  "name": "position",
+                  "type": "text",
+                  "description": "民选职务"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "代表的行政区域"
+                }
+              ],
+              "examples": []
+            },
+            {
+              "name": "TelecomOperator",
+              "description": "承担实体电信网络建设或运营责任的运营商；不含纯虚拟运营商和施工分包商。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "运营商名称"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "服务区域"
+                },
+                {
+                  "name": "deployment_commitments",
+                  "type": "text",
+                  "description": "公开承诺的覆盖期限、网速和建设进度"
+                }
+              ],
+              "examples": [
+                "Meridian Telecom"
+              ]
+            },
+            {
+              "name": "VirtualNetworkOperator",
+              "description": "依托其他运营商网络提供服务的虚拟运营商；区别于实体网络运营商。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "虚拟运营商名称"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "零售服务覆盖区域"
+                },
+                {
+                  "name": "tariff_policy",
+                  "type": "text",
+                  "description": "套餐、附加费用及解约政策"
+                }
+              ],
+              "examples": []
+            },
+            {
+              "name": "DeploymentContractor",
+              "description": "执行光纤施工、入户接线或维护的分包企业；不直接承担运营商身份。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "施工企业名称"
+                },
+                {
+                  "name": "work_scope",
+                  "type": "text",
+                  "description": "承接的施工、接线或维护任务"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "施工服务区域"
+                }
+              ],
+              "examples": []
+            },
+            {
+              "name": "MunicipalAuthority",
+              "description": "发布地方网络招标、管理公共设施及监督覆盖承诺的市镇政府机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "政府机构名称"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "行政管辖范围"
+                },
+                {
+                  "name": "coverage_requirements",
+                  "type": "text",
+                  "description": "覆盖期限、最低网速和信息公开要求"
+                }
+              ],
+              "examples": [
+                "Commune de Valmont"
+              ]
+            },
+            {
+              "name": "TelecomRegulator",
+              "description": "负责电信市场、覆盖测量、资费透明度及环境要求的监管机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "监管机构名称"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "监管范围"
+                },
+                {
+                  "name": "regulatory_scope",
+                  "type": "text",
+                  "description": "覆盖、资费、服务质量及能耗等监管职责"
+                }
+              ],
+              "examples": [
+                "Autorité de régulation des télécommunications"
+              ]
+            },
+            {
+              "name": "TelecomMediator",
+              "description": "受理电信服务纠纷并发布调解意见的调解机构或其官方账号。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "调解机构名称"
+                },
+                {
+                  "name": "mandate",
+                  "type": "text",
+                  "description": "受理纠纷范围"
+                },
+                {
+                  "name": "public_guidance",
+                  "type": "text",
+                  "description": "公开的投诉流程与用户权利指引"
+                }
+              ],
+              "examples": [
+                "Médiateur des télécommunications"
+              ]
+            },
+            {
+              "name": "Person",
+              "description": "不属于上述具体个人类型的自然人，包括普通网友、记者和专家。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识"
+                },
+                {
+                  "name": "role",
+                  "type": "text",
+                  "description": "社会角色"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "所在地"
+                }
+              ],
+              "examples": []
+            },
+            {
+              "name": "Organization",
+              "description": "不属于上述具体机构类型的组织，包括媒体、居民协会和社交平台。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "组织名称"
+                },
+                {
+                  "name": "organization_kind",
+                  "type": "text",
+                  "description": "组织类别"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "活动或服务范围"
+                }
+              ],
+              "examples": []
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "SUBSCRIBES_TO",
+              "description": "用户与提供电信服务的运营商存在订约关系。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "service_type",
+                  "type": "text",
+                  "description": "订购的服务及套餐类别"
+                }
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "description": "地方民选官员代表市镇机构对外解释政策或回应居民。",
+              "source_targets": [
+                {
+                  "source": "LocalElectedOfficial",
+                  "target": "MunicipalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "details",
+                  "type": "text",
+                  "description": "Additional details about this ontology type."
+                }
+              ]
+            },
+            {
+              "name": "AWARDS_CONTRACT_TO",
+              "description": "市镇机构将网络建设或运营合同授予中标主体。",
+              "source_targets": [
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contract_scope",
+                  "type": "text",
+                  "description": "授予的合同范围与责任"
+                },
+                {
+                  "name": "coverage_deadline",
+                  "type": "text",
+                  "description": "合同规定的覆盖期限"
+                }
+              ]
+            },
+            {
+              "name": "SUBCONTRACTS_TO",
+              "description": "运营商委托分包企业执行接线、施工或维护任务。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "DeploymentContractor"
+                },
+                {
+                  "source": "VirtualNetworkOperator",
+                  "target": "DeploymentContractor"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "work_scope",
+                  "type": "text",
+                  "description": "委托任务及责任边界"
+                }
+              ]
+            },
+            {
+              "name": "USES_NETWORK_OF",
+              "description": "虚拟运营商依托实体运营商的网络提供服务。",
+              "source_targets": [
+                {
+                  "source": "VirtualNetworkOperator",
+                  "target": "TelecomOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "details",
+                  "type": "text",
+                  "description": "Additional details about this ontology type."
+                }
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "description": "监管机构或市镇机构依据法规或合同监督相关企业。",
+              "source_targets": [
+                {
+                  "source": "TelecomRegulator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "DeploymentContractor"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "TelecomOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "legal_basis",
+                  "type": "text",
+                  "description": "监管依据或合同条款"
+                },
+                {
+                  "name": "regulatory_status",
+                  "type": "text",
+                  "description": "现行监管、拟议监管或咨询阶段"
+                }
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "description": "用户向运营商、调解机构或公共机构提出投诉。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomMediator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "MunicipalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "complaint_issue",
+                  "type": "text",
+                  "description": "等待接入、费用不透明、网速不足等诉求"
+                }
+              ]
+            },
+            {
+              "name": "MEDIATES_WITH",
+              "description": "调解机构联系争议双方，协调纠纷处理与补偿。",
+              "source_targets": [
+                {
+                  "source": "TelecomMediator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "TelecomMediator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "TelecomMediator",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "case_reference",
+                  "type": "text",
+                  "description": "调解案件编号"
+                },
+                {
+                  "name": "resolution_status",
+                  "type": "text",
+                  "description": "调解进展及处理结果"
+                }
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "description": "主体公开回应另一主体的质疑、投诉或政策要求。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "VirtualNetworkOperator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "DeploymentContractor",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "LocalElectedOfficial",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Organization",
+                  "target": "Person"
+                },
+                {
+                  "source": "Person",
+                  "target": "MunicipalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "response_content",
+                  "type": "text",
+                  "description": "回应中的解释、承诺、道歉或反驳"
+                }
+              ]
+            },
+            {
+              "name": "AMPLIFIES",
+              "description": "通过转发、引用或报道扩散另一主体发布的信息。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "MunicipalAuthority"
+                },
+                {
+                  "source": "Person",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Person",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomMediator"
+                },
+                {
+                  "source": "LocalElectedOfficial",
+                  "target": "MunicipalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "interaction_mode",
+                  "type": "text",
+                  "description": "转发、引用、报道等传播形式"
+                },
+                {
+                  "name": "expressed_stance",
+                  "type": "text",
+                  "description": "传播时表达的支持、质疑或中立态度"
+                }
+              ]
+            }
+          ],
+          "analysis_summary": "文本围绕地方覆盖承诺、用户接入纠纷、资费透明度及网络可持续性展开。模型区分居民、民选官员、地方政府、运营商、分包企业、监管者和调解者，通过合同责任、投诉回应与信息扩散模拟农村及城郊的舆论张力。观点与覆盖状态作为属性，不设为实体。示例仅沿用材料中的主体指称，未独立核实其现实身份；未具名的主体类型不虚构实例。分包商监管关系须标明现行或拟议状态，不能将咨询建议视为既有规则。"
+        },
+        "projection_canonique": {
+          "entity_types": [
+            {
+              "name": "DeploymentContractor",
+              "attributes": [
+                "org_name",
+                "service_area",
+                "work_scope"
+              ]
+            },
+            {
+              "name": "LocalElectedOfficial",
+              "attributes": [
+                "full_name",
+                "jurisdiction",
+                "position"
+              ]
+            },
+            {
+              "name": "MunicipalAuthority",
+              "attributes": [
+                "coverage_requirements",
+                "jurisdiction",
+                "org_name"
+              ]
+            },
+            {
+              "name": "Organization",
+              "attributes": [
+                "org_name",
+                "organization_kind",
+                "service_area"
+              ]
+            },
+            {
+              "name": "Person",
+              "attributes": [
+                "full_name",
+                "location",
+                "role"
+              ]
+            },
+            {
+              "name": "Subscriber",
+              "attributes": [
+                "full_name",
+                "location",
+                "service_status"
+              ]
+            },
+            {
+              "name": "TelecomMediator",
+              "attributes": [
+                "mandate",
+                "org_name",
+                "public_guidance"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "attributes": [
+                "deployment_commitments",
+                "org_name",
+                "service_area"
+              ]
+            },
+            {
+              "name": "TelecomRegulator",
+              "attributes": [
+                "jurisdiction",
+                "org_name",
+                "regulatory_scope"
+              ]
+            },
+            {
+              "name": "VirtualNetworkOperator",
+              "attributes": [
+                "org_name",
+                "service_area",
+                "tariff_policy"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "AMPLIFIES",
+              "attributes": [
+                "expressed_stance",
+                "interaction_mode"
+              ]
+            },
+            {
+              "name": "AWARDS_CONTRACT_TO",
+              "attributes": [
+                "contract_scope",
+                "coverage_deadline"
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "attributes": [
+                "complaint_issue"
+              ]
+            },
+            {
+              "name": "MEDIATES_WITH",
+              "attributes": [
+                "case_reference",
+                "resolution_status"
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "attributes": [
+                "legal_basis",
+                "regulatory_status"
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "attributes": [
+                "details"
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "attributes": [
+                "response_content"
+              ]
+            },
+            {
+              "name": "SUBCONTRACTS_TO",
+              "attributes": [
+                "work_scope"
+              ]
+            },
+            {
+              "name": "SUBSCRIBES_TO",
+              "attributes": [
+                "service_type"
+              ]
+            },
+            {
+              "name": "USES_NETWORK_OF",
+              "attributes": [
+                "details"
+              ]
+            }
+          ]
+        },
+        "applied_ontology_entity_types": [
+          "Subscriber",
+          "LocalElectedOfficial",
+          "TelecomOperator",
+          "VirtualNetworkOperator",
+          "DeploymentContractor",
+          "MunicipalAuthority",
+          "TelecomRegulator",
+          "TelecomMediator",
+          "Person",
+          "Organization"
+        ],
+        "applied_ontology_edge_types": [
+          "SUBSCRIBES_TO",
+          "REPRESENTS",
+          "AWARDS_CONTRACT_TO",
+          "SUBCONTRACTS_TO",
+          "USES_NETWORK_OF",
+          "REGULATES",
+          "COMPLAINS_TO",
+          "MEDIATES_WITH",
+          "RESPONDS_TO",
+          "AMPLIFIES"
+        ],
+        "applied_strict": false
+      },
+      "essai_2": {
+        "graph_id": "c3_corpus_10k_2_4a68a4e8",
+        "corpus_id": "corpus_10k",
+        "duree_totale_s": 91.087,
+        "duree_lecture_s": 0.0,
+        "duree_generation_s": 91.077,
+        "duree_pose_s": 0.01,
+        "diagnostics": {
+          "stage": "ontology",
+          "truncated": false,
+          "sampled": false,
+          "original_chars": 10028,
+          "used_chars": 10028,
+          "documents": [
+            {
+              "document_index": 1,
+              "original_chars": 1527,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 2,
+              "original_chars": 1677,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 3,
+              "original_chars": 1788,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 4,
+              "original_chars": 2241,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            },
+            {
+              "document_index": 5,
+              "original_chars": 2767,
+              "chunks_total": 0,
+              "chunks_sampled": 0,
+              "reduced": false
+            }
+          ]
+        },
+        "ontology_raw": {
+          "entity_types": [
+            {
+              "name": "Subscriber",
+              "description": "电信服务的个人用户，包括待接入、已订阅及提出投诉的居民。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "用户姓名或公开账号标识"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "所在市镇及农村、城郊或城区分类"
+                },
+                {
+                  "name": "service_status",
+                  "type": "text",
+                  "description": "接入状态、实际速率及资费体验"
+                }
+              ],
+              "examples": [
+                "Belleroche resident in case 2026-0417"
+              ]
+            },
+            {
+              "name": "LocalOfficial",
+              "description": "以个人身份公开发声的地方民选官员，不包含地方政府机构账号。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识"
+                },
+                {
+                  "name": "position",
+                  "type": "text",
+                  "description": "民选职务"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "代表的辖区"
+                }
+              ],
+              "examples": [
+                "Valmont municipal elected representative"
+              ]
+            },
+            {
+              "name": "MunicipalAuthority",
+              "description": "负责市镇网络招标、公共设施和覆盖承诺监督的地方政府机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "机构名称"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "管辖地域"
+                },
+                {
+                  "name": "deployment_requirements",
+                  "type": "text",
+                  "description": "覆盖期限、最低速率及信息披露要求"
+                }
+              ],
+              "examples": [
+                "Commune de Valmont",
+                "Commune de Belleroche"
+              ]
+            },
+            {
+              "name": "TelecomRegulator",
+              "description": "负责电信市场监管、覆盖核验、公开咨询和处罚的监管机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "机构名称"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "监管地域"
+                },
+                {
+                  "name": "regulatory_scope",
+                  "type": "text",
+                  "description": "覆盖、资费、能耗及承包商等监管范围"
+                }
+              ],
+              "examples": [
+                "Autorite de regulation des telecommunications"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "description": "建设或运营自有通信网络的运营商，不包含仅提供虚拟网络服务的企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "企业名称"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "服务地域及农村、城郊覆盖范围"
+                },
+                {
+                  "name": "deployment_commitments",
+                  "type": "text",
+                  "description": "公开承诺的接入期限、覆盖范围和服务标准"
+                }
+              ],
+              "examples": [
+                "Meridian Telecom"
+              ]
+            },
+            {
+              "name": "VirtualNetworkOperator",
+              "description": "依托其他运营商网络提供电信服务、可参与网络招标的虚拟运营商。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "企业名称"
+                },
+                {
+                  "name": "host_operator",
+                  "type": "text",
+                  "description": "依托的基础网络运营商"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "服务或拟投标覆盖地域"
+                }
+              ],
+              "examples": [
+                "Virtual network operator eligible for Valmont tender"
+              ]
+            },
+            {
+              "name": "DeploymentContractor",
+              "description": "承接光纤铺设、终端接入或维护工作的企业，不作为零售电信运营商分类。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "企业名称"
+                },
+                {
+                  "name": "work_scope",
+                  "type": "text",
+                  "description": "施工、接入或维护职责"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "施工服务地域"
+                }
+              ],
+              "examples": [
+                "Connection subcontractor in case 2026-0417"
+              ]
+            },
+            {
+              "name": "TelecomMediator",
+              "description": "以机构账号受理用户与电信运营商纠纷的专门调解主体。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "调解机构名称"
+                },
+                {
+                  "name": "mediation_scope",
+                  "type": "text",
+                  "description": "受理的合同、接入、通知及赔偿争议"
+                }
+              ],
+              "examples": [
+                "Mediateur des telecommunications"
+              ]
+            },
+            {
+              "name": "Person",
+              "description": "不属于上述具体个人类型的自然人，包括记者、专家及普通评论者。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识"
+                },
+                {
+                  "name": "role",
+                  "type": "text",
+                  "description": "公开身份或参与角色"
+                }
+              ],
+              "examples": [
+                "Independent telecom expert",
+                "Individual social media commenter"
+              ]
+            },
+            {
+              "name": "Organization",
+              "description": "不属于上述具体机构类型的组织，包括媒体、消费者协会及居民团体。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "组织名称"
+                },
+                {
+                  "name": "organization_role",
+                  "type": "text",
+                  "description": "媒体报道、消费者保护或居民代表等职责"
+                }
+              ],
+              "examples": [
+                "Consumer association",
+                "Local media outlet"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "SUBSCRIBES_TO",
+              "description": "个人用户与提供电信服务的运营商建立订阅关系。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contract_terms",
+                  "type": "text",
+                  "description": "资费、承诺速率及激活期限"
+                }
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "description": "地方民选官员代表市镇机构公开发声。",
+              "source_targets": [
+                {
+                  "source": "LocalOfficial",
+                  "target": "MunicipalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "details",
+                  "type": "text",
+                  "description": "Additional details about this ontology type."
+                }
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "description": "监管机构依法监督企业；市镇依据招标合同监督承诺履行。",
+              "source_targets": [
+                {
+                  "source": "TelecomRegulator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "DeploymentContractor"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "legal_basis",
+                  "type": "text",
+                  "description": "监督依据及是否已有生效权限，区分拟议制度"
+                },
+                {
+                  "name": "enforcement_status",
+                  "type": "text",
+                  "description": "核查、催告、处罚或合同解除状态"
+                }
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "description": "市镇授予网络运营合同，或运营商委托承包商施工接入。",
+              "source_targets": [
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "DeploymentContractor"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contract_scope",
+                  "type": "text",
+                  "description": "合同覆盖地域、责任及交付期限"
+                },
+                {
+                  "name": "contract_status",
+                  "type": "text",
+                  "description": "招标中、已授予、履行中或已终止"
+                }
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "description": "用户或代表组织向服务商、政府、监管或调解机构提出投诉。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomMediator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "MunicipalAuthority"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomRegulator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "complaint_issue",
+                  "type": "text",
+                  "description": "接入延误、覆盖不足、速率或收费争议"
+                },
+                {
+                  "name": "case_reference",
+                  "type": "text",
+                  "description": "投诉或调解案号"
+                }
+              ]
+            },
+            {
+              "name": "MEDIATES_WITH",
+              "description": "专门调解机构与争议双方沟通并提出解决建议。",
+              "source_targets": [
+                {
+                  "source": "TelecomMediator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "TelecomMediator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "TelecomMediator",
+                  "target": "VirtualNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "mediation_outcome",
+                  "type": "text",
+                  "description": "认定、补偿建议及接受情况"
+                }
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "description": "账号公开评论另一主体的服务、承诺或监管行动。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "VirtualNetworkOperator"
+                },
+                {
+                  "source": "Subscriber",
+                  "target": "DeploymentContractor"
+                },
+                {
+                  "source": "LocalOfficial",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "LocalOfficial",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Person",
+                  "target": "MunicipalAuthority"
+                },
+                {
+                  "source": "Person",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "topic",
+                  "type": "text",
+                  "description": "覆盖公平、价格、服务质量或环境影响"
+                },
+                {
+                  "name": "stance",
+                  "type": "text",
+                  "description": "支持、质疑、反对或中立"
+                }
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "description": "主体针对用户诉求、公众评论或制度要求作公开回应。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "VirtualNetworkOperator",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "DeploymentContractor",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "LocalOfficial",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "TelecomRegulator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "TelecomMediator",
+                  "target": "Person"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "response_content",
+                  "type": "text",
+                  "description": "解释、道歉、承诺、补偿或咨询意见"
+                },
+                {
+                  "name": "response_delay",
+                  "type": "text",
+                  "description": "回应相对于诉求提出的时间间隔"
+                }
+              ]
+            },
+            {
+              "name": "AMPLIFIES",
+              "description": "通过转发、引用或报道传播另一主体公开发布的信息。",
+              "source_targets": [
+                {
+                  "source": "Subscriber",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Person",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Organization",
+                  "target": "Subscriber"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomMediator"
+                },
+                {
+                  "source": "LocalOfficial",
+                  "target": "MunicipalAuthority"
+                },
+                {
+                  "source": "MunicipalAuthority",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "DeploymentContractor"
+                },
+                {
+                  "source": "VirtualNetworkOperator",
+                  "target": "TelecomOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "message_reference",
+                  "type": "text",
+                  "description": "被传播的帖子、公告或报道标识"
+                },
+                {
+                  "name": "amplification_mode",
+                  "type": "text",
+                  "description": "转发、引用或报道"
+                }
+              ]
+            }
+          ],
+          "analysis_summary": "以居民用户、运营商、地方政府及民选官员为主要舆论参与者，纳入虚拟运营商、施工承包商、监管和调解机构。覆盖期限、实际速率、资费透明度、投诉处理及能耗作为属性或互动议题，不设为实体。关系同时表达服务责任链和评论、回应、传播路径。示例沿用材料名称或匿名角色，不代表已核实其现实身份；招标候选和拟议监管不得直接视为既成关系。"
+        },
+        "projection_canonique": {
+          "entity_types": [
+            {
+              "name": "DeploymentContractor",
+              "attributes": [
+                "org_name",
+                "service_area",
+                "work_scope"
+              ]
+            },
+            {
+              "name": "LocalOfficial",
+              "attributes": [
+                "full_name",
+                "jurisdiction",
+                "position"
+              ]
+            },
+            {
+              "name": "MunicipalAuthority",
+              "attributes": [
+                "deployment_requirements",
+                "jurisdiction",
+                "org_name"
+              ]
+            },
+            {
+              "name": "Organization",
+              "attributes": [
+                "org_name",
+                "organization_role"
+              ]
+            },
+            {
+              "name": "Person",
+              "attributes": [
+                "full_name",
+                "role"
+              ]
+            },
+            {
+              "name": "Subscriber",
+              "attributes": [
+                "full_name",
+                "location",
+                "service_status"
+              ]
+            },
+            {
+              "name": "TelecomMediator",
+              "attributes": [
+                "mediation_scope",
+                "org_name"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "attributes": [
+                "deployment_commitments",
+                "org_name",
+                "service_area"
+              ]
+            },
+            {
+              "name": "TelecomRegulator",
+              "attributes": [
+                "jurisdiction",
+                "org_name",
+                "regulatory_scope"
+              ]
+            },
+            {
+              "name": "VirtualNetworkOperator",
+              "attributes": [
+                "host_operator",
+                "org_name",
+                "service_area"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "AMPLIFIES",
+              "attributes": [
+                "amplification_mode",
+                "message_reference"
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "attributes": [
+                "stance",
+                "topic"
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "attributes": [
+                "case_reference",
+                "complaint_issue"
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "attributes": [
+                "contract_scope",
+                "contract_status"
+              ]
+            },
+            {
+              "name": "MEDIATES_WITH",
+              "attributes": [
+                "mediation_outcome"
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "attributes": [
+                "enforcement_status",
+                "legal_basis"
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "attributes": [
+                "details"
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "attributes": [
+                "response_content",
+                "response_delay"
+              ]
+            },
+            {
+              "name": "SUBSCRIBES_TO",
+              "attributes": [
+                "contract_terms"
+              ]
+            }
+          ]
+        },
+        "applied_ontology_entity_types": [
+          "Subscriber",
+          "LocalOfficial",
+          "MunicipalAuthority",
+          "TelecomRegulator",
+          "TelecomOperator",
+          "VirtualNetworkOperator",
+          "DeploymentContractor",
+          "TelecomMediator",
+          "Person",
+          "Organization"
+        ],
+        "applied_ontology_edge_types": [
+          "SUBSCRIBES_TO",
+          "REPRESENTS",
+          "REGULATES",
+          "CONTRACTS_WITH",
+          "COMPLAINS_TO",
+          "MEDIATES_WITH",
+          "COMMENTS_ON",
+          "RESPONDS_TO",
+          "AMPLIFIES"
+        ],
+        "applied_strict": false
+      },
+      "deterministe": false,
+      "differences": [
+        "Noms de types d'entité divergents : essai 1 = ['DeploymentContractor', 'LocalElectedOfficial', 'MunicipalAuthority', 'Organization', 'Person', 'Subscriber', 'TelecomMediator', 'TelecomOperator', 'TelecomRegulator', 'VirtualNetworkOperator'], essai 2 = ['DeploymentContractor', 'LocalOfficial', 'MunicipalAuthority', 'Organization', 'Person', 'Subscriber', 'TelecomMediator', 'TelecomOperator', 'TelecomRegulator', 'VirtualNetworkOperator']",
+        "Noms de types de relation divergents : essai 1 = ['AMPLIFIES', 'AWARDS_CONTRACT_TO', 'COMPLAINS_TO', 'MEDIATES_WITH', 'REGULATES', 'REPRESENTS', 'RESPONDS_TO', 'SUBCONTRACTS_TO', 'SUBSCRIBES_TO', 'USES_NETWORK_OF'], essai 2 = ['AMPLIFIES', 'COMMENTS_ON', 'COMPLAINS_TO', 'CONTRACTS_WITH', 'MEDIATES_WITH', 'REGULATES', 'REPRESENTS', 'RESPONDS_TO', 'SUBSCRIBES_TO']"
+      ],
+      "duree_essai_1_s": 193.71,
+      "duree_essai_2_s": 91.087,
+      "max_duree_s": 193.71,
+      "seuil_s": 30.0,
+      "budget_respecte": false,
+      "conforme": false
+    },
+    "corpus_50k": {
+      "corpus_id": "corpus_50k",
+      "target_chars": 50000,
+      "actual_chars": 50000,
+      "combined_chars": 50063,
+      "essai_1": {
+        "graph_id": "c3_corpus_50k_1_4a68a4e8",
+        "corpus_id": "corpus_50k",
+        "duree_totale_s": 92.293,
+        "duree_lecture_s": 0.0,
+        "duree_generation_s": 92.282,
+        "duree_pose_s": 0.011,
+        "diagnostics": {
+          "stage": "ontology",
+          "truncated": false,
+          "sampled": false,
+          "original_chars": 50063,
+          "used_chars": 33968,
+          "chunks_total": 13,
+          "chunks_sampled": 13,
+          "documents": [
+            {
+              "document_index": 1,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1527
+            },
+            {
+              "document_index": 2,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1677
+            },
+            {
+              "document_index": 3,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1788
+            },
+            {
+              "document_index": 4,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2241
+            },
+            {
+              "document_index": 5,
+              "chunks_total": 3,
+              "chunks_sampled": 3,
+              "original_chars": 20560
+            },
+            {
+              "document_index": 6,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1493
+            },
+            {
+              "document_index": 7,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1614
+            },
+            {
+              "document_index": 8,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2402
+            },
+            {
+              "document_index": 9,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2415
+            },
+            {
+              "document_index": 10,
+              "chunks_total": 2,
+              "chunks_sampled": 2,
+              "original_chars": 14879
+            }
+          ]
+        },
+        "ontology_raw": {
+          "entity_types": [
+            {
+              "name": "SectorRegulator",
+              "description": "负责电信或能源行业监管、定价审查和执法的公共机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "机构正式名称"
+                },
+                {
+                  "name": "sector",
+                  "type": "text",
+                  "description": "监管行业及权限"
+                },
+                {
+                  "name": "policy_priorities",
+                  "type": "text",
+                  "description": "覆盖、价格透明、可靠性与生态转型等监管重点"
+                }
+              ],
+              "examples": [
+                "Commission de régulation de l’énergie",
+                "Autorité de régulation des télécommunications"
+              ]
+            },
+            {
+              "name": "LocalGovernment",
+              "description": "代表地方公共利益、组织基础设施采购和公众协商的地方政府。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "地方政府名称"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "行政辖区"
+                },
+                {
+                  "name": "infrastructure_commitments",
+                  "type": "text",
+                  "description": "覆盖目标、公共投入及特许经营承诺"
+                }
+              ],
+              "examples": [
+                "Commune de Rivesaltes",
+                "Commune de Valmont"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "description": "经营电信网络或提供电信接入服务的企业，包括虚拟运营商。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "运营商名称"
+                },
+                {
+                  "name": "service_scope",
+                  "type": "text",
+                  "description": "服务区域、网络技术与经营模式"
+                },
+                {
+                  "name": "deployment_pricing_position",
+                  "type": "text",
+                  "description": "关于部署成本、资费透明和网络退出的公开立场"
+                }
+              ],
+              "examples": [
+                "Meridian Telecom"
+              ]
+            },
+            {
+              "name": "ElectricityNetworkOperator",
+              "description": "负责电力输送或配电网络运营的企业，不包括仅从事发电的企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "电网运营企业名称"
+                },
+                {
+                  "name": "network_role",
+                  "type": "text",
+                  "description": "输电或配电职责及服务区域"
+                },
+                {
+                  "name": "resilience_commitments",
+                  "type": "text",
+                  "description": "故障响应、设备更新和可靠性承诺"
+                }
+              ],
+              "examples": [
+                "Gestionnaire de distribution de Rivesaltes",
+                "Gestionnaire du réseau de transport"
+              ]
+            },
+            {
+              "name": "EnergyProducer",
+              "description": "经营发电业务并参与电网接入和能源投资讨论的企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "发电企业名称"
+                },
+                {
+                  "name": "generation_sources",
+                  "type": "text",
+                  "description": "风电、光伏或其他发电方式"
+                },
+                {
+                  "name": "connection_investment_position",
+                  "type": "text",
+                  "description": "对接入费用、长期合同和扩网投资的立场"
+                }
+              ],
+              "examples": [
+                "Producteur éolien de Vallon",
+                "Producteur solaire raccordé au poste de Derive"
+              ]
+            },
+            {
+              "name": "CivilSocietyOrganization",
+              "description": "代表消费者权益或生态公共利益参与协商的非政府组织。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "组织名称"
+                },
+                {
+                  "name": "represented_constituency",
+                  "type": "text",
+                  "description": "代表的消费者、居民或环境利益群体"
+                },
+                {
+                  "name": "advocacy_priorities",
+                  "type": "text",
+                  "description": "公平资费、信息公开或生态保护等诉求"
+                }
+              ],
+              "examples": [
+                "Organisations de la société civile contributrices",
+                "Associations de consommateurs représentées au comité de suivi"
+              ]
+            },
+            {
+              "name": "IndependentExpert",
+              "description": "以独立专业身份参与技术评估、政策讨论和公共咨询的自然人。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "专家姓名"
+                },
+                {
+                  "name": "expertise",
+                  "type": "text",
+                  "description": "网络技术、能源经济或环境评估等专业领域"
+                },
+                {
+                  "name": "affiliation_disclosure",
+                  "type": "text",
+                  "description": "任职机构、资助来源及利益关联披露"
+                }
+              ],
+              "examples": [
+                "Experts indépendants contributeurs à la consultation de 2026"
+              ]
+            },
+            {
+              "name": "ResidentialConsumer",
+              "description": "以个人住宅电信或用电服务使用者身份发声的自然人。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号称谓"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "居住地区"
+                },
+                {
+                  "name": "service_concerns",
+                  "type": "text",
+                  "description": "接入延误、停电、价格负担及脆弱消费者资格"
+                }
+              ],
+              "examples": [
+                "Abonnée de Meridian Telecom à Belleroche",
+                "Consommateurs résidentiels de Rivesaltes"
+              ]
+            },
+            {
+              "name": "Person",
+              "description": "不属于上述具体自然人类型的个人，包括记者、官员和普通网友。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号称谓"
+                },
+                {
+                  "name": "role",
+                  "type": "text",
+                  "description": "职业或参与事件的身份"
+                }
+              ],
+              "examples": [
+                "Électricien qualifié",
+                "Technicien de maintenance de réseau"
+              ]
+            },
+            {
+              "name": "Organization",
+              "description": "不属于上述具体机构类型的组织，包括媒体、承包商、企业和调解机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "组织名称"
+                },
+                {
+                  "name": "organization_role",
+                  "type": "text",
+                  "description": "组织职能及事件参与身份"
+                }
+              ],
+              "examples": [
+                "Médiateur des télécommunications",
+                "Sous-traitant de raccordement",
+                "Usine agroalimentaire"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "REGULATES",
+              "description": "监管机构对企业开展规则制定、调查、监督或处罚。",
+              "source_targets": [
+                {
+                  "source": "SectorRegulator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "Organization"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "regulatory_action",
+                  "type": "text",
+                  "description": "监管措施及法律依据"
+                }
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "description": "主体通过采购、特许经营、分包或供能合同建立合作。",
+              "source_targets": [
+                {
+                  "source": "LocalGovernment",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "LocalGovernment",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "EnergyProducer",
+                  "target": "Organization"
+                },
+                {
+                  "source": "EnergyProducer",
+                  "target": "ElectricityNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contract_scope",
+                  "type": "text",
+                  "description": "合作职责、资金与服务范围"
+                }
+              ]
+            },
+            {
+              "name": "CONSULTS_WITH",
+              "description": "公共机构征询企业、专家和公众代表的意见。",
+              "source_targets": [
+                {
+                  "source": "SectorRegulator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "IndependentExpert"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "LocalGovernment",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "LocalGovernment",
+                  "target": "ResidentialConsumer"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "consultation_topic",
+                  "type": "text",
+                  "description": "咨询议题及参与渠道"
+                }
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "description": "组织代表具体个人或企业表达权益诉求，不以立场阵营作为实体。",
+              "source_targets": [
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "Person"
+                },
+                {
+                  "source": "Organization",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Person",
+                  "target": "Organization"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "representation_basis",
+                  "type": "text",
+                  "description": "代表资格、授权范围或利益关联"
+                }
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "description": "受影响主体向运营商、监管机构或调解机构提出投诉。",
+              "source_targets": [
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Organization",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "SectorRegulator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "grievance",
+                  "type": "text",
+                  "description": "投诉理由、影响及补偿要求"
+                }
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "description": "主体公开回应另一主体的投诉、质疑或政策建议。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "ElectricityNetworkOperator",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "ElectricityNetworkOperator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "IndependentExpert"
+                },
+                {
+                  "source": "LocalGovernment",
+                  "target": "Person"
+                },
+                {
+                  "source": "Organization",
+                  "target": "ResidentialConsumer"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "response_content",
+                  "type": "text",
+                  "description": "回应内容、证据和承诺措施"
+                }
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "description": "主体在社交媒体上评价另一主体的行为或公开声明。",
+              "source_targets": [
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Person",
+                  "target": "LocalGovernment"
+                },
+                {
+                  "source": "IndependentExpert",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "IndependentExpert",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "Organization",
+                  "target": "SectorRegulator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "topic",
+                  "type": "text",
+                  "description": "评论涉及的投资、资费、韧性或生态议题"
+                },
+                {
+                  "name": "stance",
+                  "type": "text",
+                  "description": "支持、质疑、反对或中立等具体评论立场"
+                }
+              ]
+            },
+            {
+              "name": "AMPLIFIES",
+              "description": "通过转发、引用或报道传播另一主体的信息。",
+              "source_targets": [
+                {
+                  "source": "Person",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "IndependentExpert"
+                },
+                {
+                  "source": "Organization",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "LocalGovernment",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "Person",
+                  "target": "EnergyProducer"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "channel",
+                  "type": "text",
+                  "description": "传播平台或媒体渠道"
+                },
+                {
+                  "name": "message_reference",
+                  "type": "text",
+                  "description": "被传播声明或帖文的外部标识"
+                }
+              ]
+            },
+            {
+              "name": "CONTESTS",
+              "description": "主体公开反对另一主体提出的措施、收费或项目安排。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "LocalGovernment"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "ElectricityNetworkOperator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "ElectricityNetworkOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contested_measure",
+                  "type": "text",
+                  "description": "被反对的具体措施及理由"
+                },
+                {
+                  "name": "mobilization_method",
+                  "type": "text",
+                  "description": "公开信、联署、集会或线上倡议等方式"
+                }
+              ]
+            }
+          ],
+          "analysis_summary": "本体覆盖电信部署与退出、资费透明、接入纠纷、电网投资、事故响应、可再生能源接入及生态转型。以监管机构、地方政府、运营企业、消费者、社会组织和专家构成协商与信息传播网络；主题、态度、合同和事故仅作为属性或关系语境，不作为发声实体。媒体、调解机构、分包商和工业用户归入Organization。示例中的匿名主体及可能虚构的名称仅作为原文指称，实例化前须核验真实身份；群体描述须落实为具体个人或真实代表组织，不能直接生成集体账号。"
+        },
+        "projection_canonique": {
+          "entity_types": [
+            {
+              "name": "CivilSocietyOrganization",
+              "attributes": [
+                "advocacy_priorities",
+                "org_name",
+                "represented_constituency"
+              ]
+            },
+            {
+              "name": "ElectricityNetworkOperator",
+              "attributes": [
+                "network_role",
+                "org_name",
+                "resilience_commitments"
+              ]
+            },
+            {
+              "name": "EnergyProducer",
+              "attributes": [
+                "connection_investment_position",
+                "generation_sources",
+                "org_name"
+              ]
+            },
+            {
+              "name": "IndependentExpert",
+              "attributes": [
+                "affiliation_disclosure",
+                "expertise",
+                "full_name"
+              ]
+            },
+            {
+              "name": "LocalGovernment",
+              "attributes": [
+                "infrastructure_commitments",
+                "jurisdiction",
+                "org_name"
+              ]
+            },
+            {
+              "name": "Organization",
+              "attributes": [
+                "org_name",
+                "organization_role"
+              ]
+            },
+            {
+              "name": "Person",
+              "attributes": [
+                "full_name",
+                "role"
+              ]
+            },
+            {
+              "name": "ResidentialConsumer",
+              "attributes": [
+                "full_name",
+                "location",
+                "service_concerns"
+              ]
+            },
+            {
+              "name": "SectorRegulator",
+              "attributes": [
+                "org_name",
+                "policy_priorities",
+                "sector"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "attributes": [
+                "deployment_pricing_position",
+                "org_name",
+                "service_scope"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "AMPLIFIES",
+              "attributes": [
+                "channel",
+                "message_reference"
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "attributes": [
+                "stance",
+                "topic"
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "attributes": [
+                "grievance"
+              ]
+            },
+            {
+              "name": "CONSULTS_WITH",
+              "attributes": [
+                "consultation_topic"
+              ]
+            },
+            {
+              "name": "CONTESTS",
+              "attributes": [
+                "contested_measure",
+                "mobilization_method"
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "attributes": [
+                "contract_scope"
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "attributes": [
+                "regulatory_action"
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "attributes": [
+                "representation_basis"
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "attributes": [
+                "response_content"
+              ]
+            }
+          ]
+        },
+        "applied_ontology_entity_types": [
+          "SectorRegulator",
+          "LocalGovernment",
+          "TelecomOperator",
+          "ElectricityNetworkOperator",
+          "EnergyProducer",
+          "CivilSocietyOrganization",
+          "IndependentExpert",
+          "ResidentialConsumer",
+          "Person",
+          "Organization"
+        ],
+        "applied_ontology_edge_types": [
+          "REGULATES",
+          "CONTRACTS_WITH",
+          "CONSULTS_WITH",
+          "REPRESENTS",
+          "COMPLAINS_TO",
+          "RESPONDS_TO",
+          "COMMENTS_ON",
+          "AMPLIFIES",
+          "CONTESTS"
+        ],
+        "applied_strict": false
+      },
+      "essai_2": {
+        "graph_id": "c3_corpus_50k_2_4a68a4e8",
+        "corpus_id": "corpus_50k",
+        "duree_totale_s": 93.872,
+        "duree_lecture_s": 0.0,
+        "duree_generation_s": 93.862,
+        "duree_pose_s": 0.01,
+        "diagnostics": {
+          "stage": "ontology",
+          "truncated": false,
+          "sampled": false,
+          "original_chars": 50063,
+          "used_chars": 33968,
+          "chunks_total": 13,
+          "chunks_sampled": 13,
+          "documents": [
+            {
+              "document_index": 1,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1527
+            },
+            {
+              "document_index": 2,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1677
+            },
+            {
+              "document_index": 3,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1788
+            },
+            {
+              "document_index": 4,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2241
+            },
+            {
+              "document_index": 5,
+              "chunks_total": 3,
+              "chunks_sampled": 3,
+              "original_chars": 20560
+            },
+            {
+              "document_index": 6,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1493
+            },
+            {
+              "document_index": 7,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 1614
+            },
+            {
+              "document_index": 8,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2402
+            },
+            {
+              "document_index": 9,
+              "chunks_total": 1,
+              "chunks_sampled": 1,
+              "original_chars": 2415
+            },
+            {
+              "document_index": 10,
+              "chunks_total": 2,
+              "chunks_sampled": 2,
+              "original_chars": 14879
+            }
+          ]
+        },
+        "ontology_raw": {
+          "entity_types": [
+            {
+              "name": "SectorRegulator",
+              "description": "依法监管通信或能源行业的机构，区别于地方政府及一般组织。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "机构名称"
+                },
+                {
+                  "name": "sector",
+                  "type": "text",
+                  "description": "监管行业"
+                },
+                {
+                  "name": "jurisdiction",
+                  "type": "text",
+                  "description": "监管权限与地域范围"
+                }
+              ],
+              "examples": [
+                "Commission de régulation de l'énergie",
+                "Autorité de régulation des télécommunications"
+              ]
+            },
+            {
+              "name": "LocalAuthority",
+              "description": "参与基础设施采购、特许经营和公共协商的地方政府机构。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "地方政府机构名称"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "管辖地域"
+                },
+                {
+                  "name": "project_role",
+                  "type": "text",
+                  "description": "项目采购、资产所有或补贴职责"
+                }
+              ],
+              "examples": [
+                "Commune de Valmont",
+                "Commune de Rivesaltes"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "description": "提供通信网络或接入服务的运营企业，包括虚拟运营商，不含纯施工商。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "运营企业名称"
+                },
+                {
+                  "name": "service_scope",
+                  "type": "text",
+                  "description": "服务类型与覆盖范围"
+                },
+                {
+                  "name": "investment_constraints",
+                  "type": "text",
+                  "description": "部署成本及投资约束"
+                }
+              ],
+              "examples": [
+                "Meridian Telecom"
+              ]
+            },
+            {
+              "name": "PowerGridOperator",
+              "description": "承担电力输送、配电及网络维护的企业，不含仅从事发电的企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "电网运营企业名称"
+                },
+                {
+                  "name": "grid_role",
+                  "type": "text",
+                  "description": "输电或配电职责"
+                },
+                {
+                  "name": "service_area",
+                  "type": "text",
+                  "description": "供电服务区域"
+                }
+              ],
+              "examples": [
+                "Gestionnaire de distribution de Rivesaltes",
+                "Gestionnaire du réseau de transport"
+              ]
+            },
+            {
+              "name": "EnergyProducer",
+              "description": "生产电力或其他能源并参与接网、购电协议及转型讨论的企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "能源生产企业名称"
+                },
+                {
+                  "name": "energy_sources",
+                  "type": "text",
+                  "description": "生产能源的来源或技术"
+                },
+                {
+                  "name": "connection_needs",
+                  "type": "text",
+                  "description": "接网需求与容量约束"
+                }
+              ],
+              "examples": [
+                "Producteur éolien de Vallon",
+                "Producteur solaire raccordé à Derive"
+              ]
+            },
+            {
+              "name": "CivilSocietyOrganization",
+              "description": "代表消费者、居民或环保利益参与协商的社会组织，不包括政府和企业。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "社会组织名称"
+                },
+                {
+                  "name": "represented_constituency",
+                  "type": "text",
+                  "description": "代表的具体人群"
+                },
+                {
+                  "name": "advocacy_focus",
+                  "type": "text",
+                  "description": "价格公平、环境保护或服务权益等关注事项"
+                }
+              ],
+              "examples": [
+                "Organisations de la société civile participantes",
+                "Associations de consommateurs participantes"
+              ]
+            },
+            {
+              "name": "ResidentialConsumer",
+              "description": "以个人身份使用通信或电力服务的居民，包括投诉人和弱势用户。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识，匿名者使用匿名标识"
+                },
+                {
+                  "name": "location",
+                  "type": "text",
+                  "description": "居住地域"
+                },
+                {
+                  "name": "service_situation",
+                  "type": "text",
+                  "description": "订阅、停电、接入延误或费用负担情况"
+                }
+              ],
+              "examples": [
+                "Résidente de Belleroche cliente de Meridian Telecom",
+                "Consommateur vulnérable de Rivesaltes"
+              ]
+            },
+            {
+              "name": "IndependentExpert",
+              "description": "以独立专业身份参与咨询或评估的自然人，不含机构官方账号。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "专家姓名或公开身份标识"
+                },
+                {
+                  "name": "expertise",
+                  "type": "text",
+                  "description": "网络、能源、经济或环境等专业领域"
+                },
+                {
+                  "name": "affiliation",
+                  "type": "text",
+                  "description": "所属机构及潜在利益关联"
+                }
+              ],
+              "examples": [
+                "Expert indépendant participant à la consultation de 2026"
+              ]
+            },
+            {
+              "name": "Person",
+              "description": "不属于居民消费者或独立专家等具体人物类型的自然人兜底类型。",
+              "attributes": [
+                {
+                  "name": "full_name",
+                  "type": "text",
+                  "description": "姓名或公开账号标识"
+                },
+                {
+                  "name": "role",
+                  "type": "text",
+                  "description": "职业或社会身份"
+                }
+              ],
+              "examples": [
+                "Électricien qualifié",
+                "Technicien de maintenance"
+              ]
+            },
+            {
+              "name": "Organization",
+              "description": "不属于上述具体机构类型的组织兜底类型，包括媒体、调解机构及工商业用户。",
+              "attributes": [
+                {
+                  "name": "org_name",
+                  "type": "text",
+                  "description": "组织名称"
+                },
+                {
+                  "name": "organization_role",
+                  "type": "text",
+                  "description": "媒体、调解、施工、工业用电或其他职责"
+                },
+                {
+                  "name": "sector",
+                  "type": "text",
+                  "description": "所属行业或活动领域"
+                }
+              ],
+              "examples": [
+                "Médiateur des télécommunications",
+                "Usine de production d'aluminium",
+                "Sous-traitant de raccordement fibre"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "REGULATES",
+              "description": "监管机构对运营主体实施规则、调查或整改要求。",
+              "source_targets": [
+                {
+                  "source": "SectorRegulator",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "Organization"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "regulatory_basis",
+                  "type": "text",
+                  "description": "规则依据及监管措施"
+                }
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "description": "主体之间建立采购、特许经营、施工或长期能源交易联系。",
+              "source_targets": [
+                {
+                  "source": "LocalAuthority",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "LocalAuthority",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "EnergyProducer",
+                  "target": "Organization"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "contract_scope",
+                  "type": "text",
+                  "description": "合同事项、投资责任及期限"
+                }
+              ]
+            },
+            {
+              "name": "USES_SERVICE_FROM",
+              "description": "居民或组织使用运营主体服务，形成收费和服务责任联系。",
+              "source_targets": [
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "PowerGridOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "service_terms",
+                  "type": "text",
+                  "description": "服务类型、收费条件及质量承诺"
+                }
+              ]
+            },
+            {
+              "name": "CONNECTS_TO",
+              "description": "能源生产企业与电网运营企业建立接网联系。",
+              "source_targets": [
+                {
+                  "source": "EnergyProducer",
+                  "target": "PowerGridOperator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "connection_details",
+                  "type": "text",
+                  "description": "接网容量、地点及限制"
+                }
+              ]
+            },
+            {
+              "name": "CONTRIBUTES_TO_CONSULTATION",
+              "description": "主体向协商组织者提交意见；议题记录为属性而非实体。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "PowerGridOperator",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "EnergyProducer",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "IndependentExpert",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "LocalAuthority"
+                },
+                {
+                  "source": "Organization",
+                  "target": "LocalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "consultation_topic",
+                  "type": "text",
+                  "description": "协商议题"
+                },
+                {
+                  "name": "position_text",
+                  "type": "text",
+                  "description": "意见、诉求及论据"
+                }
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "description": "社会组织或个人代表具体用户、组织或居民表达诉求。",
+              "source_targets": [
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Person",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Person",
+                  "target": "LocalAuthority"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "representation_scope",
+                  "type": "text",
+                  "description": "代表授权及其范围"
+                }
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "description": "用户或代表组织向运营商、监管者或调解机构提出投诉。",
+              "source_targets": [
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "Organization"
+                },
+                {
+                  "source": "Organization",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "SectorRegulator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "grievance",
+                  "type": "text",
+                  "description": "投诉事由与赔偿诉求"
+                },
+                {
+                  "name": "case_status",
+                  "type": "text",
+                  "description": "受理、调查或解决状态"
+                }
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "description": "主体公开回应另一主体的声明、质疑或投诉。",
+              "source_targets": [
+                {
+                  "source": "TelecomOperator",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "PowerGridOperator",
+                  "target": "Organization"
+                },
+                {
+                  "source": "SectorRegulator",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "LocalAuthority",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "EnergyProducer",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "Organization",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "IndependentExpert",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "Person",
+                  "target": "SectorRegulator"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "response_text",
+                  "type": "text",
+                  "description": "回应内容与承诺"
+                },
+                {
+                  "name": "platform",
+                  "type": "text",
+                  "description": "回应发布渠道"
+                }
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "description": "主体评论另一主体的行为；支持或反对记录在立场属性中。",
+              "source_targets": [
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "TelecomOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "EnergyProducer"
+                },
+                {
+                  "source": "IndependentExpert",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "LocalAuthority"
+                },
+                {
+                  "source": "Person",
+                  "target": "Organization"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "stance",
+                  "type": "text",
+                  "description": "针对具体言论或行为的支持、反对或中立立场"
+                },
+                {
+                  "name": "comment_text",
+                  "type": "text",
+                  "description": "评论内容"
+                }
+              ]
+            },
+            {
+              "name": "AMPLIFIES",
+              "description": "转发、引用或报道另一主体的信息，不默认表示赞同。",
+              "source_targets": [
+                {
+                  "source": "Organization",
+                  "target": "SectorRegulator"
+                },
+                {
+                  "source": "Organization",
+                  "target": "PowerGridOperator"
+                },
+                {
+                  "source": "ResidentialConsumer",
+                  "target": "CivilSocietyOrganization"
+                },
+                {
+                  "source": "CivilSocietyOrganization",
+                  "target": "ResidentialConsumer"
+                },
+                {
+                  "source": "Person",
+                  "target": "IndependentExpert"
+                },
+                {
+                  "source": "TelecomOperator",
+                  "target": "LocalAuthority"
+                },
+                {
+                  "source": "PowerGridOperator",
+                  "target": "EnergyProducer"
+                }
+              ],
+              "attributes": [
+                {
+                  "name": "content_reference",
+                  "type": "text",
+                  "description": "被传播内容的链接或标识"
+                },
+                {
+                  "name": "platform",
+                  "type": "text",
+                  "description": "传播渠道"
+                }
+              ]
+            }
+          ],
+          "analysis_summary": "跨全文识别通信部署、电网投资、资费公平、事故赔偿、公共协商与生态转型中的可发声主体，以8个具体类型和2个兜底类型建模。网络、事故、议题及立场不作为账号实体，而记录为属性。关系同时覆盖制度责任与评论、回应、传播路径。示例中的匿名主体仅表示文档已提及对象，名称、真实性及账号应在实例化时核验，不虚构具体身份；智能电网相关角色沿用电网运营主体，不推断未出现的机构。"
+        },
+        "projection_canonique": {
+          "entity_types": [
+            {
+              "name": "CivilSocietyOrganization",
+              "attributes": [
+                "advocacy_focus",
+                "org_name",
+                "represented_constituency"
+              ]
+            },
+            {
+              "name": "EnergyProducer",
+              "attributes": [
+                "connection_needs",
+                "energy_sources",
+                "org_name"
+              ]
+            },
+            {
+              "name": "IndependentExpert",
+              "attributes": [
+                "affiliation",
+                "expertise",
+                "full_name"
+              ]
+            },
+            {
+              "name": "LocalAuthority",
+              "attributes": [
+                "location",
+                "org_name",
+                "project_role"
+              ]
+            },
+            {
+              "name": "Organization",
+              "attributes": [
+                "org_name",
+                "organization_role",
+                "sector"
+              ]
+            },
+            {
+              "name": "Person",
+              "attributes": [
+                "full_name",
+                "role"
+              ]
+            },
+            {
+              "name": "PowerGridOperator",
+              "attributes": [
+                "grid_role",
+                "org_name",
+                "service_area"
+              ]
+            },
+            {
+              "name": "ResidentialConsumer",
+              "attributes": [
+                "full_name",
+                "location",
+                "service_situation"
+              ]
+            },
+            {
+              "name": "SectorRegulator",
+              "attributes": [
+                "jurisdiction",
+                "org_name",
+                "sector"
+              ]
+            },
+            {
+              "name": "TelecomOperator",
+              "attributes": [
+                "investment_constraints",
+                "org_name",
+                "service_scope"
+              ]
+            }
+          ],
+          "edge_types": [
+            {
+              "name": "AMPLIFIES",
+              "attributes": [
+                "content_reference",
+                "platform"
+              ]
+            },
+            {
+              "name": "COMMENTS_ON",
+              "attributes": [
+                "comment_text",
+                "stance"
+              ]
+            },
+            {
+              "name": "COMPLAINS_TO",
+              "attributes": [
+                "case_status",
+                "grievance"
+              ]
+            },
+            {
+              "name": "CONNECTS_TO",
+              "attributes": [
+                "connection_details"
+              ]
+            },
+            {
+              "name": "CONTRACTS_WITH",
+              "attributes": [
+                "contract_scope"
+              ]
+            },
+            {
+              "name": "CONTRIBUTES_TO_CONSULTATION",
+              "attributes": [
+                "consultation_topic",
+                "position_text"
+              ]
+            },
+            {
+              "name": "REGULATES",
+              "attributes": [
+                "regulatory_basis"
+              ]
+            },
+            {
+              "name": "REPRESENTS",
+              "attributes": [
+                "representation_scope"
+              ]
+            },
+            {
+              "name": "RESPONDS_TO",
+              "attributes": [
+                "platform",
+                "response_text"
+              ]
+            },
+            {
+              "name": "USES_SERVICE_FROM",
+              "attributes": [
+                "service_terms"
+              ]
+            }
+          ]
+        },
+        "applied_ontology_entity_types": [
+          "SectorRegulator",
+          "LocalAuthority",
+          "TelecomOperator",
+          "PowerGridOperator",
+          "EnergyProducer",
+          "CivilSocietyOrganization",
+          "ResidentialConsumer",
+          "IndependentExpert",
+          "Person",
+          "Organization"
+        ],
+        "applied_ontology_edge_types": [
+          "REGULATES",
+          "CONTRACTS_WITH",
+          "USES_SERVICE_FROM",
+          "CONNECTS_TO",
+          "CONTRIBUTES_TO_CONSULTATION",
+          "REPRESENTS",
+          "COMPLAINS_TO",
+          "RESPONDS_TO",
+          "COMMENTS_ON",
+          "AMPLIFIES"
+        ],
+        "applied_strict": false
+      },
+      "deterministe": false,
+      "differences": [
+        "Noms de types d'entité divergents : essai 1 = ['CivilSocietyOrganization', 'ElectricityNetworkOperator', 'EnergyProducer', 'IndependentExpert', 'LocalGovernment', 'Organization', 'Person', 'ResidentialConsumer', 'SectorRegulator', 'TelecomOperator'], essai 2 = ['CivilSocietyOrganization', 'EnergyProducer', 'IndependentExpert', 'LocalAuthority', 'Organization', 'Person', 'PowerGridOperator', 'ResidentialConsumer', 'SectorRegulator', 'TelecomOperator']",
+        "Noms de types de relation divergents : essai 1 = ['AMPLIFIES', 'COMMENTS_ON', 'COMPLAINS_TO', 'CONSULTS_WITH', 'CONTESTS', 'CONTRACTS_WITH', 'REGULATES', 'REPRESENTS', 'RESPONDS_TO'], essai 2 = ['AMPLIFIES', 'COMMENTS_ON', 'COMPLAINS_TO', 'CONNECTS_TO', 'CONTRACTS_WITH', 'CONTRIBUTES_TO_CONSULTATION', 'REGULATES', 'REPRESENTS', 'RESPONDS_TO', 'USES_SERVICE_FROM']"
+      ],
+      "duree_essai_1_s": 92.293,
+      "duree_essai_2_s": 93.872,
+      "max_duree_s": 93.872,
+      "seuil_s": 30.0,
+      "budget_respecte": false,
+      "conforme": false
+    }
+  },
+  "verdict_global_go": false
+}

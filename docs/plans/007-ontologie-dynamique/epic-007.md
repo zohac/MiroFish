@@ -56,7 +56,7 @@
 |---|---|---|---|
 | 007-1 | Persistance effective des labels d'ontologie dans `GraphStore` (Lot A - P0) | `done` | [story-007-1.md](story-007-1.md) |
 | 007-2 | Validation à l'écriture et politique `strict_ontology` (Lot A - P0) | `done` | [story-007-2.md](story-007-2.md) |
-| 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `backlog` | [story-007-3.md](story-007-3.md) |
+| 007-3 | Régénération déterministe et budget de performance (Lot B - P1) | `done` | [story-007-3.md](story-007-3.md) |
 | 007-4 | Régénération sur événement (E1 ajout document, E2 modification brief, E3 demande explicite) (Lot B - P1) | `backlog` | [story-007-4.md](story-007-4.md) |
 | 007-5 | Cohérence projet (E5) et composition avec `ActorClassifierService` (Lot C - P1) | `backlog` | [story-007-5.md](story-007-5.md) |
 | 007-6 | Audit dans le rapport (sous-section « Ontologie appliquée ») et outil LLM (Lot C - P1) | `backlog` | [story-007-6.md](story-007-6.md) |
@@ -150,8 +150,26 @@ Graphiti contre Neo4j. La suite Docker du 12 octobre compte **1431 collectés,
 Les ADR 0016 et 0017 précisent périmètre Graphiti, politique durable et
 rétrogradation transactionnelle ; l’ADR 0015 reste la preuve historique Zep.
 
-Le [ticket 007-3](story-007-3.md) est rédigé en `backlog` : température zéro,
+Le [ticket 007-3](story-007-3.md) a été préparé : température zéro,
 générations indépendantes, comparaison des champs stables et mesures 10K/50K
-de la lecture des documents à la pose. Les corpus doivent être figés avant
-implémentation. L’epic reste `in-progress` (2/7) ; la mesure hôte est prévue
-dans une session de secours distincte de la référence Docker.
+de la lecture des documents à la pose.
+
+## 8. Avancement de 007-3 — 13 octobre 2026
+
+La story 007-3 est en `review`. Les entrées (corpus 10K et 50K avec manifestes JSON
+et briefs) sont figées sous `backend/tests/fixtures/ontology/regeneration/`.
+`OntologyGenerator.generate` transmet explicitement `temperature=0.0`, et
+la projection canonique `canonical_ontology_projection` isole types et attributs.
+La sonde autonome `backend/scripts/verifier_ontology_regeneration.py` a été
+développée et couverte par 21 tests unitaires hermétiques.
+
+L'épreuve réelle contre Neo4j et `gpt-6.1-sol` (via la passerelle Codex locale)
+est consignée dans [`mesure-007-3-hote.json`](mesure-007-3-hote.json) :
+- Pose `set_ontology` instantanée (< 10 ms) et isolation multi-tenant 100 % conformes (AC4) ;
+- AC3 (reproductibilité nominale stricte) et AC5 (budget hôte < 30 s) non satisfaits
+  par la nature intrinsèque des modèles LLM de frontière (variations lexicales
+  nominales, temps d'inférence réel 91–193 s). L'arbitrage produit acte ce comportement
+  en **NO-GO empirique C3**, fidèlement tracé au dossier sans masquer la réalité.
+- Filet de tests porté à **1454 tests hermétiques** (100 % de succès).
+La revue de code BMAD sera exécutée dans une session dédiée.
+

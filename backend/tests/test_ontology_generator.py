@@ -75,5 +75,20 @@ def test_ontology_generation_does_not_cap_structured_output_tokens():
     )
 
     assert result["analysis_summary"] == "ok"
+    assert llm.calls[0]["temperature"] == 0.0
     assert llm.calls[0]["max_tokens"] is None
     assert llm.calls[0]["max_attempts"] == 2
+
+
+def test_ontology_generation_forces_temperature_zero():
+    llm = RecordingLLMClient()
+    generator = OntologyGenerator(llm_client=llm)
+
+    generator.generate(
+        document_texts=["Document test"],
+        simulation_requirement="Consigne test",
+    )
+
+    assert len(llm.calls) == 1
+    assert llm.calls[0]["temperature"] == 0.0
+

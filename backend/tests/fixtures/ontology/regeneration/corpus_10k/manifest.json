@@ -1,0 +1,53 @@
+{
+  "corpus_id": "corpus_10k",
+  "target_chars": 10000,
+  "actual_chars": 10000,
+  "combined_chars": 10028,
+  "documents_count": 5,
+  "total_bytes": 10273,
+  "combined_sha256": "f6d6baf6bfe2d996ff0a01e12406e5a6c3cf4bf6b64ebd0de6c15e4da143fbc2",
+  "brief": {
+    "filename": "brief.txt",
+    "char_count": 292,
+    "byte_count": 299,
+    "sha256": "4b15b14283fc36d5ffad9af63aeff10fb8b280f1ee6f478de03063b11f646cb6",
+    "text": "Simuler les réactions des usagers, des opérateurs et des élus locaux face au déploiement de la fibre optique et aux obligations de couverture territoriale. Observer les tensions entre qualité de service, tarifs et respect des engagements de déploiement dans les zones rurales et périurbaines."
+  },
+  "documents": [
+    {
+      "document_id": "01-cahier-des-charges-valmont",
+      "filename": "01-cahier-des-charges-valmont.txt",
+      "char_count": 1527,
+      "byte_count": 1568,
+      "sha256": "ab029c2bfd0f5f6aff9df228e4a762bc0b7457c3423cc5df568047ceba8aca32"
+    },
+    {
+      "document_id": "02-soutenabilite-reseaux",
+      "filename": "02-soutenabilite-reseaux.txt",
+      "char_count": 1677,
+      "byte_count": 1679,
+      "sha256": "063500bd28db75a5730d72418903359e0c925c7fdd8cbd5de47c562ad8cb2adc"
+    },
+    {
+      "document_id": "03-litige-raccordement",
+      "filename": "03-litige-raccordement.txt",
+      "char_count": 1788,
+      "byte_count": 1850,
+      "sha256": "0a137a68d0720f3a7e599ad9c52a607fe8ba84ee3fef0aa08fafdedb47ef4945"
+    },
+    {
+      "document_id": "04-offres-fibre-marche",
+      "filename": "04-offres-fibre-marche.txt",
+      "char_count": 2241,
+      "byte_count": 2307,
+      "sha256": "b6586083390bb0c2a08353e23cfea1a43ca01269fee2b0961b6ebc11d637312e"
+    },
+    {
+      "document_id": "05-consultation-couverture-extrait",
+      "filename": "05-consultation-couverture-extrait.txt",
+      "char_count": 2767,
+      "byte_count": 2869,
+      "sha256": "fb99b1839ee6a5e6012abcda256d35d4f60f0dba61c71e0c2a875f8b7752ac93"
+    }
+  ]
+}

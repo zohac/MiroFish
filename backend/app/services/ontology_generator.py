@@ -230,6 +230,7 @@ class OntologyGenerator:
         
         lang_instruction = get_language_instruction()
         system_prompt = f"{ONTOLOGY_SYSTEM_PROMPT}\n\n{lang_instruction}\nIMPORTANT: Entity type names MUST be in English PascalCase (e.g., 'PersonEntity', 'MediaOrganization'). Relationship type names MUST be in English UPPER_SNAKE_CASE (e.g., 'WORKS_FOR'). Attribute names MUST be in English snake_case. Only description fields and analysis_summary should use the specified language above."
+        user_message = f"{user_message}\n\nPlease output the schema strictly as a JSON object."
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
@@ -238,7 +239,7 @@ class OntologyGenerator:
         # 调用LLM
         result = self.llm_client.chat_json(
             messages=messages,
-            temperature=0.3,
+            temperature=0.0,
             # Structured ontology responses can exceed 4096 completion tokens,
             # especially when a compatible provider counts hidden reasoning in
             # the same budget. Let the provider use its model-specific limit.

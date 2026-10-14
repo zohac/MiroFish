@@ -160,3 +160,69 @@ def normalize_ontology_source_targets(
             break
 
     return normalized_targets
+
+
+def canonical_ontology_projection(ontology: Dict[str, Any]) -> Dict[str, Any]:
+    """Extrait la projection canonique des champs stables d'une ontologie (AC3).
+
+    Les champs stables comparés pour la régénération déterministe sont :
+    - Les noms de types d'entité et leurs attributs rattachés ;
+    - Les noms de types de relation et leurs attributs rattachés.
+
+    Les listes sont triées par nom de type et par nom d'attribut pour
+    neutraliser les variations d'ordre tout en conservant les doublons
+    éventuels. Les descriptions, exemples et `analysis_summary` sont
+    délibérément exclus de cette projection.
+    """
+    if not isinstance(ontology, dict):
+        return {"entity_types": [], "edge_types": []}
+
+    def _extract_attrs(raw_item: Dict[str, Any]) -> List[str]:
+        raw_attrs = raw_item.get("attributes", [])
+        if not isinstance(raw_attrs, list):
+            return []
+        attrs: List[str] = []
+        for a in raw_attrs:
+            if isinstance(a, str):
+                name = a.strip()
+                if name:
+                    attrs.append(name)
+            elif isinstance(a, dict):
+                raw_name = a.get("name")
+                if isinstance(raw_name, str):
+                    name = raw_name.strip()
+                    if name:
+                        attrs.append(name)
+        attrs.sort()
+        return attrs
+
+    entity_types = []
+    for raw_entity in ontology.get("entity_types", []):
+        if not isinstance(raw_entity, dict):
+            continue
+        raw_name = raw_entity.get("name")
+        name = str(raw_name).strip() if raw_name is not None else ""
+        entity_types.append({
+            "name": name,
+            "attributes": _extract_attrs(raw_entity),
+        })
+    entity_types.sort(key=lambda item: (item["name"], item["attributes"]))
+
+    edge_types = []
+    for raw_edge in ontology.get("edge_types", []):
+        if not isinstance(raw_edge, dict):
+            continue
+        raw_name = raw_edge.get("name")
+        name = str(raw_name).strip() if raw_name is not None else ""
+        edge_types.append({
+            "name": name,
+            "attributes": _extract_attrs(raw_edge),
+        })
+    edge_types.sort(key=lambda item: (item["name"], item["attributes"]))
+
+    return {
+        "entity_types": entity_types,
+        "edge_types": edge_types,
+    }
+
+

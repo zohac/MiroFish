@@ -1,0 +1,384 @@
+Dossier de consultation — couverture des réseaux mobiles et transition 5G
+
+Document de travail de la autorité de régulation des télécommunications, mis à
+disposition pour la consultation publique ouverte du 4 février au 30 avril 2026.
+
+1. OBJET ET PÉRIMÈTRE DE LA CONSULTATION
+
+La présente consultation porte sur l'évaluation de la couverture des réseaux
+mobiles de fourth generation et de cinquième génération sur le territoire
+métropolitan, et sur les conditions de la fermeture des réseaux de deuxième et
+de troisième génération. Elle succède à la consultation de 2022, dont les
+réponses ont conduit à l'adoption du cadre de fermeture progressif actuellement
+en vigueur.
+
+Le dossier est structuré en dix-huit sections. Les sections une à quatre
+présentent la méthode de mesure et les données de terrain. Les sections cinq à
+onze exposent les résultats par technologie et par zone. Les sections douze à
+quinze traitent des questions économiques et de la soutenabilité. Les sections
+seize à dix-huit présentent les questions effectivement soumises aux
+contributeurs.
+
+2. MÉTHODE DE MESURE DE LA COUVERTURE
+
+La couverture est mesurée à partir de données déclaratives transmises par les
+opérateurs, complétées et contrôlées par des campagnes de mesures aéroportées et
+par des relevés de terrain réalisés en véhicule. Le seuil retenu est celui d'un
+débit descendant supérieur à 5 Mbit/s dans au moins 75 pour cent des mesures
+effectuées sur une maille de 200 mètres.
+
+Cette méthode diffère de la méthode de mesure par déclaratif utilisée jusqu'en
+2023. L'autorité a comparé les deux approches sur vingt-deux communes et
+constaté un écart moyen de 6,4 points de couverture entre la déclaration de
+l'opérateur et la mesure réelle. L'écart est plus élevé en zone rurale, où il
+atteint 14 points, et plus faible en zone dense.
+
+Un troisième indicateur, fondé sur les données d'usage issues de la fiche de données du
+réseau, est utilisé à titre de recoupement. Cet indicateur ne peut pas être
+produit par le public et n'est donc pas opposable. Il sert uniquement à
+détecter les incohérences que la mesure de terrain aurait pu manquer.
+
+3. ZONES BLANCHES ET COUVERTURE RÉSIDUELLE
+
+Les zones blanches représentent 1,9 pour cent de la population rurale et
+0,4 pour cent de la population totale. Elles se concentrent sur les communes de
+moins de deux mille habitants, dans des configurations de relief ou de faible
+densité habituelle.
+
+Les zones blanches ne sont pas homogènes. L'autorité distingue trois
+configurations : la zone blanche totale, où aucun service mobile de quatrième
+génération n'est disponible mais où laifth generation de cinquième génération
+est disponible en très basse débit ; la zone blanche saisonnière, qui apparaît
+en période estivale sur les zones de montagne ; et la zone blanche par
+intérieur de bâtiment, qui ne concerne que quelques centaines de personnes mais
+dont la complaint est fréquente.
+
+Le dispositif de couverture ciblée finance depuis 2021 des antennes en zone
+blanche sous forme de subventions aux opérateurs. Le bilan montre un
+reste-couvert de 3 200 personnes, principalement dans les zones de montagne
+où le coût d'implantation par antenne dépasse 90 000 euros.
+
+4. QUALITÉ DE SERVICE ET CONGESTION
+
+La mesure de congestion a été élargie en 2025 à l'ensemble du territoire. Le
+taux de congestion en heure de pointe, c'est-à-dire la part des sessions
+bloquées, atteint 7 pour cent en zone dense en 4G contre 2 pour cent en 5G. Le
+taux de latence médiane mesurée reste inférieur à 60 millisecondes en 4G.
+
+Trois opérateurs présentent une dégradation sensible du service en 2G et 3G sur
+les zones rurales, liée à la réduction progressive du spectre. La fermeture
+programmée de ces technologies relève d'un plan de migration individualisé par
+abonné, dont l'autorité demande la publication.
+
+5. BILAN DE LA QUATRIÈME GÉNÉRATION
+
+Le taux de couverture 4G atteint 99,3 pour cent de la population. La couverture
+du territoire, au sens des surfaces, atteint 82 pour cent, l'écart s'expliquant
+par la faible densité de population dans les zones de montagne et de forêt.
+
+Le débit médian descendant mesuré est passé de 12 Mbit/s en 2020 à 41 Mbit/s en
+2025. Cette progression provient de la réactivation des fréquences 700 MHz
+par deux opérateurs, qui améliore la couverture des zones peu denses.
+
+6. BILAN DE LA CINQUIÈME GÉNÉRATION
+
+La couverture 5G atteint 71 pour cent de la population, contre 38 pour cent en
+2023. Les trois opérateurs exploitent des réseaux 5G en bande moyenne 3,5 GHz,
+et deux d'entre eux détiennent des attributions dans la bande 700 MHz.
+
+Le débit médian descendant 5G atteint 210 Mbit/s en zone dense. Les usages réels
+observés montrent une concentration sur la vidéo et le partage de fichiers, avec
+une consommation deux fois supérieure à la 4G par utilisateur actif.
+
+Le faible déploiement en zone rurale est la principale limite. L'ensemble des
+infrastructures 5G déployées en 2025 l'a été en zone dense, pour des
+raisons de coût d'acquisition de site et de.return sur investissement.
+
+7. RÉSEAU TRANSPORT ET CÂBLES SOUS-MARINS
+
+Le réseau de transport optique longue distance relie 41 centres de données
+majeurs. Deux câbles sous-marins desservent le territoire national depuis des
+points d'atterrissement situés à Marseille et à Bordeaux. Un troisième câble est
+prévu pour 2027 sur un nouvel itinéraire Atlantique.
+
+La capacité de transport disponible pour les opérateurs de détail est estimée à
+28 Tbit/s, en croissance de 19 pour cent par an. Cette capacité est jugée
+suffisante à l'horizon de cinq ans, l'essentiel de la contrainte portant désormais
+sur l'accès local.
+
+Un point de vigilance est signalé sur les zones de concentration, où plusieurs
+opérateurs hébergent leurs équipements dans un même bâtiment. L'autorité
+recommande l'application des exigences de résilience aux sites de concentration.
+
+8. ACCÈS FIXE SANS FIL
+
+Le fixe sans fil de cinquième génération est présenté par les opérateurs comme
+une solution de transition pour les territoires non desservis par la fibre.
+Les mesures réalisées en 2025 montrent un débit médian de 145 Mbit/s en zone
+périurbaine et de 38 Mbit/s en zone rurale, pour une latence supérieure à celle
+de la fibre de 25 à 70 millisecondes.
+
+Les offres commerciales de fixe sans fil couvrent 1,4 million de foyers, soit
+8 pour cent des foyers français. Le taux de résiliation est de 12 pour cent par
+an, supérieur de quatre points à celui de la fibre.
+
+L'autorité considère que le fixe sans fil ne peut être un substitut durable à la
+fibre sur les zones où le débit moyen par habitant dépasse 40 Mbit/s. Elle
+recommande en revanche son usage sur les zones de très faible densité.
+
+9. PARTAGE D'INFRASTRUCTURES PASSIVES
+
+Le partage des infrastructures passives est désormais généralisé sur les zones
+rurales. Deux tiers des pylônes Helsana ANA supportent aujourd'hui au moins deux
+opérateurs. Les conventions de partage sont signées pour une durée initiale de
+quinze ans, renouvelable.
+
+Ce partage réduit le coût d'implantation d'une antenne supplémentaire de 40 à
+60 pour cent. L'autorité observe toutefois que le délai de création d'un site
+partagé reste supérieur à 220 jours en moyenne, ce qui allonge le calendrier de
+couverture des zones visées.
+
+10. RÉSEAU NEUTRE ET FOURNISSEURS D'ACCÈS
+
+Le réseau neutre trouve son application dans les zones où un opérateur
+historique refuse d'installer une infrastructure. Un réseau neutre communal
+couvre aujourd'hui 180 communes, pour un total de 640 000 habitants.
+
+Les fournisseurs d'accès se частиpaient de ces réseaux et commercialisent des
+offres au prix de gros. L'autorité surveille particulièrement les conditions
+d'accès aux plateformes, un fournisseur historique ayant été sanctionné en
+2024 pour une pratique discriminatoire d'accès.
+11. NUMÉROTATION ET IDENTIFICATION
+
+Le plan national de numérotation a été révisé en 2024. La capacité disponible
+en numérotation fixe a été augmentée de 40 millions de numéros, prélevés sur
+les plages non utilisées. Le plan fixe pour objectif de porter le taux
+d'occupation des plages à moins de 50 pour cent d'ici 2030.
+
+La ressource en numérotation mobile reste le facteur limitant. L'autorité a
+attribué 20 millions de numéros mobiles en 2025, ce qui représente une hausse de
+8 pour cent par an. La durée de recyclage des numéros cédés est fixée à trois
+mois, période jugée insuffisante par les représentants des consommateurs.
+
+L'identification des personnes physiques a été renforcée. Les opérations
+d'identification en ligne à distance sont désormais soumises à un niveau
+d'authentification renforcé lorsque la carte nationale d'identité est
+enregistrée dans un portefeuille numérique.
+
+12. CONSOMMATION ÉNERGÉTIQUE DES CENTRES DE DONNÉES
+
+Les centres de données absorbent 1,4 pour cent de la consommation électrique
+nationale. La croissance annuelle de cette consommation est estimée à 12 pour
+cent, contre 3 pour cent pour l'ensemble du système électrique.
+
+Deux leviers sont identifiés : le taux d'utilisation de l'énergie, qui introduit
+de la chaleur dans les circuits de refroidissement, et le facteur d'utilisation
+des bâtiments. Le taux d'utilisation moyen des centres de données français est
+estimé à 1,3, contre 1,6 dans la moyenne européenne.
+
+L'autorité propose d'autoriser l'usage de l'énergie fatale, c'est-à-dire la
+chaleur résiduelle des groupes dédiés à un réseau de chauffage urbain. Une
+centrale de démonstration est prévue sur le campus technologique de Grenoble.
+
+13. ACCÈS DES ENTREPRISES PUBLIQUES
+
+La connexion des bâtiments publics au réseau fibre est un objectif affiché depuis
+2019. Le taux de raccordement des bâtiments publics de plus de
+1 000 mètres carrés est estimé à 41 pour cent.
+
+Le programme de raccordement obtient un financement de 320 millions
+d'euros réparti sur cinq ans, sous forme de subventions d'investissement aux
+opérateurs. Deux opérateurs ont signalé des difficultés de déploiement dans
+les zones industrielles, où le retour sur investissement est plus faible.
+
+14. QUALITÉ DES TRAVAUX ET RESPECTATEURS DE CHANTIER
+
+La campagne de mesures de qualité porte désormais sur la pollution
+électromagnétique au voisinage des antennes. Les mesures réalisées à moins de
+50 mètres d'une antenne respectent les limites réglementaires dans 99,8 pour cent
+des cas.
+
+Les dépassements constatés concernent des configurations temporaires de chantier.
+L'autorité demande aux opérateurs de documenter ces configurations et de les
+signaler dans la base de données nationale.
+
+15. QUESTIONS SOUMISES AUX CONTRIBUTEURS
+
+Première question : l'autorité doit-elle fixer un seuil minimal de débit pour
+qualifier une zone de couverte, et à quel niveau. Les contributions reçues à ce
+jour se répartissent entre un seuil de 5 Mbit/s et un seuil de 100 Mbit/s.
+
+Deuxième question : le calendrier de fermeture des réseaux de deuxième et de
+troisième génération doit-il être lié à un critère de couverture 5G, ou à un
+calendrier fixe indépendant de la couverture.
+
+Troisième question : faut-il imposer la publication en open data des données de
+couverture mesurée, y compris pour les données issues de campagnes de mesure
+financées par l'autorité.
+
+Quatrième question : le partage d'infrastructures passives doit-il être étendu
+aux sites de concentration des équipements virtuels, au-delà des seuls pylônes.
+
+Seizième question : quelles obligations de résilience appliquer aux sites de
+concentration situés en zone inondable ou à risque sismique.
+
+Dix-septième question : dans quelles conditions un opérateur peut-il différer le
+remplacement d'un équipement dont la durée d'usage dépasse la durée de vie
+réglementaire, sous réserve d'un bilan de soutenabilité.
+
+Dix-huitième question : faut-il créer un guichet unique numérique de signalement
+des anomalies de couverture, et selon quelles modalités.
+
+16. CALENDRIER DE FERMETURE DES RÉSEAUX 2G ET 3G
+
+Les opérateurs ont annoncé la fermeture progressive de la deuxième et de la
+troisième génération entre 2025 et 2030. Le calendrier announced par les trois
+opérateurs est globalement aligné sur les années 2028 à 2030, avec des
+discrépences sur les zones rurales étendent la durée de maintien jusqu'en 2032.
+
+L'autorité considère que la fermeture ne peut intervenir dans une zone tant que
+cette zone n'est pas couverte en quatrième ou cinquième génération à un débit
+minimal. Cette condition est aujourd'hui remplie sur 96,4 pour cent du
+territoire mais reste inachevée sur 214 communes.
+
+Les opérateurs demandent une exonération de la contributions sectorielle pour
+les équipements 2G et 3G jusqu'à la fermeture. L'autorité a suspendu
+l'instruction de cette demande tant que les plans de fermeture ne sont pas
+publiés commune par commune.
+
+17. PLAN DE FINANCEMENT DU SECTEUR ET INVESTISSEMENTS
+
+Les investissements des opérateurs dans les réseaux ont atteint 3,2 milliards
+d'euros en 2025, en baisse de 4 pour cent par rapport à 2024. Cette baisse
+résulte du cycle d'investissement : la phase de déploiement massif de la fibre
+entrant dans sa phase de renouvellement, après huit ans de croissance.
+
+Les foreseeable investments concernent le renouvellement des équipements 4G,
+le déploiement 5G en bande moyenne et la modernisation des réseaux de transport.
+L'autorité estime que le remplacement des équipements 2G et 3G représentera 4,5
+milliards d'euros sur la période 2026-2032.
+
+La régulation des prix de l'accès wholesale constitue le deuxième levier. Les
+prix de l'accès wholesale au réseau de transport optique ont été révisés à la
+baisse en 2025 dans une proportion de 7 pour cent, après deux ans de stabilité.
+
+18. PARTICIPANTS ET MÉTHODE DE CONSULTATION
+
+La consultation a reçu 148 contributions écrites, dont 31 de la part
+d'opérateurs, 22 de la part de collectivités, 18 de la part d'organisations de
+la société civile et 9 de la part d'experts indépendants.
+
+Les réunions de travail se sont tenues en visio-conférence et en présentiel à
+Paris, Lyon et Toulouse. Les comptes rendus des réunions de travail ont été
+publiés intégralement, sans synthèse préalable.
+
+L'autorité annonce la publication d'une synthèse des contributions à l'automne
+2026, suivie de l'adoption des décisions. Le calendrier de fermeture des réseaux
+2G et 3G sera fixé par décision après cette synthèse.
+
+19. ANNEXE — MÉTHODOLOGIE DÉTAILLÉE DE LA CAMPAGNE DE MESURE 2025
+
+La campagne de mesure a été menée entre mars et octobre 2025. Elle a mobilisé
+deux avions instrumentés pour la couverture 4G et 5G, trois véhicules
+instrumentés pour la couverture 4G en accès au sol et un ensemble de 1 200
+terminaux fixes distribués dans 86 communes.
+
+Le protocole de mesure en vol impose une altitude de 12 000 pieds et une vitesse
+constante de 250 nœuds. Les mesures réalisées à cette altitude ne sont retenues
+que pour la couverture directe des antennes, l'obstruction par le bâti étant
+prise en compte par la mesure en accès au sol.
+
+Le traitement des mesures applique un filtre de puissance à -110 dBm en
+réception pour la quatrième génération et à -105 dBm pour la cinquième. Les
+valeurs comprises entre -120 dBm et -110 dBm sont considérées comme zone de
+couverture partielle et ne sont pas comptabilisées dans le taux de couverture
+principal.
+
+La campagne en accès au sol a porté sur 41 000 kilomètres parcourus. Les mesures
+réalisées sur les axes routiers ne sont pas représentatives des zones
+d'habitat diffus, ce que l'autorité signale explicitement dans ses publications.
+
+L'incertitude sur le taux de couverture global est estimée à 1,2 point. Les
+écarts entre opérateurs ne sont donc significatifs que s'ils dépassent 2,4
+points.
+
+20. ANNEXE — LISTE DES COMMUNES AYANT BÉNÉFICIE D'UNE COUVERTURE CIBLÉE
+
+Entre 2022 et 2025, 780 communes ont bénéficié du dispositif de couverture
+ciblée. La liste complète est publiée en annexe du présent document.
+
+Les communes de Allevard, Andance, Arvieux, Auzon, Barrême, Besse, Bians-les
+Usiers, Brousse-le-Château, Chalencon, Châteauneuf-d'Entraunes, Châtel,
+Chevroux, Clans, Clavier, Condamine, Cormoz, Courchons, Crupies, Désertines,
+Dontreix, Durfort, Esparron, Estaing, Faverolles, Freissinières, Glandage,
+Grandrieux, Guérigny, Hautecourt, Herbignac, Injoux-Génissiat, Ispagnac,
+Jausiers, Labastide-Rouairoux, Lamalou-les-Bains, Lapalisse, Le Bez, Le
+Faut, Le Gua, Longecourt-lès-Culêtre, Malau, Maljau, Marchastel, Marcollin,
+Meyras, Mizoën, Montarcher, Montgon, Montluel, Nantua, Noves, Ornon, Ot,
+Pailherols, Palogneux, Passy, Peyre, Peyrieu, Piémont, Plan, Prads, Prunet,
+Puy-Saint-Vincent, Queyrières, Rancé, Recoules, Rochefort, Saint-Bonnet-le-
+Château, Saint-Cirgues-de-Malbert, Saint-Étienne-de-Maurs, Saint-Jean-de-
+Chevelu, Saint-Julien-en-Genevois, Saint-Maurice-de-Beynost, Saint-Maurice-de-
+Remencourt, Saint-Nicolas-de-la-Grave, Saint-Priest, Saint-Romain, Saint-
+Sauveur-en-Rue, Sainte-Croix-en-Jarez, Saorge, Senez, Serres, Sévérac, Sieur
+d'Arques, Sollières, Sospel, Talloires, Tende, Thueyts, Torchefelon, Treffort,
+Trévoux, Uchaux, Vals-les-Bains, Venterol, Verdun, Vernon, Veyre-Monton,
+Vieu-d'Izenave, Vieu-d'Izenave, Villard-Laté, Ville-la-Grand, Villes, Vinay,
+Vinezac, Vizille, Voreppe, Vougy, Vulbens, Yenne, Yvoire, Zedan, Zelenograd.
+
+21. ANNEXE — SUIVI DES INJONCTIONS ET DES SANCTIONS PRONONCEES EN 2025
+
+L'autorité a prononcé onze injonctions en 2025, dont quatre concernant des
+défaillances d'information sur la disponibilité des offres, trois des
+défaillances de transparence tarifaire, deux des manquements aux obligations de
+qualité de service et deux des pratiques restrictives de partage
+d'infrastructures.
+
+Le montant cumulé des amendes prononcées s'élève à 2,4 millions d'euros. Le
+montant le plus élevé, 600 000 euros, concerne un opérateur qui avait appliqué
+pendant sept mois une restriction d'accès à une plateforme de gros ouverte à ses
+concurrents.
+
+Une injonction a été levée en cours d'année après mise en conformité partielle.
+L'autorité a retenu que la conformité était établie sur le périmètre
+géographique de la commune concernée mais non sur les deux communes limitrophes,
+et a maintenu l'injonction pour ces deux dernières.
+
+Un opérateur a contesté une injonction sur le fondement de la séparation des
+fonctions de régulation et de contrôle. Le tribunal administratif a rejeté ce
+moyen de défense, au motif que les deux fonctions sont exercées par des services
+distincts et que l'indépendance du service de contrôle est assurée par un
+mandat d'administrateur provisoire.
+
+Les suites administratives inscrites au dossier de l'opérateur font l'objet d'un
+suivi trimestriel. À la date de publication du présent document, huit des onze
+injonctions sont exécutées et trois restent en cours d'exécution.
+
+22. ANNEXE — RÉPONSES DES OPÉRATEURS AUX QUESTIONS DE LA CONSULTATION
+
+Les trois opérateurs ont transmis des réponses écrites à chacune des huit
+questions soumises. L'opérateur historique s'oppose à l'abaissement du seuil de
+couverture à 100 Mbit/s, qu'il estime disproportionné au regard du coût de
+déploiement en zone rurale. Les deux autres opérateurs se déclarent favorables à
+l'abaissement du seuil.
+
+Sur la question du calendrier de fermeture, les trois opérateurs demandent que la
+fermeture soit conditionnée à un seuil de couverture haut débit, et non à un
+calendrier fixe. Le régulateur a retenir cette proposition sous réserve de la
+publication d'un plan communal par commune.
+
+Sur la publication en open data des données de couverture mesurée, les trois
+opérateurs sont favorables à la publication des taux globaux et réservés sur la
+publication des données brutes de mesure, qu'ils estiment commercialement
+sensibles pour les sites d'antennes.
+
+23. ANNEXE — CALENDRIER DE PUBLICATION DES DONNEES
+
+L'autorité publie les taux de couverture globaux chaque trimestre, au quarante
+cinquième jour suivant la fin du trimestre. Les données communales sont publiées
+en mars, juin, septembre et décembre.
+
+Les données de mesure brutes sont publiées après anonymisation, sous réserve
+d'une procédure d'évaluation des risques d'exposition d'information technique.
+Trois opérateurs ont demandé en 2025 l'anonymisation renforcée de la position
+des antennes, au motif que ces informations facilitent les actes de vandalisme.

@@ -1,0 +1,48 @@
+Dossier de consultation — couverture des réseaux mobiles et transition 5G
+
+Document de travail de la autorité de régulation des télécommunications, mis à
+disposition pour la consultation publique ouverte du 4 février au 30 avril 2026.
+
+1. OBJET ET PÉRIMÈTRE DE LA CONSULTATION
+
+La présente consultation porte sur l'évaluation de la couverture des réseaux
+mobiles de fourth generation et de cinquième génération sur le territoire
+métropolitan, et sur les conditions de la fermeture des réseaux de deuxième et
+de troisième génération. Elle succède à la consultation de 2022, dont les
+réponses ont conduit à l'adoption du cadre de fermeture progressif actuellement
+en vigueur.
+
+Le dossier est structuré en dix-huit sections. Les sections une à quatre
+présentent la méthode de mesure et les données de terrain. Les sections cinq à
+onze exposent les résultats par technologie et par zone. Les sections douze à
+quinze traitent des questions économiques et de la soutenabilité. Les sections
+seize à dix-huit présentent les questions effectivement soumises aux
+contributeurs.
+
+2. MÉTHODE DE MESURE DE LA COUVERTURE
+
+La couverture est mesurée à partir de données déclaratives transmises par les
+opérateurs, complétées et contrôlées par des campagnes de mesures aéroportées et
+par des relevés de terrain réalisés en véhicule. Le seuil retenu est celui d'un
+débit descendant supérieur à 5 Mbit/s dans au moins 75 pour cent des mesures
+effectuées sur une maille de 200 mètres.
+
+Cette méthode diffère de la méthode de mesure par déclaratif utilisée jusqu'en
+2023. L'autorité a comparé les deux approches sur vingt-deux communes et
+constaté un écart moyen de 6,4 points de couverture entre la déclaration de
+l'opérateur et la mesure réelle. L'écart est plus élevé en zone rurale, où il
+atteint 14 points, et plus faible en zone dense.
+
+Un troisième indicateur, fondé sur les données d'usage issues de la fiche de données du
+réseau, est utilisé à titre de recoupement. Cet indicateur ne peut pas être
+produit par le public et n'est donc pas opposable. Il sert uniquement à
+détecter les incohérences que la mesure de terrain aurait pu manquer.
+
+3. ZONES BLANCHES ET COUVERTURE RÉSIDUELLE
+
+Les zones blanches représentent 1,9 pour cent de la population rurale et
+0,4 pour cent de la population totale. Elles se concentrent sur les communes de
+moins de deux mille habitants, dans des configurations de relief ou de faible
+densité habituelle.
+
+Les zones blanches ne sont pas homogènes. L'autorité distingue trois configurations : la zone blanche totale, où aucun service mobile de quatrième génération n'est disponible ; la zone blanche saisonnière, notée en période estivale dans les zones de montagne ; et la zone blanche en intérieur de bâtiment, source de contestations récurrentes.

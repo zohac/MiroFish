@@ -1,0 +1,39 @@
+Offres fibre et transparence tarifaire — analyse de marché
+
+Le marché français de l'accès fixe large bande compte aujourd'hui trois
+opérateurs généralistes ayant une couverture nationale significative. Les offres
+commerciales se concentrent autour de trois paliers de débit : 1 Gbit/s, 500
+Mbit/s et 300 Mbit/s, ce dernier étant proposé à un prix dégressif après
+douze mois d'engagement.
+
+Le palier 1 Gbit/s est commercialisé autour de trente euros par mois, matériel
+de location compris. L'opérateur historique applique une remise de douze euros
+par mois sur le second poste de la connexion, incitant à la fourniture de deux
+abonnements. Deux opérateurs entrants pratiquent des offres séparées de dix-neuf
+euros par mois, sans engagement.
+
+L'autorité de régulation observe que la transparence tarifaire progresse : les
+frais d'activation sont désormais affichés avant signature sur 80 pour cent des
+offres commercialisées, contre 54 pour cent en 2023. Les frais de résiliation
+restent en revanche largement opaques, et l'autorité a engagé une procédure
+contre un opérateur sur ce fondement.
+
+L'analyse de marché souligne la convergence entre accès fixe et offre mobile.
+Deux opérateurs proposent une offre unique regroupant ligne mobile et fibre, avec
+une réduction de huit euros par mois. Cette convergence réduit le nombre
+d'abonnements distincts mais augmente le prix d'un contrat résilié.
+
+L'offre fibre maison, commercialisée par un opérateur entrant, couvre 1,8
+million de foyers. Le taux de migration depuis les offres historiques y atteint
+38 pour cent en dix-huit mois, ce qui en fait le principal concurrent du réseau
+de l'opérateur historique sur les zones déjà desservies.
+
+Un second entrant a déployé son offre sur 620 000 foyers, concentrés dans six
+métropoles. Son taux de migration y dépasse 45 pour cent, le plus élevé observé
+sur le marché. L'analyse impute cet écart à une politique de reprise des
+frais de résiliation et à une offre d'entrée de gamme très agressive.
+
+L'autorité publie ces éléments dans le cadre du suivi du marché qu'elle conduit
+depuis 2010. Elle indique que la transparence sur les frais annexes reste le
+principal grief des consommateurs, devant la qualité de service et la
+disponibilité de l'offre.

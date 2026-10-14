@@ -1,0 +1,88 @@
+{
+  "corpus_id": "corpus_50k",
+  "target_chars": 50000,
+  "actual_chars": 50000,
+  "combined_chars": 50063,
+  "documents_count": 10,
+  "total_bytes": 50851,
+  "combined_sha256": "6edb8ecd7c3d6194687810700a266be63c734792dcb92892e63d13fdd863965b",
+  "brief": {
+    "filename": "brief.txt",
+    "char_count": 381,
+    "byte_count": 393,
+    "sha256": "e962d02f6dfc16c5081f4fefa3eed185778cd401690c3416b2e4cc5e67899f6c",
+    "text": "Simuler les dynamiques de concertation publique, de régulation sectorielle et de contestation sociale autour des grands réseaux d'infrastructure (télécommunications très haut débit et réseaux électriques intelligents). Analyser les arbitrages entre investissements lourds, tarification équitable pour les usagers, résilience des réseaux face aux incidents et transition écologique."
+  },
+  "documents": [
+    {
+      "document_id": "01-telecom-cahier-des-charges-valmont",
+      "filename": "01-telecom-cahier-des-charges-valmont.txt",
+      "char_count": 1527,
+      "byte_count": 1568,
+      "sha256": "ab029c2bfd0f5f6aff9df228e4a762bc0b7457c3423cc5df568047ceba8aca32"
+    },
+    {
+      "document_id": "02-telecom-soutenabilite-reseaux",
+      "filename": "02-telecom-soutenabilite-reseaux.txt",
+      "char_count": 1677,
+      "byte_count": 1679,
+      "sha256": "063500bd28db75a5730d72418903359e0c925c7fdd8cbd5de47c562ad8cb2adc"
+    },
+    {
+      "document_id": "03-telecom-litige-raccordement",
+      "filename": "03-telecom-litige-raccordement.txt",
+      "char_count": 1788,
+      "byte_count": 1850,
+      "sha256": "0a137a68d0720f3a7e599ad9c52a607fe8ba84ee3fef0aa08fafdedb47ef4945"
+    },
+    {
+      "document_id": "04-telecom-offres-fibre-marche",
+      "filename": "04-telecom-offres-fibre-marche.txt",
+      "char_count": 2241,
+      "byte_count": 2307,
+      "sha256": "b6586083390bb0c2a08353e23cfea1a43ca01269fee2b0961b6ebc11d637312e"
+    },
+    {
+      "document_id": "05-telecom-consultation-couverture",
+      "filename": "05-telecom-consultation-couverture.txt",
+      "char_count": 20163,
+      "byte_count": 20835,
+      "sha256": "84784233b928f46fe0518be9967f9de730e2009d9aad497299adedd946c71fbc"
+    },
+    {
+      "document_id": "06-energie-schema-technique-rivesaltes",
+      "filename": "06-energie-schema-technique-rivesaltes.txt",
+      "char_count": 1493,
+      "byte_count": 1493,
+      "sha256": "ca591f26db95170e7ecb32f3d0d4795b03c76306ab30bd8c788ba3c063bb8afd"
+    },
+    {
+      "document_id": "07-energie-tarifs-usage",
+      "filename": "07-energie-tarifs-usage.txt",
+      "char_count": 1614,
+      "byte_count": 1614,
+      "sha256": "90b4d87fd508e240b38e2fc629a44116b6a182d3207c4d2ca4fccb2109db64d0"
+    },
+    {
+      "document_id": "08-energie-bilan-electrique-2025",
+      "filename": "08-energie-bilan-electrique-2025.txt",
+      "char_count": 2402,
+      "byte_count": 2402,
+      "sha256": "38585cffaf90dbfda4e4eda6379d33b2add252d597785599f274034f9a584b77"
+    },
+    {
+      "document_id": "09-energie-incident-reseau-2026",
+      "filename": "09-energie-incident-reseau-2026.txt",
+      "char_count": 2415,
+      "byte_count": 2415,
+      "sha256": "0d51dd91112aefe5759adb560f82ee7e658d5ebee6f6b2e6073504ee8be168fc"
+    },
+    {
+      "document_id": "10-energie-programme-reglementaire-extrait",
+      "filename": "10-energie-programme-reglementaire-extrait.txt",
+      "char_count": 14680,
+      "byte_count": 14688,
+      "sha256": "c62d5396d047e390ac4b1e952dfc4f957d365f63a57ceea1e205ecb27a30759b"
+    }
+  ]
+}

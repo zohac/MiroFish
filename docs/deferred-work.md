@@ -392,3 +392,10 @@ la promesse : le renvoi était juste, c'est la note qui n'existait pas.
   de 007-2 : contexte, suivi humain, hub et index ADR synchronisés ; preuve
   Docker de 1431 collectés / 1428 réussis + 3 ignorés conservée. Les ADR acceptés
   restent inchangés.
+
+## Deferred from: code review of story-007-3.md (2026-10-13)
+
+- **D1 — Mise à jour des suivis et compteurs de tests dans `STATUS.md`, `epic-007.md` et `sprint-status.yaml`** [AGENTS.md ; docs/STATUS.md ; docs/sprint-status.yaml] — Différé conformément au protocole BMad pour les fichiers de contexte agent et spécifications ; les compteurs finaux et synchronisations d'états sont répercutés lors de la clôture définitive de la story.
+
+  **Résolu le 13 octobre 2026** lors de la clôture de la story 007-3 : contexte `AGENTS.md`, suivi humain `docs/STATUS.md`, agrégat `sprint-status.yaml`, hub `epic-007.md` et table des ADRs synchronisés avec le nouveau filet validé à 1459 tests verts sur l'hôte.
+
