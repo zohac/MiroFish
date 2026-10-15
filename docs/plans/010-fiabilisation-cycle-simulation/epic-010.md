@@ -42,8 +42,8 @@ Cet epic résout définitivement les blocages constatés lors des simulations en
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 010-1 | Arrêt déterministe (`--no-wait`) et statut `COMPLETED` automatique | `done` | [story-010-1.md](story-010-1.md) |
-| 010-2 | Réconciliation d'état OS/cache et résilience IHM (`Step3Simulation.vue`) | `backlog` | [story-010-2.md](story-010-2.md) |
-| 010-3 | Thread-safety SentenceTransformers et drain mémoire résilient | `backlog` | `story-010-3.md` |
+| 010-2 | Réconciliation d'état OS/cache et résilience IHM (`Step3Simulation.vue`) | `done` | [story-010-2.md](story-010-2.md) |
+| 010-3 | Thread-safety SentenceTransformers et drain mémoire résilient | `backlog` | [story-010-3.md](story-010-3.md) |
 
 ---
 

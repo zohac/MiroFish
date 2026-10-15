@@ -18,6 +18,15 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-15
+# 15 oct. 2026 : story 010-2 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches (4 patches appliqués). Réconciliation active OS/cache dans SimulationRunner.get_run_state
+# (vérification de vivacité via poll() et os.kill(pid, 0) / OpenProcess STILL_ACTIVE, élimination des statuts orphelins sans PID
+# et fermeture propre des descripteurs de logs vers COMPLETED, STOPPED ou FAILED sous verrou de finalisation). Invalidation de cache
+# fine par comparaison du mtime de run_state.json. Résilience IHM Vue 3 dans Step3Simulation.vue :
+# complétion par les faits (factsCompleted) débloquant immédiatement le passage en phase 2 et le bouton
+# « Générer le rapport » dès 100 % de rounds accomplis, maintien du polling jusqu'au statut terminal et tolérance 409.
+# 9 tests hermétiques dédiés ajoutés (test_simulation_runner_reconciliation.py), filet global de tests
+# porté à 1571 tests passants sur l'hôte (0 échec). Epic 010 in-progress (2/3 closes : 010-1, 010-2 done).
 # 15 oct. 2026 : story 010-1 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (4 patches appliqués). Injection systématique de --no-wait dans SimulationRunner._start_simulation
 # pour les plateformes parallel, twitter et reddit, support interactif optionnel keep_alive_on_completion

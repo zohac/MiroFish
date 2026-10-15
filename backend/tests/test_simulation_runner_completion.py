@@ -28,6 +28,7 @@ def clean_runner_state():
     """Nettoie les registres statiques de SimulationRunner avant et après chaque test."""
     SimulationRunner._processes.clear()
     SimulationRunner._run_states.clear()
+    SimulationRunner._state_file_mtimes.clear()
     SimulationRunner._graph_memory_enabled.clear()
     SimulationRunner._manual_stop_requests.clear()
     SimulationRunner._monitor_threads.clear()
@@ -36,6 +37,7 @@ def clean_runner_state():
     yield
     SimulationRunner._processes.clear()
     SimulationRunner._run_states.clear()
+    SimulationRunner._state_file_mtimes.clear()
     SimulationRunner._graph_memory_enabled.clear()
     SimulationRunner._manual_stop_requests.clear()
     SimulationRunner._monitor_threads.clear()

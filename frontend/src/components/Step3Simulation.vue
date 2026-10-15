@@ -511,21 +511,29 @@ const fetchRunStatus = async () => {
         prevRedditRound.value = data.reddit_current_round
       }
       
-      // 检测模拟是否已完成（通过 runner_status 或平台完成状态判断）
-      const isCompleted = data.runner_status === 'completed' || data.runner_status === 'stopped'
+      // 检测模拟是否已完成（通过 runner_status 或 complétion par les faits : FR-2, C2, T3）
+      const factsCompleted = (data.progress_percent >= 100 || (data.current_round >= data.total_rounds && data.total_rounds > 0)) && checkPlatformsCompleted(data)
+      const terminalStatus = data.runner_status === 'completed' || data.runner_status === 'stopped'
+      const isCompleted = terminalStatus || factsCompleted
       const isFailed = data.runner_status === 'failed'
       
-      // runner_status is authoritative because the backend only publishes a
-      // terminal state after the Zep ingestion barrier has completed.
+      // runner_status is authoritative, mais la complétion par les faits débloque immédiatement
+      // l'accès au rapport dès que l'ensemble des plateformes actives ont terminé leurs rounds.
       if (isFailed) {
         addLog(t('log.simFailed') + (data.error ? `: ${data.error}` : ''))
         phase.value = 2
         stopPolling()
         emit('update-status', 'error')
       } else if (isCompleted) {
-        addLog(t('log.simCompleted'))
+        if (phase.value !== 2) {
+          addLog(t('log.simCompleted'))
+        }
         phase.value = 2
-        stopPolling()
+        // Ne couper le polling que si le runner_status backend est terminal pour éviter
+        // d'interrompre le suivi si la barrière de flush mémoire (STOPPING) est encore en cours (Review Patch 4).
+        if (terminalStatus) {
+          stopPolling()
+        }
         emit('update-status', 'completed')
       }
     }
@@ -669,7 +677,15 @@ const handleNextStep = async () => {
       // 跳转到报告页面
       router.push({ name: 'Report', params: { reportId } })
     } else {
-      addLog(t('log.reportGenFailed', { error: res.error || t('common.unknownError') }))
+      const errorMsg = res.error || t('common.unknownError')
+      if (errorMsg.includes('still active') || errorMsg.includes('ingestion is still active')) {
+        addLog(t('log.reportGenFailed', { error: 'Finalisation de la simulation en cours (vidange mémoire). Veuillez patienter quelques secondes...' }))
+        if (!statusTimer) {
+          startStatusPolling()
+        }
+      } else {
+        addLog(t('log.reportGenFailed', { error: errorMsg }))
+      }
       isGeneratingReport.value = false
     }
   } catch (err) {

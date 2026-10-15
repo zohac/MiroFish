@@ -288,16 +288,168 @@ class SimulationRunner:
                 sync_error,
             )
     
+    _state_file_mtimes: Dict[str, float] = {}
+
     @classmethod
-    def get_run_state(cls, simulation_id: str) -> Optional[SimulationRunState]:
-        """获取运行状态"""
-        if simulation_id in cls._run_states:
-            return cls._run_states[simulation_id]
-        
-        # 尝试从文件加载
-        state = cls._load_run_state(simulation_id)
-        if state:
-            cls._run_states[simulation_id] = state
+    def get_run_state(
+        cls, simulation_id: str, reconcile: bool = True
+    ) -> Optional[SimulationRunState]:
+        """
+        获取运行状态。
+        Intègre l'invalidation de cache basée sur l'horodatage disque (T2, AC3)
+        et la réconciliation active de vivacité OS (T1, AC1, AC2).
+        """
+        state_file = os.path.join(cls.RUN_STATE_DIR, simulation_id, "run_state.json")
+        disk_mtime: Optional[float] = None
+        if os.path.exists(state_file):
+            try:
+                disk_mtime = os.path.getmtime(state_file)
+            except OSError:
+                disk_mtime = None
+
+        state = cls._run_states.get(simulation_id)
+
+        # Invalidation si le fichier disque est plus récent que notre cache mémoire
+        if disk_mtime is not None:
+            last_known_mtime = cls._state_file_mtimes.get(simulation_id)
+            if state is None or last_known_mtime is None or disk_mtime > last_known_mtime:
+                loaded_state = cls._load_run_state(simulation_id)
+                if loaded_state:
+                    state = loaded_state
+                    cls._run_states[simulation_id] = state
+                    cls._state_file_mtimes[simulation_id] = disk_mtime
+
+        if state is None:
+            state = cls._load_run_state(simulation_id)
+            if state:
+                cls._run_states[simulation_id] = state
+                if disk_mtime is not None:
+                    cls._state_file_mtimes[simulation_id] = disk_mtime
+
+        if state and reconcile:
+            state = cls._reconcile_process_liveness(simulation_id, state)
+
+        return state
+
+    @classmethod
+    def _is_pid_alive(cls, pid: int) -> bool:
+        """Vérifie si un PID est actif dans le système d'exploitation."""
+        if pid <= 0:
+            return False
+        if IS_WINDOWS:
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+                process_handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+                if not process_handle:
+                    return False
+                try:
+                    exit_code = ctypes.c_ulong()
+                    if kernel32.GetExitCodeProcess(process_handle, ctypes.byref(exit_code)):
+                        STILL_ACTIVE = 259
+                        return exit_code.value == STILL_ACTIVE
+                    return False
+                finally:
+                    kernel32.CloseHandle(process_handle)
+            except Exception:
+                return False
+        else:
+            try:
+                os.kill(pid, 0)
+                return True
+            except ProcessLookupError:
+                return False
+            except PermissionError:
+                # Processus existant mais appartenant à un autre utilisateur
+                return True
+            except OSError:
+                return False
+
+    @classmethod
+    def _reconcile_process_liveness(
+        cls, simulation_id: str, state: SimulationRunState
+    ) -> SimulationRunState:
+        """
+        Réconcilie l'état mémoire avec la réalité du système d'exploitation
+        si un processus s'est éteint en dehors du flux nominal.
+        """
+        # Ne réconcilier que si l'état actuel est actif
+        if state.runner_status not in (RunnerStatus.RUNNING, RunnerStatus.STOPPING):
+            return state
+
+        process = cls._processes.get(simulation_id)
+        is_alive = True
+        returncode = None
+
+        if process is not None:
+            returncode = process.poll()
+            if returncode is not None:
+                is_alive = False
+        elif state.process_pid:
+            is_alive = cls._is_pid_alive(state.process_pid)
+            if not is_alive:
+                returncode = -1
+        else:
+            # Ni objet process managé, ni PID valide : état orphelin éteint (Review Patch 1)
+            is_alive = False
+            returncode = -1
+
+        if not is_alive:
+            with cls._finalization_lock(simulation_id):
+                # Double-check sous verrou
+                if state.runner_status not in (RunnerStatus.RUNNING, RunnerStatus.STOPPING):
+                    return state
+
+                manual_stop = simulation_id in cls._manual_stop_requests
+                if manual_stop or state.runner_status == RunnerStatus.STOPPING:
+                    target_status = RunnerStatus.STOPPED
+                    error_msg = None
+                elif returncode == 0 or cls._check_all_platforms_completed(state):
+                    target_status = RunnerStatus.COMPLETED
+                    error_msg = None
+                else:
+                    target_status = RunnerStatus.FAILED
+                    if not state.process_pid and process is None:
+                        error_msg = "Processus de simulation introuvable dans l'OS (PID absent)"
+                    else:
+                        error_msg = f"Processus de simulation inattendu terminé (code {returncode})"
+
+                state.runner_status = target_status
+                state.twitter_running = False
+                state.reddit_running = False
+                state.completed_at = datetime.now().isoformat()
+                if error_msg:
+                    state.error = error_msg
+
+                # Nettoyage des ressources gérées
+                cls._processes.pop(simulation_id, None)
+                cls._action_queues.pop(simulation_id, None)
+                cls._monitor_threads.pop(simulation_id, None)
+                cls._manual_stop_requests.discard(simulation_id)
+                # Fermeture et nettoyage des descripteurs de logs (Review Patch 2)
+                if simulation_id in cls._stdout_files:
+                    try:
+                        f = cls._stdout_files.pop(simulation_id)
+                        if f and not f.closed:
+                            f.close()
+                    except Exception:
+                        pass
+                if simulation_id in cls._stderr_files:
+                    try:
+                        f = cls._stderr_files.pop(simulation_id)
+                        if f and not f.closed:
+                            f.close()
+                    except Exception:
+                        pass
+
+                cls._save_run_state(state)
+                cls._sync_simulation_status(simulation_id, target_status, state.error)
+                logger.info(
+                    f"Réconciliation d'état OS appliquée ({simulation_id}) : "
+                    f"nouveau statut = {target_status.value}, error = {state.error}"
+                )
+
         return state
     
     @classmethod
@@ -369,6 +521,10 @@ class SimulationRunner:
         with open(state_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
+        try:
+            cls._state_file_mtimes[state.simulation_id] = os.path.getmtime(state_file)
+        except OSError:
+            pass
         cls._run_states[state.simulation_id] = state
     
     @classmethod
@@ -644,7 +800,7 @@ class SimulationRunner:
         reddit_actions_log = os.path.join(sim_dir, "reddit", "actions.jsonl")
         
         process = cls._processes.get(simulation_id)
-        state = cls.get_run_state(simulation_id)
+        state = cls.get_run_state(simulation_id, reconcile=False)
         
         if not process or not state:
             return
@@ -741,7 +897,7 @@ class SimulationRunner:
             # exit. Serialize terminal state and updater drain so only one path
             # owns the final result.
             with cls._finalization_lock(simulation_id):
-                latest_state = cls.get_run_state(simulation_id)
+                latest_state = cls.get_run_state(simulation_id, reconcile=False)
                 if latest_state is not None:
                     state = latest_state
 
