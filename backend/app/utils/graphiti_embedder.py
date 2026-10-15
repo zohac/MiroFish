@@ -93,11 +93,12 @@ class SentenceTransformerEmbedder(EmbedderClient):
             return []
 
         model = self._get_model()
-        embeddings = model.encode(
-            texts,
-            normalize_embeddings=self.config.normalize_embeddings,
-            convert_to_numpy=True,
-        )
+        with self._lock:
+            embeddings = model.encode(
+                texts,
+                normalize_embeddings=self.config.normalize_embeddings,
+                convert_to_numpy=True,
+            )
 
         dim = self.config.embedding_dim
         # S'assurer que le résultat est converti en list[list[float]] natif Python

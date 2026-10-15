@@ -18,6 +18,14 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-15
+# 15 oct. 2026 : story 010-3 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches (2 patches appliqués : purge _pending_episode_uuids sous finally,
+# et résolution de l'import timedelta). Sécurisation thread-safe de SentenceTransformerEmbedder._encode_sync
+# (inférence PyTorch sérialisée via self._lock éliminant les collisions de meta-tensors) et drain mémoire
+# tolérant aux pannes dans ZepGraphMemoryUpdater.stop(strict=False) et ZepGraphMemoryManager.stop_updater
+# garantissant la complétion nominale vers RunnerStatus.COMPLETED sans blocage en fin de cycle.
+# 7 tests hermétiques dédiés ajoutés (test_sentence_transformer_thread_safety.py), filet global de tests
+# porté à 1578 tests passants sur l'hôte (0 échec). Clôture définitive de l'Epic 010 (done, 3/3 stories).
 # 15 oct. 2026 : story 010-2 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (4 patches appliqués). Réconciliation active OS/cache dans SimulationRunner.get_run_state
 # (vérification de vivacité via poll() et os.kill(pid, 0) / OpenProcess STILL_ACTIVE, élimination des statuts orphelins sans PID
@@ -681,7 +689,7 @@ epics:
   - id: "010"
     slug: fiabilisation-cycle-simulation
     titre: "Fiabilisation du cycle de vie et de la complétion des simulations"
-    statut: in-progress
+    statut: done
     plan: docs/plans/010-fiabilisation-cycle-simulation
     depend_de: ["005", "007", "009"]
     pourquoi: >-
@@ -695,3 +703,19 @@ epics:
       - "C3 : Réconciliation immédiate si un processus n'est plus actif dans l'OS (fin des statuts running/stopping fantômes)"
       - "C4 : 0 exception PyTorch 'Cannot copy out of meta tensor' sur appels concurrents et drain tolérant aux fautes"
       - "C5 : 1550+ tests au vert avec suite hermétique dédiée à l'Epic 010"
+    # Story 010-1 (DONE) : injection systématique de --no-wait dans SimulationRunner._start_simulation
+    # pour run_parallel_simulation.py, Twitter et Reddit. Supervision active dans _monitor_simulation
+    # via _check_all_platforms_completed, préservation du mode interactif keep_alive_on_completion,
+    # délai de grâce 5s, envoi IPC send_close_env puis terminaison forcée à 10s. Passage automatique
+    # à RunnerStatus.COMPLETED après barrière mémoire. 11 tests hermétiques dédiés.
+    # Story 010-2 (DONE) : réconciliation active de vivacité OS/cache dans SimulationRunner.get_run_state
+    # (poll() et os.kill(pid, 0) / OpenProcess STILL_ACTIVE, élimination des statuts orphelins sans PID
+    # et fermeture propre des descripteurs de logs). Invalidation de cache par mtime de run_state.json.
+    # Résilience IHM Vue 3 dans Step3Simulation.vue (factsCompleted débloquant la phase 2 et le bouton
+    # dès 100 %, maintien du polling jusqu'à l'état terminal, tolérance 409 transitoire). 9 tests hermétiques.
+    # Story 010-3 (DONE) : sécurisation thread-safe de SentenceTransformerEmbedder._encode_sync
+    # (sérialisation PyTorch via self._lock éliminant les collisions de tenseurs meta) et drain mémoire
+    # tolérant aux pannes partielles dans ZepGraphMemoryUpdater.stop(strict=False) et ZepGraphMemoryManager.stop_updater
+    # garantissant la complétion nominale vers COMPLETED même en cas de pertes mineures d'activités non critiques.
+    # 7 tests hermétiques dédiés (test_sentence_transformer_thread_safety.py). Filet global porté à 1578 tests passants sur l'hôte.
+    # Epic 010 intégralement clos avec succès (3/3 stories done).

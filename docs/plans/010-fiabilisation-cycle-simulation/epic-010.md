@@ -1,6 +1,6 @@
 # Epic 010 : Fiabilisation du cycle de vie et de la complétion des simulations
 
-> **Statut :** Planifié (Backlog)  
+> **Statut :** Clôturé (Done)  
 > **Date de formalisation :** 15 octobre 2026  
 > **Responsable :** Équipe MiroFish & Antigravity  
 > **Dépendances :** Epic 005 (Docker local), Epic 007 (Ontologie dynamique), Epic 009 (Éligibilité des acteurs)  
@@ -43,7 +43,7 @@ Cet epic résout définitivement les blocages constatés lors des simulations en
 |---|---|---|---|
 | 010-1 | Arrêt déterministe (`--no-wait`) et statut `COMPLETED` automatique | `done` | [story-010-1.md](story-010-1.md) |
 | 010-2 | Réconciliation d'état OS/cache et résilience IHM (`Step3Simulation.vue`) | `done` | [story-010-2.md](story-010-2.md) |
-| 010-3 | Thread-safety SentenceTransformers et drain mémoire résilient | `backlog` | [story-010-3.md](story-010-3.md) |
+| 010-3 | Thread-safety SentenceTransformers et drain mémoire résilient | `done` | [story-010-3.md](story-010-3.md) |
 
 ---
 

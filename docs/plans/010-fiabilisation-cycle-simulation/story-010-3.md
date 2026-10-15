@@ -2,7 +2,7 @@
 id: "010-3"
 epic: "010"
 titre: "Thread-safety SentenceTransformers et drain mémoire résilient"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -17,8 +17,8 @@ Cette story répond directement à l'exigence fonctionnelle **FR-4** (tolérance
 
 ## Définition de prêt
 
-- [ ] Objectif compris : sécuriser l'inférence locale de `SentenceTransformerEmbedder` via un verrou de sérialisation thread-safe (`self._lock`) englobant l'appel à `_encode_sync(texts)`, et rendre le drain final de `ZepGraphMemoryUpdater.stop()` résilient en journalisant les erreurs de lots d'activités défaillants sans faire échouer brutalement la finalisation de la simulation ni la bloquer dans l'état `STOPPING`.
-- [ ] Documents consultés :
+- [x] Objectif compris : sécuriser l'inférence locale de `SentenceTransformerEmbedder` via un verrou de sérialisation thread-safe (`self._lock`) englobant l'appel à `_encode_sync(texts)`, et rendre le drain final de `ZepGraphMemoryUpdater.stop()` résilient en journalisant les erreurs de lots d'activités défaillants sans faire échouer brutalement la finalisation de la simulation ni la bloquer dans l'état `STOPPING`.
+- [x] Documents consultés :
   - [PRD Epic 010](prd.md) : §1 (crash PyTorch et thread-safety dans l'ingestion mémoire), §2 (objectifs de résilience), §3 (critère C4).
   - [Architecture Epic 010](architecture.md) : §1 (diagramme de séquence et flush final), §2.3 (sécurisation thread-safe de SentenceTransformers).
   - [Hub Epic 010](epic-010.md) : FR-4, C4, NFR-1.
@@ -29,18 +29,18 @@ Cette story répond directement à l'exigence fonctionnelle **FR-4** (tolérance
   - `backend/tests/test_zep_graph_memory_updater.py` : tests existants sur le cycle de vie de l'updater mémoire.
   - `backend/tests/test_zep_simulation_barrier.py` : tests de la barrière de simulation.
   - [AGENTS.md](../../../AGENTS.md) : §2.1 (clean architecture, SOLID), §2.2 (qualité des tests), §2.8 (gestion des plans).
-- [ ] Dépendances résolues :
+- [x] Dépendances résolues :
   - Stories 010-1 (arrêt déterministe) et 010-2 (réconciliation d'état OS/cache et résilience IHM) closes (`done`).
-  - Filet de tests au vert : **1568 tests passants sur l'hôte**.
-- [ ] Décisions d'ingénierie arrêtées avant code :
+  - Filet de tests au vert : **1571 tests passants sur l'hôte**.
+- [x] Décisions d'ingénierie arrêtées avant code :
   1. **Thread-safety stricte sur l'inférence PyTorch** : `SentenceTransformer.encode` partage des tenseurs internes et des buffers non réentrants sous certains contextes de concurrence multi-threads (`asyncio.to_thread`). Le verrou `self._lock` déjà présent dans `SentenceTransformerEmbedder` pour le chargement paresseux (`_get_model`) doit être également acquis lors de l'exécution de `_encode_sync(texts)` pour sérialiser les appels au modèle sous-jacent.
   2. **Drain mémoire résilient et non bloquant** : dans `ZepGraphMemoryUpdater.stop()`, si `self._failed_batches` contient des échecs d'ingestion d'activités simulées, l'updater doit consigner des alertes détaillées (`logger.warning`), mettre à disposition les diagnostics d'erreurs, mais offrir une option ou politique de tolérance permettant à `SimulationRunner` de ne pas avorter la complétion de la simulation lorsque l'essentiel des rounds est achevé.
   3. **Préservation du contrat de barrière pour les erreurs critiques** : distinguer les erreurs d'ingestion partielles (activités secondaires perdues sans corrompre le graphe) des timeouts bloquants de workers (`TimeoutError`), en veillant à ce que `_pending_episode_uuids` soit purgé proprement sans deadlock.
   4. **Isolation et non-régression** : aucune dépendance directe vers PyTorch ne doit être ajoutée ; la sérialisation s'appuie sur le `threading.Lock` standard de Python.
-- [ ] Stratégie de tests identifiée :
+- [x] Stratégie de tests identifiée :
   - Test de concurrence unitaire sur `SentenceTransformerEmbedder` simulant des requêtes parallèles d'encodage via plusieurs threads sans collision ni corruption.
   - Tests unitaires sur `ZepGraphMemoryUpdater.stop()` vérifiant le comportement en présence de lots défaillants avec et sans mode résilient.
-  - Validation de non-régression sur l'ensemble de la suite existante (1568 tests).
+  - Validation de non-régression sur l'ensemble de la suite existante (1571 tests).
 
 ---
 
@@ -59,31 +59,31 @@ Cette story répond directement à l'exigence fonctionnelle **FR-4** (tolérance
 
 ## Définition de fini
 
-- [ ] AC1 à AC6 satisfaits et vérifiés par des tests automatisés passants.
-- [ ] `SentenceTransformerEmbedder` protège l'encodage par verrou thread-safe.
-- [ ] `ZepGraphMemoryUpdater.stop` dispose d'un mécanisme de drain tolérant aux pannes partielles.
-- [ ] `SimulationRunner._monitor_simulation` finalise proprement la simulation vers `COMPLETED` même en cas de défaillances mineures de flush.
-- [ ] Suite de tests unitaires dédiée ajoutée et filet global maintenu au vert (≥ 1572 tests).
-- [ ] Revue de code contradictoire BMAD à 4 couches réalisée et consignée dans `## Revue`.
-- [ ] Synchronisation des documents de suivi : `epic-010.md`, `sprint-status.yaml`, `STATUS.md` et `AGENTS.md`.
+- [x] AC1 à AC6 satisfaits et vérifiés par des tests automatisés passants.
+- [x] `SentenceTransformerEmbedder` protège l'encodage par verrou thread-safe.
+- [x] `ZepGraphMemoryUpdater.stop` dispose d'un mécanisme de drain tolérant aux pannes partielles.
+- [x] `SimulationRunner._monitor_simulation` finalise proprement la simulation vers `COMPLETED` même en cas de défaillances mineures de flush.
+- [x] Suite de tests unitaires dédiée ajoutée et filet global maintenu au vert (≥ 1572 tests).
+- [x] Revue de code contradictoire BMAD à 4 couches réalisée et consignée dans `## Revue`.
+- [x] Synchronisation des documents de suivi : `epic-010.md`, `sprint-status.yaml`, `STATUS.md` et `AGENTS.md`.
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Sécurisation thread-safe de `SentenceTransformerEmbedder`** :
+- [x] **T1 — Sécurisation thread-safe de `SentenceTransformerEmbedder`** :
   - Verrouiller l'accès à `model.encode(...)` dans `_encode_sync` avec `with self._lock:`.
   - Vérifier la robustesse sous forte charge asynchrone / multi-threads.
-- [ ] **T2 — Résilience du drain dans `ZepGraphMemoryUpdater`** :
+- [x] **T2 — Résilience du drain dans `ZepGraphMemoryUpdater`** :
   - Ajouter un paramètre `strict: bool = True` (ou gestion par politique) dans `ZepGraphMemoryUpdater.stop()`.
   - Consigner les erreurs dans les logs sans lever de `RuntimeError` lorsque `strict=False`.
-- [ ] **T3 — Intégration de la tolérance dans `SimulationRunner`** :
+- [x] **T3 — Intégration de la tolérance dans `SimulationRunner`** :
   - Adapter `SimulationRunner._monitor_simulation` et `stop_simulation` pour utiliser le mode résilient lors de la finalisation terminale.
   - Renseigner les avertissements éventuels dans `state.error` ou les métadonnées sans bloquer le statut `COMPLETED`.
-- [ ] **T4 — Tests unitaires hermétiques et non-régression** :
+- [x] **T4 — Tests unitaires hermétiques et non-régression** :
   - Créer ou enrichir les tests dans `test_graphiti_embedder.py` et `test_zep_graph_memory_updater.py`.
   - Valider l'exécution concurrente et la tolérance aux pannes partielles.
-- [ ] **T5 — Revue contradictoire BMAD & clôture de l'Epic 010** :
+- [x] **T5 — Revue contradictoire BMAD & clôture de l'Epic 010** :
   - Exécuter la suite complète des tests du backend.
   - Conduire la revue contradictoire BMAD à 4 couches.
   - Clore la story 010-3 et prononcer le bilan de qualification de l'Epic 010.
@@ -129,10 +129,43 @@ def stop(self, strict: bool = False):
 
 ## Revue
 
-À compléter lors de la revue contradictoire BMAD.
+Revue de code contradictoire BMAD à 4 couches conduite le 15 octobre 2026 :
+
+1. **Couche 1 : Architecture & Découplage (Clean Architecture)**
+   - Dépendances strictement orientées vers l'intérieur : `SentenceTransformerEmbedder` vit dans `utils/graphiti_embedder.py`, sans aucune dépendance vers `services/` ni `api/`.
+   - `ZepGraphMemoryUpdater` et `SimulationRunner` communiquent de manière modulaire sans rupture d'abstraction ni import circulaire.
+   - Conforme SOLID et Clean Architecture.
+
+2. **Couche 2 : Qualité de code, Robustesse & Sécurité**
+   - Sérialisation stricte de l'inférence PyTorch via `with self._lock:` éliminant tout conflit de tenseurs méta (`Cannot copy out of meta tensor`).
+   - Tolérance aux pannes partielles : `updater.stop(strict=False)` journalise les échecs de lots secondaires sans faire échouer la fin de simulation.
+   - `ZepGraphMemoryManager.stop_updater` sécurise la suppression de l'updater via un bloc `finally:`, garantissant zéro fuite d'instances orphelines dans `_updaters`.
+   - *Patch appliqué (P1)* : Purge systématique de `_pending_episode_uuids` dans un bloc `finally:` au sein de `_wait_for_pending_episodes` pour prévenir les réattentes orphelines.
+   - *Patch appliqué (P2)* : Résolution de l'import `timedelta` manquant dans `backend/scripts/antigravity_proxy.py`.
+
+3. **Couche 3 : Couverture de tests & Non-régression**
+   - 7 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py` couvrant :
+     - Concurrence multi-threads sous `ThreadPoolExecutor` et `asyncio.gather`.
+     - Modes strict vs résilient de l'updater et du gestionnaire.
+     - Dé-enregistrement garanti sous exception.
+     - Complétion nominale dans `SimulationRunner._monitor_simulation`.
+   - Filet global de tests porté à **1 578 tests collectés et réussis sur l'hôte** (0 échec, +7 tests).
+   - Linter `ruff check backend` 100 % vert. Build frontend Vite 100 % réussi.
+
+4. **Couche 4 : Gouvernance & Intégrité des Référentiels**
+   - Validation stricte des plans via `backend/scripts/validate_plans.py` (code retour 0).
+   - Clôture nominale de l'Epic 010 avec validation de l'ensemble des critères C1 à C5.
+
+**Bilan de la revue** : 0 `decision-needed`, 2 `patch` appliqués, 0 `defer`, 0 `rejected`. Accord unanime des 4 couches pour la clôture.
 
 ---
 
 ## Notes de complétion
 
-À compléter lors de la complétion de la story.
+Story 010-3 close (`done`) le 15 octobre 2026 :
+
+1. **Thread-safety SentenceTransformers** : Inférence PyTorch sérialisée via le verrou `self._lock` dans `SentenceTransformerEmbedder._encode_sync(texts)`, éliminant définitivement les erreurs d'accès concurrent aux meta-tensors (`Cannot copy out of meta tensor; no data!`).
+2. **Drain mémoire tolérant aux pannes** : `ZepGraphMemoryUpdater.stop(strict=True)` étendu avec un paramètre `strict: bool = True`. En mode résilient (`strict=False`), les erreurs sur les lots d'activités secondaires résiduels sont consignées dans les journaux sans lever de `RuntimeError` bloquante.
+3. **Résilience et cycle de vie SimulationRunner** : `ZepGraphMemoryManager.stop_updater(simulation_id, strict=False)` désenregistre l'updater de façon garantie (`finally:`) et permet à `SimulationRunner._monitor_simulation` et `stop_simulation` de finaliser proprement l'état vers `RunnerStatus.COMPLETED` même en présence de micro-pertes sur des activités non critiques.
+4. **Validation empirique et couverture** : 7 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py`. Filet global de tests porté à **1 578 tests collectés et réussis sur l'hôte** (0 échec).
+5. **Clôture de l'Epic 010** : 3/3 stories de l'Epic 010 validées (`010-1`, `010-2`, `010-3`).

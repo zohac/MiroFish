@@ -292,8 +292,14 @@ class ZepGraphMemoryUpdater:
         self._worker_thread.start()
         logger.info(f"ZepGraphMemoryUpdater 已启动: graph_id={self.graph_id}")
 
-    def stop(self):
-        """Drain the worker, flush tail events, and wait for GraphStore ingestion."""
+    def stop(self, strict: bool = True):
+        """Drain the worker, flush tail events, and wait for GraphStore ingestion.
+
+        Args:
+            strict: Si True (défaut), lève une RuntimeError si des lots d'activités
+                ont échoué lors de l'envoi. Si False (mode résilient), consigne un avertissement
+                et poursuit la finalisation sans bloquer la simulation.
+        """
         deadline = time.time() + DEFAULT_INGESTION_WAIT_TIMEOUT_SECONDS
         with self._acceptance_lock:
             self._running = False
@@ -309,9 +315,15 @@ class ZepGraphMemoryUpdater:
         self._flush_remaining(deadline=deadline)
 
         if self._failed_batches:
-            raise RuntimeError(
+            msg = (
                 f"{len(self._failed_batches)} graph activity batch(es) failed; "
                 "simulation graph ingestion is incomplete"
+            )
+            if strict:
+                raise RuntimeError(msg)
+            logger.warning(
+                f"{msg} (poursuite en mode résilient: "
+                f"graph_id={self.graph_id}, failed_batches={len(self._failed_batches)})"
             )
 
         self._wait_for_pending_episodes(deadline=deadline)
@@ -548,12 +560,14 @@ class ZepGraphMemoryUpdater:
             if deadline is not None
             else DEFAULT_INGESTION_WAIT_TIMEOUT_SECONDS
         )
-        self.store.wait_for_episodes(
-            graph_id=self.graph_id,
-            episode_uuids=pending,
-            timeout=timeout,
-        )
-        self._pending_episode_uuids = []
+        try:
+            self.store.wait_for_episodes(
+                graph_id=self.graph_id,
+                episode_uuids=pending,
+                timeout=timeout,
+            )
+        finally:
+            self._pending_episode_uuids = []
 
     def get_stats(self) -> Dict[str, Any]:
         """获取统计信息"""
@@ -567,6 +581,7 @@ class ZepGraphMemoryUpdater:
             "batches_sent": self._total_sent,
             "items_sent": self._total_items_sent,
             "failed_count": self._failed_count,
+            "failed_batches_count": len(self._failed_batches),
             "pending_episode_count": len(self._pending_episode_uuids),
             "skipped_count": self._skipped_count,
             "queue_size": self._activity_queue.qsize(),
@@ -657,18 +672,34 @@ class ZepGraphMemoryManager:
         return True
 
     @classmethod
-    def stop_updater(cls, simulation_id: str):
-        """停止并移除模拟的更新器"""
+    def stop_updater(
+        cls,
+        simulation_id: str,
+        strict: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """停止并移除模拟的更新器
+
+        Args:
+            simulation_id: Identifiant de la simulation.
+            strict: Si True, exige une absence totale d'échecs sur les lots.
+                Par défaut False (mode résilient pour le cycle de vie de simulation).
+
+        Returns:
+            Dictionnaire de statistiques finales de l'updater ou None s'il n'existait pas.
+        """
         with cls._lock:
             updater = cls._updaters.get(simulation_id)
         if updater is None:
-            return
+            return None
 
-        updater.stop()
-        with cls._lock:
-            if cls._updaters.get(simulation_id) is updater:
-                cls._updaters.pop(simulation_id, None)
-        logger.info(f"已停止图谱记忆更新器: simulation_id={simulation_id}")
+        try:
+            updater.stop(strict=strict)
+            return updater.get_stats()
+        finally:
+            with cls._lock:
+                if cls._updaters.get(simulation_id) is updater:
+                    cls._updaters.pop(simulation_id, None)
+            logger.info(f"已停止图谱记忆更新器: simulation_id={simulation_id}")
 
     _stop_all_done = False
 

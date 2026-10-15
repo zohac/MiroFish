@@ -943,8 +943,14 @@ class SimulationRunner:
                             RunnerStatus.STOPPING,
                         )
                         try:
-                            ZepGraphMemoryManager.stop_updater(simulation_id)
+                            stats = ZepGraphMemoryManager.stop_updater(simulation_id)
                             cls._graph_memory_enabled.pop(simulation_id, None)
+                            if stats and stats.get("failed_count", 0) > 0:
+                                logger.warning(
+                                    "Simulation %s : %d lot(s) d'activités non ingérés lors du drain mémoire résilient",
+                                    simulation_id,
+                                    stats["failed_count"],
+                                )
                             logger.info(
                                 "已停止图谱记忆更新: simulation_id=%s",
                                 simulation_id,
@@ -1270,8 +1276,14 @@ class SimulationRunner:
                 state = cls.get_run_state(simulation_id) or state
                 if cls._graph_memory_enabled.get(simulation_id, False):
                     try:
-                        ZepGraphMemoryManager.stop_updater(simulation_id)
+                        stats = ZepGraphMemoryManager.stop_updater(simulation_id)
                         cls._graph_memory_enabled.pop(simulation_id, None)
+                        if stats and stats.get("failed_count", 0) > 0:
+                            logger.warning(
+                                "Simulation %s : %d lot(s) d'activités non ingérés lors du drain synchrone résilient",
+                                simulation_id,
+                                stats["failed_count"],
+                            )
                     except Exception as error:
                         state.runner_status = RunnerStatus.FAILED
                         state.twitter_running = False
