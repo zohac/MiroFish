@@ -150,6 +150,7 @@ def test_report_reader_lease_blocks_graph_start_and_delete(monkeypatch):
     simulation = SimpleNamespace(
         simulation_id="sim-1",
         project_id="proj-1",
+        locale="fr",
         graph_id="graph-1",
         status=SimulationStatus.READY,
         entity_types=[],

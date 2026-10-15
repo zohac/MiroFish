@@ -372,8 +372,9 @@ def test_api_start_simulation_handles_keep_alive_on_completion(monkeypatch):
 
     def mock_start(simulation_id, platform="parallel", max_rounds=None,
                    enable_graph_memory_update=False, graph_id=None,
-                   keep_alive_on_completion=False):
+                   keep_alive_on_completion=False, locale=None):
         captured_kwargs["keep_alive_on_completion"] = keep_alive_on_completion
+        captured_kwargs["locale"] = locale
         state = SimulationRunState(
             simulation_id=simulation_id,
             runner_status=RunnerStatus.RUNNING,
@@ -387,6 +388,7 @@ def test_api_start_simulation_handles_keep_alive_on_completion(monkeypatch):
     mock_state = SimpleNamespace(
         simulation_id="sim-api-1",
         project_id="proj-1",
+        locale="fr",
         status=simulation_api.SimulationStatus.READY,
         entity_types=[],
         graph_id=None,
@@ -406,6 +408,7 @@ def test_api_start_simulation_handles_keep_alive_on_completion(monkeypatch):
         code = resp.status_code if hasattr(resp, "status_code") else resp[1]
         assert code == 200
         assert captured_kwargs.get("keep_alive_on_completion") is True
+        assert captured_kwargs["locale"] == "fr"
 
     # Validation du type booléen
     with app.test_request_context(
