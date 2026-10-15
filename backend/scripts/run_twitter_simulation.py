@@ -47,6 +47,7 @@ else:
         load_dotenv(_backend_env)
 
 from app.utils.llm_compat import llm_completion_kwargs, llm_request_headers
+from app.utils.locale import set_locale
 
 
 import re
@@ -730,6 +731,8 @@ async def main():
     )
     
     args = parser.parse_args()
+    # Langue transmise par le lanceur pour ce processus uniquement.
+    set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE', 'zh'))
     
     # 在 main 函数开始时创建 shutdown 事件
     global _shutdown_event

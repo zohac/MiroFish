@@ -20,7 +20,7 @@ from queue import Queue
 
 from ..config import Config
 from ..utils.logger import get_logger
-from ..utils.locale import get_locale, set_locale
+from ..utils.locale import normalize_locale, set_locale
 from .zep_graph_memory_updater import ZepGraphMemoryManager
 from .simulation_ipc import SimulationIPCClient, CommandType, IPCResponse
 
@@ -535,7 +535,8 @@ class SimulationRunner:
         max_rounds: int = None,  # 最大模拟轮数（可选，用于截断过长的模拟）
         enable_graph_memory_update: bool = False,  # 是否将活动更新到Zep图谱
         graph_id: str = None,  # Zep图谱ID（启用图谱更新时必需）
-        keep_alive_on_completion: bool | None = None  # 是否在模拟完成后保持环境常驻（None: 从配置读取，默认False：立即退出）
+        keep_alive_on_completion: bool | None = None,  # Mode interactif optionnel.
+        locale: str | None = None,  # Valeur issue de SimulationState.
     ) -> SimulationRunState:
         """
         启动模拟
@@ -561,6 +562,9 @@ class SimulationRunner:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
+        # Les appelants directs historiques restent en zh.
+        simulation_locale = normalize_locale(locale if locale is not None else config.get('locale'))
+
         # Initialiser keep_alive depuis l'argument ou la configuration de simulation
         if keep_alive_on_completion is not None:
             keep_alive = bool(keep_alive_on_completion)
@@ -706,6 +710,7 @@ class SimulationRunner:
             env = os.environ.copy()
             env['PYTHONUTF8'] = '1'  # Python 3.7+ 支持，让所有 open() 默认使用 UTF-8
             env['PYTHONIOENCODING'] = 'utf-8'  # 确保 stdout/stderr 使用 UTF-8
+            env['MIROFISH_SIMULATION_LOCALE'] = simulation_locale
             
             # 设置工作目录为模拟目录（数据库等文件会生成在此）
             # 使用 start_new_session=True 创建新的进程组，确保可以通过 os.killpg 终止所有子进程
@@ -721,8 +726,8 @@ class SimulationRunner:
                 start_new_session=True,  # 创建新进程组，确保服务器关闭时能终止所有相关进程
             )
             
-            # Capture locale before spawning monitor thread
-            current_locale = get_locale()
+            # Le moniteur suit la langue canonique du processus fils.
+            current_locale = simulation_locale
 
             monitor_thread = threading.Thread(
                 target=cls._monitor_simulation,

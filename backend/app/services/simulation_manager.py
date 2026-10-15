@@ -17,7 +17,7 @@ from ..utils.logger import get_logger
 from .zep_entity_reader import ZepEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
-from ..utils.locale import t
+from ..utils.locale import t, normalize_locale
 from ..models.actor_eligibility import (
     ACTOR_ELIGIBILITY_POLICY_VERSION,
     ActorEligibility,
@@ -146,6 +146,7 @@ class SimulationState:
     simulation_id: str
     project_id: str
     graph_id: str
+    locale: str = "zh"  # Langue canonique fixée à la création.
     
     # 平台启用状态
     enable_twitter: bool = True
@@ -193,6 +194,7 @@ class SimulationState:
             "simulation_id": self.simulation_id,
             "project_id": self.project_id,
             "graph_id": self.graph_id,
+            "locale": normalize_locale(self.locale),
             "enable_twitter": self.enable_twitter,
             "enable_reddit": self.enable_reddit,
             "status": self.status.value,
@@ -231,6 +233,7 @@ class SimulationState:
             "simulation_id": self.simulation_id,
             "project_id": self.project_id,
             "graph_id": self.graph_id,
+            "locale": normalize_locale(self.locale),
             "status": self.status.value,
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
@@ -306,6 +309,7 @@ class SimulationManager:
             simulation_id=simulation_id,
             project_id=data.get("project_id", ""),
             graph_id=data.get("graph_id", ""),
+            locale=normalize_locale(data.get("locale")),
             enable_twitter=data.get("enable_twitter", True),
             enable_reddit=data.get("enable_reddit", True),
             status=SimulationStatus(data.get("status", "created")),
@@ -338,6 +342,7 @@ class SimulationManager:
         graph_id: str,
         enable_twitter: bool = True,
         enable_reddit: bool = True,
+        locale: str = "zh",
     ) -> SimulationState:
         """
         创建新的模拟
@@ -358,6 +363,7 @@ class SimulationManager:
             simulation_id=simulation_id,
             project_id=project_id,
             graph_id=graph_id,
+            locale=normalize_locale(locale),
             enable_twitter=enable_twitter,
             enable_reddit=enable_reddit,
             status=SimulationStatus.CREATED,

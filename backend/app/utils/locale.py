@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from contextlib import contextmanager
 from flask import request, has_request_context
 
 _thread_local = threading.local()
@@ -22,7 +23,7 @@ for filename in os.listdir(_locales_dir):
 
 def normalize_locale(raw: str | None) -> str:
     """Normalize a locale string or Accept-Language header into a supported locale key."""
-    if not raw:
+    if not isinstance(raw, str) or not raw.strip():
         return 'zh'
     if raw in _translations:
         return raw
@@ -41,11 +42,32 @@ def normalize_locale(raw: str | None) -> str:
 
 
 def set_locale(locale: str):
-    """Set locale for current thread. Call at the start of background threads."""
-    _thread_local.locale = locale
+    """Set locale for the current thread's background work."""
+    _thread_local.locale = normalize_locale(locale)
+
+
+@contextmanager
+def use_locale(locale: str):
+    """Temporarily set the simulation locale, even inside a Flask request.
+
+    Scoped overrides do not leak to subsequent tasks on the same thread.
+    """
+    previous = getattr(_thread_local, 'forced_locale', None)
+    _thread_local.forced_locale = normalize_locale(locale)
+    try:
+        yield
+    finally:
+        if previous is None:
+            del _thread_local.forced_locale
+        else:
+            _thread_local.forced_locale = previous
+
 
 
 def get_locale() -> str:
+    forced = getattr(_thread_local, 'forced_locale', None)
+    if forced is not None:
+        return forced
     if has_request_context():
         raw = request.headers.get('Accept-Language', 'zh')
         return normalize_locale(raw)

@@ -21,7 +21,7 @@ from openai import OpenAI
 from ..config import Config
 from ..models.simulation_brief import SimulationBrief
 from ..utils.logger import get_logger
-from ..utils.locale import get_language_instruction, t
+from ..utils.locale import get_language_instruction, get_locale, t
 from ..utils.llm_compat import llm_request_headers
 from ..utils.openai_chat_compat import create_chat_completion, extract_chat_completion_text
 from .zep_entity_reader import EntityNode, ZepEntityReader
@@ -154,6 +154,7 @@ class SimulationParameters:
     project_id: str
     graph_id: str
     simulation_requirement: str
+    locale: str = "zh"
     
     # 时间配置
     time_config: TimeSimulationConfig = field(default_factory=TimeSimulationConfig)
@@ -193,6 +194,7 @@ class SimulationParameters:
             "project_id": self.project_id,
             "graph_id": self.graph_id,
             "simulation_requirement": self.simulation_requirement,
+            "locale": self.locale,
             "time_config": time_dict,
             "agent_configs": [asdict(a) for a in self.agent_configs],
             "event_config": asdict(self.event_config),
@@ -439,6 +441,7 @@ class SimulationConfigGenerator:
             project_id=project_id,
             graph_id=graph_id,
             simulation_requirement=simulation_requirement,
+            locale=get_locale(),
             time_config=time_config,
             agent_configs=all_agent_configs,
             event_config=event_config,

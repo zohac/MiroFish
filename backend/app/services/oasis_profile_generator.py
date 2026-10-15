@@ -393,6 +393,8 @@ class OasisProfileGenerator:
                 role=role,
             )
         
+        profile_data = self._add_agent_language_guidance(profile_data)
+
         return OasisAgentProfile(
             user_id=user_id,
             user_name=user_name,
@@ -643,9 +645,9 @@ class OasisProfileGenerator:
                     
                     # 验证必需字段
                     if "bio" not in result or not result["bio"]:
-                        result["bio"] = entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}"
+                        result["bio"] = self._localized_fallback(entity_name, entity_type, entity_summary)["bio"]
                     if "persona" not in result or not result["persona"]:
-                        result["persona"] = entity_summary or f"{entity_name}是一个{entity_type}。"
+                        result["persona"] = self._localized_fallback(entity_name, entity_type, entity_summary)["persona"]
                     
                     return result
                     
@@ -756,10 +758,34 @@ class OasisProfileGenerator:
         # 7. 完全失败，返回基础结构
         logger.warning(f"JSON修复失败，返回基础结构")
         return {
-            "bio": entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}",
-            "persona": entity_summary or f"{entity_name}是一个{entity_type}。"
+            **self._localized_fallback(entity_name, entity_type, entity_summary)
         }
     
+    def _localized_fallback(self, entity_name: str, entity_type: str, summary: str) -> Dict[str, str]:
+        """Describe known identity without inventing attributes."""
+        if summary:
+            return {"bio": summary[:200], "persona": summary}
+        statements = {
+            "fr": f"{entity_name} participe à des échanges publics.",
+            "en": f"{entity_name} participates in public discussions.",
+            "zh": f"{entity_name}参与公共讨论。",
+        }
+        sentence = statements[get_locale()]
+        return {"bio": sentence, "persona": sentence}
+
+    def _add_agent_language_guidance(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """OASIS consumes persona text; guide actions without altering JSON keys."""
+        guidance = {
+            "fr": "Dans cette simulation, les publications et les réponses sont rédigées en français.",
+            "en": "In this simulation, posts and replies are written in English.",
+            "zh": "在本次模拟中，帖子和回复均使用中文。",
+        }[get_locale()]
+        result = dict(profile_data)
+        persona = _coerce_to_str(result.get("persona", ""))
+        if guidance not in persona:
+            result["persona"] = f"{persona}\n{guidance}".strip()
+        return result
+
     def _get_system_prompt(self, is_individual: bool) -> str:
         """获取系统提示词"""
         base_prompt = "你是社交媒体用户画像生成专家。生成详细、真实的人设用于舆论模拟,最大程度还原已有现实情况。必须返回有效的JSON格式，所有字符串值不能包含未转义的换行符。"
@@ -1133,8 +1159,8 @@ class OasisProfileGenerator:
                     user_id=idx,
                     user_name=self._generate_username(entity.name),
                     name=entity.name,
-                    bio=f"{entity_type}: {entity.name}",
-                    persona=entity.summary or f"A participant in social discussions.",
+                    bio=self._localized_fallback(entity.name, entity_type, entity.summary)["bio"],
+                    persona=self._add_agent_language_guidance(self._localized_fallback(entity.name, entity_type, entity.summary))["persona"],
                     source_entity_uuid=entity.uuid,
                     source_entity_type=entity_type,
                 )

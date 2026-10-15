@@ -2,7 +2,7 @@
 id: "008-3"
 epic: "008"
 titre: "Génération de personas, simulations et rapports en français (prompts LLM et banc de validation)"
-statut: backlog
+statut: in-progress
 auteur: "Équipe MiroFish"
 format: "2"
 ---
@@ -29,7 +29,7 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
   - `SimulationManager.create_simulation()` ne fixe pas actuellement la locale dans `SimulationState` ; un changement de langue entre création, préparation, démarrage et rapport risque donc de mélanger les langues.
   - Des prompts métier et replis statiques demeurent en chinois/anglais (dont `report_agent.py` et le fallback persona). Il ne suffit pas d'ajouter une consigne française à la fin d'un prompt pour prouver que le modèle la respectera.
 - [x] **Architecture de principe retenue** : un seul contexte de langue **canonique et persistant par simulation** ; pas d'état global par utilisateur et pas de nouvel orchestrateur. Les demandes HTTP servent à choisir la langue au moment de la création, pas à réécrire silencieusement celle d'une simulation existante.
-- [ ] **Préconditions d'exécution** : 008-2 clôturée conformément à son DoD ; CI de référence verte juste avant le développement ; stack Docker + modèle configuré accessibles pour l'épreuve comportementale réelle ; corpus de validation sans secrets identifié.
+- [ ] **Préconditions d'exécution** : 008-2 clôturée conformément à son DoD (encore in-progress) ; CI de référence verte (run 38807586884) ; stack Docker + modèle configuré accessibles pour l'épreuve comportementale réelle (non vérifiés) ; corpus de validation sans secrets à identifier.
 - [x] **Plan de qualification défini** : tests hermétiques à tous les points de frontière et banc Docker réel mesurant séparément personas, actions des plateformes et rapport, avec conservation des artefacts/échecs et retour d'expérience BMAD.
 
 ---
@@ -68,18 +68,18 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
 
 ## Tâches
 
-- [ ] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
+- [x] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
   - Construire une matrice des producteurs LLM et des frontières de contexte : `backend/app/api/{simulation,report}.py`, `simulation_manager.py`, `oasis_profile_generator.py`, `simulation_config_generator.py`, `ontology_generator.py`, `simulation_runner.py`, `backend/scripts/run_{parallel,twitter,reddit}_simulation.py`, `report_agent.py`.
   - Inventorier les prompts réels de chaque appel et chemin alternatif (retries, fallback, batch, conversation, outil). Distinguer résultat destiné à l'utilisateur, champ technique, donnée passive, source externe et journal brut.
   - Établir une CI de référence et des fixtures sans LLM vivant ; consigner les hypothèses sur les hooks réellement exposés par OASIS.
 
-- [ ] **T2 — Définir et persister la locale canonique d'une simulation**
+- [x] **T2 — Définir et persister la locale canonique d'une simulation**
   - Introduire un seul champ `SimulationState.locale`, normalisé avec `normalize_locale()`, transmis par `SimulationManager.create_simulation()` et `POST /api/simulation/create` ; maintenir le comportement des créations programmatiques antérieures (défaut `zh`).
   - Ajouter le champ à `to_dict()` / chargement depuis `state.json` sans casser les données historiques. Le résoudre depuis **la simulation**, non depuis le navigateur ayant envoyé la dernière requête.
   - Contrat immuable par simulation : changer la langue du sélecteur après création **ne traduit pas** une simulation existante ; refaire une simulation pour générer dans une autre langue. Éviter une migration de masse.
   - Ajouter des tests de normalisation, sérialisation, cas manquant/corrompu, persistance et deux simulations concurrentes.
 
-- [ ] **T3 — Sécuriser la propagation asynchrone**
+- [x] **T3 — Sécuriser la propagation asynchrone**
   - Au début des tâches `prepare` et `report`, appliquer la locale persistée, et restaurer l'ancien contexte dans un `finally` ou un petit contexte dédié réutilisable. Faire de même pour les pools de profils ; vérifier les chemins de reprise/régénération.
   - Transmettre la locale explicitement au runner puis **à chaque processus OASIS** via un argument/configuration/environnement strictement contrôlé ; lire cette valeur dans les scripts avant toute génération susceptible de l'utiliser. Un `get_locale()` dans le seul processus Flask n'est **pas** suffisant.
   - Tester les trois modes et l'entrelacement `fr/en/zh` sans dépendance à l'ordre des tests ; vérifier les relances forcées et le mode persistant après la fin des rounds.
@@ -157,17 +157,17 @@ docker compose down   # ne jamais ajouter -v sans raison explicite
 
 ## Revue
 
-**Non réalisée — statut `backlog`.** À l'implémentation, consigner ici les findings et correctifs de chaque couche BMAD :
+**En cours — statut `in-progress`.** À l'implémentation, consigner ici les findings et correctifs de chaque couche BMAD :
 
 1. **Contrat** : AC1–AC8, distinction IHM / contenu LLM et frontière avec l'Epic 011.
 2. **Architecture** : immutabilité de la locale d'une simulation, absence de fuite cross-thread/cross-process, contrats d'export JSON/CSV stables.
 3. **Résilience/sécurité** : données passives protégées, retries, fallback, erreurs, cas historiques, citations originales et changements de langue a posteriori.
 4. **Preuves** : tests hermétiques, CI verte, mesures comportementales réelles avec dénominateurs, exclusions justifiées et seuils atteints.
 
-Ne jamais cocher le DoD ni attribuer de verdict GO tant qu'aucune mesure réelle n'a été conduite.
+Ne jamais cocher le DoD ni attribuer de verdict GO tant qu'aucune mesure réelle n'a été conduite. La validation empirique des sorties OASIS, des profils et du rapport demeure bloquante pour `done`.
 
 ---
 
 ## Notes de complétion
 
-**Aucune implémentation produite au titre de cette story.** Le document sert de contrat de développement. Lors de la clôture, consigner les fichiers changés, références des commits, tests exécutés et résultats, matrice AC1–AC8, modèle et environnement du banc réel, constats de revue et éventuelles limites acceptées.
+**Implémentation initiale en cours sur `local-first`** : `SimulationState.locale` persistée, contexte `use_locale` restauré, propagation aux sous-processus OASIS et aides linguistiques des profils, tests hermétiques. Les épreuves sur un modèle LLM réel et la validation Docker ne sont pas encore réalisées. Lors de la clôture, consigner les fichiers changés, références des commits, tests exécutés et résultats, matrice AC1–AC8, modèle et environnement du banc réel, constats de revue et éventuelles limites acceptées.

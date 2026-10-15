@@ -627,8 +627,9 @@ epics:
     # 08fbb537 : frontend 9/9 tests + build, backend ruff + validate_plans + 1589 pytest.
     # Reste : revue visuelle Docker bureau/mobile en fr/en/zh, tests Vue du clavier,
     # de la réactivité DOM, de la navigation et de la persistance end-to-end.
-    # Story 008-3 rédigée (BACKLOG) : locale canonique persistée par simulation,
-    # propagation aux sous-processus OASIS, prompts et banc d'inférence réel à réaliser.
+    # Story 008-3 (IN-PROGRESS) : développement initial de la locale persistée,
+    # propagation contexte Flask/threads/processus, consignes profils et tests.
+    # Banc Docker+LLM réel et audit des prompts restent à qualifier (DoD ouvert).
     # Epic 008 in-progress (1/3 stories closes : 008-1 done).
 
 

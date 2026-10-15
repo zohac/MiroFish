@@ -45,7 +45,7 @@
 |---|---|---|---|
 | 008-1 | Dictionnaire complet de traduction française (`locales/fr.json`) et parité des clés | `done` | `story-008-1.md` |
 | 008-2 | Intégration et bascule IHM frontend Vue 3 (sélecteur, formats régionaux `fr-FR`) | `in-progress` | `story-008-2.md` |
-| 008-3 | Génération de personas, simulations et rapports en français (prompts LLM & banc de validation) | `backlog` | [`story-008-3.md`](story-008-3.md) |
+| 008-3 | Génération de personas, simulations et rapports en français (prompts LLM & banc de validation) | `in-progress` | [`story-008-3.md`](story-008-3.md) |
 
 | Story | Critères d'acceptation (résumé) |
 |---|---|

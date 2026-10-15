@@ -36,7 +36,7 @@ from ..services.simulation_runner import (
 )
 from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
 from ..utils.logger import get_logger
-from ..utils.locale import t, get_locale, set_locale
+from ..utils.locale import t, get_locale, use_locale
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.project import ProjectManager
 
@@ -294,6 +294,7 @@ def create_simulation():
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
+            locale=get_locale(),
         )
         
         return jsonify({
@@ -854,12 +855,15 @@ def prepare_simulation():
         state.status = SimulationStatus.PREPARING
         manager._save_simulation_state(state)
         
-        # Capture locale before spawning background thread
-        current_locale = get_locale()
+        # Preserve the simulation's creation locale across subsequent requests.
+        current_locale = state.locale
 
         # 定义后台任务
         def run_prepare():
-            set_locale(current_locale)
+            with use_locale(current_locale):
+                prepare_in_locale()
+
+        def prepare_in_locale():
             try:
                 task_manager.update_task(
                     task_id,
@@ -2206,6 +2210,7 @@ def start_simulation():
                 enable_graph_memory_update=enable_graph_memory_update,
                 graph_id=graph_id,
                 keep_alive_on_completion=keep_alive_on_completion,
+                locale=state.locale,
             )
         
         response_data = run_state.to_dict()

@@ -17,7 +17,7 @@ from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
 from ..models.project import ProjectManager, ProjectStatus
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
-from ..utils.locale import t, get_locale, set_locale
+from ..utils.locale import t, use_locale
 from ..utils.zep_lifecycle import (
     graph_lifecycle_lock,
     register_graph_reader,
@@ -239,11 +239,14 @@ def generate_report():
                     "report_id": report_id
                 }
             )
-            current_locale = get_locale()
+            current_locale = state.locale
             register_graph_reader(graph_id, report_id)
 
             def run_generate():
-                set_locale(current_locale)
+                with use_locale(current_locale):
+                    generate_in_locale()
+
+            def generate_in_locale():
                 try:
                     task_manager.update_task(
                         task_id,
@@ -667,7 +670,8 @@ def chat_with_report_agent():
             simulation_requirement=simulation_requirement
         )
         
-        result = agent.chat(message=message, chat_history=chat_history)
+        with use_locale(state.locale):
+            result = agent.chat(message=message, chat_history=chat_history)
         
         return jsonify({
             "success": True,
