@@ -88,6 +88,18 @@ Cette story répond directement à l'exigence fonctionnelle **FR-4** (tolérance
   - Conduire la revue contradictoire BMAD à 4 couches.
   - Clore la story 010-3 et prononcer le bilan de qualification de l'Epic 010.
 
+### Review Findings
+
+- [x] [Review][Patch] Couvrir la concurrence asynchrone sur SentenceTransformerEmbedder.create_batch via asyncio.gather [backend/tests/test_sentence_transformer_thread_safety.py:328]
+- [x] [Review][Patch] Valider le dé-enregistrement garanti de ZepGraphMemoryManager lors d'un timeout dans _wait_for_pending_episodes sous mode résilient strict=False [backend/tests/test_sentence_transformer_thread_safety.py:437]
+
+#### Rejected
+- `threading.Lock` vs `threading.RLock` dans `SentenceTransformerEmbedder._encode_sync` [`backend/app/utils/graphiti_embedder.py:96`] : rejeté (false) car `_encode_sync` n'effectue aucun appel réentrant vers `_get_model()`, `threading.Lock` standard est suffisant et performant.
+- `len(self._failed_batches)` lu sans verrou dans `get_stats()` [`backend/app/services/zep_graph_memory_updater.py:584`] : rejeté (low) car opération de lecture atomique en CPython pour un dictionnaire statistique sans risque de corruption de mémoire.
+- Absence de dead-letter queue ou replay persistant pour les activités secondaires en échec [`backend/app/services/zep_graph_memory_updater.py:317`] : rejeté (false) car le PRD Epic 010 (§2 et AC2) spécifie expressément la résilience sans bloquer la finalisation ni complexifier l'ingestion par du replay lourd.
+- Absence d'exposition de l'avertissement de drain partiel dans `SimulationRunState` [`backend/app/services/simulation_runner.py:948`] : rejeté (low) car `SimulationRunState` ne dispose pas de champ d'avertissement non bloquant, et la journalisation warning préserve l'état `COMPLETED` et la rétrocompatibilité API.
+- Asymétrie des valeurs par défaut de `strict` entre `updater.stop(strict=True)` et `manager.stop_updater(strict=False)` [`backend/app/services/zep_graph_memory_updater.py:675`] : rejeté (false) car l'asymétrie est expressément requise pour garantir la rétrocompatibilité des tests existants tout en rendant le superviseur résilient.
+
 ---
 
 ## Notes de développement
@@ -140,23 +152,23 @@ Revue de code contradictoire BMAD à 4 couches conduite le 15 octobre 2026 :
    - Sérialisation stricte de l'inférence PyTorch via `with self._lock:` éliminant tout conflit de tenseurs méta (`Cannot copy out of meta tensor`).
    - Tolérance aux pannes partielles : `updater.stop(strict=False)` journalise les échecs de lots secondaires sans faire échouer la fin de simulation.
    - `ZepGraphMemoryManager.stop_updater` sécurise la suppression de l'updater via un bloc `finally:`, garantissant zéro fuite d'instances orphelines dans `_updaters`.
-   - *Patch appliqué (P1)* : Purge systématique de `_pending_episode_uuids` dans un bloc `finally:` au sein de `_wait_for_pending_episodes` pour prévenir les réattentes orphelines.
-   - *Patch appliqué (P2)* : Résolution de l'import `timedelta` manquant dans `backend/scripts/antigravity_proxy.py`.
+   - Purge systématique de `_pending_episode_uuids` dans un bloc `finally:` au sein de `_wait_for_pending_episodes` pour prévenir les réattentes orphelines.
+   - Résolution de l'import `timedelta` manquant dans `backend/scripts/antigravity_proxy.py`.
 
 3. **Couche 3 : Couverture de tests & Non-régression**
-   - 7 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py` couvrant :
-     - Concurrence multi-threads sous `ThreadPoolExecutor` et `asyncio.gather`.
+   - 9 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py` (7 initiaux + 2 issus de la revue BMAD) couvrant :
+     - Concurrence multi-threads sous `ThreadPoolExecutor` et `asyncio.gather` pour `create` et `create_batch`.
      - Modes strict vs résilient de l'updater et du gestionnaire.
-     - Dé-enregistrement garanti sous exception.
+     - Dé-enregistrement garanti sous exception (`RuntimeError` et `TimeoutError`).
      - Complétion nominale dans `SimulationRunner._monitor_simulation`.
-   - Filet global de tests porté à **1 578 tests collectés et réussis sur l'hôte** (0 échec, +7 tests).
+   - Filet global de tests porté à **1 580 tests collectés et réussis sur l'hôte** (0 échec, +9 tests).
    - Linter `ruff check backend` 100 % vert. Build frontend Vite 100 % réussi.
 
 4. **Couche 4 : Gouvernance & Intégrité des Référentiels**
    - Validation stricte des plans via `backend/scripts/validate_plans.py` (code retour 0).
    - Clôture nominale de l'Epic 010 avec validation de l'ensemble des critères C1 à C5.
 
-**Bilan de la revue** : 0 `decision-needed`, 2 `patch` appliqués, 0 `defer`, 0 `rejected`. Accord unanime des 4 couches pour la clôture.
+**Bilan de la revue** : 0 `decision-needed`, 2 `patch` appliqués, 0 `defer`, 5 `rejected`. Accord unanime des 4 couches pour la clôture.
 
 ---
 
@@ -167,5 +179,5 @@ Story 010-3 close (`done`) le 15 octobre 2026 :
 1. **Thread-safety SentenceTransformers** : Inférence PyTorch sérialisée via le verrou `self._lock` dans `SentenceTransformerEmbedder._encode_sync(texts)`, éliminant définitivement les erreurs d'accès concurrent aux meta-tensors (`Cannot copy out of meta tensor; no data!`).
 2. **Drain mémoire tolérant aux pannes** : `ZepGraphMemoryUpdater.stop(strict=True)` étendu avec un paramètre `strict: bool = True`. En mode résilient (`strict=False`), les erreurs sur les lots d'activités secondaires résiduels sont consignées dans les journaux sans lever de `RuntimeError` bloquante.
 3. **Résilience et cycle de vie SimulationRunner** : `ZepGraphMemoryManager.stop_updater(simulation_id, strict=False)` désenregistre l'updater de façon garantie (`finally:`) et permet à `SimulationRunner._monitor_simulation` et `stop_simulation` de finaliser proprement l'état vers `RunnerStatus.COMPLETED` même en présence de micro-pertes sur des activités non critiques.
-4. **Validation empirique et couverture** : 7 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py`. Filet global de tests porté à **1 578 tests collectés et réussis sur l'hôte** (0 échec).
+4. **Validation empirique et couverture** : 9 tests unitaires hermétiques créés dans `backend/tests/test_sentence_transformer_thread_safety.py`. Filet global de tests porté à **1 580 tests collectés et réussis sur l'hôte** (0 échec).
 5. **Clôture de l'Epic 010** : 3/3 stories de l'Epic 010 validées (`010-1`, `010-2`, `010-3`).

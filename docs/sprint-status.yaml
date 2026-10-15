@@ -24,8 +24,8 @@ mis_a_jour: 2026-10-15
 # (inférence PyTorch sérialisée via self._lock éliminant les collisions de meta-tensors) et drain mémoire
 # tolérant aux pannes dans ZepGraphMemoryUpdater.stop(strict=False) et ZepGraphMemoryManager.stop_updater
 # garantissant la complétion nominale vers RunnerStatus.COMPLETED sans blocage en fin de cycle.
-# 7 tests hermétiques dédiés ajoutés (test_sentence_transformer_thread_safety.py), filet global de tests
-# porté à 1578 tests passants sur l'hôte (0 échec). Clôture définitive de l'Epic 010 (done, 3/3 stories).
+# 7 tests hermétiques initiaux + 2 tests issus de la revue BMAD (9 tests dans test_sentence_transformer_thread_safety.py), filet global de tests
+# porté à 1580 tests passants sur l'hôte (0 échec). Clôture définitive de l'Epic 010 (done, 3/3 stories).
 # 15 oct. 2026 : story 010-2 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (4 patches appliqués). Réconciliation active OS/cache dans SimulationRunner.get_run_state
 # (vérification de vivacité via poll() et os.kill(pid, 0) / OpenProcess STILL_ACTIVE, élimination des statuts orphelins sans PID
@@ -717,5 +717,5 @@ epics:
     # (sérialisation PyTorch via self._lock éliminant les collisions de tenseurs meta) et drain mémoire
     # tolérant aux pannes partielles dans ZepGraphMemoryUpdater.stop(strict=False) et ZepGraphMemoryManager.stop_updater
     # garantissant la complétion nominale vers COMPLETED même en cas de pertes mineures d'activités non critiques.
-    # 7 tests hermétiques dédiés (test_sentence_transformer_thread_safety.py). Filet global porté à 1578 tests passants sur l'hôte.
+    # 9 tests hermétiques dédiés (test_sentence_transformer_thread_safety.py). Filet global porté à 1580 tests passants sur l'hôte.
     # Epic 010 intégralement clos avec succès (3/3 stories done).

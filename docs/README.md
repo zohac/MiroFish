@@ -33,6 +33,7 @@ trouver avant d'avoir lu quoi que ce soit.
 | [`STATUS.md`](STATUS.md) | vivant | fait / en cours / à faire, critères de l'épreuve en cours |
 | [`plans/001-epreuve-graphiti-local/`](plans/001-epreuve-graphiti-local/prd.md) | vivant | PRD, architecture et stories de l'épreuve Graphiti |
 | [`architecture/cible-graphstore.md`](architecture/cible-graphstore.md) | vivant | architecture cible du graphe (contexte + séquence) |
+| [`architecture/flux-global-simulation.md`](architecture/flux-global-simulation.md) | vivant | flux complet de bout en bout : de "Start engine" au rapport final (composants, séquence, moteurs, cycle de vie) |
 | [`decisions/README.md`](decisions/README.md) | vivant | conventions et index des ADR |
 | [`decisions/0001-remplacement-de-zep-par-graphiti.md`](decisions/0001-remplacement-de-zep-par-graphiti.md) | accepté | Graphiti + Neo4j derrière une interface |
 | [`decisions/0002-forks-adoption-refusee.md`](decisions/0002-forks-adoption-refusee.md) | accepté | ne pas adopter de fork : prendre la forme |

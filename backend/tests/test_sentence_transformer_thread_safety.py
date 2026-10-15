@@ -258,3 +258,51 @@ def test_simulation_runner_monitor_tolerates_failed_batches_and_completes(monkey
         SimulationRunner._processes.pop(sim_id, None)
         SimulationRunner._graph_memory_enabled.pop(sim_id, None)
         SimulationRunner._manual_stop_requests.discard(sim_id)
+
+
+@pytest.mark.asyncio
+async def test_sentence_transformer_create_batch_concurrent_load():
+    """AC1: create_batch est également sérialisé sous self._lock sous charge concurrente asyncio.gather."""
+    model = ConcurrencyCheckingSentenceTransformer()
+    embedder = SentenceTransformerEmbedder(
+        config=SentenceTransformerEmbedderConfig(embedding_dim=384),
+        model=model,
+    )
+
+    tasks = [
+        embedder.create_batch([f"Sentence {i}a", f"Sentence {i}b", f"Sentence {i}c"])
+        for i in range(15)
+    ]
+    results = await asyncio.gather(*tasks)
+
+    assert len(results) == 15
+    for batch_res in results:
+        assert len(batch_res) == 3
+        for vec in batch_res:
+            assert len(vec) == 384
+            assert pytest.approx(vec[0], 0.01) == 0.1
+
+    assert model.total_calls == 15
+    assert model.max_concurrent_calls == 1
+
+
+def test_manager_stop_updater_resilient_mode_cleans_up_on_timeout(monkeypatch):
+    """AC5: Même en cas de TimeoutError dans _wait_for_pending_episodes sous strict=False, l'updater est désenregistré."""
+    sim_id = "sim-manager-timeout-cleanup"
+    updater = ZepGraphMemoryUpdater("graph-timeout-cleanup")
+    updater._worker_thread = None
+
+    def raise_timeout(*_args, **_kwargs):
+        raise TimeoutError("Graph timeout in wait_for_episodes")
+
+    monkeypatch.setattr(updater, "_wait_for_pending_episodes", raise_timeout)
+
+    ZepGraphMemoryManager._updaters[sim_id] = updater
+    try:
+        with pytest.raises(TimeoutError, match="Graph timeout"):
+            ZepGraphMemoryManager.stop_updater(sim_id, strict=False)
+
+        assert sim_id not in ZepGraphMemoryManager._updaters
+    finally:
+        ZepGraphMemoryManager._updaters.pop(sim_id, None)
+

@@ -28,7 +28,7 @@ reproductible.**
 | Migration des graphes Zep existants (ou purge sécurisée) | ✅ fait — Epic 006 clos (800 tests verts) |
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
 | Ontologie dynamique (v2) | ✅ fait — Epic 007 clos (1550 tests verts, Verdict GO, NO-GO empirique C3 consigné) |
-| Fiabilisation du cycle de vie et complétion des simulations | ✅ fait — Epic 010 clos (1578 tests verts, 3/3 stories done) |
+| Fiabilisation du cycle de vie et complétion des simulations | ✅ fait — Epic 010 clos (1580 tests verts, 3/3 stories done) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -125,7 +125,7 @@ Revue contradictoire BMAD 4 couches validée.
 **007-7 est close (`done`)** : banc d'orchestration global autonome `backend/scripts/verifier_qualification_epic_007.py` évaluant de bout en bout l'ensemble des critères C1 à C8. Consignation du constat empirique C3 sur modèle externe amont (`gpt-6.1-sol`, 91–193 s, variations nominales) en NO-GO empirique C3 sans impacter le moteur local. Rapport formel `docs/plans/007-ontologie-dynamique/rapport-qualification-epic-007.md` versionné avec **VERDICT GO**. 12 tests hermétiques dédiés (`test_verifier_qualification_epic_007.py`). Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. **Epic 007 intégralement clos avec succès (7/7 stories done, 1550 tests verts sur l'hôte)**.
 **010-1 est close (`done`)** : arrêt déterministe (`--no-wait`) injecté par défaut dans `SimulationRunner._start_simulation` pour `run_parallel_simulation.py`, Twitter et Reddit, avec support du repli interactif `keep_alive_on_completion: bool | None = None` (API `/start` et config) et persistance `SimulationRunState`. Supervision active de fin de cycle dans `_monitor_simulation` via `_check_all_platforms_completed`, préservation stricte du mode persistant (Patch 1 BMAD), repli IPC `send_close_env()` à 5 s et terminaison forcée de sécurité à 10 s (NFR-3). Transition déterministe vers `RunnerStatus.COMPLETED` avec horodatage ISO 8601 (`completed_at`) et intégrité de la barrière mémoire Neo4j sous verrou (AC5). 11 tests unitaires hermétiques dédiés (`test_simulation_runner_completion.py`, dont 3 issus de la revue BMAD). Revue contradictoire BMAD 4 couches validée (4 patches appliqués). **1562 tests verts sur l'hôte**.
 **010-2 est close (`done`)** : réconciliation d'état OS/cache et résilience IHM (`Step3Simulation.vue`). Réconciliation de vivacité dans `SimulationRunner.get_run_state` vérifiant `process.poll()` pour les processus gérés et `os.kill(pid, 0)` / `OpenProcess` (`STILL_ACTIVE`) pour les PID système, avec bascule sous verrou de finalisation vers les statuts terminaux réels (`COMPLETED`, `STOPPED` ou `FAILED`), élimination des statuts orphelins sans PID et fermeture des descripteurs de logs. Invalidation de cache temps réel par comparaison du `mtime` de `run_state.json`. Détection de complétion par les faits côté IHM Vue 3 dans `Step3Simulation.vue` (`factsCompleted` via `progress_percent >= 100` et achèvement des plateformes actives) permettant le déblocage immédiat de la phase 2 et du bouton de génération de rapport, maintien du polling jusqu'à la fin de la barrière mémoire et tolérance aux erreurs 409 transitoires. 9 tests unitaires hermétiques dédiés créés dans `backend/tests/test_simulation_runner_reconciliation.py`. Revue contradictoire BMAD 4 couches validée (4 patches appliqués). **1571 tests verts sur l'hôte**.
-**010-3 est close (`done`)** : sécurisation thread-safe de `SentenceTransformerEmbedder._encode_sync` (sérialisation de l'inférence PyTorch via `self._lock` éliminant les collisions de meta tensors) et drain mémoire résilient dans `ZepGraphMemoryUpdater.stop(strict=False)` et `ZepGraphMemoryManager.stop_updater` assurant la complétion nominale vers `RunnerStatus.COMPLETED` même en présence de défaillances mineures de lots secondaires. Purge de `_pending_episode_uuids` sécurisée sous bloc `finally:`. 7 tests unitaires hermétiques dédiés (`test_sentence_transformer_thread_safety.py`). Revue contradictoire BMAD 4 couches validée (2 patches appliqués). **Epic 010 intégralement clos avec succès (3/3 stories done, 1578 tests verts sur l'hôte)**.
+**010-3 est close (`done`)** : sécurisation thread-safe de `SentenceTransformerEmbedder._encode_sync` (sérialisation de l'inférence PyTorch via `self._lock` éliminant les collisions de meta tensors) et drain mémoire résilient dans `ZepGraphMemoryUpdater.stop(strict=False)` et `ZepGraphMemoryManager.stop_updater` assurant la complétion nominale vers `RunnerStatus.COMPLETED` même en présence de défaillances mineures de lots secondaires. Purge de `_pending_episode_uuids` sécurisée sous bloc `finally:`. 9 tests unitaires hermétiques dédiés (`test_sentence_transformer_thread_safety.py`). Revue contradictoire BMAD 4 couches validée (2 patches appliqués). **Epic 010 intégralement clos avec succès (3/3 stories done, 1580 tests verts sur l'hôte)**.
 
 ---
 
@@ -153,7 +153,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-15 octobre 2026 compte **1578 tests collectés et réussis sur l'hôte ; 1575 réussis + 3 ignorés sous
+15 octobre 2026 compte **1580 tests collectés et réussis sur l'hôte ; 1577 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
@@ -166,7 +166,7 @@ hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1550** (1537 + 13 tests hermétiques, banc de qualification et 8 patches BMAD compris) ; post-010-1 :
 **1562** (1550 + 12 tests hermétiques nets, arrêt déterministe, complétion automatique et 4 patches BMAD) ; post-010-2 :
 **1571** (1562 + 9 tests hermétiques nets, réconciliation vivacité OS, autorité disque, résilience IHM et 4 patches BMAD) ; post-010-3 :
-**1578** (1571 + 7 tests hermétiques nets, thread-safety PyTorch, drain mémoire tolérant et 2 patches BMAD).
+**1580** (1571 + 9 tests hermétiques nets, thread-safety PyTorch, drain mémoire tolérant et 2 patches BMAD).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais
