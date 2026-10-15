@@ -138,6 +138,18 @@ Consigner ici les findings, leur sévérité, la décision et les correctifs eff
 - M2 (corrigé) : liste cliquable sans garanties clavier/lecteur d'écran ; `<select>` natif avec étiquette traduite.
 - L1 (assumé) : contenus de graphe et LLM non traduits, hors périmètre 008-3.
 
-**Qualification non revendiquée** : la build, les tests Node, la suite backend et la validation des plans devront être vérifiés sur le commit GitHub ; aucun contrôle visuel Docker bureau/mobile n'a été réalisé depuis cet environnement. Maintenir le statut `in-progress` tant que ces preuves manquent. Ne pas déclarer `done` sans elles.
+### Vérification effective du DoD (15 octobre 2026)
+
+**Preuve CI sur le commit `08fbb537bfe68c7db97eb41525506ea347ca6932`** — [run GitHub Actions 38807586884](https://github.com/zohac/MiroFish/actions/runs/38807586884), résultat global **success** :
+- Frontend : `pnpm test` **9/9 tests réussis**, `pnpm build` réussi (Vite 7.3.6).
+- Backend : `uv run ruff check .` réussi ; `uv run python scripts/validate_plans.py` réussi (11 epics, 47 stories à la date du run) ; `uv run pytest tests/ -q` : **1589 passed, 11 warnings, 0 failed**.
+- Les warnings post-exécution autour de la fermeture de la boucle événementielle Neo4j apparaissent dans les logs malgré la réussite du job : à distinguer d'un échec pytest ; à surveiller dans la maintenance.
+
+**Gates de la définition de fini non démontrés** :
+1. **AC2/AC6 : revue réelle des écrans et tailles**. Aucun parcours visuel Docker n'a été effectué et documenté sur bureau + mobile pour les trois langues `fr`, `en`, `zh` (dont modales, infobulles, historique et textes longs).
+2. **AC1/AC3/AC6 : test d'intégration Vue**. Les 9 tests Node sont hermétiques et vérifient des contrats, du formatage et l'adaptateur Axios, mais ne montent pas réellement le composant Vue, ne simulent pas le clavier dans un navigateur et ne prouvent pas la réactivité DOM ou la navigation/rechargement de bout en bout.
+3. **AC2/AC4 : exhaustivité IHM**. L'audit statique et la couverture des écrans doivent encore être confrontés au rendu réel pour vérifier l'absence de libellés bruts et la mise à jour des dates déjà affichées.
+
+**Verdict : DoD incomplet.** Conserver `statut: in-progress`, T6 et T7 ouverts, ainsi que les cases de la définition de fini non validées ; ne pas forcer le statut `review`/`done` pour rendre l'agrégat flatteur. La story 008-3 peut être **rédigée** en `backlog` sans prétendre que cette dépendance est terminée.
 
 À la clôture, consigner les fichiers modifiés, les tests réellement exécutés et leurs résultats, les écarts résiduels, les commits associés ainsi que le verdict de la revue. Ne pas cocher la définition de fini ni annoncer une CI verte sans preuve.
