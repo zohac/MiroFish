@@ -829,7 +829,7 @@
       </div>
       <div class="log-content" ref="logContent">
         <div class="log-line" v-for="(log, idx) in systemLogs" :key="idx">
-          <span class="log-time">{{ log.time }}</span>
+          <span class="log-time">{{ formatLogTime(log.timestamp) }}</span>
           <span class="log-msg">{{ log.msg }}</span>
         </div>
       </div>
@@ -852,7 +852,7 @@ import {
 } from '../api/simulation'
 
 const { t } = useI18n()
-const { formatNumber } = useRegionalFormat()
+const { formatNumber, formatLogTime } = useRegionalFormat()
 
 const props = defineProps({
   simulationId: String,  // 从父组件传入
