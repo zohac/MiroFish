@@ -20,6 +20,26 @@ for filename in os.listdir(_locales_dir):
             _translations[locale_name] = json.load(f)
 
 
+def normalize_locale(raw: str | None) -> str:
+    """Normalize a locale string or Accept-Language header into a supported locale key."""
+    if not raw:
+        return 'zh'
+    if raw in _translations:
+        return raw
+    # Parse RFC 7231 Accept-Language header components
+    for item in raw.split(','):
+        tag = item.split(';')[0].strip()
+        if not tag:
+            continue
+        if tag in _translations:
+            return tag
+        # Try language subtag without region (e.g. 'fr-FR' -> 'fr')
+        lang = tag.split('-')[0].strip().lower()
+        if lang in _translations:
+            return lang
+    return 'zh'
+
+
 def set_locale(locale: str):
     """Set locale for current thread. Call at the start of background threads."""
     _thread_local.locale = locale
@@ -28,8 +48,9 @@ def set_locale(locale: str):
 def get_locale() -> str:
     if has_request_context():
         raw = request.headers.get('Accept-Language', 'zh')
-        return raw if raw in _translations else 'zh'
-    return getattr(_thread_local, 'locale', 'zh')
+        return normalize_locale(raw)
+    locale = getattr(_thread_local, 'locale', None)
+    return normalize_locale(locale) if locale else 'zh'
 
 
 def t(key: str, **kwargs) -> str:

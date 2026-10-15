@@ -85,6 +85,16 @@ L'**Epic 007 (Ontologie dynamique, v2) est intégralement clos avec succès (7/7
 
 ## En cours / Prochaine étape
 
+L'**Epic 008 (« Support complet de la langue française — Localisation FR ») est en cours d'exécution** (1/3 stories closes — **1589 tests verts sur l'hôte**, Verdict GO de parité) :
+- **Story 008-1 (done au 15 octobre 2026)** : Dictionnaire complet de traduction française (`locales/fr.json`) et parité stricte des clés. Rdaction intégrale des 679 clés réparties sur 17 sections (`common`, `meta`, `nav`, `home`, `main`, `step1`, `step2`, `step3`, `step4`, `step5`, `graph`, `history`, `api`, `progress`, `log`, `report`, `console`). Alignement rigoureux de la terminologie métier (« Graphe de connaissances », « Agents », « Simulation parallèle bi-monde », « Graine de réalité », etc.). Maintien strict de 100 % des variables de template `{var}`. Intégration backend dans `backend/app/utils/locale.py` avec fonction `normalize_locale()` assurant le support des en-têtes HTTP `Accept-Language` selon la RFC 7231 (`fr`, `fr-FR`, `fr-BE`, `fr-CA`). Suite unitaire hermétique de 7 tests (`backend/tests/test_i18n_parity.py`) validant l'absence totale de clé orpheline ou manquante, l'injection de prompts LLM (`get_language_instruction()` -> `"Veuillez répondre en français."`) et la résolution de contexte de requête Flask. Revue contradictoire BMAD 4 couches validée. Filet global porté à **1589 tests verts sur l'hôte** (0 échec).
+
+Chantiers consécutifs :
+- **Story 008-2** : Intégration et bascule IHM frontend Vue 3 (sélecteur, formats régionaux `fr-FR`).
+- **Story 008-3** : Génération de personas, simulations et rapports en français (prompts LLM & banc de validation).
+- **Epic 011** : Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports (OASIS post-simulation vivant, `interview_agents`, traces d'actions, anti-affabulation, bouclier ToolShield).
+
+Dossier de plan complet : [`docs/plans/008-support-langue-francaise/`](plans/008-support-langue-francaise/epic-008.md).
+
 L'**Epic 009 (« Éligibilité des acteurs et fiabilisation des sources ») est intégralement clos avec succès (4/4 stories validées — 1157 tests verts, VERDICT GO)**.
 
 Dossier de plan complet : [`docs/plans/009-eligibilite-acteurs-et-sources/`](plans/009-eligibilite-acteurs-et-sources/prd.md) (`prd.md`, `architecture.md`, `epic-009.md`, `rapport-qualification-epic-009.md`).
@@ -93,9 +103,12 @@ L'**Epic 007 (« Ontologie dynamique (v2) ») est intégralement clos avec succ�
 
 Dossier de plan complet : [`docs/plans/007-ontologie-dynamique/`](plans/007-ontologie-dynamique/prd.md) (`prd.md`, `architecture.md`, `epic-007.md`, `rapport-qualification-epic-007.md`).
 
+L'**Epic 010 (« Fiabilisation du cycle de vie et complétion des simulations ») est intégralement clos avec succès (3/3 stories validées — 1580 tests verts)**.
+Dossier de plan complet : [`docs/plans/010-fiabilisation-cycle-simulation/`](plans/010-fiabilisation-cycle-simulation/prd.md) (`prd.md`, `architecture.md`, `epic-010.md`).
+
 Chantiers à venir :
-- **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire `locales/fr.json`, adaptation IHM Vue 3 et génération LLM francophone.
-- **Epic 010** : Fiabilisation du cycle de vie et de la complétion des simulations — arrêt déterministe `--no-wait`, détection active de fin, réconciliation OS/cache et sécurisation thread-safe des embeddings.
+- **Epic 011** : Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports — maintien en vie d'OASIS post-simulation pour `interview_agents` en direct, interrogation des traces `actions.jsonl` / SQLite (`OasisLogReaderService`), bouclier `ToolShield` (zéro burn d'itérations), anti-affabulation, typage épistémique des sources, anti-troncature de section et localisation française native (`locales/fr.json`).
+- **Epic 008** : Support complet de la langue française (Localisation FR) — dictionnaire IHM global et formats régionaux.
 
 ### Bilan consolidé de l'Epic 006 — Migration des données Zep (Clos — 800 tests verts)
 
@@ -300,6 +313,8 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | 006 | Migrer le graphe Zep existant — ou acter qu'on jette (clos) | 003, 004, 005 |
 | 009 | Éligibilité des acteurs et fiabilisation des sources (clos, 1157 tests verts) | 004, 005 |
 | 007 | Ontologie dynamique (v2) — clos (1550 tests verts, Verdict GO) | 003, 004, 005, 009 |
+| 010 | Fiabilisation du cycle de vie et complétion des simulations (clos, 1580 tests verts) | 005, 007, 009 |
+| 011 | Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports | 005, 007, 009, 010 |
 | 008 | Support complet de la langue française (Localisation FR) | 005 |
 
 ---
@@ -323,8 +338,9 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 ## Prochain pas
 
-1. **Démarrer l'Epic 008** : Support complet de la langue française (Localisation FR). L'Epic 007 est intégralement clos (7/7 stories done, banc de qualification C1-C8 validé avec 1550 tests verts sur l'hôte, VERDICT GO).
-2. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
+1. **Poursuivre l'Epic 008** : Support complet de la langue française (Localisation FR) — Story 008-1 validée (`locales/fr.json` à 100 % de parité, normalisation RFC 7231 backend), enchaînement sur Story 008-2 (IHM Vue 3) et 008-3 pour préparer le déploiement de l'Epic 011.
+2. **Engager ensuite l'Epic 011** : Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports (maintien d'OASIS vivant pour `interview_agents`, lecture directe des traces `actions.jsonl`/SQLite, `ToolShield`, contrat `ReportClaim`, tableau de couverture, anti-troncature et barrière `ReportQualityGate`).
+3. **Graphes migrés de l'Epic 006 clos** : la barrière d'acteurs de 009-1 s'applique désormais à la préparation ; ne pas rouvrir la migration ni inventer une provenance absente.
 
 ## Questions ouvertes
 
@@ -341,7 +357,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **1550 tests collectés et réussis sur l'hôte** (**1547 réussis + 3 ignorés sous Docker**), mesure du 14 octobre 2026. Stories 007-1 à 007-7 closes après revues BMAD ; 007-7 porte le filet à 1550 tests (+13 tests au total). [Preuves et qualification](plans/007-ontologie-dynamique/rapport-qualification-epic-007.md). |
+| Tests | **1589 tests collectés et réussis sur l'hôte** (**1586 réussis + 3 ignorés sous Docker**), mesure du 15 octobre 2026. Epics 007 et 010 clos, Story 008-1 close (+7 tests unitaires i18n hermétiques). |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 17 acceptés, 0 supersédé |

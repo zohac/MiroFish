@@ -18,6 +18,12 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-15
+# 15 oct. 2026 : story 008-1 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches. Dictionnaire complet de traduction française locales/fr.json
+# (679 clés sur 17 sections, parité 100 % stricte avec locales/en.json, 0 orpheline, 0 manquante,
+# égalité des variables {var}). Intégration backend dans backend/app/utils/locale.py avec
+# normalisation RFC 7231 (normalize_locale()). 7 tests unitaires hermétiques (backend/tests/test_i18n_parity.py),
+# filet global de tests porté à 1589 tests réussis sur l'hôte (0 échec). Epic 008 in-progress (1/3 stories closes : 008-1 done).
 # 15 oct. 2026 : story 010-3 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (2 patches appliqués : purge _pending_episode_uuids sous finally,
 # et résolution de l'import timedelta). Sécurisation thread-safe de SentenceTransformerEmbedder._encode_sync
@@ -595,7 +601,7 @@ epics:
   - id: "008"
     slug: support-langue-francaise
     titre: "Support complet de la langue française (Localisation FR)"
-    statut: backlog
+    statut: in-progress
     plan: docs/plans/008-support-langue-francaise
     depend_de: ["005"]
     pourquoi: >-
@@ -610,6 +616,15 @@ epics:
       - "Prompts LLM enrichis avec l'instruction 'Veuillez répondre en français.'"
       - "Personas et rapports de simulation rédigés en français par les agents"
       - "Suite de tests unitaires d'intégrité et parité i18n au vert"
+    # Story 008-1 (DONE) : dictionnaire complet de traduction française
+    # locales/fr.json (679 clés sur 17 sections, parité 100 % stricte avec locales/en.json,
+    # 0 clé manquante, 0 orpheline, égalité exacte des variables de templates {var}).
+    # Intégration backend dans backend/app/utils/locale.py avec normalisation RFC 7231
+    # via normalize_locale() (support fr, fr-FR, fr-BE, etc.). Suite unitaire hermétique
+    # backend/tests/test_i18n_parity.py (7 tests passants). Revue BMAD à 4 couches validée.
+    # Filet global porté à 1589 tests réussis sur l'hôte (+7 tests).
+    # Epic 008 in-progress (1/3 stories closes : 008-1 done).
+
 
   - id: "009"
     slug: eligibilite-acteurs-et-sources
@@ -719,3 +734,27 @@ epics:
     # garantissant la complétion nominale vers COMPLETED même en cas de pertes mineures d'activités non critiques.
     # 9 tests hermétiques dédiés (test_sentence_transformer_thread_safety.py). Filet global porté à 1580 tests passants sur l'hôte.
     # Epic 010 intégralement clos avec succès (3/3 stories done).
+
+  - id: "011"
+    slug: preuve-simulation-et-fiabilite-rapport
+    titre: "Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports"
+    statut: backlog
+    plan: docs/plans/011-preuve-simulation-et-fiabilite-rapport
+    depend_de: ["005", "007", "009", "010"]
+    pourquoi: >-
+      Rétablir le maintien en vie d'OASIS post-simulation pour l'outil interview_agents
+      avec clôture différée après rapport, fournir l'interrogation directe des traces d'actions
+      OASIS (actions.jsonl, SQLite), sécuriser les outils ReACT contre les crashs de requêtes vides
+      (ToolShield), éliminer l'inversion des personas au Round 0, garantir l'étanchéité épistémique
+      (personnalités fictives vs faits historiques), supprimer les troncatures silencieuses de sections
+      et déployer la localisation française native (locales/fr.json).
+    criteres_de_sortie:
+      - "C1 : Rétablissement du processus OASIS vivant et d'interview_agents réussissant à 100 % pendant le rapport, avec clôture différée propre"
+      - "C2 : Outil query_simulation_events interrogeant les traces réelles (SQLite, JSONL) et repli offline gracieux sur rejeu"
+      - "C3 : 0 exception d'outil ReACT levée (ToolShield avec repli automatique sur titre de section si query vide)"
+      - "C4 : 100 % des citations simulées vérifiées par SimulationActionVerifier (verbatim, horodatage, agent exact) ou annotées non observées"
+      - "C5 : Typage épistémique des sources (0 fait issu d'un persona fictif classé en contexte historique)"
+      - "C6 : 100 % des initial_posts attribués de façon déterministe au persona exact mentionné au Round 0"
+      - "C7 : 0 section de rapport enregistrée tronquée ou sans ponctuation terminale (SectionCompletionGuard)"
+      - "C8 : Dictionnaire locales/fr.json complet à parité et génération 100 % en français lorsque demandé"
+      - "C9 : 1580+ tests existants au vert + au moins 25 nouveaux tests hermétiques dédiés à l'Epic 011"

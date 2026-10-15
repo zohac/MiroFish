@@ -1,6 +1,6 @@
 # Epic 008 — Support complet de la langue française (Localisation FR)
 
-- **Statut** : `backlog` · **Dépend de** : 005 · **Bloque** : aucun
+- **Statut** : `in-progress` · **Dépend de** : 005 · **Bloque** : aucun
 - **Suivi** : [`sprint-status.yaml`](../../sprint-status.yaml)
 - **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
 
@@ -43,7 +43,7 @@
 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
-| 008-1 | Dictionnaire complet de traduction française (`locales/fr.json`) et parité des clés | `backlog` | `story-008-1.md` |
+| 008-1 | Dictionnaire complet de traduction française (`locales/fr.json`) et parité des clés | `done` | `story-008-1.md` |
 | 008-2 | Intégration et bascule IHM frontend Vue 3 (sélecteur, formats régionaux `fr-FR`) | `backlog` | `story-008-2.md` |
 | 008-3 | Génération de personas, simulations et rapports en français (prompts LLM & banc de validation) | `backlog` | `story-008-3.md` |
 
