@@ -413,10 +413,12 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
 import { chatWithReport, getReport, getAgentLog } from '../api/report'
 import { interviewAgents, getSimulationProfilesRealtime } from '../api/simulation'
 
 const { t } = useI18n()
+const { formatTime } = useRegionalFormat()
 
 const props = defineProps({
   reportId: String,
@@ -541,18 +543,6 @@ const selectAgent = (agent, idx) => {
   addLog(t('log.selectChatTarget', { name: agent.username }))
 }
 
-const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  try {
-    return new Date(timestamp).toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit'
-    })
-  } catch {
-    return ''
-  }
-}
 
 const renderMarkdown = (content) => {
   if (!content) return ''

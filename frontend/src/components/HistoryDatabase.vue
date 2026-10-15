@@ -14,7 +14,7 @@
       <div class="section-line"></div>
       <div class="section-title-wrap">
         <span class="section-title">{{ $t('history.title') }}</span>
-        <span v-if="totalCount > 0" class="total-badge">{{ totalCount }}</span>
+        <span v-if="totalCount > 0" class="total-badge">{{ formatNumber(totalCount) }}</span>
       </div>
       <div class="section-line"></div>
     </div>
@@ -35,7 +35,7 @@
           v-if="searchQuery" 
           class="clear-search-btn"
           @click="clearSearch"
-          title="Clear"
+          :title="$t('common.close')"
         >×</button>
       </div>
 
@@ -242,7 +242,7 @@
             <div class="modal-body">
               <!-- 项目名称（如有） -->
               <div v-if="selectedProject.project_name" class="modal-section">
-                <div class="modal-label">PROJECT NAME</div>
+                <div class="modal-label">{{ $t('ui.projectName') }}</div>
                 <div class="modal-project-name">{{ selectedProject.project_name }}</div>
               </div>
 
@@ -316,11 +316,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
 import { getSimulationHistory } from '../api/simulation'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const { formatDate, formatTime, formatNumber } = useRegionalFormat()
 
 // 状态管理
 const projects = ref([])
@@ -512,31 +514,6 @@ const getProgressClass = (simulation) => {
     return 'in-progress'
   } else {
     return 'not-started'
-  }
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  try {
-    const date = new Date(dateStr)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  } catch {
-    return dateStr?.slice(0, 10) || ''
-  }
-}
-
-const formatTime = (dateStr) => {
-  if (!dateStr) return ''
-  try {
-    const date = new Date(dateStr)
-    const hours = date.getHours().toString().padStart(2, '0')
-    const minutes = date.getMinutes().toString().padStart(2, '0')
-    return `${hours}:${minutes}`
-  } catch {
-    return ''
   }
 }
 

@@ -22,19 +22,19 @@
 
           <div v-if="simulationId" class="info-card">
             <div class="info-row">
-              <span class="info-label">Project ID</span>
+              <span class="info-label">{{ $t('ui.projectId') }}</span>
               <span class="info-value mono">{{ projectData?.project_id }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Graph ID</span>
+              <span class="info-label">{{ $t('ui.graphId') }}</span>
               <span class="info-value mono">{{ projectData?.graph_id }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Simulation ID</span>
+              <span class="info-label">{{ $t('ui.simulationId') }}</span>
               <span class="info-value mono">{{ simulationId }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Task ID</span>
+              <span class="info-label">{{ $t('ui.taskId') }}</span>
               <span class="info-value mono">{{ taskId || $t('step2.asyncTaskDone') }}</span>
             </div>
           </div>
@@ -119,7 +119,7 @@
                   <th>{{ $t('step2.actorRole') }}</th>
                   <th>{{ $t('step2.actorStatus') }}</th>
                   <th>{{ $t('step2.actorReasoning') }}</th>
-                  <th v-if="phase === 0" class="text-right">Action</th>
+                  <th v-if="phase === 0" class="text-right">{{ $t('ui.action') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,18 +378,18 @@
                         <span class="param-label">{{ $t('step2.activityLevel') }}</span>
                         <span class="param-value with-bar">
                           <span class="mini-bar" :style="{ width: (agent.activity_level * 100) + '%' }"></span>
-                          {{ (agent.activity_level * 100).toFixed(0) }}%
+                          {{ formatNumber(agent.activity_level * 100, { maximumFractionDigits: 0 }) }}%
                         </span>
                       </div>
                       <div class="param-item">
                         <span class="param-label">{{ $t('step2.sentimentBias') }}</span>
                         <span class="param-value" :class="agent.sentiment_bias > 0 ? 'positive' : agent.sentiment_bias < 0 ? 'negative' : 'neutral'">
-                          {{ agent.sentiment_bias > 0 ? '+' : '' }}{{ agent.sentiment_bias?.toFixed(1) }}
+                          {{ agent.sentiment_bias > 0 ? '+' : '' }}{{ formatNumber(agent.sentiment_bias, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }}
                         </span>
                       </div>
                       <div class="param-item">
                         <span class="param-label">{{ $t('step2.influenceWeight') }}</span>
-                        <span class="param-value highlight">{{ agent.influence_weight?.toFixed(1) }}</span>
+                        <span class="param-value highlight">{{ formatNumber(agent.influence_weight, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }}</span>
                       </div>
                     </div>
                   </div>
@@ -764,16 +764,16 @@
             <div class="form-group">
               <label class="form-label">{{ $t('step2.actorTargetRole') }}</label>
               <select v-model="reviewTargetRole" class="form-select">
-                <option value="person">person (Personne physique)</option>
-                <option value="organization">organization (Organisation, institution)</option>
-                <option value="collective">collective (Collectif, groupe informel)</option>
-                <option value="product">product (Produit, offre, logiciel)</option>
-                <option value="service">service (Service rendu)</option>
-                <option value="domain">domain (Nom de domaine, site web, URL)</option>
-                <option value="place">place (Lieu géographique, ville, pays)</option>
-                <option value="event">event (Événement daté, réunion, incident)</option>
-                <option value="concept">concept (Idée, concept abstrait, sujet)</option>
-                <option value="unknown">unknown (Non déterminé / autre)</option>
+                <option value="person">{{ $t('ui.actorPerson') }}</option>
+                <option value="organization">{{ $t('ui.actorOrganization') }}</option>
+                <option value="collective">{{ $t('ui.actorCollective') }}</option>
+                <option value="product">{{ $t('ui.actorProduct') }}</option>
+                <option value="service">{{ $t('ui.actorService') }}</option>
+                <option value="domain">{{ $t('ui.actorDomain') }}</option>
+                <option value="place">{{ $t('ui.actorPlace') }}</option>
+                <option value="event">{{ $t('ui.actorEvent') }}</option>
+                <option value="concept">{{ $t('ui.actorConcept') }}</option>
+                <option value="unknown">{{ $t('ui.actorUnknownActor') }}</option>
               </select>
             </div>
 
@@ -840,6 +840,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
 import {
   prepareSimulation,
   previewSimulationActors,
@@ -851,6 +852,7 @@ import {
 } from '../api/simulation'
 
 const { t } = useI18n()
+const { formatNumber } = useRegionalFormat()
 
 const props = defineProps({
   simulationId: String,  // 从父组件传入

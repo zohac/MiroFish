@@ -135,17 +135,17 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (error.value) return 'Error'
-  if (currentPhase.value >= 2) return 'Ready'
-  if (currentPhase.value === 1) return 'Building Graph'
-  if (currentPhase.value === 0) return 'Generating Ontology'
-  return 'Initializing'
+  if (error.value) return t('common.error')
+  if (currentPhase.value >= 2) return t('common.ready')
+  if (currentPhase.value === 1) return t('ui.buildingGraph')
+  if (currentPhase.value === 0) return t('ui.generatingOntology')
+  return t('ui.initializing')
 })
 
 // --- Helpers ---
 const addLog = (msg) => {
-  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.' + new Date().getMilliseconds().toString().padStart(3, '0')
-  systemLogs.value.push({ time, msg })
+  const timestamp = new Date().toISOString()
+  systemLogs.value.push({ timestamp, msg })
   // Keep last 100 logs
   if (systemLogs.value.length > 100) {
     systemLogs.value.shift()

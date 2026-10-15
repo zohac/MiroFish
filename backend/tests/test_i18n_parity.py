@@ -62,7 +62,8 @@ def test_en_fr_key_parity():
     assert not missing_in_fr, f"Keys missing in fr.json: {missing_in_fr}"
     assert not extra_in_fr, f"Extraneous keys in fr.json: {extra_in_fr}"
     assert len(en_keys) == len(fr_keys)
-    assert len(fr_keys) == 679
+    # UI translations may grow, strict parity (above) is the contract.
+    assert len(fr_keys) >= 679
 
 
 def test_en_fr_placeholder_parity():

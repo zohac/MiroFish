@@ -2,7 +2,7 @@
 id: "008-2"
 epic: "008"
 titre: "Intégration et bascule IHM frontend Vue 3 (sélecteur, formats régionaux fr-FR)"
-statut: backlog
+statut: review
 auteur: "Équipe MiroFish"
 format: "2"
 ---
@@ -28,7 +28,7 @@ Cette story réalise **FR-2**, **FR-3**, **NFR-2** et **NFR-3** de l'[Epic 008](
   - `import.meta.glob` découvre déjà automatiquement les dictionnaires présents ; `languages.json` déclare « Français ».
   - Le sélecteur utilise déjà `useI18n()` et écrit `localStorage['locale']`.
   - L'intercepteur de `frontend/src/api/index.js` ajoute déjà `Accept-Language` à chaque requête du client Axios partagé.
-- [ ] **Précondition d'exécution** : confirmer une CI de référence verte sur `local-first` avant de débuter l'implémentation. Ne pas considérer l'annonce de tests verts de 008-1 comme une preuve de CI : le run 38799526743 a échoué sur une course d'un test d'ontologie sans lien avec i18n.
+- [x] **Précondition d'exécution** : confirmer une CI de référence verte sur `local-first` avant de débuter l'implémentation. Ne pas considérer l'annonce de tests verts de 008-1 comme une preuve de CI : le run 38799526743 a échoué sur une course d'un test d'ontologie sans lien avec i18n.
 - [x] **Stratégie de validation définie** : tests frontend hermétiques des locales, des formats et du sélecteur, tests du client HTTP, parcours de vérification visuelle, compilation Vite, validation des plans et non-régression backend.
 
 ---
@@ -64,22 +64,22 @@ Cette story réalise **FR-2**, **FR-3**, **NFR-2** et **NFR-3** de l'[Epic 008](
 
 ## Tâches
 
-- [ ] **T1 — Diagnostiquer le périmètre de l'IHM** :
+- [x] **T1 — Diagnostiquer le périmètre de l'IHM** :
   - Inventorier les routes et écrans atteignables, notamment `Home.vue`, `Process.vue`, `ReportView.vue`, `Step1GraphBuild.vue` à `Step5Interaction.vue`, `GraphPanel.vue`, `HistoryDatabase.vue`, les modales, statuts et infobulles.
   - Distinguer chaînes d'interface, messages d'erreur API déjà localisés, données utilisateur et sorties LLM ; repérer les littéraux chinois/anglais et les formats figés. Vérifier si `Process.vue` est encore une route fonctionnelle avant de la modifier ou de la supprimer.
-- [ ] **T2 — Consolider initialisation, sélection et accessibilité** :
+- [x] **T2 — Consolider initialisation, sélection et accessibilité** :
   - Vérifier `frontend/src/i18n/index.js` : découverte dynamique, validation de la locale enregistrée, valeur par défaut et repli ; éviter un affichage initial de clé brute.
   - Vérifier `LanguageSwitcher.vue` : réactivité, persistance, synchronisation `<html lang>`, accès depuis chaque route atteignable, clavier et attributs accessibles.
   - Conserver une **source unique de vérité** (`i18n.global.locale`) ; ne pas créer de deuxième état indépendant.
-- [ ] **T3 — Localiser les chaînes restantes** :
+- [x] **T3 — Localiser les chaînes restantes** :
   - Migrer vers `$t` / `t` les éléments d'interface encore codés en dur, notamment les chaînes de `Process.vue` et les statuts de `ReportView.vue`.
   - Réutiliser en priorité les clés des 17 sections existantes ; si nécessaire, ajouter une clé **dans toutes les locales concernées** sans rompre les tests de parité 008-1, avec placeholders inchangés.
   - Adapter au besoin les règles CSS pour les formulations françaises plus longues, sans masque ni troncature d'action.
-- [ ] **T4 — Centraliser les formats d'affichage** :
+- [x] **T4 — Centraliser les formats d'affichage** :
   - Fournir un utilitaire/composable léger de formatage fondé sur `Intl`, dépendant réactivement de la langue choisie (mapping explicite `fr → fr-FR`, `en → en-US`, `zh → zh-CN`).
   - Remplacer les appels visibles codés en dur (`Process.vue` : `zh-CN` ; `GraphPanel.vue` et `Step3Simulation.vue` : `en-US` ; `HistoryDatabase.vue` : assemblage manuel `YYYY-MM-DD` ; `ReportView.vue` : horodatage de journal).
   - Préserver les instants et le fuseau prévu par le produit ; **ne pas modifier les dates ISO stockées ou transmises au backend**. Traiter `null`, vide et date invalide par un repli stable.
-- [ ] **T5 — Vérifier la locale côté API** :
+- [x] **T5 — Vérifier la locale côté API** :
   - Valider `frontend/src/api/index.js`, où l'intercepteur injecte déjà `Accept-Language`, et s'assurer que les modules `graph`, `simulation` et `report` utilisent ce client.
   - Tester la lecture de la locale **au moment de chaque requête** après une bascule, sans duplication globale d'en-têtes Axios.
 - [ ] **T6 — Tests automatisés et qualification** :
@@ -114,7 +114,7 @@ Conserver les mécanismes déjà fonctionnels, extraire une seule couche légèr
 
 ## Revue
 
-**Non réalisée — story au statut `backlog`.** Lors de la revue de l'implémentation, examiner explicitement :
+**Revue statique initiale du 15 octobre 2026 — statut `review`.** La vérification CI post-commit et la revue visuelle Docker sur navigateurs réels restent à compléter. Axes examinés :
 
 1. **Contrat** : AC1–AC7 démontrés, séparation nette entre IHM et génération LLM (008-3).
 2. **Architecture** : source unique de locale, aucun registre supplémentaire, en-têtes API sans désynchronisation.
@@ -127,6 +127,17 @@ Consigner ici les findings, leur sévérité, la décision et les correctifs eff
 
 ## Notes de complétion
 
-**Aucune implémentation livrée par cette story à ce stade.** Le présent document formalise le périmètre, les critères d'acceptation, les tâches et les risques techniques en préparation du développement.
+**Implémentation livrée en revue** : sélecteur natif Vue I18n accessible au clavier, dictionnaires détectés via Vite, choix validé et conservé, `<html lang>` synchronisé par un watcher global. En-tête HTTP lu à chaque requête. Formats `Intl` centralisés et réactifs, dates invalides protégées, horodatages de journaux stockés sous forme ISO plutôt qu'en chaînes déjà formatées. Parcours réellement accessibles audités : accueil, MainView, SimulationView, SimulationRunView, ReportView, InteractionView et composants Step1 à Step5, GraphPanel, HistoryDatabase. `Process.vue` est un fichier historique non routé : `/process/:projectId` charge `MainView.vue` ; le composant non utilisé reste inchangé (KISS).
+
+**Tests ajoutés** : suite Node native hermétique (`pnpm --dir frontend test`, préférences, parité des clés, formatage, header Axios simulé, contrat du sélecteur) intégrée à la CI avant `pnpm build`. Le test backend de parité conserve sa vérification stricte et abandonne seulement le nombre figé de clés après ajout de chaînes UI. La nouvelle section `ui` a 110 clés sur les trois dictionnaires EN/FR/ZH.
+
+**Findings** :
+- H1 (corrigé) : préférence inconnue/stockage bloqué faisait échouer ou dégrader l'initialisation ; repli strict `zh` et écriture best-effort.
+- H2 (corrigé) : affichages de dates et journaux codés `en-US`/assemblage manuel, non réactifs, et `Invalid Date` possible ; formatteurs purs et horodatages ISO.
+- M1 (corrigé) : statuts, textes de navigation et titres de panneaux de simulation et de rapport en anglais ; dictionnaire commun ajouté avec parité.
+- M2 (corrigé) : liste cliquable sans garanties clavier/lecteur d'écran ; `<select>` natif avec étiquette traduite.
+- L1 (assumé) : contenus de graphe et LLM non traduits, hors périmètre 008-3.
+
+**Qualification non revendiquée** : la build, les tests Node, la suite backend et la validation des plans devront être vérifiés sur le commit GitHub ; aucun contrôle visuel Docker bureau/mobile n'a été réalisé depuis cet environnement. Maintenir le statut `review` tant que ces preuves manquent. Ne pas déclarer `done` sans elles.
 
 À la clôture, consigner les fichiers modifiés, les tests réellement exécutés et leurs résultats, les écarts résiduels, les commits associés ainsi que le verdict de la revue. Ne pas cocher la définition de fini ni annoncer une CI verte sans preuve.
