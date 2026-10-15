@@ -2,7 +2,7 @@
 id: "008-2"
 epic: "008"
 titre: "Intégration et bascule IHM frontend Vue 3 (sélecteur, formats régionaux fr-FR)"
-statut: review
+statut: in-progress
 auteur: "Équipe MiroFish"
 format: "2"
 ---
@@ -114,7 +114,7 @@ Conserver les mécanismes déjà fonctionnels, extraire une seule couche légèr
 
 ## Revue
 
-**Revue statique initiale du 15 octobre 2026 — statut `review`.** La vérification CI post-commit et la revue visuelle Docker sur navigateurs réels restent à compléter. Axes examinés :
+**Revue statique initiale du 15 octobre 2026 — statut `in-progress`.** La vérification CI post-commit et la revue visuelle Docker sur navigateurs réels restent à compléter. Axes examinés :
 
 1. **Contrat** : AC1–AC7 démontrés, séparation nette entre IHM et génération LLM (008-3).
 2. **Architecture** : source unique de locale, aucun registre supplémentaire, en-têtes API sans désynchronisation.
@@ -127,7 +127,7 @@ Consigner ici les findings, leur sévérité, la décision et les correctifs eff
 
 ## Notes de complétion
 
-**Implémentation livrée en revue** : sélecteur natif Vue I18n accessible au clavier, dictionnaires détectés via Vite, choix validé et conservé, `<html lang>` synchronisé par un watcher global. En-tête HTTP lu à chaque requête. Formats `Intl` centralisés et réactifs, dates invalides protégées, horodatages de journaux stockés sous forme ISO plutôt qu'en chaînes déjà formatées. Parcours réellement accessibles audités : accueil, MainView, SimulationView, SimulationRunView, ReportView, InteractionView et composants Step1 à Step5, GraphPanel, HistoryDatabase. `Process.vue` est un fichier historique non routé : `/process/:projectId` charge `MainView.vue` ; le composant non utilisé reste inchangé (KISS).
+**Implémentation livrée pour qualification** : sélecteur natif Vue I18n accessible au clavier, dictionnaires détectés via Vite, choix validé et conservé, `<html lang>` synchronisé par un watcher global. En-tête HTTP lu à chaque requête. Formats `Intl` centralisés et réactifs, dates invalides protégées, horodatages de journaux stockés sous forme ISO plutôt qu'en chaînes déjà formatées. Parcours réellement accessibles audités : accueil, MainView, SimulationView, SimulationRunView, ReportView, InteractionView et composants Step1 à Step5, GraphPanel, HistoryDatabase. `Process.vue` est un fichier historique non routé : `/process/:projectId` charge `MainView.vue` ; le composant non utilisé reste inchangé (KISS).
 
 **Tests ajoutés** : suite Node native hermétique (`pnpm --dir frontend test`, préférences, parité des clés, formatage, header Axios simulé, contrat du sélecteur) intégrée à la CI avant `pnpm build`. Le test backend de parité conserve sa vérification stricte et abandonne seulement le nombre figé de clés après ajout de chaînes UI. La nouvelle section `ui` a 113 clés sur les trois dictionnaires EN/FR/ZH.
 
@@ -138,6 +138,6 @@ Consigner ici les findings, leur sévérité, la décision et les correctifs eff
 - M2 (corrigé) : liste cliquable sans garanties clavier/lecteur d'écran ; `<select>` natif avec étiquette traduite.
 - L1 (assumé) : contenus de graphe et LLM non traduits, hors périmètre 008-3.
 
-**Qualification non revendiquée** : la build, les tests Node, la suite backend et la validation des plans devront être vérifiés sur le commit GitHub ; aucun contrôle visuel Docker bureau/mobile n'a été réalisé depuis cet environnement. Maintenir le statut `review` tant que ces preuves manquent. Ne pas déclarer `done` sans elles.
+**Qualification non revendiquée** : la build, les tests Node, la suite backend et la validation des plans devront être vérifiés sur le commit GitHub ; aucun contrôle visuel Docker bureau/mobile n'a été réalisé depuis cet environnement. Maintenir le statut `in-progress` tant que ces preuves manquent. Ne pas déclarer `done` sans elles.
 
 À la clôture, consigner les fichiers modifiés, les tests réellement exécutés et leurs résultats, les écarts résiduels, les commits associés ainsi que le verdict de la revue. Ne pas cocher la définition de fini ni annoncer une CI verte sans preuve.

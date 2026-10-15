@@ -623,7 +623,7 @@ epics:
     # via normalize_locale() (support fr, fr-FR, fr-BE, etc.). Suite unitaire hermétique
     # backend/tests/test_i18n_parity.py (7 tests passants). Revue BMAD à 4 couches validée.
     # Filet global porté à 1589 tests réussis sur l'hôte (+7 tests).
-    # Story 008-2 (REVIEW) : sélecteur natif accessible, locale unique et persistante,
+    # Story 008-2 (IN-PROGRESS) : sélecteur natif accessible, locale unique et persistante,
     # formats Intl réactifs EN/FR/ZH, statuts et panneaux traduits, tests Node frontend
     # et intercepteur Accept-Language réactif. CI post-commit + revue visuelle à qualifier.
     # Epic 008 in-progress (1/3 stories closes : 008-1 done).
