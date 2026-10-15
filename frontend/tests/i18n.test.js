@@ -11,8 +11,12 @@ const sample = '2026-10-15T14:05:06.123Z'
 const utc = { timeZone: 'UTC' }
 
 test('French dictionary is present once among discovered locale files', async () => {
-  const languages = JSON.parse(await readFile(new URL('../../locales/languages.json', import.meta.url)))
-  const locales = await Promise.all(supported.map(async locale => JSON.parse(await readFile(new URL(`../../locales/${locale}.json`, import.meta.url))))
+  const languages = JSON.parse(await readFile(new URL('../../locales/languages.json', import.meta.url), 'utf8'))
+  const locales = []
+  for (const locale of supported) {
+    const contents = await readFile(new URL(`../../locales/${locale}.json`, import.meta.url), 'utf8')
+    locales.push(JSON.parse(contents))
+  }
   assert.equal(languages.fr.label, 'Français')
   assert.equal(new Set(supported).size, supported.length)
   const flatten = (object, prefix = '') => Object.entries(object).flatMap(([key, value]) => typeof value === 'object' && value !== null ? flatten(value, `${prefix}${key}.`) : [`${prefix}${key}`])
@@ -70,8 +74,7 @@ test('null and invalid temporal values yield a stable placeholder', () => {
 })
 
 test('log timestamps retain milliseconds and regional time', () => {
-  assert.equal(formatLogTimeValue(sample, 'fr'), formatLogTimeValue(sample, 'fr')) // deterministic
-  assert.match(formatLogTimeValue(sample, 'fr'), /\.123$/)
+  assert.match(formatLogTimeValue(sample, 'fr'), /^\d{2}:\d{2}:\d{2}\.123$/)
 })
 
 test('Axios interceptor resolves Accept-Language freshly for every request', async () => {
