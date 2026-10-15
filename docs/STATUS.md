@@ -4,11 +4,14 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas une seconde saisie.
 
-> Dernière mise à jour : **14 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **15 octobre 2026** · branche `local-first`
 
 ---
 
 ## Où on en est
+
+L'**Epic 010 (Fiabilisation du cycle de vie et de la complétion des simulations) est en cours (1/3 stories validées — 1562 tests verts)** :
+- **Story 010-1 (done au 15 octobre 2026)** : Arrêt déterministe (`--no-wait`) et statut `COMPLETED` automatique. Injection systématique de `--no-wait` par défaut dans `SimulationRunner._start_simulation` pour les simulations parallèles, Twitter et Reddit, empêchant le verrouillage historique en fin de simulation. Support optionnel du mode interactif persistant `keep_alive_on_completion: bool | None = None` via l'API `POST /api/simulation/start`, `SimulationRunState` et `simulation_config.json`. Supervision active de complétion dans `_monitor_simulation` via `_check_all_platforms_completed(state)` avec préservation stricte du mode interactif (Patch 1 BMAD), délai de grâce (5 s), émission de repli de la commande IPC `send_close_env()` et terminaison de sécurité forcée à 10 s (NFR-3). Bascule déterministe vers `RunnerStatus.COMPLETED` avec horodatage strict ISO 8601 (`completed_at`), écriture atomique dans `run_state.json` et synchronisation sans délai. Barrière de drain mémoire `ZepGraphMemoryManager.stop_updater()` respectée sous verrou de finalisation (AC5). 11 tests unitaires hermétiques dédiés créés dans `backend/tests/test_simulation_runner_completion.py`, filet global porté à **1562 tests passants sur l'hôte** (0 échec).
 
 L'**épreuve Graphiti local (Epic 001)** a été validée avec succès (**Verdict GO**).
 

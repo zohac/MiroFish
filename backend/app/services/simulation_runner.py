@@ -151,6 +151,9 @@ class SimulationRunState:
     # 进程ID（用于停止）
     process_pid: Optional[int] = None
     
+    # 是否在模拟完成后保持环境常驻（Story 010-1, AC1）
+    keep_alive_on_completion: bool = False
+    
     def add_action(self, action: AgentAction):
         """添加动作到最近动作列表"""
         self.recent_actions.insert(0, action)
@@ -190,6 +193,7 @@ class SimulationRunState:
             "completed_at": self.completed_at,
             "error": self.error,
             "process_pid": self.process_pid,
+            "keep_alive_on_completion": self.keep_alive_on_completion,
         }
     
     def to_detail_dict(self) -> Dict[str, Any]:
@@ -330,6 +334,7 @@ class SimulationRunner:
                 completed_at=data.get("completed_at"),
                 error=data.get("error"),
                 process_pid=data.get("process_pid"),
+                keep_alive_on_completion=data.get("keep_alive_on_completion", False),
             )
             
             # 加载最近动作
@@ -373,7 +378,8 @@ class SimulationRunner:
         platform: str = "parallel",  # twitter / reddit / parallel
         max_rounds: int = None,  # 最大模拟轮数（可选，用于截断过长的模拟）
         enable_graph_memory_update: bool = False,  # 是否将活动更新到Zep图谱
-        graph_id: str = None  # Zep图谱ID（启用图谱更新时必需）
+        graph_id: str = None,  # Zep图谱ID（启用图谱更新时必需）
+        keep_alive_on_completion: bool | None = None  # 是否在模拟完成后保持环境常驻（None: 从配置读取，默认False：立即退出）
     ) -> SimulationRunState:
         """
         启动模拟
@@ -384,6 +390,7 @@ class SimulationRunner:
             max_rounds: 最大模拟轮数（可选，用于截断过长的模拟）
             enable_graph_memory_update: 是否将Agent活动动态更新到Zep图谱
             graph_id: Zep图谱ID（启用图谱更新时必需）
+            keep_alive_on_completion: 是否在模拟完成后保持环境等待命令（None: 从配置读取，默认False注入--no-wait）
             
         Returns:
             SimulationRunState
@@ -397,6 +404,12 @@ class SimulationRunner:
         
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
+        
+        # Initialiser keep_alive depuis l'argument ou la configuration de simulation
+        if keep_alive_on_completion is not None:
+            keep_alive = bool(keep_alive_on_completion)
+        else:
+            keep_alive = bool(config.get("keep_alive_on_completion", False))
         
         # 初始化运行状态
         time_config = config.get("time_config", {})
@@ -417,6 +430,7 @@ class SimulationRunner:
             total_rounds=total_rounds,
             total_simulation_hours=total_hours,
             started_at=datetime.now().isoformat(),
+            keep_alive_on_completion=keep_alive,
         )
         
         # Atomically claim this simulation ID. The expensive updater/process
@@ -522,6 +536,10 @@ class SimulationRunner:
             # 如果指定了最大轮数，添加到命令行参数
             if max_rounds is not None and max_rounds > 0:
                 cmd.extend(["--max-rounds", str(max_rounds)])
+            
+            # 默认注入 --no-wait 确保模拟完成后子进程立即退出，避免挂起（Story 010-1, FR-1, AC1）
+            if not keep_alive:
+                cmd.append("--no-wait")
             
             # 创建主日志文件，避免 stdout/stderr 管道缓冲区满导致进程阻塞
             main_log_path = os.path.join(sim_dir, "simulation.log")
@@ -633,6 +651,8 @@ class SimulationRunner:
         
         twitter_position = 0
         reddit_position = 0
+        platforms_completed_at: float | None = None
+        close_env_sent = False
         
         monitor_error: Exception | None = None
         exit_code: int | None = None
@@ -652,6 +672,49 @@ class SimulationRunner:
                 
                 # 更新状态
                 cls._save_run_state(state)
+
+                # Active completion supervision (Story 010-1, FR-1, AC2, AC3)
+                # Si le mode persistant n'est pas requis et que toutes les plateformes activées ont terminé
+                if not state.keep_alive_on_completion and cls._check_all_platforms_completed(state):
+                    now = time.time()
+                    if platforms_completed_at is None:
+                        platforms_completed_at = now
+                        logger.info(
+                            f"Plateformes terminées détectées pour {simulation_id}, "
+                            "surveillance active de fin de processus initiée"
+                        )
+                    
+                    elapsed_since_completion = now - platforms_completed_at
+                    # Après 5s de grâce, envoyer close_env par IPC si le processus est toujours là
+                    if elapsed_since_completion >= 5.0 and not close_env_sent:
+                        close_env_sent = True
+                        logger.info(
+                            f"Processus toujours actif après 5s de complétion ({simulation_id}) : "
+                            "émission de la commande IPC close_env"
+                        )
+                        try:
+                            ipc_client = SimulationIPCClient(sim_dir)
+                            if ipc_client.check_env_alive():
+                                ipc_client.send_close_env(timeout=3.0)
+                        except Exception as ipc_err:
+                            logger.warning(
+                                f"Échec de l'envoi IPC close_env ({simulation_id}): {ipc_err}"
+                            )
+                    
+                    # Après 10s au total (5s supplémentaires), terminer le processus si toujours pas éteint
+                    if elapsed_since_completion >= 10.0:
+                        logger.warning(
+                            f"Processus non terminé 10s après la fin des plateformes ({simulation_id}) : "
+                            "terminaison forcée de sécurité"
+                        )
+                        try:
+                            cls._terminate_process(process, simulation_id, timeout=3)
+                        except Exception as term_err:
+                            logger.error(
+                                f"Erreur lors de la terminaison de sécurité ({simulation_id}): {term_err}"
+                            )
+                        break
+
                 time.sleep(2)
             
             # 进程结束后，最后读取一次日志
@@ -660,7 +723,14 @@ class SimulationRunner:
             if os.path.exists(reddit_actions_log):
                 cls._read_action_log(reddit_actions_log, reddit_position, state, "reddit")
             
-            exit_code = process.returncode
+            exit_code = process.poll()
+            if exit_code is None:
+                exit_code = process.returncode
+            if exit_code is None:
+                try:
+                    exit_code = process.wait(timeout=1)
+                except Exception:
+                    pass
             
         except Exception as e:
             logger.error(f"监控线程异常: {simulation_id}, error={str(e)}")

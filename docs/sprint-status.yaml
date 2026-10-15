@@ -17,7 +17,16 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-14
+mis_a_jour: 2026-10-15
+# 15 oct. 2026 : story 010-1 passe review -> done après la revue de code BMAD
+# contradictoire à 4 couches (4 patches appliqués). Injection systématique de --no-wait dans SimulationRunner._start_simulation
+# pour les plateformes parallel, twitter et reddit, support interactif optionnel keep_alive_on_completion
+# (API /start, SimulationRunState et simulation_config.json) avec surcharge explicite False vs config True.
+# Supervision active de complétion dans _monitor_simulation via _check_all_platforms_completed avec préservation
+# stricte du mode persistant (Patch 1 BMAD), délai de grâce 5s, émission IPC send_close_env puis terminaison
+# de sécurité à 10s. Passage automatique et horodaté à RunnerStatus.COMPLETED après drain mémoire.
+# 11 tests hermétiques dédiés ajoutés (test_simulation_runner_completion.py), filet global de tests porté
+# à 1562 tests passants sur l'hôte (0 échec). Epic 010 in-progress (1/3 closes : 010-1 done).
 # 14 oct. 2026 : story 007-7 passe review -> done après la revue de code BMAD
 # contradictoire à 4 couches (8 patches appliqués). Qualification globale C1 à C8
 # orchestrée par verifier_qualification_epic_007.py, rapport formel
@@ -663,7 +672,7 @@ epics:
   - id: "010"
     slug: fiabilisation-cycle-simulation
     titre: "Fiabilisation du cycle de vie et de la complétion des simulations"
-    statut: backlog
+    statut: in-progress
     plan: docs/plans/010-fiabilisation-cycle-simulation
     depend_de: ["005", "007", "009"]
     pourquoi: >-
