@@ -408,6 +408,7 @@ class TwitterSimulationRunner:
         """
         self.config_path = config_path
         self.config = self._load_config()
+        set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE') or self.config.get('locale'))
         self.simulation_dir = os.path.dirname(config_path)
         self.wait_for_commands = wait_for_commands
         self.env = None
@@ -731,8 +732,6 @@ async def main():
     )
     
     args = parser.parse_args()
-    # Langue transmise par le lanceur pour ce processus uniquement.
-    set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE', 'zh'))
     
     # 在 main 函数开始时创建 shutdown 事件
     global _shutdown_event

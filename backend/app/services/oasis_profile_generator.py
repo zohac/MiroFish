@@ -950,6 +950,19 @@ class OasisProfileGenerator:
         role: Optional[ActorRole] = None,
     ) -> Dict[str, Any]:
         """使用规则生成基础人设"""
+
+        # Pour une génération sans LLM, ne pas inventer de biographie ni
+        # conserver un gabarit anglais dans un parcours francophone.
+        if get_locale() == "fr":
+            result = self._localized_fallback(entity_name, entity_type, "")
+            if entity_summary:
+                result["persona"] += f"\nContexte fourni (texte original) : {entity_summary}"
+            occupation = entity_attributes.get("occupation") if entity_attributes else None
+            if occupation:
+                result["profession"] = occupation
+            if role == ActorRole.ORGANIZATION:
+                result["gender"] = "other"
+            return result
         
         # Le gabarit suit d'abord le type d'origine du graphe ; le rôle qualifié
         # ne sert que de repli quand ce type n'a pas de gabarit dédié (AC7 : le

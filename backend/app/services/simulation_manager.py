@@ -146,7 +146,6 @@ class SimulationState:
     simulation_id: str
     project_id: str
     graph_id: str
-    locale: str = "zh"  # Langue canonique fixée à la création.
     
     # 平台启用状态
     enable_twitter: bool = True
@@ -187,6 +186,7 @@ class SimulationState:
     
     # 错误信息
     error: Optional[str] = None
+    locale: str = "zh"  # Langue canonique fixée à la création.
     
     def to_dict(self) -> Dict[str, Any]:
         """完整状态字典（内部使用）"""

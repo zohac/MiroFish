@@ -1526,8 +1526,6 @@ async def main():
     )
     
     args = parser.parse_args()
-    # Langue transmise par le lanceur pour ce processus uniquement.
-    set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE', 'zh'))
     
     # 在 main 函数开始时创建 shutdown 事件，确保整个程序都能响应退出信号
     global _shutdown_event
@@ -1538,6 +1536,7 @@ async def main():
         sys.exit(1)
     
     config = load_config(args.config)
+    set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE') or config.get('locale'))
     simulation_dir = os.path.dirname(args.config) or "."
     wait_for_commands = not args.no_wait
     

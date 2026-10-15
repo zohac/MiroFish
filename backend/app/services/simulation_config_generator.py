@@ -154,7 +154,6 @@ class SimulationParameters:
     project_id: str
     graph_id: str
     simulation_requirement: str
-    locale: str = "zh"
     
     # 时间配置
     time_config: TimeSimulationConfig = field(default_factory=TimeSimulationConfig)
@@ -185,6 +184,7 @@ class SimulationParameters:
 
     # Story 007-5 : référence immuable à l'ontologie projet appliquée (AC1, C5).
     applied_ontology_id: Optional[str] = None
+    locale: str = "zh"
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""

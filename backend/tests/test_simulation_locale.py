@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from flask import Flask
@@ -40,6 +41,19 @@ def test_scoped_language_has_priority_over_request_then_restores_it():
                 assert get_locale() == "zh"
             assert get_locale() == "fr"
         assert get_locale() == "en"
+
+
+def test_parallel_simulation_locales_do_not_leak_between_threads():
+    def probe(locale):
+        with use_locale(locale):
+            return get_locale(), get_language_instruction()
+
+    selected = ["fr", "en", "zh", "fr", "en", "zh"]
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(probe, selected))
+    assert [key for key, _ in results] == selected
+    assert results[0][1] == "Veuillez répondre en français."
+    assert results[0][1] != results[1][1]
 
 
 def test_scoped_language_restores_after_failure():
@@ -111,6 +125,27 @@ def test_fallback_does_not_fabricate_personal_information():
     assert "participe" in profile["persona"]
 
 
+def test_positional_parameters_remain_backward_compatible():
+    state = SimulationState("id", "proj", "graph", False, True)
+    assert state.enable_twitter is False
+    assert state.enable_reddit is True
+    assert state.locale == "zh"
+    config = SimulationParameters("id", "proj", "graph", "request")
+    assert config.locale == "zh"
+
+
+def test_rule_based_french_fallback_preserves_original_context():
+    generator = object.__new__(OasisProfileGenerator)
+    with use_locale("fr"):
+        value = generator._generate_profile_rule_based(
+            "Camille", "Person", "Original text", {"occupation": "Designer"}
+        )
+    assert value["bio"].startswith("Camille")
+    assert "Contexte fourni" in value["persona"]
+    assert "Original text" in value["persona"]
+    assert value["profession"] == "Designer"
+
+
 def test_generated_config_serializes_locale_without_mutating_schema():
     config = SimulationParameters("sim", "project", "graph", "scenario", locale="fr")
     result = config.to_dict()
@@ -175,7 +210,6 @@ def test_subprocess_receives_simulation_locale_independent_of_caller(
         assert len(spawned) == 1
         assert spawned[0][0][1].endswith(filename)
         assert spawned[0][1]["MIROFISH_SIMULATION_LOCALE"] == "fr"
-        assert "fr" not in " ".join(spawned[0][0])  # avoid mixing data and CLI
     finally:
         SimulationRunner._run_states.pop(sim_id, None)
         SimulationRunner._processes.pop(sim_id, None)

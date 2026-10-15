@@ -68,7 +68,7 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
 
 ## Tâches
 
-- [x] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
+- [ ] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
   - Construire une matrice des producteurs LLM et des frontières de contexte : `backend/app/api/{simulation,report}.py`, `simulation_manager.py`, `oasis_profile_generator.py`, `simulation_config_generator.py`, `ontology_generator.py`, `simulation_runner.py`, `backend/scripts/run_{parallel,twitter,reddit}_simulation.py`, `report_agent.py`.
   - Inventorier les prompts réels de chaque appel et chemin alternatif (retries, fallback, batch, conversation, outil). Distinguer résultat destiné à l'utilisateur, champ technique, donnée passive, source externe et journal brut.
   - Établir une CI de référence et des fixtures sans LLM vivant ; consigner les hypothèses sur les hooks réellement exposés par OASIS.
@@ -170,4 +170,4 @@ Ne jamais cocher le DoD ni attribuer de verdict GO tant qu'aucune mesure réelle
 
 ## Notes de complétion
 
-**Implémentation initiale en cours sur `local-first`** : `SimulationState.locale` persistée, contexte `use_locale` restauré, propagation aux sous-processus OASIS et aides linguistiques des profils, tests hermétiques. Les épreuves sur un modèle LLM réel et la validation Docker ne sont pas encore réalisées. Lors de la clôture, consigner les fichiers changés, références des commits, tests exécutés et résultats, matrice AC1–AC8, modèle et environnement du banc réel, constats de revue et éventuelles limites acceptées.
+**Implémentation initiale en cours sur `local-first`** : `SimulationState.locale` persistée, contexte `use_locale` restauré, propagation aux sous-processus OASIS et aides linguistiques des profils, tests hermétiques. Les épreuves sur un modèle LLM réel et la validation Docker ne sont pas encore réalisées. La cartographie exhaustive des prompts (T1), la localisation de tous les chemins de génération (T4/T5) et les vérifications de comportements des agents (T7) restent ouvertes. Les tests hermétiques ne prouvent pas à eux seuls que le modèle suivra la langue des publications. Lors de la clôture, consigner les fichiers changés, références des commits, tests exécutés et résultats, matrice AC1–AC8, modèle et environnement du banc réel, constats de revue et éventuelles limites acceptées.
