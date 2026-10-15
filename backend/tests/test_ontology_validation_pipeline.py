@@ -3,6 +3,7 @@
 import asyncio
 from copy import deepcopy
 import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -313,6 +314,15 @@ def test_build_restores_strict_project_preference(tmp_path, monkeypatch, pipelin
         response = create_app().test_client().post("/api/graph/build", json={"project_id": project.project_id})
         assert response.status_code == 200
         assert finished.wait(3)
+
+        # The worker persists the failed project before updating the task.
+        # Wait for the terminal task state to avoid racing that final update.
+        task_id = response.json["data"]["task_id"]
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            if TaskManager().get_task(task_id).status == TaskStatus.FAILED:
+                break
+            time.sleep(0.01)
     reloaded = ProjectManager.get_project(project.project_id)
     assert reloaded.status == ProjectStatus.FAILED
     assert store.get_applied_ontology(reloaded.graph_id).strict is True
