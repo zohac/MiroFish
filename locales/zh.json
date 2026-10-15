@@ -347,7 +347,21 @@
     "notStarted": "未开始",
     "roundsProgress": "{current}/{total} 轮",
     "untitledSimulation": "未命名模拟",
-    "unknownFile": "未知文件"
+    "unknownFile": "未知文件",
+    "searchPlaceholder": "搜索ID、需求、文件...",
+    "filterAll": "全部",
+    "filterCompleted": "已完成",
+    "filterInProgress": "进行中",
+    "filterHasReport": "有分析报告",
+    "loadMore": "加载更多模拟",
+    "loadingMore": "加载中...",
+    "showingCount": "显示 {count} / {total} 条",
+    "noResultsFound": "未找到匹配条件的模拟",
+    "resetFilters": "重置筛选",
+    "refresh": "刷新",
+    "copyId": "复制ID",
+    "copied": "已复制!",
+    "viewReportDirect": "查看报告"
   },
   "api": {
     "projectNotFound": "项目不存在: {id}",

@@ -347,7 +347,21 @@
     "notStarted": "Not started",
     "roundsProgress": "{current}/{total} rounds",
     "untitledSimulation": "Untitled simulation",
-    "unknownFile": "Unknown file"
+    "unknownFile": "Unknown file",
+    "searchPlaceholder": "Search by ID, requirement, file...",
+    "filterAll": "All",
+    "filterCompleted": "Completed",
+    "filterInProgress": "In Progress",
+    "filterHasReport": "Report Ready",
+    "loadMore": "Load more simulations",
+    "loadingMore": "Loading...",
+    "showingCount": "Showing {count} of {total}",
+    "noResultsFound": "No simulations found matching your criteria",
+    "resetFilters": "Reset filters",
+    "refresh": "Refresh",
+    "copyId": "Copy ID",
+    "copied": "Copied!",
+    "viewReportDirect": "View Report"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",

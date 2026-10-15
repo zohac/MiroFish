@@ -971,6 +971,20 @@ class SimulationManager:
                     if project_id is None or state.project_id == project_id:
                         simulations.append(state)
         
+        # Tri déterministe antéchronologique (plus récent en premier)
+        def _get_sort_key(s: SimulationState) -> str:
+            if s.created_at:
+                return s.created_at
+            if s.updated_at:
+                return s.updated_at
+            try:
+                sim_path = os.path.join(self.SIMULATION_DATA_DIR, s.simulation_id)
+                mtime = os.path.getmtime(sim_path)
+                return datetime.fromtimestamp(mtime).isoformat()
+            except Exception:
+                return ""
+
+        simulations.sort(key=_get_sort_key, reverse=True)
         return simulations
     
     def get_profiles(self, simulation_id: str, platform: str = None) -> List[Dict[str, Any]]:

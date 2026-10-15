@@ -1,11 +1,10 @@
 <template>
   <div 
     class="history-database"
-    :class="{ 'no-projects': projects.length === 0 && !loading }"
     ref="historyContainer"
   >
-    <!-- 背景装饰：技术网格线（只在有项目时显示） -->
-    <div v-if="projects.length > 0 || loading" class="tech-grid-bg">
+    <!-- 背景装饰：技术网格线 -->
+    <div class="tech-grid-bg">
       <div class="grid-pattern"></div>
       <div class="gradient-overlay"></div>
     </div>
@@ -13,99 +12,216 @@
     <!-- 标题区域 -->
     <div class="section-header">
       <div class="section-line"></div>
-      <span class="section-title">{{ $t('history.title') }}</span>
+      <div class="section-title-wrap">
+        <span class="section-title">{{ $t('history.title') }}</span>
+        <span v-if="totalCount > 0" class="total-badge">{{ totalCount }}</span>
+      </div>
       <div class="section-line"></div>
     </div>
 
-    <!-- 卡片容器（只在有项目时显示） -->
-    <div v-if="projects.length > 0" class="cards-container" :class="{ expanded: isExpanded }" :style="containerStyle">
-      <div 
-        v-for="(project, index) in projects" 
-        :key="project.simulation_id"
-        class="project-card"
-        :class="{ expanded: isExpanded, hovering: hoveringCard === index }"
-        :style="getCardStyle(index)"
-        @mouseenter="hoveringCard = index"
-        @mouseleave="hoveringCard = null"
-        @click="navigateToProject(project)"
-      >
-        <!-- 卡片头部：simulation_id 和 功能可用状态 -->
-        <div class="card-header">
-          <span class="card-id">{{ formatSimulationId(project.simulation_id) }}</span>
-          <div class="card-status-icons">
-            <span 
-              class="status-icon" 
-              :class="{ available: project.project_id, unavailable: !project.project_id }"
-              :title="$t('history.graphBuild')"
-            >◇</span>
-            <span 
-              class="status-icon available" 
-              :title="$t('history.envSetup')"
-            >◈</span>
-            <span 
-              class="status-icon" 
-              :class="{ available: project.report_id, unavailable: !project.report_id }"
-              :title="$t('history.analysisReport')"
-            >◆</span>
-          </div>
-        </div>
-
-        <!-- 文件列表区域 -->
-        <div class="card-files-wrapper">
-          <!-- 角落装饰 - 取景框风格 -->
-          <div class="corner-mark top-left-only"></div>
-          
-          <!-- 文件列表 -->
-          <div class="files-list" v-if="project.files && project.files.length > 0">
-            <div 
-              v-for="(file, fileIndex) in project.files.slice(0, 3)" 
-              :key="fileIndex"
-              class="file-item"
-            >
-              <span class="file-tag" :class="getFileType(file.filename)">{{ getFileTypeLabel(file.filename) }}</span>
-              <span class="file-name">{{ truncateFilename(file.filename, 20) }}</span>
-            </div>
-            <!-- 如果有更多文件，显示提示 -->
-            <div v-if="project.files.length > 3" class="files-more">
-              {{ $t('history.moreFiles', { count: project.files.length - 3 }) }}
-            </div>
-          </div>
-          <!-- 无文件时的占位 -->
-          <div class="files-empty" v-else>
-            <span class="empty-file-icon">◇</span>
-            <span class="empty-file-text">{{ $t('history.noFiles') }}</span>
-          </div>
-        </div>
-
-        <!-- 卡片标题（使用模拟需求的前20字作为标题） -->
-        <h3 class="card-title">{{ getSimulationTitle(project.simulation_requirement) }}</h3>
-
-        <!-- 卡片描述（模拟需求完整展示） -->
-        <p class="card-desc">{{ truncateText(project.simulation_requirement, 55) }}</p>
-
-        <!-- 卡片底部 -->
-        <div class="card-footer">
-          <div class="card-datetime">
-            <span class="card-date">{{ formatDate(project.created_at) }}</span>
-            <span class="card-time">{{ formatTime(project.created_at) }}</span>
-          </div>
-          <span class="card-progress" :class="getProgressClass(project)">
-            <span class="status-dot">●</span> {{ formatRounds(project) }}
-          </span>
-        </div>
-        
-        <!-- 底部装饰线 (hover时展开) -->
-        <div class="card-bottom-line"></div>
+    <!-- 顶栏控制栏：搜索、筛选与刷新 -->
+    <div class="history-controls">
+      <!-- 搜索输入框 -->
+      <div class="search-input-wrapper">
+        <span class="search-icon">⌕</span>
+        <input 
+          type="text"
+          v-model="searchQuery"
+          :placeholder="$t('history.searchPlaceholder')"
+          class="search-input"
+          @keydown.esc="clearSearch"
+        />
+        <button 
+          v-if="searchQuery" 
+          class="clear-search-btn"
+          @click="clearSearch"
+          title="Clear"
+        >×</button>
       </div>
+
+      <!-- 状态筛选胶囊 -->
+      <div class="status-filters">
+        <button 
+          class="filter-pill"
+          :class="{ active: activeFilter === 'all' }"
+          @click="setFilter('all')"
+        >
+          {{ $t('history.filterAll') }}
+        </button>
+        <button 
+          class="filter-pill"
+          :class="{ active: activeFilter === 'completed' }"
+          @click="setFilter('completed')"
+        >
+          <span class="pill-dot dot-completed">●</span>
+          {{ $t('history.filterCompleted') }}
+        </button>
+        <button 
+          class="filter-pill"
+          :class="{ active: activeFilter === 'in_progress' }"
+          @click="setFilter('in_progress')"
+        >
+          <span class="pill-dot dot-in-progress">●</span>
+          {{ $t('history.filterInProgress') }}
+        </button>
+        <button 
+          class="filter-pill"
+          :class="{ active: activeFilter === 'has_report' }"
+          @click="setFilter('has_report')"
+        >
+          <span class="pill-dot dot-report">◆</span>
+          {{ $t('history.filterHasReport') }}
+        </button>
+      </div>
+
+      <!-- 刷新按钮 -->
+      <button 
+        class="refresh-btn"
+        :class="{ spinning: loading }"
+        @click="refreshHistory"
+        :title="$t('history.refresh')"
+      >
+        <span class="refresh-icon">↻</span>
+      </button>
     </div>
 
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
+    <!-- 加载中指示器 (初始全屏) -->
+    <div v-if="loading && projects.length === 0" class="loading-state">
       <span class="loading-spinner"></span>
       <span class="loading-text">{{ $t('history.loadingText') }}</span>
     </div>
 
-    <!-- 历史回放详情弹窗 -->
+    <!-- 空状态：无项目或无搜索结果 -->
+    <div v-else-if="projects.length === 0" class="empty-results">
+      <div class="empty-icon">◇</div>
+      <p class="empty-title">{{ hasActiveFilters ? $t('history.noResultsFound') : $t('history.noFiles') }}</p>
+      <button 
+        v-if="hasActiveFilters" 
+        class="reset-filters-btn"
+        @click="resetAllFilters"
+      >
+        {{ $t('history.resetFilters') }}
+      </button>
+    </div>
+
+    <!-- 卡片网格容器 -->
+    <div v-else class="cards-grid-wrapper">
+      <div class="cards-grid">
+        <div 
+          v-for="project in projects" 
+          :key="project.simulation_id"
+          class="project-card"
+          @click="navigateToProject(project)"
+        >
+          <!-- 角落取景框装饰 -->
+          <div class="corner-mark top-left"></div>
+          <div class="corner-mark bottom-right"></div>
+
+          <!-- 卡片头部：simulation_id + 复制 + 功能状态图标 -->
+          <div class="card-header">
+            <div class="card-id-wrap" @click.stop="copySimulationId(project.simulation_id)">
+              <span class="card-id">{{ formatSimulationId(project.simulation_id) }}</span>
+              <span class="copy-icon" :title="$t('history.copyId')">
+                {{ copiedId === project.simulation_id ? '✓' : '⧉' }}
+              </span>
+            </div>
+
+            <!-- 功能可用指示器 -->
+            <div class="card-status-icons">
+              <span 
+                class="status-icon" 
+                :class="{ available: project.project_id, unavailable: !project.project_id }"
+                :title="$t('history.graphBuild')"
+              >◇</span>
+              <span 
+                class="status-icon available" 
+                :title="$t('history.envSetup')"
+              >◈</span>
+              <span 
+                class="status-icon" 
+                :class="{ available: project.report_id, unavailable: !project.report_id }"
+                :title="$t('history.analysisReport')"
+              >◆</span>
+            </div>
+          </div>
+
+          <!-- 文件列表区域 -->
+          <div class="card-files-wrapper">
+            <div class="files-list" v-if="project.files && project.files.length > 0">
+              <div 
+                v-for="(file, fileIndex) in project.files.slice(0, 2)" 
+                :key="fileIndex"
+                class="file-item"
+              >
+                <span class="file-tag" :class="getFileType(file.filename)">{{ getFileTypeLabel(file.filename) }}</span>
+                <span class="file-name">{{ truncateFilename(file.filename, 22) }}</span>
+              </div>
+              <div v-if="project.files.length > 2" class="files-more">
+                {{ $t('history.moreFiles', { count: project.files.length - 2 }) }}
+              </div>
+            </div>
+            <div class="files-empty" v-else>
+              <span class="empty-file-icon">◇</span>
+              <span class="empty-file-text">{{ $t('history.noFiles') }}</span>
+            </div>
+          </div>
+
+          <!-- 项目名称标签（如有） -->
+          <div v-if="project.project_name" class="card-project-name">
+            <span class="project-tag-icon">📁</span>
+            <span class="project-tag-text">{{ truncateText(project.project_name, 28) }}</span>
+          </div>
+
+          <!-- 卡片标题 -->
+          <h3 class="card-title">{{ getSimulationTitle(project.simulation_requirement) }}</h3>
+
+          <!-- 卡片描述 -->
+          <p class="card-desc">{{ truncateText(project.simulation_requirement, 70) }}</p>
+
+          <!-- 卡片底部：时间、进度与报告直达 -->
+          <div class="card-footer">
+            <div class="card-datetime">
+              <span class="card-date">{{ formatDate(project.created_at) }}</span>
+              <span class="card-time">{{ formatTime(project.created_at) }}</span>
+            </div>
+
+            <div class="footer-right">
+              <!-- 直达报告按钮 (如果可用) -->
+              <button 
+                v-if="project.report_id"
+                class="direct-report-pill"
+                @click.stop="goToReportDirect(project.report_id)"
+                :title="$t('history.viewReportDirect')"
+              >
+                ◆ {{ $t('history.viewReportDirect') }}
+              </button>
+
+              <span class="card-progress" :class="getProgressClass(project)">
+                <span class="status-dot">●</span> {{ formatRounds(project) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 底部 hover 装饰线 -->
+          <div class="card-bottom-line"></div>
+        </div>
+      </div>
+
+      <!-- 加载更多区域 -->
+      <div v-if="hasMore || loadingMore" class="load-more-section">
+        <button 
+          class="load-more-btn"
+          @click="loadMore"
+          :disabled="loadingMore"
+        >
+          <span v-if="loadingMore" class="loading-spinner-sm"></span>
+          <span>{{ loadingMore ? $t('history.loadingMore') : $t('history.loadMore') }}</span>
+          <span v-if="!loadingMore" class="count-hint">({{ projects.length }} / {{ totalCount }})</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 历史回放详情弹窗 (Modal) -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="selectedProject" class="modal-overlay" @click.self="closeModal">
@@ -124,6 +240,12 @@
 
             <!-- 弹窗内容 -->
             <div class="modal-body">
+              <!-- 项目名称（如有） -->
+              <div v-if="selectedProject.project_name" class="modal-section">
+                <div class="modal-label">PROJECT NAME</div>
+                <div class="modal-project-name">{{ selectedProject.project_name }}</div>
+              </div>
+
               <!-- 模拟需求 -->
               <div class="modal-section">
                 <div class="modal-label">{{ $t('history.simRequirement') }}</div>
@@ -191,7 +313,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getSimulationHistory } from '../api/simulation'
@@ -200,121 +322,203 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 
-// 状态
+// 状态管理
 const projects = ref([])
+const totalCount = ref(0)
 const loading = ref(true)
-const isExpanded = ref(false)
-const hoveringCard = ref(null)
-const historyContainer = ref(null)
-const selectedProject = ref(null)  // 当前选中的项目（用于弹窗）
-let observer = null
-let isAnimating = false  // 动画锁，防止闪烁
-let expandDebounceTimer = null  // 防抖定时器
-let pendingState = null  // 记录待执行的目标状态
+const loadingMore = ref(false)
+const hasMore = ref(false)
+const selectedProject = ref(null)
+const copiedId = ref('')
 
-// 卡片布局配置 - 调整为更宽的比例
-const CARDS_PER_ROW = 4
-const CARD_WIDTH = 280  
-const CARD_HEIGHT = 280 
-const CARD_GAP = 24
+// 搜索与筛选
+const searchQuery = ref('')
+const activeFilter = ref('all')
+const PAGE_SIZE = 24
+let searchDebounceTimer = null
 
-// 动态计算容器高度样式
-const containerStyle = computed(() => {
-  if (!isExpanded.value) {
-    // 折叠态：固定高度
-    return { minHeight: '420px' }
-  }
-  
-  // 展开态：根据卡片数量动态计算高度
-  const total = projects.value.length
-  if (total === 0) {
-    return { minHeight: '280px' }
-  }
-  
-  const rows = Math.ceil(total / CARDS_PER_ROW)
-  // 计算实际需要的高度：行数 * 卡片高度 + (行数-1) * 间距 + 少量底部间距
-  const expandedHeight = rows * CARD_HEIGHT + (rows - 1) * CARD_GAP + 10
-  
-  return { minHeight: `${expandedHeight}px` }
+const hasActiveFilters = computed(() => {
+  return searchQuery.value.trim() !== '' || activeFilter.value !== 'all'
 })
 
-// 获取卡片样式
-const getCardStyle = (index) => {
-  const total = projects.value.length
-  
-  if (isExpanded.value) {
-    // 展开态：网格布局
-    const transition = 'transform 700ms cubic-bezier(0.23, 1, 0.32, 1), opacity 700ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease'
-
-    const col = index % CARDS_PER_ROW
-    const row = Math.floor(index / CARDS_PER_ROW)
-    
-    // 计算当前行的卡片数量，确保每行居中
-    const currentRowStart = row * CARDS_PER_ROW
-    const currentRowCards = Math.min(CARDS_PER_ROW, total - currentRowStart)
-    
-    const rowWidth = currentRowCards * CARD_WIDTH + (currentRowCards - 1) * CARD_GAP
-    
-    const startX = -(rowWidth / 2) + (CARD_WIDTH / 2)
-    const colInRow = index % CARDS_PER_ROW
-    const x = startX + colInRow * (CARD_WIDTH + CARD_GAP)
-    
-    // 向下展开，增加与标题的间距
-    const y = 20 + row * (CARD_HEIGHT + CARD_GAP)
-
-    return {
-      transform: `translate(${x}px, ${y}px) rotate(0deg) scale(1)`,
-      zIndex: 100 + index,
-      opacity: 1,
-      transition: transition
+// 加载历史数据
+const loadHistory = async (reset = true) => {
+  try {
+    if (reset) {
+      loading.value = true
+    } else {
+      loadingMore.value = true
     }
-  } else {
-    // 折叠态：扇形堆叠
-    const transition = 'transform 700ms cubic-bezier(0.23, 1, 0.32, 1), opacity 700ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease'
 
-    const centerIndex = (total - 1) / 2
-    const offset = index - centerIndex
-    
-    const x = offset * 35
-    // 调整起始位置，靠近标题但保持适当间距
-    const y = 25 + Math.abs(offset) * 8
-    const r = offset * 3
-    const s = 0.95 - Math.abs(offset) * 0.05
-    
-    return {
-      transform: `translate(${x}px, ${y}px) rotate(${r}deg) scale(${s})`,
-      zIndex: 10 + index,
-      opacity: 1,
-      transition: transition
+    const offset = reset ? 0 : projects.value.length
+    const params = {
+      limit: PAGE_SIZE,
+      offset,
+      search: searchQuery.value.trim() || undefined,
+      status: activeFilter.value !== 'all' ? activeFilter.value : undefined
     }
+
+    const response = await getSimulationHistory(params)
+    if (response.success) {
+      const incoming = response.data || []
+      if (reset) {
+        projects.value = incoming
+      } else {
+        projects.value.push(...incoming)
+      }
+      totalCount.value = response.total !== undefined ? response.total : response.count
+      hasMore.value = response.has_more !== undefined 
+        ? response.has_more 
+        : (projects.value.length < totalCount.value)
+    }
+  } catch (error) {
+    console.error('Failed to load simulation history:', error)
+    if (reset) {
+      projects.value = []
+      totalCount.value = 0
+      hasMore.value = false
+    }
+  } finally {
+    loading.value = false
+    loadingMore.value = false
   }
 }
 
-// 根据轮数进度获取样式类
+// 刷新历史
+const refreshHistory = () => {
+  loadHistory(true)
+}
+
+// 加载更多
+const loadMore = () => {
+  if (!loadingMore.value && hasMore.value) {
+    loadHistory(false)
+  }
+}
+
+// 筛选切换
+const setFilter = (filterKey) => {
+  if (activeFilter.value === filterKey) return
+  activeFilter.value = filterKey
+  loadHistory(true)
+}
+
+// 清除搜索
+const clearSearch = () => {
+  if (!searchQuery.value) return
+  searchQuery.value = ''
+  loadHistory(true)
+}
+
+// 重置所有筛选
+const resetAllFilters = () => {
+  searchQuery.value = ''
+  activeFilter.value = 'all'
+  loadHistory(true)
+}
+
+// 监听搜索框输入防抖
+watch(searchQuery, () => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  searchDebounceTimer = setTimeout(() => {
+    loadHistory(true)
+  }, 300)
+})
+
+// 复制 Simulation ID
+const copySimulationId = (simId) => {
+  if (!simId) return
+  if (navigator?.clipboard?.writeText) {
+    navigator.clipboard.writeText(simId)
+    copiedId.value = simId
+    setTimeout(() => {
+      if (copiedId.value === simId) {
+        copiedId.value = ''
+      }
+    }, 1500)
+  }
+}
+
+// 路由监听：返回主页重新加载
+watch(() => route.path, (newPath) => {
+  if (newPath === '/') {
+    loadHistory(true)
+  }
+})
+
+onMounted(() => {
+  loadHistory(true)
+})
+
+// 详情弹窗导航
+const navigateToProject = (simulation) => {
+  selectedProject.value = simulation
+}
+
+const closeModal = () => {
+  selectedProject.value = null
+}
+
+const goToProject = () => {
+  if (selectedProject.value?.project_id) {
+    router.push({
+      name: 'Process',
+      params: { projectId: selectedProject.value.project_id }
+    })
+    closeModal()
+  }
+}
+
+const goToSimulation = () => {
+  if (selectedProject.value?.simulation_id) {
+    router.push({
+      name: 'Simulation',
+      params: { simulationId: selectedProject.value.simulation_id }
+    })
+    closeModal()
+  }
+}
+
+const goToReport = () => {
+  if (selectedProject.value?.report_id) {
+    router.push({
+      name: 'Report',
+      params: { reportId: selectedProject.value.report_id }
+    })
+    closeModal()
+  }
+}
+
+const goToReportDirect = (reportId) => {
+  if (reportId) {
+    router.push({
+      name: 'Report',
+      params: { reportId }
+    })
+  }
+}
+
+// 样式与辅助函数
 const getProgressClass = (simulation) => {
   const current = simulation.current_round || 0
   const total = simulation.total_rounds || 0
+  const status = simulation.status || simulation.runner_status || ''
   
-  if (total === 0 || current === 0) {
-    // 未开始
-    return 'not-started'
-  } else if (current >= total) {
-    // 已完成
+  if (status === 'completed' || (total > 0 && current >= total)) {
     return 'completed'
-  } else {
-    // 进行中
+  } else if (status === 'running' || status === 'in_progress' || (current > 0 && current < total)) {
     return 'in-progress'
+  } else {
+    return 'not-started'
   }
 }
 
-// 格式化日期（只显示日期部分）
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   try {
     const date = new Date(dateStr)
-    // Use local date components (like formatTime below) so the displayed day
-    // matches the displayed time. toISOString() converts to UTC and can show
-    // the wrong day for non-UTC clients near midnight.
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
@@ -324,7 +528,6 @@ const formatDate = (dateStr) => {
   }
 }
 
-// 格式化时间（显示时:分）
 const formatTime = (dateStr) => {
   if (!dateStr) return ''
   try {
@@ -337,35 +540,34 @@ const formatTime = (dateStr) => {
   }
 }
 
-// 截断文本
 const truncateText = (text, maxLength) => {
   if (!text) return ''
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
 }
 
-// 从模拟需求生成标题（取前20字）
 const getSimulationTitle = (requirement) => {
   if (!requirement) return t('history.untitledSimulation')
-  const title = requirement.slice(0, 20)
-  return requirement.length > 20 ? title + '...' : title
+  const title = requirement.replace(/[\r\n]+/g, ' ').slice(0, 28)
+  return requirement.length > 28 ? title + '...' : title
 }
 
-// 格式化 simulation_id 显示（截取前6位）
 const formatSimulationId = (simulationId) => {
   if (!simulationId) return 'SIM_UNKNOWN'
   const prefix = simulationId.replace('sim_', '').slice(0, 6)
   return `SIM_${prefix.toUpperCase()}`
 }
 
-// 格式化轮数显示（当前轮/总轮数）
 const formatRounds = (simulation) => {
   const current = simulation.current_round || 0
   const total = simulation.total_rounds || 0
+  const status = simulation.status || simulation.runner_status || ''
+  if (status === 'completed') {
+    return total > 0 ? `${total}/${total} rounds` : 'Completed'
+  }
   if (total === 0) return t('history.notStarted')
   return t('history.roundsProgress', { current, total })
 }
 
-// 获取文件类型（用于样式）
 const getFileType = (filename) => {
   if (!filename) return 'other'
   const ext = filename.split('.').pop()?.toLowerCase()
@@ -381,199 +583,20 @@ const getFileType = (filename) => {
   return typeMap[ext] || 'other'
 }
 
-// 获取文件类型标签文本
 const getFileTypeLabel = (filename) => {
   if (!filename) return 'FILE'
   const ext = filename.split('.').pop()?.toUpperCase()
   return ext || 'FILE'
 }
 
-// 截断文件名（保留扩展名）
 const truncateFilename = (filename, maxLength) => {
   if (!filename) return t('history.unknownFile')
   if (filename.length <= maxLength) return filename
-  
   const ext = filename.includes('.') ? '.' + filename.split('.').pop() : ''
   const nameWithoutExt = filename.slice(0, filename.length - ext.length)
   const truncatedName = nameWithoutExt.slice(0, maxLength - ext.length - 3) + '...'
   return truncatedName + ext
 }
-
-// 打开项目详情弹窗
-const navigateToProject = (simulation) => {
-  selectedProject.value = simulation
-}
-
-// 关闭弹窗
-const closeModal = () => {
-  selectedProject.value = null
-}
-
-// 导航到图谱构建页面（Project）
-const goToProject = () => {
-  if (selectedProject.value?.project_id) {
-    router.push({
-      name: 'Process',
-      params: { projectId: selectedProject.value.project_id }
-    })
-    closeModal()
-  }
-}
-
-// 导航到环境配置页面（Simulation）
-const goToSimulation = () => {
-  if (selectedProject.value?.simulation_id) {
-    router.push({
-      name: 'Simulation',
-      params: { simulationId: selectedProject.value.simulation_id }
-    })
-    closeModal()
-  }
-}
-
-// 导航到分析报告页面（Report）
-const goToReport = () => {
-  if (selectedProject.value?.report_id) {
-    router.push({
-      name: 'Report',
-      params: { reportId: selectedProject.value.report_id }
-    })
-    closeModal()
-  }
-}
-
-// 加载历史项目
-const loadHistory = async () => {
-  try {
-    loading.value = true
-    const response = await getSimulationHistory(20)
-    if (response.success) {
-      projects.value = response.data || []
-    }
-  } catch (error) {
-    console.error('加载历史项目失败:', error)
-    projects.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-// 初始化 IntersectionObserver
-const initObserver = () => {
-  if (observer) {
-    observer.disconnect()
-  }
-  
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const shouldExpand = entry.isIntersecting
-        
-        // 更新待执行的目标状态（无论是否在动画中都要记录最新的目标状态）
-        pendingState = shouldExpand
-        
-        // 清除之前的防抖定时器（新的滚动意图会覆盖旧的）
-        if (expandDebounceTimer) {
-          clearTimeout(expandDebounceTimer)
-          expandDebounceTimer = null
-        }
-        
-        // 如果正在动画中，只记录状态，等动画结束后处理
-        if (isAnimating) return
-        
-        // 如果目标状态与当前状态相同，不需要处理
-        if (shouldExpand === isExpanded.value) {
-          pendingState = null
-          return
-        }
-        
-        // 使用防抖延迟状态切换，防止快速闪烁
-        // 展开时延迟较短(50ms)，收起时延迟较长(200ms)以增加稳定性
-        const delay = shouldExpand ? 50 : 200
-        
-        expandDebounceTimer = setTimeout(() => {
-          // 检查是否正在动画
-          if (isAnimating) return
-          
-          // 检查待执行状态是否仍需要执行（可能已被后续滚动覆盖）
-          if (pendingState === null || pendingState === isExpanded.value) return
-          
-          // 设置动画锁
-          isAnimating = true
-          isExpanded.value = pendingState
-          pendingState = null
-          
-          // 动画完成后解除锁定，并检查是否有待处理的状态变化
-          setTimeout(() => {
-            isAnimating = false
-            
-            // 动画结束后，检查是否有新的待执行状态
-            if (pendingState !== null && pendingState !== isExpanded.value) {
-              // 延迟一小段时间再执行，避免太快切换
-              expandDebounceTimer = setTimeout(() => {
-                if (pendingState !== null && pendingState !== isExpanded.value) {
-                  isAnimating = true
-                  isExpanded.value = pendingState
-                  pendingState = null
-                  setTimeout(() => {
-                    isAnimating = false
-                  }, 750)
-                }
-              }, 100)
-            }
-          }, 750)
-        }, delay)
-      })
-    },
-    {
-      // 使用多个阈值，使检测更平滑
-      threshold: [0.4, 0.6, 0.8],
-      // 调整 rootMargin，视口底部向上收缩，需要滚动更多才触发展开
-      rootMargin: '0px 0px -150px 0px'
-    }
-  )
-  
-  // 开始观察
-  if (historyContainer.value) {
-    observer.observe(historyContainer.value)
-  }
-}
-
-// 监听路由变化，当返回首页时重新加载数据
-watch(() => route.path, (newPath) => {
-  if (newPath === '/') {
-    loadHistory()
-  }
-})
-
-onMounted(async () => {
-  // 确保 DOM 渲染完成后再加载数据
-  await nextTick()
-  await loadHistory()
-  
-  // 等待 DOM 渲染后初始化观察器
-  setTimeout(() => {
-    initObserver()
-  }, 100)
-})
-
-// 如果使用 keep-alive，在组件激活时重新加载数据
-onActivated(() => {
-  loadHistory()
-})
-
-onUnmounted(() => {
-  // 清理 Intersection Observer
-  if (observer) {
-    observer.disconnect()
-    observer = null
-  }
-  // 清理防抖定时器
-  if (expandDebounceTimer) {
-    clearTimeout(expandDebounceTimer)
-    expandDebounceTimer = null
-  }
-})
 </script>
 
 <style scoped>
@@ -582,15 +605,9 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   min-height: 280px;
-  margin-top: 40px;
-  padding: 35px 0 40px;
+  margin-top: 50px;
+  padding: 40px 0 60px;
   overflow: visible;
-}
-
-/* 无项目时简化显示 */
-.history-database.no-projects {
-  min-height: auto;
-  padding: 40px 0 20px;
 }
 
 /* 技术网格背景 */
@@ -604,7 +621,6 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 使用CSS背景图案创建固定间距的正方形网格 */
 .grid-pattern {
   position: absolute;
   top: 0;
@@ -612,10 +628,9 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
   background-size: 50px 50px;
-  /* 从左上角开始定位，高度变化时只在底部扩展，不影响已有网格位置 */
   background-position: top left;
 }
 
@@ -626,71 +641,251 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.9) 0%, transparent 15%, transparent 85%, rgba(255, 255, 255, 0.9) 100%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.8) 100%);
+    linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, transparent 12%, transparent 88%, rgba(255, 255, 255, 0.95) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0%, transparent 15%, transparent 85%, rgba(255, 255, 255, 0.9) 100%);
   pointer-events: none;
 }
 
 /* 标题区域 */
 .section-header {
   position: relative;
-  z-index: 100;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 24px;
   margin-bottom: 24px;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
   padding: 0 40px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
 }
 
 .section-line {
   flex: 1;
   height: 1px;
   background: linear-gradient(90deg, transparent, #E5E7EB, transparent);
-  max-width: 300px;
+  max-width: 320px;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .section-title {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #9CA3AF;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6B7280;
   letter-spacing: 3px;
   text-transform: uppercase;
 }
 
-/* 卡片容器 */
-.cards-container {
+.total-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #374151;
+  background: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+}
+
+/* 控制栏：搜索、筛选与刷新 */
+.history-controls {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1240px;
+  margin: 0 auto 30px;
+  padding: 0 40px;
+}
+
+.search-input-wrapper {
   position: relative;
   display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 240px;
+  max-width: 420px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  transition: all 0.2s ease;
+}
+
+.search-input-wrapper:focus-within {
+  border-color: #111827;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.search-icon {
+  padding-left: 12px;
+  font-size: 1.1rem;
+  color: #9CA3AF;
+  line-height: 1;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.8rem;
+  color: #111827;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.clear-search-btn {
+  padding: 0 10px;
+  font-size: 1.1rem;
+  color: #9CA3AF;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.clear-search-btn:hover {
+  color: #111827;
+}
+
+/* 筛选胶囊 */
+.status-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #6B7280;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-pill:hover {
+  border-color: #9CA3AF;
+  color: #111827;
+}
+
+.filter-pill.active {
+  background: #111827;
+  color: #FFFFFF;
+  border-color: #111827;
+}
+
+.pill-dot {
+  font-size: 0.55rem;
+}
+
+.dot-completed { color: #10B981; }
+.dot-in-progress { color: #F59E0B; }
+.dot-report { color: #3B82F6; }
+
+.filter-pill.active .pill-dot {
+  color: #FFFFFF;
+}
+
+/* 刷新按钮 */
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
+  width: 34px;
+  height: 34px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  color: #111827;
+  border-color: #111827;
+}
+
+.refresh-btn.spinning .refresh-icon {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* 网格容器 */
+.cards-grid-wrapper {
+  position: relative;
+  z-index: 10;
+  max-width: 1240px;
+  margin: 0 auto;
   padding: 0 40px;
-  transition: min-height 700ms cubic-bezier(0.23, 1, 0.32, 1);
-  /* min-height 由 JS 动态计算，根据卡片数量自适应 */
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
 }
 
 /* 项目卡片 */
 .project-card {
-  position: absolute;
-  width: 280px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  border-radius: 0;
-  padding: 14px;
+  padding: 16px;
   cursor: pointer;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 700ms cubic-bezier(0.23, 1, 0.32, 1), opacity 700ms cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .project-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.4);
-  z-index: 1000 !important;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  border-color: #111827;
 }
 
-.project-card.hovering {
-  z-index: 1000 !important;
+/* 角落取景框装饰 */
+.corner-mark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.corner-mark.top-left {
+  top: 5px;
+  left: 5px;
+  border-top: 1.5px solid rgba(0, 0, 0, 0.35);
+  border-left: 1.5px solid rgba(0, 0, 0, 0.35);
+}
+
+.corner-mark.bottom-right {
+  bottom: 5px;
+  right: 5px;
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.35);
+  border-right: 1.5px solid rgba(0, 0, 0, 0.35);
 }
 
 /* 卡片头部 */
@@ -699,19 +894,42 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  padding-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #F3F4F6;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+}
+
+.card-id-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: background 0.15s ease;
+}
+
+.card-id-wrap:hover {
+  background: #F3F4F6;
 }
 
 .card-id {
-  color: #6B7280;
+  color: #374151;
   letter-spacing: 0.5px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* 功能状态图标组 */
+.copy-icon {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+}
+
+.card-id-wrap:hover .copy-icon {
+  color: #111827;
+}
+
+/* 状态指示器 */
 .card-status-icons {
   display: flex;
   align-items: center;
@@ -720,56 +938,25 @@ onUnmounted(() => {
 
 .status-icon {
   font-size: 0.75rem;
-  transition: all 0.2s ease;
-  cursor: default;
+  opacity: 0.3;
+  color: #D1D5DB;
 }
 
 .status-icon.available {
   opacity: 1;
 }
 
-/* 不同功能的颜色 */
-.status-icon:nth-child(1).available { color: #3B82F6; } /* 图谱构建 - 蓝色 */
-.status-icon:nth-child(2).available { color: #F59E0B; } /* 环境搭建 - 橙色 */
-.status-icon:nth-child(3).available { color: #10B981; } /* 分析报告 - 绿色 */
+.status-icon:nth-child(1).available { color: #3B82F6; }
+.status-icon:nth-child(2).available { color: #F59E0B; }
+.status-icon:nth-child(3).available { color: #10B981; }
 
-.status-icon.unavailable {
-  color: #D1D5DB;
-  opacity: 0.5;
-}
-
-/* 轮数进度显示 */
-.card-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-  font-size: 0.65rem;
-}
-
-.status-dot {
-  font-size: 0.5rem;
-}
-
-/* 进度状态颜色 */
-.card-progress.completed { color: #10B981; }    /* 已完成 - 绿色 */
-.card-progress.in-progress { color: #F59E0B; }  /* 进行中 - 橙色 */
-.card-progress.not-started { color: #9CA3AF; }  /* 未开始 - 灰色 */
-.card-status.pending { color: #9CA3AF; }
-
-/* 文件列表区域 */
+/* 文件列表 */
 .card-files-wrapper {
-  position: relative;
-  width: 100%;
-  min-height: 48px;
-  max-height: 110px;
+  min-height: 44px;
   margin-bottom: 12px;
-  padding: 8px 10px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
-  border-radius: 4px;
-  border: 1px solid #e8eaed;
-  overflow: hidden;
+  padding: 6px 8px;
+  background: #F9FAFB;
+  border: 1px solid #F3F4F6;
 }
 
 .files-list {
@@ -778,248 +965,293 @@ onUnmounted(() => {
   gap: 4px;
 }
 
-/* 更多文件提示 */
-.files-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  color: #6B7280;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 3px;
-  letter-spacing: 0.3px;
-}
-
 .file-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 3px;
-  transition: all 0.2s ease;
+  gap: 6px;
+  padding: 2px 4px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
 }
 
-.file-item:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: translateX(2px);
-  border-color: #e5e7eb;
-}
-
-/* 简约文件标签样式 */
 .file-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 16px;
+  height: 15px;
   padding: 0 4px;
-  border-radius: 2px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.55rem;
   font-weight: 600;
-  line-height: 1;
   text-transform: uppercase;
-  letter-spacing: 0.2px;
   flex-shrink: 0;
-  min-width: 28px;
+  min-width: 24px;
 }
 
-/* 低饱和度配色方案 - Morandi色系 */
-.file-tag.pdf { background: #f2e6e6; color: #a65a5a; }
-.file-tag.doc { background: #e6eff5; color: #5a7ea6; }
-.file-tag.xls { background: #e6f2e8; color: #5aa668; }
-.file-tag.ppt { background: #f5efe6; color: #a6815a; }
-.file-tag.txt { background: #f0f0f0; color: #757575; }
-.file-tag.code { background: #eae6f2; color: #815aa6; }
-.file-tag.img { background: #e6f2f2; color: #5aa6a6; }
-.file-tag.zip { background: #f2f0e6; color: #a69b5a; }
-.file-tag.other { background: #f3f4f6; color: #6b7280; }
+.file-tag.pdf { background: #FEE2E2; color: #991B1B; }
+.file-tag.doc { background: #DBEAFE; color: #1E40AF; }
+.file-tag.xls { background: #D1FAE5; color: #065F46; }
+.file-tag.ppt { background: #FEF3C7; color: #92400E; }
+.file-tag.txt { background: #F3F4F6; color: #374151; }
+.file-tag.code { background: #EDE9FE; color: #5B21B6; }
+.file-tag.img { background: #E0E7FF; color: #3730A3; }
+.file-tag.other { background: #F3F4F6; color: #6B7280; }
 
 .file-name {
   font-family: 'Inter', sans-serif;
-  font-size: 0.7rem;
-  color: #4b5563;
+  font-size: 0.68rem;
+  color: #4B5563;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.1px;
 }
 
-/* 无文件时的占位 */
+.files-more {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: #6B7280;
+  text-align: center;
+  padding-top: 2px;
+}
+
 .files-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 48px;
+  gap: 6px;
+  height: 38px;
   color: #9CA3AF;
-}
-
-.empty-file-icon {
-  font-size: 1rem;
-  opacity: 0.5;
-}
-
-.empty-file-text {
   font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+}
+
+/* 项目名标签 */
+.card-project-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: #4B5563;
+}
+
+.project-tag-icon {
   font-size: 0.7rem;
-  letter-spacing: 0.5px;
 }
 
-/* 悬停时文件区域效果 */
-.project-card:hover .card-files-wrapper {
-  border-color: #d1d5db;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-}
-
-/* 角落装饰 */
-.corner-mark.top-left-only {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 8px;
-  height: 8px;
-  border-top: 1.5px solid rgba(0, 0, 0, 0.4);
-  border-left: 1.5px solid rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-  z-index: 10;
-}
-
-/* 卡片标题 */
+/* 卡片标题 & 描述 */
 .card-title {
   font-family: 'Inter', -apple-system, sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 600;
   color: #111827;
   margin: 0 0 6px 0;
-  line-height: 1.4;
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.3s ease;
 }
 
-.project-card:hover .card-title {
-  color: #2563EB;
-}
-
-/* 卡片描述 */
 .card-desc {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
   color: #6B7280;
+  line-height: 1.45;
   margin: 0 0 16px 0;
-  line-height: 1.5;
-  height: 34px;
-  overflow: hidden;
+  flex: 1;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 卡片底部 */
 .card-footer {
-  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid #F3F4F6;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
-  color: #9CA3AF;
-  font-weight: 500;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
 }
 
-/* 日期时间组合 */
 .card-datetime {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.65rem;
+  color: #9CA3AF;
+}
+
+.footer-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* 底部轮数进度显示 */
-.card-footer .card-progress {
-  display: flex;
+.direct-report-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  letter-spacing: 0.5px;
+  padding: 3px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
   font-weight: 600;
-  font-size: 0.65rem;
+  color: #065F46;
+  background: #D1FAE5;
+  border: 1px solid #A7F3D0;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.card-footer .status-dot {
+.direct-report-pill:hover {
+  background: #10B981;
+  color: #FFFFFF;
+  border-color: #10B981;
+}
+
+.card-progress {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.status-dot {
   font-size: 0.5rem;
 }
 
-/* 进度状态颜色 - 底部 */
-.card-footer .card-progress.completed { color: #10B981; }
-.card-footer .card-progress.in-progress { color: #F59E0B; }
-.card-footer .card-progress.not-started { color: #9CA3AF; }
+.card-progress.completed { color: #10B981; }
+.card-progress.in-progress { color: #F59E0B; }
+.card-progress.not-started { color: #9CA3AF; }
 
-/* 底部装饰线 */
 .card-bottom-line {
   position: absolute;
   bottom: 0;
   left: 0;
+  right: 0;
   height: 2px;
-  width: 0;
-  background-color: #000;
-  transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-  z-index: 20;
+  background: transparent;
+  transition: background 0.2s ease;
 }
 
 .project-card:hover .card-bottom-line {
-  width: 100%;
+  background: #111827;
+}
+
+/* 加载更多 */
+.load-more-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #111827;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #111827;
+  color: #FFFFFF;
+  border-color: #111827;
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.count-hint {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.loading-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #D1D5DB;
+  border-top-color: #111827;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 /* 空状态 */
-.empty-state, .loading-state {
+.empty-results {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 48px;
-  color: #9CA3AF;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
 }
 
 .empty-icon {
   font-size: 2rem;
-  opacity: 0.5;
+  color: #D1D5DB;
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #6B7280;
+  margin-bottom: 16px;
+}
+
+.reset-filters-btn {
+  padding: 8px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #111827;
+  background: #FFFFFF;
+  border: 1px solid #111827;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-filters-btn:hover {
+  background: #111827;
+  color: #FFFFFF;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: #6B7280;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
 }
 
 .loading-spinner {
   width: 24px;
   height: 24px;
   border: 2px solid #E5E7EB;
-  border-top-color: #6B7280;
+  border-top-color: #111827;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 响应式 */
-@media (max-width: 1200px) {
-  .project-card {
-    width: 240px;
-  }
-}
-
-@media (max-width: 768px) {
-  .cards-container {
-    padding: 0 20px;
-  }
-  .project-card {
-    width: 200px;
-  }
-}
-
-/* ===== 历史回放详情弹窗样式 ===== */
+/* 弹窗样式 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1027,127 +1259,74 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
+  z-index: 2000;
+  padding: 20px;
 }
 
 .modal-content {
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
   background: #FFFFFF;
-  width: 560px;
-  max-width: 90vw;
-  max-height: 85vh;
-  overflow-y: auto;
   border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* 动画过渡 */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-content {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.modal-leave-active .modal-content {
-  transition: all 0.2s ease-in;
-}
-
-.modal-enter-from .modal-content {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
-}
-
-.modal-leave-to .modal-content {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
-}
-
-/* 弹窗头部 */
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 32px;
-  border-bottom: 1px solid #F3F4F6;
-  background: #FFFFFF;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #F9FAFB;
 }
 
 .modal-title-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .modal-id {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #111827;
-  letter-spacing: 0.5px;
 }
-
-.modal-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #F9FAFB;
-}
-
-.modal-progress.completed { color: #10B981; background: rgba(16, 185, 129, 0.1); }
-.modal-progress.in-progress { color: #F59E0B; background: rgba(245, 158, 11, 0.1); }
-.modal-progress.not-started { color: #9CA3AF; background: #F3F4F6; }
 
 .modal-create-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #9CA3AF;
-  letter-spacing: 0.3px;
 }
 
 .modal-close {
-  width: 32px;
-  height: 32px;
+  background: none;
   border: none;
-  background: transparent;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: #9CA3AF;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  border-radius: 6px;
+  line-height: 1;
 }
 
 .modal-close:hover {
-  background: #F3F4F6;
   color: #111827;
 }
 
-/* 弹窗内容 */
 .modal-body {
-  padding: 24px 32px;
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .modal-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .modal-section:last-child {
@@ -1156,193 +1335,194 @@ onUnmounted(() => {
 
 .modal-label {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
   color: #6B7280;
-  text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 10px;
-  font-weight: 500;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.modal-project-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
 }
 
 .modal-requirement {
-  font-size: 0.95rem;
-  color: #374151;
-  line-height: 1.6;
-  padding: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #1F2937;
+  padding: 12px 14px;
   background: #F9FAFB;
-  border: 1px solid #F3F4F6;
-  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .modal-files {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-/* 自定义滚动条样式 */
-.modal-files::-webkit-scrollbar {
-  width: 4px;
-}
-
-.modal-files::-webkit-scrollbar-track {
-  background: #F3F4F6;
-  border-radius: 2px;
-}
-
-.modal-files::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
-  border-radius: 2px;
-}
-
-.modal-files::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  gap: 6px;
 }
 
 .modal-file-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: #FFFFFF;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #F9FAFB;
   border: 1px solid #E5E7EB;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.modal-file-item:hover {
-  border-color: #D1D5DB;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .modal-file-name {
-  font-size: 0.85rem;
-  color: #4B5563;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  color: #374151;
 }
 
 .modal-empty {
-  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
   color: #9CA3AF;
-  padding: 16px;
-  background: #F9FAFB;
-  border: 1px dashed #E5E7EB;
-  border-radius: 6px;
-  text-align: center;
+  font-style: italic;
 }
 
-/* 推演回放分割线 */
 .modal-divider {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 32px 0;
-  background: #FFFFFF;
+  padding: 0 20px;
+  margin: 10px 0;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .divider-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #E5E7EB, transparent);
+  background: #E5E7EB;
 }
 
 .divider-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 600;
   color: #9CA3AF;
   letter-spacing: 2px;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
-/* 导航按钮 */
 .modal-actions {
-  display: flex;
-  gap: 16px;
-  padding: 20px 32px;
-  background: #FFFFFF;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 16px 20px;
+  background: #FAFAFA;
+  border-top: 1px solid #E5E7EB;
 }
 
 .modal-btn {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
   background: #FFFFFF;
+  border: 1px solid #E5E7EB;
   cursor: pointer;
   transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .modal-btn:hover:not(:disabled) {
-  border-color: #000000;
+  border-color: #111827;
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .modal-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
-  background: #F9FAFB;
 }
 
 .btn-step {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
-  font-weight: 500;
   color: #9CA3AF;
   letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .btn-icon {
-  font-size: 1.4rem;
-  line-height: 1;
-  transition: color 0.2s ease;
+  font-size: 1.1rem;
 }
+
+.btn-project .btn-icon { color: #3B82F6; }
+.btn-simulation .btn-icon { color: #F59E0B; }
+.btn-report .btn-icon { color: #10B981; }
 
 .btn-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  color: #4B5563;
-}
-
-.modal-btn.btn-project .btn-icon { color: #3B82F6; }
-.modal-btn.btn-simulation .btn-icon { color: #F59E0B; }
-.modal-btn.btn-report .btn-icon { color: #10B981; }
-
-.modal-btn:hover:not(:disabled) .btn-text {
   color: #111827;
 }
 
-/* 不可回放提示 */
 .modal-playback-hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 32px 20px;
-  background: #FFFFFF;
+  padding: 8px 20px 14px;
+  background: #FAFAFA;
+  text-align: center;
 }
 
 .hint-text {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   color: #9CA3AF;
-  letter-spacing: 0.3px;
-  text-align: center;
-  line-height: 1.5;
+}
+
+/* Modal 动画 */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform 0.2s ease;
+}
+
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: scale(0.96);
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .history-controls {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 20px;
+  }
+
+  .search-input-wrapper {
+    max-width: none;
+  }
+
+  .cards-grid-wrapper {
+    padding: 0 20px;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

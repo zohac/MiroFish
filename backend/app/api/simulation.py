@@ -1277,16 +1277,35 @@ def get_simulation_history():
         }
     """
     try:
-        limit = request.args.get('limit', 20, type=int)
+        limit = request.args.get('limit', 24, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        search = (request.args.get('search') or '').strip().lower()
+        status_filter = (request.args.get('status') or '').strip().lower()
         
         manager = SimulationManager()
-        simulations = manager.list_simulations()[:limit]
+        # manager.list_simulations() retourne les simulations triées antéchronologiquement
+        all_simulations = manager.list_simulations()
         
         # 增强模拟数据，只从 Simulation 文件读取
         enriched_simulations = []
-        for sim in simulations:
+        for sim in all_simulations:
             sim_dict = sim.to_dict()
             
+            # 获取关联项目信息（名称与文件列表）
+            project = ProjectManager.get_project(sim.project_id)
+            if project:
+                sim_dict["project_name"] = getattr(project, "name", "") or ""
+                if hasattr(project, 'files') and project.files:
+                    sim_dict["files"] = [
+                        {"filename": f.get("filename", "未知文件")} 
+                        for f in project.files[:3]
+                    ]
+                else:
+                    sim_dict["files"] = []
+            else:
+                sim_dict["project_name"] = ""
+                sim_dict["files"] = []
+
             # 获取模拟配置信息（从 simulation_config.json 读取 simulation_requirement）
             config = manager.get_simulation_config(sim.simulation_id)
             if config:
@@ -1315,16 +1334,6 @@ def get_simulation_history():
                 sim_dict["runner_status"] = "idle"
                 sim_dict["total_rounds"] = recommended_rounds
             
-            # 获取关联项目的文件列表（最多3个）
-            project = ProjectManager.get_project(sim.project_id)
-            if project and hasattr(project, 'files') and project.files:
-                sim_dict["files"] = [
-                    {"filename": f.get("filename", "未知文件")} 
-                    for f in project.files[:3]
-                ]
-            else:
-                sim_dict["files"] = []
-            
             # 获取关联的 report_id（查找该 simulation 最新的 report）
             sim_dict["report_id"] = _get_report_id_for_simulation(sim.simulation_id)
             
@@ -1335,15 +1344,54 @@ def get_simulation_history():
             try:
                 created_date = sim_dict.get("created_at", "")[:10]
                 sim_dict["created_date"] = created_date
-            except:
+            except Exception:
                 sim_dict["created_date"] = ""
             
+            # Filtrage par recherche textuelle (ID, requirement, nom de projet, fichiers)
+            if search:
+                sim_id_match = search in sim.simulation_id.lower()
+                req_match = search in (sim_dict.get("simulation_requirement") or "").lower()
+                proj_match = search in (sim_dict.get("project_name") or "").lower()
+                file_match = any(search in f.get("filename", "").lower() for f in sim_dict["files"])
+                if not (sim_id_match or req_match or proj_match or file_match):
+                    continue
+
+            # Filtrage par statut
+            if status_filter:
+                sim_status = sim_dict.get("status", "")
+                runner_status = sim_dict.get("runner_status", "")
+                has_report = bool(sim_dict.get("report_id"))
+
+                if status_filter == "completed":
+                    if sim_status != "completed" and runner_status != "completed":
+                        continue
+                elif status_filter == "in_progress":
+                    if sim_status not in ("running", "stopping") and runner_status not in ("running", "stopping"):
+                        continue
+                elif status_filter == "has_report":
+                    if not has_report:
+                        continue
+                elif status_filter == "not_started":
+                    if sim_status in ("running", "completed") or runner_status in ("running", "completed"):
+                        continue
+
             enriched_simulations.append(sim_dict)
         
+        total_matching = len(enriched_simulations)
+        
+        # Pagination
+        if limit and limit > 0:
+            paginated = enriched_simulations[offset:offset + limit]
+        else:
+            paginated = enriched_simulations[offset:]
+
         return jsonify({
             "success": True,
-            "data": enriched_simulations,
-            "count": len(enriched_simulations)
+            "data": paginated,
+            "count": len(paginated),
+            "total": total_matching,
+            "offset": offset,
+            "has_more": (offset + len(paginated)) < total_matching
         })
         
     except Exception as e:
