@@ -823,6 +823,9 @@
     "showMore": "展开",
     "keyQuotes": "关键引文",
     "interviewSummary": "访谈总结",
-    "results": "结果"
+    "results": "结果",
+    "selectionReason": "选择理由",
+    "noQuestion": "没有可用问题",
+    "characters": "字符"
   }
 }

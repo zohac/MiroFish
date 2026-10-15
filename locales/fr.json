@@ -829,6 +829,9 @@
     "showMore": "Afficher plus",
     "keyQuotes": "Citations clés",
     "interviewSummary": "Synthèse de l’entretien",
-    "results": "Résultats"
+    "results": "Résultats",
+    "selectionReason": "Motif de sélection",
+    "noQuestion": "Aucune question disponible",
+    "characters": "caractères"
   }
 }

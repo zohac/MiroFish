@@ -129,7 +129,7 @@ Consigner ici les findings, leur sévérité, la décision et les correctifs eff
 
 **Implémentation livrée en revue** : sélecteur natif Vue I18n accessible au clavier, dictionnaires détectés via Vite, choix validé et conservé, `<html lang>` synchronisé par un watcher global. En-tête HTTP lu à chaque requête. Formats `Intl` centralisés et réactifs, dates invalides protégées, horodatages de journaux stockés sous forme ISO plutôt qu'en chaînes déjà formatées. Parcours réellement accessibles audités : accueil, MainView, SimulationView, SimulationRunView, ReportView, InteractionView et composants Step1 à Step5, GraphPanel, HistoryDatabase. `Process.vue` est un fichier historique non routé : `/process/:projectId` charge `MainView.vue` ; le composant non utilisé reste inchangé (KISS).
 
-**Tests ajoutés** : suite Node native hermétique (`pnpm --dir frontend test`, préférences, parité des clés, formatage, header Axios simulé, contrat du sélecteur) intégrée à la CI avant `pnpm build`. Le test backend de parité conserve sa vérification stricte et abandonne seulement le nombre figé de clés après ajout de chaînes UI. La nouvelle section `ui` a 110 clés sur les trois dictionnaires EN/FR/ZH.
+**Tests ajoutés** : suite Node native hermétique (`pnpm --dir frontend test`, préférences, parité des clés, formatage, header Axios simulé, contrat du sélecteur) intégrée à la CI avant `pnpm build`. Le test backend de parité conserve sa vérification stricte et abandonne seulement le nombre figé de clés après ajout de chaînes UI. La nouvelle section `ui` a 113 clés sur les trois dictionnaires EN/FR/ZH.
 
 **Findings** :
 - H1 (corrigé) : préférence inconnue/stockage bloqué faisait échouer ou dégrader l'initialisation ; repli strict `zh` et écriture best-effort.

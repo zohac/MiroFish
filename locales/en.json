@@ -823,6 +823,9 @@
     "showMore": "Show more",
     "keyQuotes": "Key quotes",
     "interviewSummary": "Interview summary",
-    "results": "Results"
+    "results": "Results",
+    "selectionReason": "Selection reason",
+    "noQuestion": "No question available",
+    "characters": "characters"
   }
 }

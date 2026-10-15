@@ -497,7 +497,7 @@ const isLogCollapsed = (log) => {
 }
 
 // Tool configurations with display names and colors
-const toolConfig = {
+const toolConfig = computed(() => ({
   'insight_forge': {
     name: t('ui.deepInsight'),
     color: 'purple',
@@ -528,18 +528,18 @@ const toolConfig = {
     color: 'pink',
     icon: 'database' // 数据库图标 - 代表实体
   }
-}
+}))
 
 const getToolDisplayName = (toolName) => {
-  return toolConfig[toolName]?.name || toolName
+  return toolConfig.value[toolName]?.name || toolName
 }
 
 const getToolColor = (toolName) => {
-  return toolConfig[toolName]?.color || 'gray'
+  return toolConfig.value[toolName]?.color || 'gray'
 }
 
 const getToolIcon = (toolName) => {
-  return toolConfig[toolName]?.icon || 'tool'
+  return toolConfig.value[toolName]?.icon || 'tool'
 }
 
 // Parse functions
@@ -978,9 +978,9 @@ const InsightDisplay = {
     const formatSize = (length) => {
       if (!length) return ''
       if (length >= 1000) {
-        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k chars`
+        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k ${t('ui.characters')}`
       }
-      return `${length} chars`
+      return `${formatNumber(length)} ${t('ui.characters')}`
     }
     
     return () => h('div', { class: 'insight-display' }, [
@@ -1151,9 +1151,9 @@ const PanoramaDisplay = {
     const formatSize = (length) => {
       if (!length) return ''
       if (length >= 1000) {
-        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k chars`
+        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k ${t('ui.characters')}`
       }
-      return `${length} chars`
+      return `${formatNumber(length)} ${t('ui.characters')}`
     }
     
     return () => h('div', { class: 'panorama-display' }, [
@@ -1288,9 +1288,9 @@ const InterviewDisplay = {
     const formatSize = (length) => {
       if (!length) return ''
       if (length >= 1000) {
-        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k chars`
+        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k ${t('ui.characters')}`
       }
-      return `${length} chars`
+      return `${formatNumber(length)} ${t('ui.characters')}`
     }
     
     // Clean quote text - remove leading list numbers to avoid double numbering
@@ -1477,7 +1477,7 @@ const InterviewDisplay = {
         
         // Selection Reason - 选择理由
         props.result.interviews[activeIndex.value]?.selectionReason && h('div', { class: 'selection-reason' }, [
-          h('div', { class: 'reason-label' }, '选择理由'),
+          h('div', { class: 'reason-label' }, t('ui.selectionReason')),
           h('div', { class: 'reason-content' }, props.result.interviews[activeIndex.value].selectionReason)
         ]),
         
@@ -1485,7 +1485,7 @@ const InterviewDisplay = {
         h('div', { class: 'qa-thread' }, 
           (props.result.interviews[activeIndex.value]?.questions?.length > 0 
             ? props.result.interviews[activeIndex.value].questions 
-            : [props.result.interviews[activeIndex.value]?.question || 'No question available']
+            : [props.result.interviews[activeIndex.value]?.question || t('ui.noQuestion')]
           ).map((question, qIdx) => {
             const interview = props.result.interviews[activeIndex.value]
             const currentPlatform = getPlatformTab(activeIndex.value, qIdx)
@@ -1602,9 +1602,9 @@ const QuickSearchDisplay = {
     const formatSize = (length) => {
       if (!length) return ''
       if (length >= 1000) {
-        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k chars`
+        return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k ${t('ui.characters')}`
       }
-      return `${length} chars`
+      return `${formatNumber(length)} ${t('ui.characters')}`
     }
     
     return () => h('div', { class: 'quick-search-display' }, [
@@ -1855,8 +1855,8 @@ const formatParams = (params) => {
 
 const formatResultSize = (length) => {
   if (!length) return ''
-  if (length < 1000) return `${length} chars`
-  return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k chars`
+  if (length < 1000) return `${formatNumber(length)} ${t('ui.characters')}`
+  return `${formatNumber(length / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k ${t('ui.characters')}`
 }
 
 const truncateText = (text, maxLen) => {
