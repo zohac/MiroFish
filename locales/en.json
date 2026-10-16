@@ -278,7 +278,13 @@
     "panelRelatedEdges": "Related Edges",
     "panelRelatedNodes": "Related Nodes",
     "world1": "World 1",
-    "world2": "World 2"
+    "world2": "World 2",
+    "qualityGatePassed": "Report Validated",
+    "qualityGateWarning": "Validated with Warnings",
+    "qualityGateFailed": "Quality Validation Failed",
+    "downloadAuditPackage": "Download Audit Package (.zip)",
+    "auditExportSuccess": "Audit package downloaded successfully",
+    "qualityDetailsTitle": "Quality Gate Diagnostics (ReportQualityGate)"
   },
   "step5": {
     "interactiveTools": "Interactive Tools",

@@ -408,6 +408,7 @@ class ReportStatus(str, Enum):
     GENERATING = "generating"
     COMPLETED = "completed"
     FAILED = "failed"
+    FAILED_VALIDATION = "failed_validation"  # Story 011-5 : échec barrière ReportQualityGate
 
 
 @dataclass
@@ -2260,6 +2261,22 @@ class ReportAgent:
                         ) if progress_callback else None,
                     section_index=section_num
                 )
+
+                # Contrôle anti-troncature et prolongation ciblée (Story 011-5, FR-09, C9)
+                from .report_quality_gate import SectionCompletionGuard
+                try:
+                    completed_content, retries_cnt, is_complete_sec = SectionCompletionGuard.complete_section(
+                        llm_client=self.llm,
+                        section_title=section.title,
+                        current_content=section_content,
+                        locale=self.locale,
+                    )
+                    section_content = completed_content
+                    if not hasattr(self, "_section_retries"):
+                        self._section_retries = {}
+                    self._section_retries[section.title] = retries_cnt
+                except Exception as guard_err:
+                    logger.warning(f"Avertissement SectionCompletionGuard pour '{section.title}': {guard_err}")
                 
                 section.content = section_content
                 generated_sections.append(f"## {section.title}\n\n{section_content}")
@@ -2326,12 +2343,52 @@ class ReportAgent:
                 logger.warning(f"Avertissement lors de la génération du tableau de cohorte : {cohort_err}")
 
             # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4)
+            claims_registry = None
             try:
-                self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table)
+                claims_registry = self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table)
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
-            report.status = ReportStatus.COMPLETED
+            # Barrière de publication ReportQualityGate (Story 011-5, FR-09, C9)
+            from .report_quality_gate import ReportQualityGate
+            quality_gate = ReportQualityGate(
+                simulation_id=self.simulation_id,
+                report_id=report_id,
+                locale=self.locale,
+            )
+            # Résoudre le brief pour l'évaluation de qualité
+            brief = None
+            try:
+                sim_state = self.simulation_manager.get_simulation(self.simulation_id)
+                project = self.project_manager.get_project(sim_state.project_id) if sim_state and sim_state.project_id else None
+                brief = project.get_brief() if project else None
+            except Exception:
+                pass
+
+            section_retries = getattr(self, "_section_retries", {})
+            quality_result = quality_gate.evaluate_report(
+                outline=outline,
+                report_markdown=report.markdown_content,
+                cohort_table=cohort_table,
+                claims_registry=claims_registry,
+                brief=brief,
+                section_retries=section_retries,
+            )
+            try:
+                quality_gate.save_quality_result(quality_result)
+            except Exception as save_q_err:
+                logger.warning(f"Avertissement lors de la sauvegarde de quality_checks.json: {save_q_err}")
+
+            if quality_result.is_publishable:
+                report.status = ReportStatus.COMPLETED
+            else:
+                logger.warning(
+                    f"La barrière ReportQualityGate a refusé la publication automatique du rapport {report_id} : "
+                    f"{quality_result.summary}"
+                )
+                report.status = ReportStatus.FAILED_VALIDATION
+                report.error = quality_result.summary
+
             report.completed_at = datetime.now().isoformat()
             
             # 计算总耗时
@@ -2346,13 +2403,15 @@ class ReportAgent:
             
             # 保存最终报告
             ReportManager.save_report(report)
+            status_progress_label = "completed" if report.status == ReportStatus.COMPLETED else "failed_validation"
             ReportManager.update_progress(
-                report_id, "completed", 100, t('progress.reportComplete'),
+                report_id, status_progress_label, 100, 
+                t('progress.reportComplete') if report.status == ReportStatus.COMPLETED else f"Échec validation qualité: {quality_result.summary}",
                 completed_sections=completed_section_titles
             )
             
             if progress_callback:
-                progress_callback("completed", 100, t('progress.reportComplete'))
+                progress_callback(status_progress_label, 100, t('progress.reportComplete') if report.status == ReportStatus.COMPLETED else f"Échec validation: {quality_result.summary}")
             
             logger.info(t('report.reportGenDone', reportId=report_id))
             
@@ -2905,18 +2964,20 @@ class ReportManager:
         full_report.md     - 完整报告
     """
     
-    # 报告存储目录
-    REPORTS_DIR = os.path.join(Config.UPLOAD_FOLDER, 'reports')
+    @classmethod
+    def _get_reports_dir(cls) -> str:
+        """Retourne dynamiquement le dossier racine des rapports."""
+        return os.path.join(Config.UPLOAD_FOLDER, 'reports')
     
     @classmethod
     def _ensure_reports_dir(cls):
         """确保报告根目录存在"""
-        os.makedirs(cls.REPORTS_DIR, exist_ok=True)
+        os.makedirs(cls._get_reports_dir(), exist_ok=True)
     
     @classmethod
     def _get_report_folder(cls, report_id: str) -> str:
         """获取报告文件夹路径"""
-        return os.path.join(cls.REPORTS_DIR, report_id)
+        return os.path.join(cls._get_reports_dir(), report_id)
     
     @classmethod
     def _ensure_report_folder(cls, report_id: str) -> str:
@@ -2959,6 +3020,11 @@ class ReportManager:
     def _get_console_log_path(cls, report_id: str) -> str:
         """获取控制台日志文件路径"""
         return os.path.join(cls._get_report_folder(report_id), "console_log.txt")
+
+    @classmethod
+    def _get_quality_path(cls, report_id: str) -> str:
+        """获取质量检测结果路径 (Story 011-5)"""
+        return os.path.join(cls._get_report_folder(report_id), "quality_checks.json")
     
     @classmethod
     def get_console_log(cls, report_id: str, from_line: int = 0) -> Dict[str, Any]:
@@ -3456,7 +3522,7 @@ class ReportManager:
         
         if not os.path.exists(path):
             # 兼容旧格式：检查直接存储在reports目录下的文件
-            old_path = os.path.join(cls.REPORTS_DIR, f"{report_id}.json")
+            old_path = os.path.join(cls._get_reports_dir(), f"{report_id}.json")
             if os.path.exists(old_path):
                 path = old_path
             else:
@@ -3492,9 +3558,9 @@ class ReportManager:
         return Report(
             report_id=data['report_id'],
             simulation_id=data['simulation_id'],
-            graph_id=data['graph_id'],
-            simulation_requirement=data['simulation_requirement'],
-            status=ReportStatus(data['status']),
+            graph_id=data.get('graph_id', ''),
+            simulation_requirement=data.get('simulation_requirement', ''),
+            status=ReportStatus(data.get('status', 'completed')),
             outline=outline,
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
@@ -3507,8 +3573,8 @@ class ReportManager:
         """根据模拟ID获取报告"""
         cls._ensure_reports_dir()
         
-        for item in os.listdir(cls.REPORTS_DIR):
-            item_path = os.path.join(cls.REPORTS_DIR, item)
+        for item in os.listdir(cls._get_reports_dir()):
+            item_path = os.path.join(cls._get_reports_dir(), item)
             # 新格式：文件夹
             if os.path.isdir(item_path):
                 report = cls.get_report(item)
@@ -3529,8 +3595,8 @@ class ReportManager:
         cls._ensure_reports_dir()
         
         reports = []
-        for item in os.listdir(cls.REPORTS_DIR):
-            item_path = os.path.join(cls.REPORTS_DIR, item)
+        for item in os.listdir(cls._get_reports_dir()):
+            item_path = os.path.join(cls._get_reports_dir(), item)
             # 新格式：文件夹
             if os.path.isdir(item_path):
                 report = cls.get_report(item)
@@ -3565,8 +3631,8 @@ class ReportManager:
         
         # 兼容旧格式：删除单独的文件
         deleted = False
-        old_json_path = os.path.join(cls.REPORTS_DIR, f"{report_id}.json")
-        old_md_path = os.path.join(cls.REPORTS_DIR, f"{report_id}.md")
+        old_json_path = os.path.join(cls._get_reports_dir(), f"{report_id}.json")
+        old_md_path = os.path.join(cls._get_reports_dir(), f"{report_id}.md")
         
         if os.path.exists(old_json_path):
             os.remove(old_json_path)

@@ -1,6 +1,6 @@
 # Epic 011 : Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports
 
-> **Statut :** Planifié (Backlog)  
+> **Statut :** En cours (In-Progress) — 5/6 stories validées  
 > **Date de formalisation :** 15 octobre 2026  
 > **Responsable :** Équipe MiroFish & Antigravity  
 > **Dépendances :** Epic 005 (Docker local), Epic 007 (Ontologie dynamique), Epic 008 (Localisation FR), Epic 009 (Éligibilité des acteurs), Epic 010 (Cycle de vie des simulations)  
@@ -72,7 +72,7 @@ L'**Epic 011** résout l'ensemble de ces points pour que les rapports analytique
 | 011-2 | Registre d'événements observés (`OasisLogReaderService`, `EvidencePack`), bouclier `ToolShield` et déterminisme Round 0 | `done` | [`story-011-2.md`](story-011-2.md) |
 | 011-3 | Contrat structuré `ReportClaim`, typage épistémique des sources et contrôle anti-affabulation | `done` | [`story-011-3.md`](story-011-3.md) |
 | 011-4 | Tableau de couverture de cohorte, anti-biais de confirmation (section limites) et respect du temps simulé | `done` | [`story-011-4.md`](story-011-4.md) |
-| 011-5 | Barrière de publication `ReportQualityGate`, anti-troncature de section et dossier d'audit exportable (`simulation_audit/`) | `backlog` | [`story-011-5.md`](story-011-5.md) |
+| 011-5 | Barrière de publication `ReportQualityGate`, anti-troncature de section et dossier d'audit exportable (`simulation_audit/`) | `done` | [`story-011-5.md`](story-011-5.md) |
 | 011-6 | Banc de qualification de bout en bout multi-domaines et rapport de qualification final de l'Epic 011 | `backlog` | [`story-011-6.md`](story-011-6.md) |
 
 ---

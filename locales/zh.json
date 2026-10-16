@@ -278,7 +278,13 @@
     "panelRelatedEdges": "相关关系",
     "panelRelatedNodes": "相关节点",
     "world1": "世界1",
-    "world2": "世界2"
+    "world2": "世界2",
+    "qualityGatePassed": "报告已验证通过",
+    "qualityGateWarning": "报告带预警通过",
+    "qualityGateFailed": "质量验证未通过",
+    "downloadAuditPackage": "下载审计数据包 (.zip)",
+    "auditExportSuccess": "审计数据包下载成功",
+    "qualityDetailsTitle": "报告质量门禁诊断 (ReportQualityGate)"
   },
   "step5": {
     "interactiveTools": "Interactive Tools",

@@ -284,7 +284,13 @@
     "panelRelatedEdges": "Arêtes associées",
     "panelRelatedNodes": "Nœuds associés",
     "world1": "Monde 1",
-    "world2": "Monde 2"
+    "world2": "Monde 2",
+    "qualityGatePassed": "Rapport Validé",
+    "qualityGateWarning": "Validé avec réserves",
+    "qualityGateFailed": "Échec validation qualité",
+    "downloadAuditPackage": "Télécharger le dossier d'audit (.zip)",
+    "auditExportSuccess": "Dossier d'audit téléchargé avec succès",
+    "qualityDetailsTitle": "Diagnostics de la barrière qualité (ReportQualityGate)"
   },
   "step5": {
     "interactiveTools": "Outils interactifs",

@@ -10,9 +10,38 @@
             <div class="report-meta">
               <span class="report-tag">{{ $t('ui.predictionReport') }}</span>
               <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
+              <!-- Quality Gate Badge (Story 011-5, FR-09) -->
+              <span 
+                v-if="qualityResult" 
+                class="quality-badge" 
+                :class="`quality-badge--${qualityResult.final_status}`"
+                @click="showQualityModal = !showQualityModal"
+                :title="$t('step4.qualityDetailsTitle')"
+              >
+                <span class="quality-dot"></span>
+                {{ qualityBadgeLabel }}
+              </span>
             </div>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
             <p class="sub-title">{{ reportOutline.summary }}</p>
+
+            <!-- Quality Diagnostic Accordion/Card if Warnings or Failed -->
+            <div v-if="qualityResult && (showQualityModal || qualityResult.final_status === 'failed')" class="quality-card" :class="`quality-card--${qualityResult.final_status}`">
+              <div class="quality-card-header">
+                <span class="quality-card-title">{{ $t('step4.qualityDetailsTitle') }}</span>
+                <span class="quality-summary">{{ qualityResult.summary }}</span>
+              </div>
+              <ul class="quality-checks-list">
+                <li v-for="(chk, cidx) in qualityResult.checks" :key="cidx" class="quality-check-item" :class="`quality-check-item--${chk.status}`">
+                  <span class="check-icon">{{ chk.status === 'passed' ? '✓' : (chk.status === 'warning' ? '⚠' : '✗') }}</span>
+                  <div class="check-content">
+                    <strong class="check-title">{{ chk.title }} :</strong>
+                    <span class="check-msg">{{ chk.message }}</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
             <div class="header-divider"></div>
           </div>
 
@@ -127,14 +156,24 @@
             </div>
           </div>
 
-          <!-- Next Step Button - 在完成后显示 -->
-          <button v-if="isComplete" class="next-step-btn" @click="goToInteraction">
-            <span>{{ $t('step4.goToInteraction') }}</span>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </button>
+          <!-- Next Step Button & Export Audit Package (Story 011-5, FR-10) -->
+          <div v-if="isComplete || (qualityResult && qualityResult.final_status === 'failed')" class="action-buttons-group">
+            <button v-if="isComplete" class="next-step-btn" @click="goToInteraction">
+              <span>{{ $t('step4.goToInteraction') }}</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+            <button class="audit-export-btn" @click="downloadAuditPackage" :title="$t('step4.downloadAuditPackage')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>{{ $t('step4.downloadAuditPackage') }}</span>
+            </button>
+          </div>
 
           <div class="workflow-divider"></div>
         </div>
@@ -394,7 +433,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } f
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
-import { getAgentLog, getConsoleLog } from '../api/report'
+import { getAgentLog, getConsoleLog, getReportQuality, getReportAuditDownloadUrl, getSimulationAuditDownloadUrl } from '../api/report'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -432,6 +471,40 @@ const leftPanel = ref(null)
 const rightPanel = ref(null)
 const logContent = ref(null)
 const showRawResult = reactive({})
+
+// Quality Gate & Audit (Story 011-5, FR-09, FR-10)
+const qualityResult = ref(null)
+const showQualityModal = ref(false)
+
+const qualityBadgeLabel = computed(() => {
+  if (!qualityResult.value) return ''
+  const status = qualityResult.value.final_status
+  if (status === 'passed') return t('step4.qualityGatePassed')
+  if (status === 'warning') return t('step4.qualityGateWarning')
+  return t('step4.qualityGateFailed')
+})
+
+const fetchQualityResult = async () => {
+  if (!props.reportId) return
+  try {
+    const res = await getReportQuality(props.reportId)
+    if (res && res.success && res.data) {
+      qualityResult.value = res.data
+    }
+  } catch (err) {
+    // Peut être indisponible pendant la génération initiale
+  }
+}
+
+const downloadAuditPackage = () => {
+  if (props.reportId) {
+    const url = getReportAuditDownloadUrl(props.reportId)
+    window.open(url, '_blank')
+  } else if (props.simulationId) {
+    const url = getSimulationAuditDownloadUrl(props.simulationId)
+    window.open(url, '_blank')
+  }
+}
 
 // Toggle functions
 const toggleRawResult = (timestamp, event) => {
@@ -2052,6 +2125,7 @@ const fetchAgentLog = async () => {
             currentSectionIndex.value = null  // 确保清除 loading 状态
             emit('update-status', 'completed')
             stopPolling()
+            fetchQualityResult()
             // 滚动逻辑统一在循环结束后的 nextTick 中处理
           }
           
@@ -2175,6 +2249,7 @@ onMounted(() => {
   if (props.reportId) {
     addLog(`Report Agent initialized: ${props.reportId}`)
     startPolling()
+    fetchQualityResult()
   }
 })
 
@@ -2188,6 +2263,8 @@ watch(() => props.reportId, (newId) => {
     consoleLogs.value = []
     agentLogLine.value = 0
     consoleLogLine.value = 0
+    qualityResult.value = null
+    fetchQualityResult()
     reportOutline.value = null
     currentSectionIndex.value = null
     generatedSections.value = {}
@@ -2211,6 +2288,139 @@ watch(() => props.reportId, (newId) => {
   font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
   overflow: hidden;
 }
+
+/* Quality Gate Badge & Diagnostics (Story 011-5, FR-09) */
+.quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.quality-badge--passed {
+  background: #DCFCE7;
+  color: #166534;
+  border: 1px solid #86EFAC;
+}
+
+.quality-badge--warning {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+.quality-badge--failed {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+}
+
+.quality-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.quality-card {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.quality-card--failed {
+  border-color: #F87171;
+  background: #FEF2F2;
+}
+
+.quality-card--warning {
+  border-color: #FBBF24;
+  background: #FFFBEB;
+}
+
+.quality-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.quality-checks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quality-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.quality-check-item--passed .check-icon {
+  color: #16A34A;
+}
+
+.quality-check-item--warning .check-icon {
+  color: #D97706;
+}
+
+.quality-check-item--failed .check-icon {
+  color: #DC2626;
+}
+
+.check-msg {
+  color: #4B5563;
+  margin-left: 4px;
+}
+
+/* Action Buttons Group & Audit Export (Story 011-5, FR-10) */
+.action-buttons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.audit-export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audit-export-btn:hover {
+  background: #F3F4F6;
+  border-color: #9CA3AF;
+  color: #111827;
+}
+
 
 /* Main Split Layout */
 .main-split-layout {

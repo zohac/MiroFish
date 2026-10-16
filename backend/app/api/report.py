@@ -3,6 +3,7 @@ Report API路由
 提供模拟报告生成、获取、对话等接口
 """
 
+import json
 import os
 import traceback
 import threading
@@ -1148,3 +1149,151 @@ def get_graph_statistics_tool():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Endpoints Qualité & Dossier d'Audit (Story 011-5, FR-09, FR-10, C9, C10) ==============
+
+@report_bp.route('/<report_id>/quality', methods=['GET'])
+def get_report_quality(report_id: str):
+    """
+    Consulte le rapport de validation de la barrière ReportQualityGate.
+    
+    Retourne le contenu de quality_checks.json contenant la liste des 5 contrôles,
+    le résumé des diagnostics et le booléen is_publishable.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        quality_file = ReportManager._get_quality_path(report_id)
+        
+        if not os.path.exists(quality_file):
+            # Tenter de charger depuis la simulation si présente
+            sim_quality_path = ""
+            if report and report.simulation_id:
+                sim_quality_path = os.path.join(Config.UPLOAD_FOLDER, "simulations", report.simulation_id, "quality_checks.json")
+            if sim_quality_path and os.path.exists(sim_quality_path):
+                quality_file = sim_quality_path
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": f"Résultats de qualité non trouvés pour le rapport {report_id}",
+                }), 404
+        
+        from ..models.report_quality import QualityGateResult
+        result = QualityGateResult.load_from_file(quality_file)
+        
+        return jsonify({
+            "success": True,
+            "data": result.to_dict()
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du statut qualité du rapport {report_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@report_bp.route('/<report_id>/audit/download', methods=['GET'])
+def download_report_audit(report_id: str):
+    """
+    Télécharge l'archive ZIP autonome du dossier d'audit complet (FR-10, C10).
+    
+    L'archive simulation_audit_<sim_id>.zip réunit les 8 artefacts de preuve canoniques
+    avec leurs empreintes cryptographiques checksums.sha256.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} introuvable",
+            }), 404
+            
+        if report.status == ReportStatus.GENERATING:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} en cours de génération. Dossier d'audit non finalisé.",
+            }), 409
+
+        simulation_id = report.simulation_id
+        if not simulation_id:
+            return jsonify({
+                "success": False,
+                "error": "Identifiant de simulation introuvable dans le rapport",
+            }), 400
+            
+        from ..services.simulation_audit_service import SimulationAuditService
+        audit_service = SimulationAuditService(simulation_id=simulation_id, report_id=report_id)
+        zip_path = audit_service.get_audit_package_path()
+        
+        download_name = f"simulation_audit_{simulation_id}.zip"
+        return send_file(
+            zip_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="application/zip",
+        )
+    except Exception as e:
+        logger.error(f"Erreur lors du téléchargement de l'audit pour le rapport {report_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@report_bp.route('/simulation/<simulation_id>/audit/download', methods=['GET'])
+def download_simulation_audit(simulation_id: str):
+    """
+    Télécharge l'archive ZIP autonome d'audit directement via l'identifiant de simulation (FR-10, C10).
+    """
+    try:
+        from ..services.simulation_manager import SimulationManager
+        sim_manager = SimulationManager()
+        sim_state = sim_manager.get_simulation(simulation_id)
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", simulation_id)
+        if not sim_state and not os.path.exists(sim_dir):
+            return jsonify({
+                "success": False,
+                "error": f"Simulation {simulation_id} introuvable",
+            }), 404
+
+        # Garde 409 si la simulation est activement en cours d'exécution
+        if sim_state and hasattr(sim_state, "status"):
+            st_val = sim_state.status.value if hasattr(sim_state.status, "value") else str(sim_state.status)
+            if st_val.lower() in ("running", "generating"):
+                return jsonify({
+                    "success": False,
+                    "error": f"Simulation {simulation_id} en cours d'exécution. Dossier d'audit non finalisé.",
+                }), 409
+
+        # Identifier le report_id via le helper canonique
+        report = ReportManager.get_report_by_simulation(simulation_id)
+        report_id = report.report_id if report else None
+
+        if report and report.status == ReportStatus.GENERATING:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} en cours de génération pour la simulation {simulation_id}.",
+            }), 409
+
+        from ..services.simulation_audit_service import SimulationAuditService
+        audit_service = SimulationAuditService(simulation_id=simulation_id, report_id=report_id)
+        zip_path = audit_service.get_audit_package_path()
+
+        download_name = f"simulation_audit_{simulation_id}.zip"
+        return send_file(
+            zip_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="application/zip",
+        )
+    except Exception as e:
+        logger.error(f"Erreur lors du téléchargement direct de l'audit pour la simulation {simulation_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+

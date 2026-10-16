@@ -49,3 +49,27 @@ export const getReport = (reportId) => {
 export const chatWithReport = (data) => {
   return service.post('/api/report/chat', data)
 }
+
+/**
+ * 获取报告质量检测结果 (Story 011-5, FR-09)
+ * @param {string} reportId
+ */
+export const getReportQuality = (reportId) => {
+  return service.get(`/api/report/${reportId}/quality`)
+}
+
+/**
+ * Obtenir l'URL de téléchargement du dossier d'audit du rapport (Story 011-5, FR-10)
+ * @param {string} reportId
+ */
+export const getReportAuditDownloadUrl = (reportId) => {
+  return `/api/report/${reportId}/audit/download`
+}
+
+/**
+ * Obtenir l'URL de téléchargement du dossier d'audit de la simulation (Story 011-5, FR-10)
+ * @param {string} simulationId
+ */
+export const getSimulationAuditDownloadUrl = (simulationId) => {
+  return `/api/report/simulation/${simulationId}/audit/download`
+}
