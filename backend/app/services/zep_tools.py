@@ -1738,7 +1738,7 @@ class ZepToolsService:
         for i, agent_idx in enumerate(selected_indices):
             agent = selected_agents[i] if i < len(selected_agents) else {}
             agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
-            agent_role = agent.get("profession", "未知")
+            agent_role = agent.get("profession") or "Non spécifié"
             agent_bio = agent.get("bio", "")
             agent_persona = agent.get("persona", "")
 
@@ -1792,12 +1792,17 @@ class ZepToolsService:
                 f"【Reddit - Mode archives / Hors-ligne】\n{offline_reddit_resp}"
             )
 
-            # Extraire key_quotes
+            # Extraire key_quotes en préservant une ponctuation propre
             sentences = re.split(r'[。！？\.\n]', offline_twitter_resp)
-            key_quotes = [
-                s.strip() + "。" for s in sentences
-                if len(s.strip()) >= 15 and not s.strip().startswith(('【', '['))
-            ][:3]
+            key_quotes = []
+            for s in sentences:
+                clean_s = s.strip()
+                if len(clean_s) >= 15 and not clean_s.startswith(('【', '[')):
+                    if not clean_s.endswith(('.', '!', '?', '。', '！', '？')):
+                        clean_s += "."
+                    key_quotes.append(clean_s)
+                    if len(key_quotes) >= 3:
+                        break
 
             interview = AgentInterview(
                 agent_name=agent_name,

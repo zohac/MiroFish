@@ -563,3 +563,160 @@ def test_ac5_cleanup_all_simulations_terminates_all_active_processes(tmp_path, m
     SimulationRunner.cleanup_all_simulations()
 
     assert sim_id in stopped_sims
+
+
+# ==============================================================================
+# Tests de revue contradictoire BMAD (Patches 1, 2, 3, 4)
+# ==============================================================================
+
+def test_bmad_patch_nonzero_exit_code_preserves_completed_status(tmp_path, monkeypatch):
+    """
+    BMAD Patch 1 & 3: Lorsque le sous-processus est éteint avec un exit_code non nul
+    (ex. -15 SIGTERM par close_simulation_environment ou watchdog) alors que la complétion
+    logique a déjà eu lieu (COMPLETED), _monitor_simulation préserve le statut COMPLETED
+    et conserve l'horodatage completed_at d'origine.
+    """
+    sim_id = "sim-bmad-nonzero-exit"
+    sim_dir = tmp_path / sim_id
+    sim_dir.mkdir(parents=True)
+    monkeypatch.setattr(SimulationRunner, "RUN_STATE_DIR", str(tmp_path))
+
+    initial_completed_at = "2026-10-16T10:00:00"
+    state = SimulationRunState(
+        simulation_id=sim_id,
+        runner_status=RunnerStatus.COMPLETED,
+        completed_at=initial_completed_at,
+        keep_alive_on_completion=True,
+    )
+    SimulationRunner._run_states[sim_id] = state
+
+    proc = MockSubprocess(pid=55901)
+    proc._alive = False
+    proc.returncode = -15  # Terminé via SIGTERM
+    SimulationRunner._processes[sim_id] = proc
+
+    monkeypatch.setattr(
+        SimulationRunner,
+        "_check_all_platforms_completed",
+        classmethod(lambda _cls, _st: True),
+    )
+    monkeypatch.setattr(
+        SimulationRunner,
+        "_sync_simulation_status",
+        classmethod(lambda *args, **kwargs: None),
+    )
+
+    SimulationRunner._monitor_simulation(sim_id)
+
+    # Le statut doit impérativement rester COMPLETED (ne pas régresser en FAILED)
+    assert state.runner_status == RunnerStatus.COMPLETED
+    assert state.error is None
+    # L'horodatage initial doit être préservé sans réécriture
+    assert state.completed_at == initial_completed_at
+
+
+def test_bmad_patch_offline_interview_clean_punctuation(tmp_path, monkeypatch):
+    """
+    BMAD Patch 4: _synthesize_offline_interviews ne produit pas de double ponctuation
+    (comme .。) et utilise un rôle par défaut propre.
+    """
+    mock_llm = MagicMock()
+    mock_llm.chat.return_value = "L'analyse montre une divergence marquée entre les acteurs."
+
+    service = ZepToolsService(llm_client=mock_llm)
+    monkeypatch.setattr(
+        SimulationActionVerifier,
+        "load_simulation_actions",
+        lambda self, sid=None, sim_dir=None: [],
+    )
+
+    from app.services.zep_tools import InterviewResult
+    res = InterviewResult(
+        interview_topic="Sujet test",
+        interview_questions=["Question 1 ?"],
+    )
+
+    agents = [{"username": "AgentTest", "profession": ""}]
+    service._synthesize_offline_interviews(
+        simulation_id="sim-bmad-punct",
+        selected_agents=agents,
+        selected_indices=[0],
+        combined_prompt="Question 1 ?",
+        result=res,
+    )
+
+    assert len(res.interviews) == 1
+    interview = res.interviews[0]
+    assert interview.agent_role == "Non spécifié"
+    assert len(interview.key_quotes) > 0
+    for quote in interview.key_quotes:
+        assert not quote.endswith(".。")
+        assert not quote.endswith("。。")
+        assert quote[-1] in (".", "!", "?", "。")
+
+
+def test_bmad_patch_simulation_config_generator_includes_keep_alive():
+    """
+    BMAD Patch 2: SimulationParameters.to_dict inclut keep_alive_on_completion: True par défaut
+    pour garantir le maintien en vie interactif dans les configurations préparées.
+    """
+    from app.services.simulation_config_generator import EventConfig, SimulationParameters, TimeSimulationConfig
+
+    params = SimulationParameters(
+        simulation_id="sim-bmad-config",
+        project_id="proj-1",
+        graph_id="graph-1",
+        simulation_requirement="Test requirement",
+        time_config=TimeSimulationConfig(total_simulation_hours=24, minutes_per_round=60),
+        event_config=EventConfig(),
+    )
+    d = params.to_dict()
+    assert d.get("keep_alive_on_completion") is True
+
+
+def test_bmad_patch_api_start_simulation_defaults_to_none_keep_alive(monkeypatch):
+    """
+    BMAD Patch 2: L'API POST /api/simulation/start ne force pas False quand keep_alive_on_completion
+    est omis, laissant SimulationRunner s'appuyer sur la configuration de simulation.
+    """
+    from flask import Flask
+    from types import SimpleNamespace
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+
+    captured = {}
+
+    def mock_start(simulation_id, keep_alive_on_completion=None, **kwargs):
+        captured["keep_alive_on_completion"] = keep_alive_on_completion
+        return SimulationRunState(
+            simulation_id=simulation_id,
+            runner_status=RunnerStatus.RUNNING,
+        )
+
+    monkeypatch.setattr(SimulationRunner, "start_simulation", mock_start)
+    monkeypatch.setattr(simulation_api, "_check_simulation_prepared", lambda _sid: (True, {}))
+    monkeypatch.setattr(simulation_api, "_qualification_inputs_are_fresh", lambda _st, _et: (True, "fresh"))
+
+    mock_state = SimpleNamespace(
+        simulation_id="sim-bmad-api",
+        project_id="proj-1",
+        locale="fr",
+        status=simulation_api.SimulationStatus.READY,
+        entity_types=[],
+        graph_id=None,
+    )
+    monkeypatch.setattr(
+        simulation_api.SimulationManager,
+        "get_simulation",
+        lambda self, _sid: mock_state,
+    )
+
+    with app.test_request_context(
+        "/api/simulation/start",
+        method="POST",
+        json={"simulation_id": "sim-bmad-api"},
+    ):
+        resp = simulation_api.start_simulation()
+        code = resp.status_code if hasattr(resp, "status_code") else resp[1]
+        assert code == 200
+        assert captured.get("keep_alive_on_completion") is None

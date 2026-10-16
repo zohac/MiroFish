@@ -1972,7 +1972,7 @@ def start_simulation():
         max_rounds = data.get('max_rounds')  # 可选：最大模拟轮数
         enable_graph_memory_update = data.get('enable_graph_memory_update', False)  # 可选：是否启用图谱记忆更新
         force = data.get('force', False)  # 可选：强制重新开始
-        keep_alive_on_completion = data.get('keep_alive_on_completion', False)  # 可选：模拟完成后是否保持环境常驻
+        keep_alive_on_completion = data.get('keep_alive_on_completion')  # Optionnel : si None, s'appuie sur la configuration de simulation
         if not isinstance(enable_graph_memory_update, bool):
             return jsonify({
                 "success": False,
@@ -1983,7 +1983,7 @@ def start_simulation():
                 "success": False,
                 "error": "force must be a JSON boolean",
             }), 400
-        if not isinstance(keep_alive_on_completion, bool):
+        if keep_alive_on_completion is not None and not isinstance(keep_alive_on_completion, bool):
             return jsonify({
                 "success": False,
                 "error": "keep_alive_on_completion must be a JSON boolean",

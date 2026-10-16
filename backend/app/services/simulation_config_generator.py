@@ -207,6 +207,7 @@ class SimulationParameters:
             "simulation_brief": self.simulation_brief,
             "context_budgets": list(self.context_budgets),
             "applied_ontology_id": self.applied_ontology_id,
+            "keep_alive_on_completion": True,
         }
     
     def to_json(self, indent: int = 2) -> str:

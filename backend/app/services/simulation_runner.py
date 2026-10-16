@@ -972,18 +972,26 @@ class SimulationRunner:
                         desired_status = RunnerStatus.FAILED
                         error_message = str(monitor_error)
                     elif not manual_stop and exit_code != 0:
-                        desired_status = RunnerStatus.FAILED
-                        main_log_path = os.path.join(sim_dir, "simulation.log")
-                        error_info = ""
-                        try:
-                            if os.path.exists(main_log_path):
-                                with open(main_log_path, 'r', encoding='utf-8') as f:
-                                    error_info = f.read()[-2000:]
-                        except Exception:
-                            pass
-                        error_message = (
-                            f"进程退出码: {exit_code}, 错误: {error_info}"
-                        )
+                        # Si le mode interactif vivant était activé (keep_alive_on_completion=True, Story 011-1)
+                        # et que la complétion logique a déjà eu lieu (COMPLETED), l'extinction différée du processus
+                        # (close_simulation_environment ou watchdog) ne doit pas rétrograder la simulation en FAILED.
+                        if state.keep_alive_on_completion and state.runner_status == RunnerStatus.COMPLETED:
+                            logger.info(
+                                f"Processus {simulation_id} terminé avec code {exit_code} après complétion logique : maintien du statut COMPLETED"
+                            )
+                        else:
+                            desired_status = RunnerStatus.FAILED
+                            main_log_path = os.path.join(sim_dir, "simulation.log")
+                            error_info = ""
+                            try:
+                                if os.path.exists(main_log_path):
+                                    with open(main_log_path, 'r', encoding='utf-8') as f:
+                                        error_info = f.read()[-2000:]
+                            except Exception:
+                                pass
+                            error_message = (
+                                f"进程退出码: {exit_code}, 错误: {error_info}"
+                            )
 
                     state.twitter_running = False
                     state.reddit_running = False
@@ -1018,7 +1026,8 @@ class SimulationRunner:
 
                     state.runner_status = desired_status
                     state.error = error_message
-                    state.completed_at = datetime.now().isoformat()
+                    if not state.completed_at:
+                        state.completed_at = datetime.now().isoformat()
                     cls._save_run_state(state)
                     cls._sync_simulation_status(
                         simulation_id,

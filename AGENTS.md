@@ -29,7 +29,7 @@ reproductible.**
 | Éligibilité des acteurs et fiabilisation des sources | ✅ fait — Epic 009 clos (1157 tests verts, Verdict GO) |
 | Ontologie dynamique (v2) | ✅ fait — Epic 007 clos (1550 tests verts, Verdict GO, NO-GO empirique C3 consigné) |
 | Support complet de la langue française (Localisation FR) | ✅ fait — Epic 008 clos (1649 tests verts hôte + 9 frontend, Verdict GO) |
-| Preuve par les faits simulés, traçabilité et intégrité (OASIS post-simulation, ToolShield) | 🔄 en cours — Epic 011 (1/6 stories done, 1659 tests verts) |
+| Preuve par les faits simulés, traçabilité et intégrité (OASIS post-simulation, ToolShield) | 🔄 en cours — Epic 011 (1/6 stories done, 1663 tests verts) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -130,7 +130,7 @@ Revue contradictoire BMAD 4 couches validée.
 **008-1 est close (`done`)** : dictionnaire complet de traduction française `locales/fr.json` (679 clés sur 17 sections, parité 100 % stricte avec `en.json`, 0 orpheline, 0 manquante, variables `{var}` conformes), intégration backend `normalize_locale()` RFC 7231 (`backend/app/utils/locale.py`), 7 tests hermétiques dédiés (`test_i18n_parity.py`). Revue contradictoire BMAD 4 couches validée.
 **008-2 est close (`done`)** : intégration et bascule IHM frontend Vue 3 (`LanguageSwitcher.vue`, formats régionaux `fr-FR` via `regionalFormat.js`, synchronisation de l'en-tête Axios `Accept-Language`, persistance `localStorage`). 9 tests Node passés (`pnpm --dir frontend test`), build Vite réussi. Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués (fuite `'FINALIZING'` résolue, gardes défensives sur types coercitifs, synchronisation CI) et 5 travaux différés consignés dans `docs/deferred-work.md`. Validation visuelle Docker réelle réussie à 100 % sur navigateurs bureau (rendu mobile amont documenté et différé pour story ergonomique dédiée). DoD 100 % satisfait. Filet global : **1618 tests verts sur l'hôte**, 9 tests frontend Node.
 **008-3 est close (`done`)** : locale canonique persistée par simulation (`SimulationState.locale`), propagation thread-safe Flask/threads/processus OASIS (`use_locale`), prompts LLM et fallbacks localisés (plan_outline, ReACT, simulation_config_generator, chat), neutralisation des consignes antérieures lors des régénérations et respect strict des invariants techniques (clés JSON anglaises, types PascalCase, relations UPPER_SNAKE_CASE, enums et citations verbatim fidèles). 59 tests hermétiques passants (52 dans `test_simulation_locale.py`, 7 dans `test_verifier_qualification_epic_008_3.py`). Banc d'évaluation autonome sous conteneur Docker avec modèle réel validant AC1–AC8 avec **VERDICT GO** formalisé dans [`rapport-qualification-008-3.md`](docs/plans/008-support-langue-francaise/rapport-qualification-008-3.md). **Epic 008 intégralement clos avec succès (3/3 stories done, 1649 tests verts sur l'hôte + 9 tests frontend Node)**.
-**011-1 est close (`done`)** : maintien en vie interactif du processus OASIS post-rounds avec découplage de la complétion logique (`RunnerStatus.COMPLETED` et drain mémoire Neo4j sous verrou dès la fin des plateformes), rétablissement opérationnel d'`interview_agents_batch` / `interview_agents` en état `COMPLETED`, repli hors-ligne robuste par synthèse d'archives (`_synthesize_offline_interviews` avec balises explicites sans rupture ReACT), clôture différée ordonnée `close_simulation_environment(simulation_id)` déclenchée en fin de génération de rapport (`finally:` de `ReportAgent` et endpoint API), et protection anti-zombie via watchdog d'inactivité de 15 minutes. 9 tests unitaires hermétiques dédiés (`test_simulation_interactive_lifecycle.py`). Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués. **1659 tests verts sur l'hôte**.
+**011-1 est close (`done`)** : maintien en vie interactif du processus OASIS post-rounds avec découplage de la complétion logique (`RunnerStatus.COMPLETED` et drain mémoire Neo4j sous verrou dès la fin des plateformes), rétablissement opérationnel d'`interview_agents_batch` / `interview_agents` en état `COMPLETED`, repli hors-ligne robuste par synthèse d'archives (`_synthesize_offline_interviews` avec balises explicites sans rupture ReACT), clôture différée ordonnée `close_simulation_environment(simulation_id)` déclenchée en fin de génération de rapport (`finally:` de `ReportAgent` et endpoint API), et protection anti-zombie via watchdog d'inactivité de 15 minutes. 13 tests unitaires hermétiques dédiés (`test_simulation_interactive_lifecycle.py`). Revue contradictoire BMAD 4 couches validée avec 4 patches appliqués (résilience COMPLETED face aux signaux de fin de vie, propagation du mode interactif, préservation completed_at, ponctuation). **1663 tests verts sur l'hôte**.
 
 ---
 
@@ -158,7 +158,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-16 octobre 2026 compte **1659 tests collectés et réussis sur l'hôte (+ 9 tests frontend Node) ; 1656 réussis + 3 ignorés sous
+16 octobre 2026 compte **1663 tests collectés et réussis sur l'hôte (+ 9 tests frontend Node) ; 1660 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
@@ -175,7 +175,7 @@ hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1589** (1580 + 7 tests hermétiques dédiés parité i18n et normalisation locale RFC 7231) ; post-008-2 :
 **1618** (1589 + 29 tests, dont 9 tests Node frontend i18n/formats régionaux et suite backend consolidée) ; post-008-3 :
 **1649** (1618 + 31 tests hermétiques nets, dont fallbacks config/rapport, boucle ReACT fr et banc de qualification 008-3) ; post-011-1 :
-**1659** (1649 + 10 tests hermétiques nets, dont maintien en vie interactif OASIS post-rounds, rétablissement interview_agents et clôture différée).
+**1663** (1649 + 14 tests hermétiques nets, dont maintien en vie interactif OASIS post-rounds, rétablissement interview_agents, clôture différée et 4 patches BMAD).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais

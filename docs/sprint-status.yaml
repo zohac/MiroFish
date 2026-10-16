@@ -792,6 +792,6 @@ epics:
     # (RunnerStatus.COMPLETED et drain mémoire Neo4j sous _finalization_lock dès fin des plateformes sans tuer le sous-processus).
     # Rétablissement du succès de interview_agents via IPC, clôture différée propre close_simulation_environment(simulation_id)
     # dans le finally de ReportAgent / report.py, repli gracieux hors-ligne _synthesize_offline_interviews (mode archives),
-    # et watchdog d'inactivité anti-zombie de 15 minutes. 9 tests hermétiques dédiés dans test_simulation_interactive_lifecycle.py.
-    # Filet global porté à 1659 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (1/6 stories done).
+    # et watchdog d'inactivité anti-zombie de 15 minutes. 13 tests hermétiques dédiés dans test_simulation_interactive_lifecycle.py.
+    # Revue contradictoire BMAD 4 couches validée avec 4 patches appliqués. Filet global porté à 1663 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (1/6 stories done).
 

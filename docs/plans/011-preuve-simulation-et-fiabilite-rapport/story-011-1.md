@@ -69,7 +69,7 @@ Cette story répond directement à l'exigence fonctionnelle **FR-01** de l'Epic 
 - [x] Le repli hors-ligne pour les rejeux ou régénérations sur environnement éteint est fonctionnel et ne lève aucune exception non gérée.
 - [x] La propreté des processus (NFR-03) est garantie : zéro processus orphelin ou zombie après rapport, après timeout d'inactivité ou après arrêt manuel.
 - [x] Suite de tests hermétiques dédiée créée dans `backend/tests/test_simulation_interactive_lifecycle.py`.
-- [x] Suite complète de tests au vert sur l'hôte (filet $\ge 1657$ tests : **1 659 tests réussis**) et parité validée sous Docker.
+- [x] Suite complète de tests au vert sur l'hôte (filet $\ge 1657$ tests : **1 663 tests réussis**) et parité validée sous Docker.
 - [x] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
 - [x] Revue contradictoire BMAD à 4 couches réalisée, findings résolus ou documentés.
 - [x] Documents de suivi synchronisés (`docs/plans/011-preuve-simulation-et-fiabilite-rapport/epic-011.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`).
@@ -160,12 +160,12 @@ Clôture différée post-rapport :
 ### Review Findings (Revue contradictoire BMAD à 4 couches)
 
 - **Couche 1 (Spécification / PRD / Contrat AC1-AC6)** :
-  - *Constat* : AC1 respecté via le découplage dans `_monitor_simulation` dès `_check_all_platforms_completed` sous `_finalization_lock`.
+  - *Constat* : AC1 respecté sur le découplage logique, mais la valeur par défaut de `keep_alive_on_completion` (False) entraîne toujours l'injection de `--no-wait` lors d'un lancement standard via IHM ou API (Finding 2).
   - *Constat* : AC2 respecté, `interview_agents_batch` opérationnel sur simulation en statut `COMPLETED`.
-  - *Constat* : AC3 respecté, double sécurité de clôture dans le `finally:` de `ReportAgent._generate_report_internal` et de `report.py`.
-  - *Constat* : AC4 respecté, `_synthesize_offline_interviews` fournit une interview étiquetée mode archives/hors-ligne sans lever d'exception.
+  - *Constat* : AC3 respecté sur le câblage de `close_simulation_environment`, mais si le processus est éteint avec un code non nul (SIGTERM/SIGKILL), `_monitor_simulation` écrase le statut `COMPLETED` en `FAILED` (Finding 1).
+  - *Constat* : AC4 respecté, `_synthesize_offline_interviews` fournit une interview étiquetée mode archives/hors-ligne sans lever d'exception. Ponctuation terminale à normaliser (Finding 4).
   - *Constat* : AC5 respecté, watchdog 15 minutes (`SIMULATION_INACTIVITY_TIMEOUT_SECONDS`) et nettoyage étanche dans `cleanup_all_simulations`.
-  - *Constat* : AC6 respecté, 9 tests hermétiques dédiés dans `test_simulation_interactive_lifecycle.py`, 1 659 tests au total (0 régression).
+  - *Constat* : AC6 respecté, 9 tests hermétiques dédiés dans `test_simulation_interactive_lifecycle.py`, 1 659 tests au total (0 régression). Tests d'injection par défaut et de code de sortie à enrichir (Finding 5).
 
 - **Couche 2 (Clean Architecture & Invariants SOLID/DRY)** :
   - *Constat* : Dépendances conformes (`api` $\rightarrow$ `services` $\rightarrow$ `utils`).
@@ -179,17 +179,30 @@ Clôture différée post-rapport :
   - *Constat* : Tests 100 % mockés, sans dépendance réseau ni fichiers temporaires résiduels.
   - *Constat* : Fixture autouse `clean_runner_state` nettoyant les registres avant et après chaque exécution.
 
+#### Actions issues de la revue (Findings)
+
+- [x] [Review][Patch] Résilience du statut terminal face à exit_code non nul post-complétion [backend/app/services/simulation_runner.py:974-987]
+- [x] [Review][Patch] Activation par défaut du mode interactif post-rounds (keep_alive=True) sans injection de --no-wait [backend/app/services/simulation_runner.py:572, backend/app/api/simulation.py:1975]
+- [x] [Review][Patch] Préservation de completed_at dans le bloc finally de _monitor_simulation [backend/app/services/simulation_runner.py:1021]
+- [x] [Review][Patch] Normalisation de la ponctuation et locale neutre dans _synthesize_offline_interviews et tests associés [backend/app/services/zep_tools.py:1741, 1796-1800, backend/tests/test_simulation_interactive_lifecycle.py]
+
+#### Annexe des rejets (Rejected)
+- Rejet 1 (low) : Popping prématuré de `cls._processes` dans `close_simulation_environment` — le dictionnaire statique est déjà protégé sous `_finalization_lock` et le thread de monitoring possède déjà la référence locale à l'objet `process`.
+- Rejet 2 (false) : Risque de ré-exécution destructrice de `close_simulation_environment` dans `report.py` après `ReportAgent` — vérifié : `close_simulation_environment` est idempotent et court-circuite silencieusement quand l'environnement est déjà fermé.
+
 ---
 
 ## Notes de complétion
 
 - **Date de complétion** : 16 octobre 2026.
 - **Statut** : Clos avec succès (`done`).
-- **Filet de tests validé** : **1 659 tests réussis** sur l'hôte (1 650 initiaux + 9 nouveaux tests hermétiques), 1 warning bénin déprécié pydantic amont, 0 échec.
+- **Filet de tests validé** : **1 663 tests réussis** sur l'hôte (1 650 initiaux + 13 nouveaux tests hermétiques), 1 warning bénin déprécié pydantic amont, 0 échec.
 - **Artefacts produits / modifiés** :
-  - `backend/app/services/simulation_runner.py` : découplage complétion logique vs extinction sous-processus, watchdog inactivité 15 min, méthode unifiée `close_simulation_environment`.
+  - `backend/app/services/simulation_runner.py` : découplage complétion logique vs extinction sous-processus, watchdog inactivité 15 min, méthode unifiée `close_simulation_environment`, résilience du statut COMPLETED et préservation de completed_at.
   - `backend/app/services/report_agent.py` : déclenchement différé de `close_simulation_environment` dans `finally:`.
   - `backend/app/api/report.py` : filet de sécurité supplémentaire pour la clôture différée dans le worker de génération.
-  - `backend/app/services/zep_tools.py` : méthode `_synthesize_offline_interviews` pour le repli gracieux hors-ligne (mode archives).
-  - `backend/tests/test_simulation_interactive_lifecycle.py` : 9 tests unitaires hermétiques validant AC1 à AC5.
+  - `backend/app/api/simulation.py` : propagation transparente du mode interactif par défaut.
+  - `backend/app/services/simulation_config_generator.py` : activation native de `keep_alive_on_completion: True` dans les configurations générées.
+  - `backend/app/services/zep_tools.py` : méthode `_synthesize_offline_interviews` pour le repli gracieux hors-ligne (mode archives), normalisation ponctuation.
+  - `backend/tests/test_simulation_interactive_lifecycle.py` : 13 tests unitaires hermétiques validant AC1 à AC5 et les 4 patches BMAD.
 
