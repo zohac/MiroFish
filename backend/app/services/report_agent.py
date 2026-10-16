@@ -36,6 +36,14 @@ from .zep_tools import (
     InterviewResult
 )
 from .simulation_action_verifier import SimulationActionVerifier
+from ..models.evidence_pack import EvidencePack, ObservedEvent
+from ..models.report_claim import (
+    ClaimKind,
+    ReportClaim,
+    ReportClaimRegistry,
+    VerificationStatus,
+)
+from ..models.source_document import InformationOrigin
 
 logger = get_logger('mirofish.report_agent')
 
@@ -2263,6 +2271,12 @@ class ReportAgent:
                 with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(report.markdown_content)
 
+            # Audit, vérification et persistance de report_claims.json (Story 011-3, AC6)
+            try:
+                self.audit_and_save_report_claims(report.markdown_content)
+            except Exception as claim_err:
+                logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
+
             report.status = ReportStatus.COMPLETED
             report.completed_at = datetime.now().isoformat()
             
@@ -2474,6 +2488,141 @@ class ReportAgent:
             logger.warning(f"Impossible de récupérer les arêtes pour le décompte d'ontologie ({graph_id}): {e}")
 
         return entity_counts, edge_counts
+
+    def extract_claims_from_content(self, markdown_content: str) -> List[ReportClaim]:
+        """Extrait les affirmations du rapport à partir de phrases ou puces clés (Story 011-3, AC6)."""
+        if not markdown_content:
+            return []
+
+        claims: List[ReportClaim] = []
+        lines = markdown_content.split("\n")
+
+        # Motifs pour détecter l'agent et le round
+        agent_pattern = re.compile(r"(?:Agent\s+)?([A-ZÀ-ÖØ-ß][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-ß][a-zà-öø-ÿ]+)?)", re.UNICODE)
+        round_pattern = re.compile(r"(?:Round|Tour)\s*(\d+)", re.IGNORECASE)
+        event_ref_pattern = re.compile(r"\b(evt_[a-z0-9_]+)\b")
+        doc_ref_pattern = re.compile(r"`([^`]+\.(?:md|txt|pdf|json))`")
+
+        current_section = ""
+
+        for line in lines:
+            trimmed = line.strip()
+            if trimmed.startswith("#"):
+                current_section = trimmed.lstrip("#").strip()
+                continue
+
+            if not trimmed or len(trimmed) < 15:
+                continue
+
+            # Ne garder que les lignes d'affirmations (puces ou phrases déclaratives)
+            is_bullet = trimmed.startswith(("-", "*", "•")) or (trimmed[:2].isdigit() and trimmed[2:4] in (". ", ") "))
+            is_bold_start = trimmed.startswith("**")
+
+            if not (is_bullet or is_bold_start or len(trimmed) > 30):
+                continue
+
+            clean_text = trimmed.lstrip("-*•0123456789. )").strip()
+
+            # Détecter références d'événements
+            ev_refs = event_ref_pattern.findall(clean_text)
+            doc_refs = doc_ref_pattern.findall(clean_text)
+
+            # Détecter l'agent
+            agent_name = None
+            agent_match = agent_pattern.search(clean_text)
+            if agent_match:
+                candidate = agent_match.group(1).strip()
+                # Écarter les mots de début de phrase courants
+                if candidate.lower() not in ("le", "la", "les", "un", "une", "des", "cette", "ce", "ces", "dans", "pour", "selon", "suite", "afin"):
+                    agent_name = candidate
+
+            # Détecter le round
+            round_num = None
+            round_match = round_pattern.search(clean_text)
+            if round_match:
+                try:
+                    round_num = int(round_match.group(1))
+                except ValueError:
+                    pass
+
+            # Déterminer claim_kind
+            sec_lower = current_section.lower()
+            text_lower = clean_text.lower()
+
+            if "source" in sec_lower or "provenance" in sec_lower or "contexte documentaire" in sec_lower or doc_refs:
+                claim_kind = ClaimKind.SOURCE_FACT
+                origin = InformationOrigin.DOCUMENTARY
+            elif any(k in text_lower for k in ("va", "veut", "compte", "prévoit", "songe", "intention", "plans to", "intends to")):
+                claim_kind = ClaimKind.REPORTED_INTENTION
+                origin = InformationOrigin.SIMULATION
+            elif ev_refs or any(k in text_lower for k in ("a publié", "a tweeté", "a posté", "a commenté", "a réagi", "a acheté", "a souscrit", "exprimé")):
+                claim_kind = ClaimKind.OBSERVED_SOCIAL_ACTION
+                origin = InformationOrigin.SIMULATION
+            elif any(k in text_lower for k in ("hypothèse", "scénario", "consigne", "brief", "hypothesis")):
+                claim_kind = ClaimKind.SCENARIO_HYPOTHESIS
+                origin = InformationOrigin.HYPOTHESIS
+            elif any(k in text_lower for k in ("churn", "taux", "croissance", "perspective", "futur", "projection", "d'ici")):
+                claim_kind = ClaimKind.SPECULATIVE_PROJECTION
+                origin = InformationOrigin.INFERENCE
+            else:
+                claim_kind = ClaimKind.ANALYST_INFERENCE
+                origin = InformationOrigin.INFERENCE
+
+            all_refs = list(ev_refs) + list(doc_refs)
+
+            claim = ReportClaim(
+                claim_id="",  # Auto-calculé déterministement
+                text=clean_text,
+                claim_kind=claim_kind,
+                origin=origin,
+                evidence_refs=all_refs,
+                verification_status=VerificationStatus.UNSUPPORTED,
+                agent_name=agent_name,
+                round_num=round_num,
+                confidence=1.0,
+            )
+            claims.append(claim)
+
+        return claims
+
+    def audit_and_save_report_claims(
+        self,
+        markdown_content: str,
+        evidence_pack: Optional[EvidencePack] = None,
+    ) -> ReportClaimRegistry:
+        """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, AC6)."""
+        registry = ReportClaimRegistry(simulation_id=self.simulation_id)
+        raw_claims = self.extract_claims_from_content(markdown_content)
+
+        # Si evidence_pack n'a pas été injecté, tenter de le charger via OasisLogReaderService
+        if evidence_pack is None:
+            try:
+                from .oasis_log_reader import OasisLogReaderService
+                evidence_pack = OasisLogReaderService.load_evidence_pack(self.simulation_id)
+            except Exception as e:
+                logger.debug(f"EvidencePack non chargé pour audit des claims : {e}")
+                evidence_pack = None
+
+        for claim in raw_claims:
+            verified = SimulationActionVerifier.verify_report_claim(
+                claim=claim,
+                evidence_pack=evidence_pack,
+            )
+            registry.add_claim(verified)
+
+        # Sauvegarder dans simulations/<sim_id>/report_claims.json
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+        report_claims_path = os.path.join(sim_dir, "report_claims.json")
+        try:
+            registry.save_to_file(report_claims_path)
+            logger.info(
+                f"Registre report_claims.json persisté ({registry.total_claims} claims, "
+                f"{registry.verified_claims} vérifiés, ratio {registry.verification_ratio*100:.1f}%)"
+            )
+        except Exception as err:
+            logger.warning(f"Erreur lors de la sauvegarde de report_claims.json: {err}")
+
+        return registry
     
     def chat(
         self, 

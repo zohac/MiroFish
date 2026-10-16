@@ -13,6 +13,7 @@ Ce module met en œuvre les exigences FR-7, NFR-5 et les critères C6-C7 :
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
@@ -21,6 +22,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..config import Config
+from ..models.evidence_pack import EvidencePack, ObservedEvent
+from ..models.report_claim import ClaimKind, ReportClaim, VerificationStatus
 from ..models.source_document import (
     ConflictStatus,
     InformationOrigin,
@@ -702,3 +705,278 @@ class SimulationActionVerifier:
             lines.append("")
 
         return "\n".join(lines)
+
+    @classmethod
+    def normalize_text_for_comparison(cls, text: str) -> str:
+        """Normalise un texte pour comparaison souple de citation (espaces, ponctuation, casse)."""
+        if not text:
+            return ""
+        # Remplacer toute ponctuation par un espace et condenser les espaces
+        cleaned = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE)
+        return " ".join(cleaned.lower().split())
+
+    @classmethod
+    def verify_simulated_citation(
+        cls,
+        agent_name: str,
+        claimed_text: str,
+        evidence_pack: Optional[EvidencePack] = None,
+        actions: Optional[List[Any]] = None,
+    ) -> Tuple[bool, bool, Optional[str]]:
+        """Contrôle de conformité d'une citation simulée attribuée à un persona (AC5, Critère C4).
+
+        Compare le texte cité aux messages effectifs publiés par l'agent dans le run.
+        Retourne : (valid, exact_match, matching_event_id ou None).
+        """
+        if not claimed_text or not claimed_text.strip():
+            return False, False, None
+
+        target_norm = cls.normalize_text_for_comparison(claimed_text)
+        target_raw = claimed_text.strip().lower()
+        if not target_norm:
+            return False, False, None
+
+        name_lower = agent_name.strip().lower()
+
+        # Extraire les événements pertinents
+        candidate_events: List[Any] = []
+        if evidence_pack and evidence_pack.events:
+            for ev in evidence_pack.events:
+                ev_agent = (ev.agent_name or "").lower()
+                if name_lower in ev_agent or ev_agent in name_lower:
+                    candidate_events.append(ev)
+        elif actions:
+            for act in actions:
+                act_name = getattr(act, "agent_name", "") or (act.get("agent_name") if isinstance(act, dict) else "") or ""
+                act_lower = str(act_name).strip().lower()
+                if name_lower in act_lower or act_lower in name_lower:
+                    candidate_events.append(act)
+
+        for ev in candidate_events:
+            # Récupérer les textes émis dans l'événement
+            args = getattr(ev, "action_args", None) or (ev.get("action_args") if isinstance(ev, dict) else {}) or {}
+            res = getattr(ev, "result", None) or (ev.get("result") if isinstance(ev, dict) else None)
+            ev_id = getattr(ev, "event_id", None) or (ev.get("event_id") if isinstance(ev, dict) else None)
+
+            texts_to_check: List[str] = []
+            if isinstance(args, dict):
+                for val in args.values():
+                    if isinstance(val, str) and val.strip():
+                        texts_to_check.append(val.strip())
+            if isinstance(res, str) and res.strip():
+                texts_to_check.append(res.strip())
+
+            for txt in texts_to_check:
+                txt_raw = txt.lower()
+                txt_norm = cls.normalize_text_for_comparison(txt)
+
+                # 1. Correspondance exacte verbatim
+                if target_raw in txt_raw:
+                    return True, True, ev_id
+
+                # 2. Correspondance normalisée (ponctuation/espaces)
+                if target_norm in txt_norm:
+                    return True, False, ev_id
+
+                # 3. Correspondance de quasi-égalité (légères variations sans affabulation)
+                if len(txt_norm) >= 15 and len(target_norm) >= 15:
+                    ratio = difflib.SequenceMatcher(None, target_norm, txt_norm).ratio()
+                    if ratio >= 0.85:
+                        return True, False, ev_id
+
+        return False, False, None
+
+    @classmethod
+    def verify_report_claim(
+        cls,
+        claim: ReportClaim,
+        evidence_pack: Optional[EvidencePack] = None,
+        canonical_documents: Optional[List[Any]] = None,
+    ) -> ReportClaim:
+        """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critère C4, C5).
+
+        Applique les règles fondamentales :
+          - Règle anti-affabulation C4 : Une affirmation OBSERVED_SOCIAL_ACTION sans event_id valide
+            exécuté (is_action_executed = True) est automatiquement déclassée en REPORTED_INTENTION (UNSUPPORTED).
+          - Étanchéité épistémique C5 : Une affirmation issue d'un persona fictif ne peut être SOURCE_FACT
+            ni DOCUMENTARY.
+          - Contrôle verbatim des citations simulées : si une citation est invoquée sans trace dans l'evidence_pack,
+            marquage UNSUPPORTED.
+        """
+        # Si la claim est de type OBSERVED_SOCIAL_ACTION
+        if claim.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+            # Événements candidats
+            candidate_events: List[ObservedEvent] = []
+            if evidence_pack and claim.evidence_refs:
+                for ref in claim.evidence_refs:
+                    matching = [e for e in evidence_pack.events if e.event_id == ref and e.is_action_executed]
+                    candidate_events.extend(matching)
+
+            if not candidate_events and evidence_pack and claim.agent_name:
+                agent_lower = claim.agent_name.strip().lower()
+                agent_evts = [
+                    e for e in evidence_pack.events
+                    if e.is_action_executed and (agent_lower in (e.agent_name or "").lower() or (e.agent_name or "").lower() in agent_lower)
+                ]
+                if claim.round_num is not None:
+                    agent_evts = [e for e in agent_evts if e.round_num == claim.round_num]
+                candidate_events = agent_evts
+
+            # Vérifier si l'un des événements candidats est une action concrète d'exécution (et non un simple post d'intention)
+            has_valid_event = False
+            matching_events: List[ObservedEvent] = []
+
+            for ev in candidate_events:
+                # Si l'affirmation prétend un achat/souscription/boycott/etc. alors que l'événement est un simple POST/TWEET
+                ev_type = ev.action_type.upper()
+                is_pure_messaging = ev_type in ("CREATE_POST", "POST", "TWEET", "COMMENT", "MESSAGE")
+                
+                # Examiner le texte du post si c'est de la messagerie
+                args = ev.action_args or {}
+                content = str(args.get("content", "") or ev.result or "")
+                has_intent_pattern = any(pat.search(content) for pat, _ in cls.INTENTION_PATTERNS)
+
+                # Si l'événement est un post contenant une déclaration d'intention ou si la claim affirme une action transactionnelle
+                claim_text_lower = claim.text.lower()
+                claims_transaction = any(k in claim_text_lower for k in ("acheté", "souscrit", "payé", "commandé", "résilié", "quitté", "boycotté", "voté", "bought", "purchased", "subscribed", "canceled"))
+
+                if is_pure_messaging and (has_intent_pattern or claims_transaction):
+                    # Ce n'est pas une action concrète exécutée mais un post de parole/intention
+                    continue
+
+                has_valid_event = True
+                matching_events.append(ev)
+
+            if has_valid_event:
+                new_refs = list(claim.evidence_refs)
+                for ev in matching_events:
+                    if ev.event_id not in new_refs:
+                        new_refs.append(ev.event_id)
+                return ReportClaim(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                    origin=InformationOrigin.SIMULATION,
+                    evidence_refs=new_refs,
+                    verification_status=VerificationStatus.VERIFIED,
+                    agent_name=claim.agent_name,
+                    round_num=claim.round_num,
+                    confidence=claim.confidence,
+                    limitations=list(claim.limitations),
+                )
+            else:
+                # DÉCLASSEMENT STRICT (Critère C4) :
+                # Aucune action exécutée correspondante n'a été prouvée.
+                limitations = list(claim.limitations)
+                limitations.append(
+                    "Déclassement anti-affabulation (C4) : aucune action exécutée "
+                    "n'a été observée dans les traces du run pour cette affirmation."
+                )
+                return ReportClaim(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=claim.origin if claim.origin != InformationOrigin.DOCUMENTARY else InformationOrigin.HYPOTHESIS,
+                    evidence_refs=list(claim.evidence_refs),
+                    verification_status=VerificationStatus.UNSUPPORTED,
+                    agent_name=claim.agent_name,
+                    round_num=claim.round_num,
+                    confidence=min(claim.confidence, 0.5),
+                    limitations=limitations,
+                )
+
+        # Si la claim est de type REPORTED_INTENTION
+        if claim.claim_kind == ClaimKind.REPORTED_INTENTION:
+            if claim.agent_name and evidence_pack:
+                # Vérifier si l'agent a au moins émis un message
+                valid, exact, ev_id = cls.verify_simulated_citation(
+                    agent_name=claim.agent_name,
+                    claimed_text=claim.text,
+                    evidence_pack=evidence_pack,
+                )
+                if valid:
+                    new_refs = list(claim.evidence_refs)
+                    if ev_id and ev_id not in new_refs:
+                        new_refs.append(ev_id)
+                    return ReportClaim(
+                        claim_id=claim.claim_id,
+                        text=claim.text,
+                        claim_kind=ClaimKind.REPORTED_INTENTION,
+                        origin=InformationOrigin.SIMULATION,
+                        evidence_refs=new_refs,
+                        verification_status=VerificationStatus.VERIFIED,
+                        agent_name=claim.agent_name,
+                        round_num=claim.round_num,
+                        confidence=claim.confidence,
+                        limitations=list(claim.limitations),
+                    )
+
+            # Intention sans citation vérifiable
+            limitations = list(claim.limitations)
+            if not any("citation" in lim.lower() for lim in limitations):
+                limitations.append("Déclaration d'intention sans trace verbatim vérifiée dans les événements observés.")
+            return ReportClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                claim_kind=ClaimKind.REPORTED_INTENTION,
+                origin=claim.origin,
+                evidence_refs=list(claim.evidence_refs),
+                verification_status=VerificationStatus.UNSUPPORTED,
+                agent_name=claim.agent_name,
+                round_num=claim.round_num,
+                confidence=min(claim.confidence, 0.7),
+                limitations=limitations,
+            )
+
+        # Si la claim est de type SOURCE_FACT
+        if claim.claim_kind == ClaimKind.SOURCE_FACT:
+            # BARRIÈRE ÉPISTÉMIQUE C5 (AC3) :
+            # Si l'assertion concerne un persona fictif ou un brief, interdiction absolue d'être DOCUMENTARY.
+            fn_refs = " ".join(claim.evidence_refs).lower()
+            is_fictional_source = any(k in fn_refs for k in ("persona", "cible", "profile", "brief", "scenario"))
+            if claim.origin == InformationOrigin.DOCUMENTARY and is_fictional_source:
+                limitations = list(claim.limitations)
+                limitations.append(
+                    "Barrière épistémique C5 : transfert documentaire interdit depuis une spécification de persona fictif ou consigne de scénario."
+                )
+                return ReportClaim(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_kind=ClaimKind.SCENARIO_HYPOTHESIS,
+                    origin=InformationOrigin.HYPOTHESIS,
+                    evidence_refs=list(claim.evidence_refs),
+                    verification_status=VerificationStatus.UNSUPPORTED,
+                    agent_name=claim.agent_name,
+                    round_num=claim.round_num,
+                    confidence=min(claim.confidence, 0.5),
+                    limitations=limitations,
+                )
+
+            status = VerificationStatus.VERIFIED if claim.evidence_refs else VerificationStatus.UNSUPPORTED
+            return ReportClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                claim_kind=ClaimKind.SOURCE_FACT,
+                origin=claim.origin,
+                evidence_refs=list(claim.evidence_refs),
+                verification_status=status,
+                agent_name=claim.agent_name,
+                round_num=claim.round_num,
+                confidence=claim.confidence,
+                limitations=list(claim.limitations),
+            )
+
+        # Autres types (ANALYST_INFERENCE, SCENARIO_HYPOTHESIS, SPECULATIVE_PROJECTION)
+        status = VerificationStatus.VERIFIED if claim.evidence_refs else VerificationStatus.UNSUPPORTED
+        return ReportClaim(
+            claim_id=claim.claim_id,
+            text=claim.text,
+            claim_kind=claim.claim_kind,
+            origin=claim.origin,
+            evidence_refs=list(claim.evidence_refs),
+            verification_status=status,
+            agent_name=claim.agent_name,
+            round_num=claim.round_num,
+            confidence=claim.confidence,
+            limitations=list(claim.limitations),
+        )

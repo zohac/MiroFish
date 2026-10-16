@@ -134,8 +134,77 @@ class InformationOrigin(str, Enum):
         return cls.UNKNOWN
 
 
+class EpistemicSourceKind(str, Enum):
+    """Typage épistémique strict des documents et fragments sources (Story 011-3, FR-04, C5).
+
+    Distingue la nature réelle du contenu :
+      - CANONICAL_DOCUMENT : document institutionnel, officiel ou avéré (vérité de référence).
+      - HISTORICAL_CASE : cas historique ou précédent documenté préexistant.
+      - PERSONA_SPECIFICATION : fiche de persona fictif ou profil synthétique créé pour le test.
+      - SCENARIO_BRIEF : directive d'expérimentation, brief ou consigne de scénario.
+    """
+
+    CANONICAL_DOCUMENT = "CANONICAL_DOCUMENT"
+    HISTORICAL_CASE = "HISTORICAL_CASE"
+    PERSONA_SPECIFICATION = "PERSONA_SPECIFICATION"
+    SCENARIO_BRIEF = "SCENARIO_BRIEF"
+
+    @classmethod
+    def from_str(cls, value: Optional[str]) -> "EpistemicSourceKind":
+        if not value or not isinstance(value, str):
+            return cls.CANONICAL_DOCUMENT
+        val = value.strip().upper()
+        for member in cls:
+            if member.value == val or member.name == val:
+                return member
+        if "PERSONA" in val or "PROFILE" in val or "TARGET" in val or "CIBLE" in val:
+            return cls.PERSONA_SPECIFICATION
+        if "SCENARIO" in val or "BRIEF" in val or "HYPOTHESIS" in val or "HYPOTHESE" in val:
+            return cls.SCENARIO_BRIEF
+        if "HISTORIC" in val or "CASE" in val or "ANTERIOR" in val:
+            return cls.HISTORICAL_CASE
+        return cls.CANONICAL_DOCUMENT
+
+
+def derive_epistemic_kind(
+    role: Optional[Any] = None,
+    filename: Optional[str] = None,
+    explicit_kind: Optional[Any] = None,
+) -> EpistemicSourceKind:
+    """Dérive de manière déterministe le type épistémique d'une source (AC2)."""
+    if explicit_kind is not None:
+        if isinstance(explicit_kind, EpistemicSourceKind):
+            return explicit_kind
+        return EpistemicSourceKind.from_str(str(explicit_kind))
+
+    role_val = role.value if isinstance(role, DocumentRole) else str(role or "").lower()
+
+    if role_val in (DocumentRole.PERSONAS.value, "personas", "persona", "profiles"):
+        return EpistemicSourceKind.PERSONA_SPECIFICATION
+    if role_val in (
+        DocumentRole.SCENARIO.value,
+        DocumentRole.HYPOTHESES.value,
+        "scenario",
+        "hypotheses",
+        "brief",
+    ):
+        return EpistemicSourceKind.SCENARIO_BRIEF
+
+    fn = str(filename or "").lower()
+    if any(k in fn for k in ("persona", "cible", "profile", "target")):
+        return EpistemicSourceKind.PERSONA_SPECIFICATION
+    if any(k in fn for k in ("scenario", "brief", "consigne", "hypothese", "hypothesis")):
+        return EpistemicSourceKind.SCENARIO_BRIEF
+    if any(k in fn for k in ("historique", "historical", "archive", "litige", "case-study", "case_study", "etude-de-cas")):
+        return EpistemicSourceKind.HISTORICAL_CASE
+    if re.search(r"(?:^|[-_])case(?:[-_.]|$)", fn):
+        return EpistemicSourceKind.HISTORICAL_CASE
+
+    return EpistemicSourceKind.CANONICAL_DOCUMENT
+
+
 def classify_record_origin(record: Any) -> InformationOrigin:
-    """Détermine l'une des 5 origines d'un ProvenanceRecord ou dict de provenance."""
+    """Détermine l'une des 5 origines d'un ProvenanceRecord ou dict de provenance (Story 011-3, C5)."""
     if record is None:
         return InformationOrigin.UNKNOWN
 
@@ -146,6 +215,22 @@ def classify_record_origin(record: Any) -> InformationOrigin:
 
     origin = _get("origin")
     role = _get("source_role") or _get("role")
+    epistemic_kind = _get("epistemic_kind")
+    filename = _get("source_filename") or _get("filename")
+
+    # Dérivation ou lecture du type épistémique
+    derived_epistemic = derive_epistemic_kind(
+        role=role, filename=filename, explicit_kind=epistemic_kind
+    )
+
+    # BARRIÈRE HERMÉTIQUE C5 (AC3) :
+    # Tout fait ou fragment issu d'un persona fictif ou d'un brief de scénario
+    # est STRICTEMENT INTERDIT d'être qualifié DOCUMENTARY (contexte historique).
+    if derived_epistemic in (
+        EpistemicSourceKind.PERSONA_SPECIFICATION,
+        EpistemicSourceKind.SCENARIO_BRIEF,
+    ):
+        return InformationOrigin.HYPOTHESIS
 
     # Rôle sémantique d'hypothèse ou de scénario prioritaire sur la nature documentaire
     if role in (
@@ -258,6 +343,7 @@ class SourceDocument:
     author: Optional[str] = None
     source: Optional[str] = None
     validation_status: DocumentValidationStatus = DocumentValidationStatus.UNVALIDATED
+    epistemic_kind: Optional[EpistemicSourceKind] = None
 
     def __post_init__(self) -> None:
         if not self.document_id or not str(self.document_id).strip():
@@ -278,6 +364,12 @@ class SourceDocument:
             raise SourceDocumentError(
                 f"statut de validation inconnu : {self.validation_status}"
             ) from error
+
+        self.epistemic_kind = derive_epistemic_kind(
+            role=self.role,
+            filename=self.filename,
+            explicit_kind=self.epistemic_kind,
+        )
 
         if isinstance(self.priority, bool) or not isinstance(self.priority, int):
             raise SourceDocumentError("priority doit être un entier")
@@ -315,6 +407,7 @@ class SourceDocument:
             author=self.author,
             source=self.source,
             validation_status=target,
+            epistemic_kind=self.epistemic_kind,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -331,11 +424,14 @@ class SourceDocument:
             "author": self.author,
             "source": self.source,
             "validation_status": self.validation_status.value,
+            "epistemic_kind": (
+                self.epistemic_kind.value if self.epistemic_kind else None
+            ),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SourceDocument":
-        """Relit une sérialisation produced par `to_dict`."""
+        """Relit une sérialisation produite par `to_dict`."""
 
         if not isinstance(data, dict):
             raise SourceDocumentError("un document source se relit depuis un dictionnaire")
@@ -353,6 +449,7 @@ class SourceDocument:
             validation_status=data.get(
                 "validation_status", DocumentValidationStatus.UNVALIDATED.value
             ),
+            epistemic_kind=data.get("epistemic_kind"),
         )
 
 
@@ -368,13 +465,9 @@ def create_source_document(
     validation_status: Any = None,
     document_id: Optional[str] = None,
     total_chunks: int = 0,
+    epistemic_kind: Optional[Any] = None,
 ) -> SourceDocument:
-    """Crée un `SourceDocument` en mode simple par défaut.
-
-    Le nom de fichier n'est lu que pour être conservé et persisté : il n'entre
-    dans aucune décision. `role`, `priority` et `validation_status` omis prennent
-    les valeurs du mode simple.
-    """
+    """Crée un `SourceDocument` en mode simple par défaut."""
 
     return SourceDocument(
         document_id=document_id or f"doc_{uuid_module.uuid4().hex[:12]}",
@@ -391,6 +484,7 @@ def create_source_document(
             if validation_status is None
             else validation_status
         ),
+        epistemic_kind=epistemic_kind,
     )
 
 
@@ -413,6 +507,7 @@ class DocumentChunk:
     char_end: int
     section: Optional[str] = None
     page: Optional[int] = None
+    epistemic_kind: Optional[EpistemicSourceKind] = None
 
     def __post_init__(self) -> None:
         if not self.source_document_id or not str(self.source_document_id).strip():
@@ -426,6 +521,12 @@ class DocumentChunk:
             self.source_role = DocumentRole(self.source_role)
         except ValueError as error:
             raise SourceDocumentError(f"rôle de fragment inconnu : {self.source_role}") from error
+
+        self.epistemic_kind = derive_epistemic_kind(
+            role=self.source_role,
+            filename=self.source_filename,
+            explicit_kind=self.epistemic_kind,
+        )
 
         for name in ("chunk_index", "char_start", "char_end"):
             value = getattr(self, name)
@@ -468,6 +569,9 @@ class DocumentChunk:
             "char_end": self.char_end,
             "section": self.section,
             "page": self.page,
+            "epistemic_kind": (
+                self.epistemic_kind.value if self.epistemic_kind else None
+            ),
         }
 
     @classmethod
@@ -484,6 +588,7 @@ class DocumentChunk:
             char_end=data.get("char_end", 0),
             section=data.get("section"),
             page=data.get("page"),
+            epistemic_kind=data.get("epistemic_kind"),
         )
 
     def to_metadata(self) -> Dict[str, Any]:
@@ -498,6 +603,9 @@ class DocumentChunk:
             "source_role": self.source_role.value,
             "page": self.page,
             "section": self.section,
+            "epistemic_kind": (
+                self.epistemic_kind.value if self.epistemic_kind else None
+            ),
         }
 
 
@@ -514,6 +622,7 @@ class SourceReference:
     chunk_index: Optional[int] = None
     char_start: Optional[int] = None
     char_end: Optional[int] = None
+    epistemic_kind: Optional[EpistemicSourceKind] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -526,16 +635,22 @@ class SourceReference:
             "chunk_index": self.chunk_index,
             "char_start": self.char_start,
             "char_end": self.char_end,
+            "epistemic_kind": (
+                self.epistemic_kind.value if self.epistemic_kind else None
+            ),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SourceReference":
         if not isinstance(data, dict):
             raise SourceConflictError("une référence de source se relit depuis un dictionnaire")
+        role_val = data.get("role", DocumentRole.FACTS.value)
+        explicit_epistemic = data.get("epistemic_kind")
+        epistemic_val = EpistemicSourceKind.from_str(explicit_epistemic) if explicit_epistemic else None
         return cls(
             document_id=data.get("document_id", ""),
             filename=data.get("filename", ""),
-            role=DocumentRole(data.get("role", DocumentRole.FACTS.value)),
+            role=DocumentRole(role_val),
             priority=data.get("priority", 1),
             date=data.get("date"),
             validation_status=DocumentValidationStatus(
@@ -544,7 +659,9 @@ class SourceReference:
             chunk_index=data.get("chunk_index"),
             char_start=data.get("char_start"),
             char_end=data.get("char_end"),
+            epistemic_kind=epistemic_val,
         )
+
 
 
 @dataclass
