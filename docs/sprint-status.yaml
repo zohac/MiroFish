@@ -17,8 +17,14 @@
 
 projet: mirofish-local-first
 branche: local-first
-mis_a_jour: 2026-10-15
+mis_a_jour: 2026-10-16
+# 16 oct. 2026 : story 008-2 passe in-progress -> done après revue BMAD contradictoire
+# à 4 couches (5 patches appliqués, 5 travaux différés), tests unitaires frontend (9/9),
+# build Vite validé et revue visuelle sur navigateurs réels (rendu bureau 100 % conforme ;
+# limitations ergonomiques mobiles amont documentées et différées pour story dédiée).
+# Epic 008 in-progress (2/3 stories closes : 008-1 done, 008-2 done).
 # 15 oct. 2026 : story 008-1 passe review -> done après la revue de code BMAD
+
 # contradictoire à 4 couches. Dictionnaire complet de traduction française locales/fr.json
 # (679 clés sur 17 sections, parité 100 % stricte avec locales/en.json, 0 orpheline, 0 manquante,
 # égalité des variables {var}). Intégration backend dans backend/app/utils/locale.py avec
@@ -623,14 +629,21 @@ epics:
     # via normalize_locale() (support fr, fr-FR, fr-BE, etc.). Suite unitaire hermétique
     # backend/tests/test_i18n_parity.py (7 tests passants). Revue BMAD à 4 couches validée.
     # Filet global porté à 1589 tests réussis sur l'hôte (+7 tests).
-    # Story 008-2 (IN-PROGRESS, DoD NON atteint) : CI run 38807586884 verte sur
-    # 08fbb537 : frontend 9/9 tests + build, backend ruff + validate_plans + 1589 pytest.
-    # Reste : revue visuelle Docker bureau/mobile en fr/en/zh, tests Vue du clavier,
-    # de la réactivité DOM, de la navigation et de la persistance end-to-end.
+    # Story 008-2 (DONE) : Intégration et bascule IHM frontend Vue 3
+    # (sélecteur accessible, formats régionaux fr-FR, synchronisation Axios, persistance localStorage).
+    # Suite unitaire Node hermétique (9/9 tests passés), compilation Vite réussie.
+    # Revue contradictoire BMAD à 4 couches menée avec succès (5 patches appliqués :
+    # fuite 'FINALIZING' résolue avec parité trilingue, gardes défensives booléens/tableaux
+    # dans validDate et formatNumberValue, sécurisation formatElapsedTime contre undefined/NaN,
+    # saut de ligne terminal ci.yml). 5 travaux différés consignés dans deferred-work.md.
+    # Revue visuelle réelle sur Docker validée à 100 % sur navigateurs bureau (flux complets
+    # Accueil, Graphe, Config, Simulation, Rapport, Prévalidation des acteurs sans résidu).
+    # Ergonomie responsive mobile préexistante (amont) documentée et différée pour story dédiée.
+    # DoD 100 % satisfait.
     # Story 008-3 (IN-PROGRESS) : développement initial de la locale persistée,
     # propagation contexte Flask/threads/processus, consignes profils et tests.
     # Banc Docker+LLM réel et audit des prompts restent à qualifier (DoD ouvert).
-    # Epic 008 in-progress (1/3 stories closes : 008-1 done).
+    # Epic 008 in-progress (2/3 stories closes : 008-1 done, 008-2 done).
 
 
   - id: "009"

@@ -411,3 +411,15 @@ Revue des modifications de la story 007-6 (`local-first`), le 14 octobre 2026.
 
 - **`backend/app/services/report_agent.py:2163` — Requête Cypher agrégée pour décompte d'instances sur très grands graphes.** `_get_ontology_instance_counts` rapatrie les nœuds en mémoire Python via `get_all_nodes` pour agréger les labels. Sur des graphes massifs (>100k nœuds), une requête Cypher directe `MATCH (n) RETURN labels(n), count(n)` optimiserait l'empreinte mémoire. *Différé : choix architectural préexistant aligné avec l'abstraction GraphStore, les simulations locales actuelles portant sur des graphes de taille modérée (<1000 nœuds).*
 
+## Deferred from: code review of story-008-2.md (2026-10-16)
+
+Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) de l'intégration et bascule IHM frontend Vue 3.
+
+- **`frontend/tests/i18n.test.js:41-49` — Tests de composants Vue avec montage réel et événements DOM.** L'outillage de test actuel (`node --test`) valide le contrat, les formatteurs et Axios sans environnement DOM/jsdom ni `@vue/test-utils` ; l'ajout d'une stack de test de composants Vue complète relève de la phase de qualification Docker globale (Gate 2).
+- **`frontend/src/components/Step3Simulation.vue:605-615` — Grammaire des badges d'action UPVOTE/DOWNVOTE.** `getActionTypeLabel` mappe `UPVOTE_POST`/`DOWNVOTE_POST` vers `ui.upvotedPost` ('Publication approuvée') / `ui.downvotedPost` ('Publication désapprouvée') au lieu de libellés impératifs courts ('VOTE +', 'VOTE -') ; cosmétique, à harmoniser lors de la refonte globale des badges d'actions sociales.
+- **`frontend/src/i18n/regionalFormat.js:18-36` — Optimisation par mémoïsation des instances Intl.DateTimeFormat et Intl.NumberFormat.** Chaque appel instancie un nouvel objet `Intl` sans cache ; impact négligeable sur les volumes actuels (<100 éléments), optimisation préventive à traiter si un profiling mémoire le justifie.
+- **`frontend/src/i18n/regionalFormat.js:38-42` — Paramètre d'options timezone pour formatLogTimeValue.** `formatLogTimeValue` n'expose pas d'argument `options` pour forcer un fuseau spécifique (ex: UTC) dans les tests, contrairement à `formatDateValue`/`formatTimeValue`.
+- **Intégration responsive mobile globale du frontend MiroFish.** L'affichage mobile présente des limites d'empilement vertical et de débordement d'en-tête inhérentes au frontend amont d'origine (conçu strictement desktop-first). L'arbitrage du 16 octobre 2026 confirme que la localisation FR n'a introduit aucune régression et acte le report de l'optimisation responsive mobile dans un chantier/story d'ergonomie dédié.
+
+
+

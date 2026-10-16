@@ -64,14 +64,17 @@ test('French numbers use a comma decimal and grouped thousands', () => {
 })
 
 test('null and invalid temporal values yield a stable placeholder', () => {
-  for (const value of [null, '', undefined, 'not-a-date', new Date(NaN)]) {
+  for (const value of [null, '', undefined, 'not-a-date', new Date(NaN), true, false, []]) {
     assert.equal(formatDateValue(value, 'fr'), '—')
     assert.equal(formatTimeValue(value, 'en'), '—')
     assert.equal(formatDateTimeValue(value, 'zh'), '—')
     assert.equal(formatLogTimeValue(value, 'fr'), '—')
   }
-  assert.equal(formatNumberValue(NaN, 'fr'), '—')
+  for (const value of [NaN, null, undefined, '', '   ', true, false, [], [123]]) {
+    assert.equal(formatNumberValue(value, 'fr'), '—')
+  }
 })
+
 
 test('log timestamps retain milliseconds and regional time', () => {
   assert.match(formatLogTimeValue(sample, 'fr'), /^\d{2}:\d{2}:\d{2}\.123$/)

@@ -826,6 +826,8 @@
     "results": "结果",
     "selectionReason": "选择理由",
     "noQuestion": "没有可用问题",
-    "characters": "字符"
+    "characters": "字符",
+    "finalizing": "正在完成"
   }
 }
+

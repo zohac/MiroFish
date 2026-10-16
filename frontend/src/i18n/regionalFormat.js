@@ -10,7 +10,13 @@ export function intlLocale(locale) {
 }
 
 export function validDate(value) {
-  if (value === null || value === undefined || value === '') return null
+  if (
+    value === null ||
+    value === undefined ||
+    value === '' ||
+    typeof value === 'boolean' ||
+    Array.isArray(value)
+  ) return null
   const date = value instanceof Date ? value : new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }
@@ -31,9 +37,18 @@ export function formatDateTimeValue(value, locale, options = {}, fallback = '—
 }
 
 export function formatNumberValue(value, locale, options = {}, fallback = '—') {
-  if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return fallback
+  if (
+    value === null ||
+    value === undefined ||
+    value === '' ||
+    typeof value === 'boolean' ||
+    Array.isArray(value) ||
+    (typeof value === 'string' && !value.trim()) ||
+    !Number.isFinite(Number(value))
+  ) return fallback
   return new Intl.NumberFormat(intlLocale(locale), options).format(Number(value))
 }
+
 
 export function formatLogTimeValue(value, locale, fallback = '—') {
   const date = validDate(value)

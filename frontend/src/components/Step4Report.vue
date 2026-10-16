@@ -1828,8 +1828,9 @@ const workflowSteps = computed(() => {
     noLabel: 'OK',
     title: t('common.completed'),
     status: completeStatus,
-    meta: completeStatus === 'active' ? 'FINALIZING' : ''
+    meta: completeStatus === 'active' ? t('ui.finalizing') : ''
   })
+
 
   return steps
 })

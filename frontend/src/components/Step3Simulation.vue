@@ -345,11 +345,13 @@ const redditActionsCount = computed(() => {
 
 // 格式化模拟流逝时间（根据轮次和每轮分钟数计算）
 const formatElapsedTime = (currentRound) => {
-  const totalMinutes = Math.max(0, currentRound || 0) * props.minutesPerRound
+  const minsPerRound = Math.max(1, Number(props.minutesPerRound) || 1)
+  const totalMinutes = Math.max(0, Number(currentRound) || 0) * minsPerRound
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
   return t('ui.elapsedHoursMinutes', { hours: formatNumber(hours), minutes: formatNumber(minutes) })
 }
+
 
 // Twitter平台的模拟流逝时间
 const twitterElapsedTime = computed(() => {

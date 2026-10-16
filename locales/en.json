@@ -826,6 +826,8 @@
     "results": "Results",
     "selectionReason": "Selection reason",
     "noQuestion": "No question available",
-    "characters": "characters"
+    "characters": "characters",
+    "finalizing": "FINALIZING"
   }
 }
+
