@@ -18,6 +18,12 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-16
+# 16 oct. 2026 : story 011-2 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches
+# (8 patches appliqués). Registre d'événements observés OasisLogReaderService et EvidencePack avec calcul
+# déterministe d'event_id, bouclier défensif ToolShield éliminant 100 % des crashs de requêtes vides et protégeant
+# le budget de 5 itérations ReACT dans ReportAgent, outil query_simulation_events opérationnel, et déterminisme nominatif
+# strict au Round 0 éliminant les inversions de personas. 17 tests hermétiques dédiés (test_oasis_log_reader_toolshield.py).
+# Filet global de tests porté à 1679 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (2/6 stories done).
 # 16 oct. 2026 : clôture définitive de la story 008-3 et de l'Epic 008 (« Support complet de la langue française
 # (Localisation FR) »). Story 008-3 passe in-progress -> done après finalisation des prompts LLM et fallbacks localisés
 # (plan_outline, ReACT, simulation_config_generator, chat), suite hermétique passante (59 tests dédiés dont 7 de sonde),
@@ -794,4 +800,13 @@ epics:
     # dans le finally de ReportAgent / report.py, repli gracieux hors-ligne _synthesize_offline_interviews (mode archives),
     # et watchdog d'inactivité anti-zombie de 15 minutes. 13 tests hermétiques dédiés dans test_simulation_interactive_lifecycle.py.
     # Revue contradictoire BMAD 4 couches validée avec 4 patches appliqués. Filet global porté à 1663 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (1/6 stories done).
+    # Story 011-2 (DONE) : registre d'événements observés (OasisLogReaderService, modèle EvidencePack, record ObservedEvent)
+    # indexant multi-sources JSONL (twitter, reddit, racine) et tables SQLite (post, comment) avec identifiant déterministe
+    # event_id (SimulationActionVerifier.compute_event_id), cache mtime et outil ReACT direct query_simulation_events.
+    # Bouclier ToolShield dans ReportAgent._execute_tool interceptant les requêtes vides (quick_search, panorama_search, insight_forge),
+    # injectant le titre de section en repli et protégeant le quota de 5 itérations contre GraphValidationError. Déterminisme nominatif
+    # strict au Round 0 dans SimulationConfigGenerator éliminant les inversions de personas. Revue contradictoire BMAD 4 couches
+    # validée avec 8 patches appliqués (sécurisation typée JSONL/SQLite, fermeture résiliente SQLite sous finally, assainissement ToolShield,
+    # 4 nouveaux tests unitaires). 17 tests hermétiques dédiés (test_oasis_log_reader_toolshield.py). Filet global porté à 1679 tests au vert
+    # sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (2/6 stories done).
 

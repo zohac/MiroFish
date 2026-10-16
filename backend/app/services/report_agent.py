@@ -1177,6 +1177,19 @@ class ReportAgent:
                     "include_counts": "Inclure le décompte des entités et relations par type (booléen, défaut true)",
                     "since": "Horodatage ISO 8601 optionnel pour filtrer les avertissements de validation récents"
                 }
+            },
+            "query_simulation_events": {
+                "name": "query_simulation_events",
+                "description": "Interroger le registre des actions et événements réels observés durant la simulation (Story 011-2, FR-02, C2). Permet de retrouver les faits authentifiés avec leurs identifiants event_id.",
+                "parameters": {
+                    "query": "Terme ou texte clé à rechercher dans le contenu de l'action (optionnel)",
+                    "agent_name": "Nom du persona ou de l'agent (optionnel)",
+                    "platform": "Plateforme visée ('twitter', 'reddit', optionnel)",
+                    "round_min": "Numéro de round minimum (optionnel)",
+                    "round_max": "Numéro de round maximum (optionnel)",
+                    "action_type": "Type d'action ('post', 'comment', 'like', 'retweet', etc., optionnel)",
+                    "limit": "Nombre maximum d'événements retournés (défaut 20)"
+                }
             }
         }
 
@@ -1232,7 +1245,7 @@ class ReportAgent:
     
     def _execute_tool(self, tool_name: str, parameters: Dict[str, Any], report_context: str = "") -> str:
         """
-        执行工具调用
+        执行工具调用 (avec protection ToolShield Story 011-2, FR-05, C3)
         
         Args:
             tool_name: 工具名称
@@ -1242,10 +1255,51 @@ class ReportAgent:
         Returns:
             工具执行结果（文本格式）
         """
+        from .tool_shield import ToolShield
+        
+        # Interception et assainissement par ToolShield (anti-burn d'itérations sur requête vide)
+        safe_parameters, was_sanitized = ToolShield.sanitize_parameters(
+            tool_name=tool_name,
+            parameters=parameters,
+            fallback_query=report_context,
+            section_title=report_context,
+            simulation_requirement=self.simulation_requirement,
+        )
+        if was_sanitized:
+            logger.info(f"[ToolShield] Paramètres assainis pour {tool_name}: {safe_parameters}")
+        parameters = safe_parameters
+
         logger.info(t('report.executingTool', toolName=tool_name, params=parameters))
         
         try:
-            if tool_name == "insight_forge":
+            if tool_name == "query_simulation_events":
+                query = parameters.get("query")
+                agent_name = parameters.get("agent_name")
+                platform = parameters.get("platform")
+                def _to_int_or_none(v: Any) -> Optional[int]:
+                    if v is None:
+                        return None
+                    try:
+                        return int(v)
+                    except (ValueError, TypeError):
+                        return None
+                round_min = _to_int_or_none(parameters.get("round_min"))
+                round_max = _to_int_or_none(parameters.get("round_max"))
+                action_type = parameters.get("action_type")
+                raw_limit = _to_int_or_none(parameters.get("limit"))
+                limit = raw_limit if raw_limit and raw_limit > 0 else 20
+                return self.zep_tools.query_simulation_events(
+                    simulation_id=self.simulation_id,
+                    query=query,
+                    agent_name=agent_name,
+                    platform=platform,
+                    round_min=round_min,
+                    round_max=round_max,
+                    action_type=action_type,
+                    limit=limit,
+                )
+
+            elif tool_name == "insight_forge":
                 query = parameters.get("query", "")
                 ctx = parameters.get("report_context", "") or report_context
                 result = self.zep_tools.insight_forge(
@@ -1442,6 +1496,13 @@ class ReportAgent:
                 
         except Exception as e:
             logger.error(t('report.toolExecFailed', toolName=tool_name, error=str(e)))
+            from ..utils.graph_store import GraphValidationError, GraphStoreError
+            if isinstance(e, (GraphValidationError, GraphStoreError)):
+                return (
+                    f"【ToolShield - Avertissement】 L'outil '{tool_name}' a rencontré une contrainte "
+                    f"de validation : {str(e)}. Essayez de reformuler vos critères ou d'utiliser "
+                    f"un autre outil de recherche."
+                )
             return f"工具执行失败: {str(e)}"
     
     # 合法的工具名称集合，用于裸 JSON 兜底解析时校验
@@ -1454,6 +1515,7 @@ class ReportAgent:
         "verify_action",
         "verify_citation",
         "get_applied_ontology",
+        "query_simulation_events",
     }
 
     def _parse_tool_calls(self, response: str) -> List[Dict[str, Any]]:

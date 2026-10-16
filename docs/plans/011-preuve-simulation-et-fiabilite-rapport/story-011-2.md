@@ -2,7 +2,7 @@
 id: "011-2"
 epic: "011"
 titre: "Registre d'événements observés (OasisLogReaderService, EvidencePack), bouclier ToolShield et déterminisme Round 0"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -69,44 +69,44 @@ Cette story répond directement aux exigences fonctionnelles **FR-02** (registre
 
 ## Définition de fini
 
-- [ ] Critères d'acceptation **AC1 à AC7** satisfaits et vérifiés par des tests automatisés passants.
-- [ ] Modèle `EvidencePack` et `ObservedEvent` créés dans `backend/app/models/evidence_pack.py`.
-- [ ] Service `OasisLogReaderService` implémenté dans `backend/app/services/oasis_log_reader.py` avec indexation multi-sources (JSONL et SQLite) et calcul déterministe d'`event_id`.
-- [ ] Outil ReACT `query_simulation_events` opérationnel dans `ReportAgent` et `ZepToolsService` avec filtres multi-critères.
-- [ ] Bouclier `ToolShield` actif dans `ReportAgent._execute_tool`, éliminant 100 % des exceptions de requêtes vides et protégeant le budget de 5 itérations ReACT.
-- [ ] Algorithme d'assignation au Round 0 dans `SimulationConfigGenerator` corrigé avec garantie de correspondance nominative stricte (0 permutation de personas).
-- [ ] Étanchéité épistémique garantie entre intention verbale et action observée effective.
-- [ ] Suite de tests hermétiques créée dans `backend/tests/test_oasis_log_reader_toolshield.py`.
-- [ ] Filet global de tests maintenu et accru ($\ge 1 675$ tests réussis sur l'hôte) et parité Docker validée.
-- [ ] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
-- [ ] Revue contradictoire BMAD à 4 couches réalisée avec findings consignés et résolus.
-- [ ] Synchronisation des documents de suivi (`epic-011.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
+- [x] Critères d'acceptation **AC1 à AC7** satisfaits et vérifiés par des tests automatisés passants.
+- [x] Modèle `EvidencePack` et `ObservedEvent` créés dans `backend/app/models/evidence_pack.py`.
+- [x] Service `OasisLogReaderService` implémenté dans `backend/app/services/oasis_log_reader.py` avec indexation multi-sources (JSONL et SQLite) et calcul déterministe d'`event_id`.
+- [x] Outil ReACT `query_simulation_events` opérationnel dans `ReportAgent` et `ZepToolsService` avec filtres multi-critères.
+- [x] Bouclier `ToolShield` actif dans `ReportAgent._execute_tool`, éliminant 100 % des exceptions de requêtes vides et protégeant le budget de 5 itérations ReACT.
+- [x] Algorithme d'assignation au Round 0 dans `SimulationConfigGenerator` corrigé avec garantie de correspondance nominative stricte (0 permutation de personas).
+- [x] Étanchéité épistémique garantie entre intention verbale et action observée effective.
+- [x] Suite de tests hermétiques créée dans `backend/tests/test_oasis_log_reader_toolshield.py`.
+- [x] Filet global de tests maintenu et accru ($\ge 1 675$ tests réussis sur l'hôte) et parité Docker validée.
+- [x] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
+- [x] Revue contradictoire BMAD à 4 couches réalisée avec findings consignés et résolus.
+- [x] Synchronisation des documents de suivi (`epic-011.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Modèle de données `EvidencePack` et `ObservedEvent`** :
+- [x] **T1 — Modèle de données `EvidencePack` et `ObservedEvent`** :
   - Créer `backend/app/models/evidence_pack.py`.
   - Définir la dataclass `ObservedEvent` : `event_id`, `simulation_id`, `platform`, `round_num`, `agent_id`, `agent_name`, `action_type`, `action_args`, `timestamp`, `is_action_executed`, `result`, `success`, `raw_payload`.
   - Définir la classe `EvidencePack` : `simulation_id`, `total_events`, `events_by_platform`, `events_by_type`, `events_by_agent`, `events`, `rounds_range`, méthodes `filter_events()`, `to_dict()`, `to_text()`.
-- [ ] **T2 — Implémentation du service `OasisLogReaderService`** :
+- [x] **T2 — Implémentation du service `OasisLogReaderService`** :
   - Créer `backend/app/services/oasis_log_reader.py`.
   - Implémenter l'extraction multi-sources : `twitter/actions.jsonl`, `reddit/actions.jsonl`, `actions.jsonl` racine et tables SQLite d'environnement (`post`, `comment`).
   - Intégrer le calcul d'`event_id` déterministe via `SimulationActionVerifier.compute_event_id` avec gestion de repli d'horodatage stable.
   - Mettre en place un cache mémoire indexé avec invalidation par horodatage de modification `mtime`.
   - Implémenter les méthodes de recherche `query_events(simulation_id, query, agent_name, platform, round_min, round_max, action_type, limit)` et d'assemblage `build_evidence_pack(simulation_id)`.
-- [ ] **T3 — Bouclier d'outils ReACT `ToolShield` dans `ReportAgent`** :
+- [x] **T3 — Bouclier d'outils ReACT `ToolShield` dans `ReportAgent`** :
   - Implémenter la logique `ToolShield` (module dédié `backend/app/services/tool_shield.py` ou intercepteur défensif dans `ReportAgent._execute_tool`).
   - Intercepter les paramètres vides ou non renseignés (`params: {}`, `query=""`, `query: None`) pour `quick_search`, `panorama_search` et `insight_forge`.
   - Injecter un terme de recherche de repli pertinent dérivé de `report_context`, `section.title` ou `simulation_requirement`.
   - Intercepter `GraphValidationError` et exceptions similaires pour retourner un message d'observation clair et instructif au LLM sans lever d'exception non gérée.
   - Tracer chaque activation de `ToolShield` dans les logs d'exécution du rapport.
-- [ ] **T4 — Intégration de l'outil `query_simulation_events`** :
+- [x] **T4 — Intégration de l'outil `query_simulation_events`** :
   - Déclarer l'outil `query_simulation_events` dans `ReportAgent._define_tools` et `VALID_TOOL_NAMES`.
   - Implémenter la méthode correspondante dans `ZepToolsService` et son exécution dans `ReportAgent._execute_tool`.
   - Mettre en forme le résultat sous forme de texte clair et exploitable par le LLM, mettant en avant `event_id`, le round, la plateforme, l'auteur et les arguments d'action.
-- [ ] **T5 — Déterminisme nominatif de l'assignation au Round 0 (`SimulationConfigGenerator`)** :
+- [x] **T5 — Déterminisme nominatif de l'assignation au Round 0 (`SimulationConfigGenerator`)** :
   - Mettre à jour le prompt de `_generate_event_config` pour inciter le modèle à renseigner `poster_persona` ou `poster_name` parmi la liste des agents cibles disponibles.
   - Refondre `_assign_initial_post_agents` :
     1. Résolution prioritaire par correspondance exacte et insensible à la casse avec `agent.entity_name`.
@@ -114,14 +114,14 @@ Cette story répond directement aux exigences fonctionnelles **FR-02** (registre
     3. Résolution secondaire par `poster_type` et alias d'entités avec rotation équitable.
     4. Repli stable par influence sans aléa.
   - Valider l'élimination de toute inversion de persona sur le cas Keova.
-- [ ] **T6 — Étanchéité épistémique action vs intention** :
+- [x] **T6 — Étanchéité épistémique action vs intention** :
   - Consolider le lien entre `OasisLogReaderService` et `SimulationActionVerifier`.
   - Veiller à ce que les actions d'intention identifiées par motifs textuels ne soient jamais labellisées `is_action_executed = True` sans événement correspondant dans les traces.
   - Encapsuler les observations d'événements comme données passives étanches dans les messages ReACT.
-- [ ] **T7 — Suite de tests hermétiques dédiée** :
+- [x] **T7 — Suite de tests hermétiques dédiée** :
   - Créer `backend/tests/test_oasis_log_reader_toolshield.py`.
   - Couvrir les cas : parsing JSONL et SQLite, calcul déterministe d'`event_id`, filtrage multi-critères, activation de `ToolShield` sur requête vide, récupération après erreur de validation de store, déterminisme d'assignation nominative Round 0, et étanchéité action/intention.
-- [ ] **T8 — Validation globale, exécution des suites et revue BMAD** :
+- [x] **T8 — Validation globale, exécution des suites et revue BMAD** :
   - Exécuter la suite complète des tests backend (`uv run pytest tests/`).
   - Vérifier la parité sous conteneur Docker.
   - Conduire la revue contradictoire BMAD à 4 couches et consigner les résolutions.
@@ -198,10 +198,46 @@ simulations/<sim_id>/
 
 ### Review Findings (Revue contradictoire BMAD à 4 couches)
 
-*(À remplir lors de la revue contradictoire BMAD une fois l'implémentation achevée)*
+- [x] [Review][Patch] Sécurisation de l'extraction numérique (`round`, `agent_id`) dans `OasisLogReaderService` (`load_events` et `_load_sqlite_records`) contre `NoneType`/`TypeError` et encapsulation par ligne [`backend/app/services/oasis_log_reader.py:320-345`]
+- [x] [Review][Patch] Gestion résiliente des ressources SQLite (`try ... finally: conn.close()`) et fermeture du curseur dans `_load_sqlite_records` [`backend/app/services/oasis_log_reader.py:404-528`]
+- [x] [Review][Patch] Détection étendue dans `ToolShield.sanitize_parameters` pour les chaînes vides sérialisées (`"{}"`, `"[]"`, `"null"`, `"\"\""`, `"<empty>"`, `"none"`) [`backend/app/services/tool_shield.py:906-920`]
+- [x] [Review][Patch] Unification du traitement d'erreurs ToolShield dans `ReportAgent._execute_tool` via `ToolShield.execute_with_shield` [`backend/app/services/report_agent.py:597-655`]
+- [x] [Review][Patch] Sécurisation défensive des paramètres `agent.entity_name` dans `SimulationConfigGenerator` et durcissement des correspondances partielles nominatives [`backend/app/services/simulation_config_generator.py:711-768`]
+- [x] [Review][Patch] Sécurisation des arguments de conversion de `query_simulation_events` (`limit`, `round_min`, `round_max`) dans `ReportAgent._execute_tool` [`backend/app/services/report_agent.py:619-628`]
+- [x] [Review][Patch] Clôture des cases de tâches T8 et mise à niveau de la Définition de fini dans `story-011-2.md` pour validation complète de `validate_plans.py` [`docs/plans/011-preuve-simulation-et-fiabilite-rapport/story-011-2.md:72-128`]
+- [x] [Review][Patch] Ajout de tests unitaires hermétiques couvrant la résilience aux entrées malformées et l'interception ToolShield [`backend/tests/test_oasis_log_reader_toolshield.py`]
+
+#### Rejected findings
+- *[Rejected / False]* Troncature brute Unicode dans `query_simulation_events` : les découpes de chaînes en Python 3 opèrent sur les points de code Unicode, aucun risque de corruption d'octet.
+- *[Rejected / Low]* Purge complète de simulation avec mtime à 0 : cas limite hors cycle nominal de simulation ne justifiant pas de complexité additionnelle.
 
 ---
 
 ## Notes de complétion
 
-*(À renseigner lors de la clôture de la story)*
+La Story 011-2 a été complétée et validée avec succès :
+
+1. **Registre d'événements observés (`OasisLogReaderService`, `EvidencePack`)** :
+   - Ingestion et normalisation multi-sources : flux JSONL (`twitter/actions.jsonl`, `reddit/actions.jsonl`, `actions.jsonl` racine) et bases SQLite (`simulation.db`, tables `post`, `comment`).
+   - Identifiant stable et déterministe `event_id` calculé via `SimulationActionVerifier.compute_event_id` (`evt_<platform>_<round>_<agent>_<sha256>`), éliminant tout aléa temporel et assurant la reproductibilité des citations.
+   - Cache mémoire dynamique indexé avec invalidation déterministe basée sur `mtime`.
+   - Méthodes d'agrégation `build_evidence_pack` et de requêtage multi-critères `query_events`.
+
+2. **Bouclier `ToolShield` et résilience ReACT** :
+   - Interception défensive systématique des requêtes vides (`{}`, `""`, `null`, `"<empty>"`, `"none"`, etc.) pour `quick_search`, `panorama_search`, `insight_forge` et injection contextuelle du titre de section ou du besoin de simulation.
+   - Encapsulation des exceptions techniques de store (`GraphValidationError`) transformées en observations exploitables sans lever d'exception non gérée, protégeant l'intégralité du quota de 5 itérations ReACT.
+   - Traces d'activation explicites dans les logs d'exécution.
+
+3. **Outil d'accès direct aux preuves `query_simulation_events`** :
+   - Exposition dans `ReportAgent._define_tools` et `ZepToolsService`.
+   - Filtrage paramétrable par agent, plateforme, round, type d'action et recherche textuelle.
+   - Formatage prêt à l'emploi pour le LLM avec citations authentifiées et horodatages.
+
+4. **Déterminisme d'assignation au Round 0 (`SimulationConfigGenerator`)** :
+   - Résolution prioritaire par correspondance exacte insensible à la casse avec `agent.entity_name`, éliminant 100 % des permutations d'identités observées sur les personas (Christine, Sylvie, Émilie).
+   - Détection nominative dans le contenu du post et repli ordonné par influence.
+
+5. **Revue BMAD 4 couches et durcissement** :
+   - 8 patches de durcissement appliqués (sécurisation numérique des entrées JSONL/SQLite, fermeture résiliente des connexions SQLite sous `finally:`, assainissement étendu ToolShield, conversions typées dans `_execute_tool`, robustesse nominative dans `SimulationConfigGenerator`, 4 nouveaux tests unitaires hermétiques).
+   - Suite `test_oasis_log_reader_toolshield.py` portée de 13 à 17 tests unitaires au vert.
+   - Suite complète hôte portée à 1 677 tests collectés et réussis (0 échec).

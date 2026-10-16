@@ -904,17 +904,18 @@ class SimulationConfigGenerator:
 请生成事件配置JSON：
 - 提取热点话题关键词
 - 描述舆论发展方向
-- 设计初始帖子内容，**每个帖子必须指定 poster_type（发布者类型）**
+- 设计初始帖子内容，**每个帖子必须指定 poster_type（发布者类型）**，如果帖子针对或代表某个特定角色/Persona（如特定人物、机构），**必须指定 poster_persona（角色全名）**。
 
 **重要**: poster_type 必须从上面的"可用实体类型"中选择，这样初始帖子才能分配给合适的 Agent 发布。
-例如：官方声明应由 Official/University 类型发布，新闻由 MediaOutlet 发布，学生观点由 Student 发布。
+如果有特定角色发布，必须提供 poster_persona 精确匹配该角色的名称。
+例如：官方声明应由 Official/University 类型发布，新闻由 MediaOutlet 发布，特定人物观点由该人物名称（poster_persona）发布。
 
 返回JSON格式（不要markdown）：
 {{
     "hot_topics": ["关键词1", "关键词2", ...],
     "narrative_direction": "<舆论发展方向描述>",
     "initial_posts": [
-        {{"content": "帖子内容", "poster_type": "实体类型（必须从可用类型中选择）"}},
+        {{"content": "帖子内容", "poster_type": "实体类型（必须从可用类型中选择）", "poster_persona": "目标角色名称（可选，精确匹配角色名）"}},
         ...
     ],
     "reasoning": "<简要说明>"
@@ -956,17 +957,29 @@ class SimulationConfigGenerator:
         agent_configs: List[AgentActivityConfig]
     ) -> EventConfig:
         """
-        为初始帖子分配合适的发布者 Agent
+        为初始帖子分配合适的发布者 Agent (Story 011-2, FR-06, C6).
         
-        根据每个帖子的 poster_type 匹配最合适的 agent_id
+        Algorithme déterministe d'assignation nominative :
+        1. Correspondance exacte et insensible à la casse sur `poster_persona` ou `poster_name`
+           avec `agent.entity_name`.
+        2. Détection du nom exact d'un persona dans le texte du post (`post["content"]`).
+        3. Résolution par type d'entité (`poster_type`) et alias avec rotation équitable.
+        4. Repli stable par influence sans aléa.
         """
         if not event_config.initial_posts:
             return event_config
         
+        # Indexer les agents par nom normalisé (exact match)
+        agents_by_name: Dict[str, AgentActivityConfig] = {}
+        for agent in agent_configs:
+            clean_name = (agent.entity_name or "").strip().lower()
+            if clean_name and clean_name not in agents_by_name:
+                agents_by_name[clean_name] = agent
+        
         # 按实体类型建立 agent 索引
         agents_by_type: Dict[str, List[AgentActivityConfig]] = {}
         for agent in agent_configs:
-            etype = agent.entity_type.lower()
+            etype = (agent.entity_type or "").lower()
             if etype not in agents_by_type:
                 agents_by_type[etype] = []
             agents_by_type[etype].append(agent)
@@ -988,49 +1001,105 @@ class SimulationConfigGenerator:
         
         updated_posts = []
         for post in event_config.initial_posts:
-            poster_type = post.get("poster_type", "").lower()
-            content = post.get("content", "")
+            poster_type = str(post.get("poster_type") or "").lower()
+            content = str(post.get("content") or "")
+            target_persona = str(
+                post.get("poster_persona")
+                or post.get("poster_name")
+                or post.get("target_persona")
+                or ""
+            ).strip()
             
-            # 尝试找到匹配的 agent
-            matched_agent_id = None
-            
-            # 1. 直接匹配
-            if poster_type in agents_by_type:
-                agents = agents_by_type[poster_type]
-                idx = used_indices.get(poster_type, 0) % len(agents)
-                matched_agent_id = agents[idx].agent_id
-                used_indices[poster_type] = idx + 1
-            else:
-                # 2. 使用别名匹配
-                for alias_key, aliases in type_aliases.items():
-                    if poster_type in aliases or alias_key == poster_type:
-                        for alias in aliases:
-                            if alias in agents_by_type:
-                                agents = agents_by_type[alias]
-                                idx = used_indices.get(alias, 0) % len(agents)
-                                matched_agent_id = agents[idx].agent_id
-                                used_indices[alias] = idx + 1
-                                break
-                    if matched_agent_id is not None:
+            matched_agent: Optional[AgentActivityConfig] = None
+            match_source = "fallback"
+
+            # 1. Correspondance nominative directe et exacte (insensible à la casse)
+            if target_persona:
+                target_key = target_persona.lower()
+                if target_key in agents_by_name:
+                    matched_agent = agents_by_name[target_key]
+                    match_source = f"exact_persona_name('{target_persona}')"
+                elif len(target_key) >= 3:
+                    # Recherche par sous-chaîne stricte de nom de persona (ex: "Émilie" dans "Émilie Martin")
+                    for name_key, agent in agents_by_name.items():
+                        if len(name_key) >= 3 and (target_key in name_key or name_key in target_key):
+                            matched_agent = agent
+                            match_source = f"partial_persona_name('{target_persona}' -> '{agent.entity_name}')"
+                            break
+
+            # 2. Détection du nom du persona dans le texte du post si non trouvé
+            if matched_agent is None and content:
+                content_lower = content.lower()
+                # Chercher si un nom de persona apparaît explicitement dans le contenu
+                for name_key, agent in agents_by_name.items():
+                    # Éviter les faux positifs sur les noms trop courts (< 3 caractères)
+                    if len(name_key) >= 3 and (
+                        f" {name_key} " in f" {content_lower} "
+                        or content_lower.startswith(f"{name_key}:")
+                        or content_lower.startswith(f"{name_key} :")
+                        or f"en tant qu'{name_key}" in content_lower
+                        or f"en tant que {name_key}" in content_lower
+                    ):
+                        matched_agent = agent
+                        match_source = f"content_mention('{agent.entity_name}')"
                         break
-            
-            # 3. 如果仍未找到，使用影响力最高的 agent
-            if matched_agent_id is None:
-                logger.warning(f"未找到类型 '{poster_type}' 的匹配 Agent，使用影响力最高的 Agent")
-                if agent_configs:
-                    # 按影响力排序，选择影响力最高的
-                    sorted_agents = sorted(agent_configs, key=lambda a: a.influence_weight, reverse=True)
-                    matched_agent_id = sorted_agents[0].agent_id
+
+            # 3. Résolution par type d'entité et alias
+            if matched_agent is None:
+                if poster_type in agents_by_type:
+                    agents = agents_by_type[poster_type]
+                    idx = used_indices.get(poster_type, 0) % len(agents)
+                    matched_agent = agents[idx]
+                    used_indices[poster_type] = idx + 1
+                    match_source = f"direct_type('{poster_type}')"
                 else:
-                    matched_agent_id = 0
+                    for alias_key, aliases in type_aliases.items():
+                        if poster_type in aliases or alias_key == poster_type:
+                            for alias in aliases:
+                                if alias in agents_by_type:
+                                    agents = agents_by_type[alias]
+                                    idx = used_indices.get(alias, 0) % len(agents)
+                                    matched_agent = agents[idx]
+                                    used_indices[alias] = idx + 1
+                                    match_source = f"alias_type('{alias}')"
+                                    break
+                        if matched_agent is not None:
+                            break
+
+            # 4. Repli stable par influence la plus élevée
+            if matched_agent is None:
+                logger.warning(
+                    f"未找到类型 '{poster_type}' / persona '{target_persona}' 的匹配 Agent，"
+                    "使用影响力最高的 Agent"
+                )
+                if agent_configs:
+                    sorted_agents = sorted(
+                        agent_configs,
+                        key=lambda a: (a.influence_weight, -a.agent_id),
+                        reverse=True
+                    )
+                    matched_agent = sorted_agents[0]
+                    match_source = "highest_influence"
             
-            updated_posts.append({
+            matched_agent_id = matched_agent.agent_id if matched_agent else 0
+            poster_entity_name = matched_agent.entity_name if matched_agent else ""
+
+            post_record = {
                 "content": content,
                 "poster_type": post.get("poster_type", "Unknown"),
-                "poster_agent_id": matched_agent_id
-            })
+                "poster_agent_id": matched_agent_id,
+            }
+            if poster_entity_name:
+                post_record["poster_entity_name"] = poster_entity_name
+            if target_persona:
+                post_record["poster_persona"] = target_persona
+
+            updated_posts.append(post_record)
             
-            logger.info(f"初始帖子分配: poster_type='{poster_type}' -> agent_id={matched_agent_id}")
+            logger.info(
+                f"初始帖子分配: agent_id={matched_agent_id} ({poster_entity_name}) "
+                f"via {match_source} pour poster_type='{poster_type}'"
+            )
         
         event_config.initial_posts = updated_posts
         return event_config

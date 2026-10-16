@@ -2049,3 +2049,70 @@ class ZepToolsService:
             logger.warning(t("console.generateInterviewSummaryFailed", error=e))
             # 降级：简单拼接
             return f"共采访了{len(interviews)}位受访者，包括：" + "、".join([i.agent_name for i in interviews])
+
+    def query_simulation_events(
+        self,
+        simulation_id: str,
+        query: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        platform: Optional[str] = None,
+        round_min: Optional[int] = None,
+        round_max: Optional[int] = None,
+        action_type: Optional[str] = None,
+        limit: int = 20,
+    ) -> str:
+        """Interroge les actions réelles exécutées dans la simulation (Story 011-2, AC3).
+        
+        Permet au ReportAgent de retrouver les faits observés avec leurs identifiants
+        stables et authentifiés `event_id`.
+        """
+        from .oasis_log_reader import OasisLogReaderService
+
+        reader = OasisLogReaderService(simulation_id)
+        events = reader.query_events(
+            simulation_id=simulation_id,
+            query=query,
+            agent_name=agent_name,
+            platform=platform,
+            round_min=round_min,
+            round_max=round_max,
+            action_type=action_type,
+            limit=limit,
+        )
+
+        if not events:
+            filters_desc = []
+            if query:
+                filters_desc.append(f"texte='{query}'")
+            if agent_name:
+                filters_desc.append(f"persona='{agent_name}'")
+            if platform:
+                filters_desc.append(f"plateforme='{platform}'")
+            if action_type:
+                filters_desc.append(f"action='{action_type}'")
+            if round_min is not None or round_max is not None:
+                filters_desc.append(f"rounds=[{round_min or 0}-{round_max or '*'}]")
+            f_str = ", ".join(filters_desc) if filters_desc else "aucun filtre"
+            return f"【Aucun événement observé correspondant】 ({f_str})"
+
+        lines = [
+            f"【Événements observés de simulation ({len(events)} trouvés, max {limit})】"
+        ]
+        for i, ev in enumerate(events, 1):
+            args_str = ""
+            if ev.action_args:
+                if "content" in ev.action_args:
+                    args_str = f" : \"{str(ev.action_args['content'])[:120]}\""
+                elif "message" in ev.action_args:
+                    args_str = f" : \"{str(ev.action_args['message'])[:120]}\""
+                elif "info" in ev.action_args:
+                    args_str = f" : {str(ev.action_args['info'])[:120]}"
+                else:
+                    args_str = f" : {str(ev.action_args)[:120]}"
+
+            res_str = f" (résultat: {ev.result})" if ev.result else ""
+            lines.append(
+                f"{i}. [event_id: {ev.event_id}] (Round {ev.round_num} | {ev.platform}) "
+                f"Agent {ev.agent_name} -> Action: {ev.action_type}{args_str}{res_str}"
+            )
+        return "\n".join(lines)
