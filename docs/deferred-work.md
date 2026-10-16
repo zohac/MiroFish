@@ -421,5 +421,8 @@ Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `ver
 - **`frontend/src/i18n/regionalFormat.js:38-42` — Paramètre d'options timezone pour formatLogTimeValue.** `formatLogTimeValue` n'expose pas d'argument `options` pour forcer un fuseau spécifique (ex: UTC) dans les tests, contrairement à `formatDateValue`/`formatTimeValue`.
 - **Intégration responsive mobile globale du frontend MiroFish.** L'affichage mobile présente des limites d'empilement vertical et de débordement d'en-tête inhérentes au frontend amont d'origine (conçu strictement desktop-first). L'arbitrage du 16 octobre 2026 confirme que la localisation FR n'a introduit aucune régression et acte le report de l'optimisation responsive mobile dans un chantier/story d'ergonomie dédié.
 
+## Deferred from: code review of story-008-3.md (2026-10-16)
 
+Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) de la génération de personas, simulations et rapports en français (prompts LLM et banc de validation).
 
+- **`backend/scripts/run_parallel_simulation.py:1539` — Injection de consigne linguistique directe dans le moteur camel-oasis.** `set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE') or self.config.get('locale'))` initialise le thread-local dans les processus de simulation, mais `camel-oasis` est une bibliothèque externe sans interaction directe avec `locale.py` ; l'alignement linguistique des actions des agents repose sur les personas générés (`_add_agent_language_guidance`) et sera mesuré empiriquement lors du banc de qualification sous Docker (T7).

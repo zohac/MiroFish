@@ -129,6 +129,7 @@ Revue contradictoire BMAD 4 couches validée.
 **010-3 est close (`done`)** : sécurisation thread-safe de `SentenceTransformerEmbedder._encode_sync` (sérialisation de l'inférence PyTorch via `self._lock` éliminant les collisions de meta tensors) et drain mémoire résilient dans `ZepGraphMemoryUpdater.stop(strict=False)` et `ZepGraphMemoryManager.stop_updater` assurant la complétion nominale vers `RunnerStatus.COMPLETED` même en présence de défaillances mineures de lots secondaires. Purge de `_pending_episode_uuids` sécurisée sous bloc `finally:`. 9 tests unitaires hermétiques dédiés (`test_sentence_transformer_thread_safety.py`). Revue contradictoire BMAD 4 couches validée (2 patches appliqués). **Epic 010 intégralement clos avec succès (3/3 stories done, 1580 tests verts sur l'hôte)**.
 **008-1 est close (`done`)** : dictionnaire complet de traduction française `locales/fr.json` (679 clés sur 17 sections, parité 100 % stricte avec `en.json`, 0 orpheline, 0 manquante, variables `{var}` conformes), intégration backend `normalize_locale()` RFC 7231 (`backend/app/utils/locale.py`), 7 tests hermétiques dédiés (`test_i18n_parity.py`). Revue contradictoire BMAD 4 couches validée.
 **008-2 est close (`done`)** : intégration et bascule IHM frontend Vue 3 (`LanguageSwitcher.vue`, formats régionaux `fr-FR` via `regionalFormat.js`, synchronisation de l'en-tête Axios `Accept-Language`, persistance `localStorage`). 9 tests Node passés (`pnpm --dir frontend test`), build Vite réussi. Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués (fuite `'FINALIZING'` résolue, gardes défensives sur types coercitifs, synchronisation CI) et 5 travaux différés consignés dans `docs/deferred-work.md`. Validation visuelle Docker réelle réussie à 100 % sur navigateurs bureau (rendu mobile amont documenté et différé pour story ergonomique dédiée). DoD 100 % satisfait. Filet global : **1618 tests verts sur l'hôte**, 9 tests frontend Node.
+**008-3 est en cours (`in-progress`)** : locale canonique persistée par simulation, propagation aux sous-processus OASIS et guides linguistiques. Revue de code adverse BMAD à 4 couches validée (4 patches appliqués : body JSON `/create`, confinement hermétique `use_locale` dans `prepare_simulation`, tolérance aux locales inconnues dans les gabarits, nettoyage des consignes antérieures lors des régénérations). 33 tests hermétiques passants (`test_simulation_locale.py`). Banc Docker+LLM réel et audit prompts T1/T4/T5/T7 en cours de qualification.
 
 ---
 
@@ -156,7 +157,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-16 octobre 2026 compte **1618 tests collectés et réussis sur l'hôte (+ 9 tests frontend Node) ; 1615 réussis + 3 ignorés sous
+16 octobre 2026 compte **1622 tests collectés et réussis sur l'hôte (+ 9 tests frontend Node) ; 1619 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
@@ -171,7 +172,8 @@ hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1571** (1562 + 9 tests hermétiques nets, réconciliation vivacité OS, autorité disque, résilience IHM et 4 patches BMAD) ; post-010-3 :
 **1580** (1571 + 9 tests hermétiques nets, thread-safety PyTorch, drain mémoire tolérant et 2 patches BMAD) ; post-008-1 :
 **1589** (1580 + 7 tests hermétiques dédiés parité i18n et normalisation locale RFC 7231) ; post-008-2 :
-**1618** (1589 + 29 tests, dont 9 tests Node frontend i18n/formats régionaux et suite backend consolidée).
+**1618** (1589 + 29 tests, dont 9 tests Node frontend i18n/formats régionaux et suite backend consolidée) ; post-008-3 (revue T2/T3) :
+**1622** (1618 + 4 tests hermétiques nets dédiés à la persistance et au confinement de locale).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais

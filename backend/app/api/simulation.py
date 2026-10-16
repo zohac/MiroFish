@@ -294,7 +294,7 @@ def create_simulation():
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
-            locale=get_locale(),
+            locale=data.get('locale') or get_locale(),
         )
         
         return jsonify({

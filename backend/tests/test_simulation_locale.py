@@ -218,3 +218,92 @@ def test_subprocess_receives_simulation_locale_independent_of_caller(
         SimulationRunner._stderr_files.pop(sim_id, None)
         SimulationRunner._state_file_mtimes.pop(sim_id, None)
         SimulationRunner._graph_memory_enabled.pop(sim_id, None)
+
+
+def test_api_create_simulation_respects_payload_locale_over_header(monkeypatch):
+    """Vérifie que POST /api/simulation/create privilégie le champ locale du body."""
+    from app.api import simulation as simulation_api
+    from types import SimpleNamespace
+
+    app = Flask(__name__)
+    captured = {}
+
+    def mock_create_simulation(self, project_id, graph_id, simulation_requirement="",
+                               enable_twitter=True, enable_reddit=True, locale="zh"):
+        captured["locale"] = locale
+        state = SimpleNamespace(
+            simulation_id="sim-test",
+            project_id=project_id,
+            graph_id=graph_id,
+            locale=locale,
+            to_dict=lambda: {"simulation_id": "sim-test", "locale": locale},
+        )
+        return state
+
+    monkeypatch.setattr(SimulationManager, "create_simulation", mock_create_simulation)
+
+    with app.test_request_context(
+        "/api/simulation/create",
+        method="POST",
+        json={"project_id": "proj-1", "locale": "fr"},
+        headers={"Accept-Language": "en-US"},
+    ):
+        with monkeypatch.context() as m:
+            from app.models.project import ProjectManager
+            m.setattr(ProjectManager, "get_project", lambda pid: SimpleNamespace(graph_id="g-1"))
+            resp = simulation_api.create_simulation()
+            data = resp.get_json() if hasattr(resp, "get_json") else resp[0].get_json()
+            assert data["success"] is True
+            assert captured["locale"] == "fr"
+
+
+def test_prepare_simulation_enforces_canonical_locale_internally(tmp_path, monkeypatch):
+    """Vérifie que prepare_simulation confine son exécution sous use_locale(state.locale)."""
+    manager = SimulationManager()
+    manager.SIMULATION_DATA_DIR = str(tmp_path)
+    state = manager.create_simulation("proj-1", "graph-1", locale="fr")
+
+    observed_locale = []
+
+    def mock_execute_prepare(self, *args, **kwargs):
+        observed_locale.append(get_locale())
+        return state
+
+    monkeypatch.setattr(SimulationManager, "_execute_prepare", mock_execute_prepare)
+
+    # Thread appelant configuré en 'en'
+    with use_locale("en"):
+        assert get_locale() == "en"
+        manager.prepare_simulation(state.simulation_id, "req", "doc")
+        assert get_locale() == "en"
+
+    assert observed_locale == ["fr"]
+
+
+def test_localized_fallback_and_guidance_tolerate_unknown_locale(monkeypatch):
+    """Vérifie l'absence de KeyError sur locale non répertoriée dans les gabarits."""
+    generator = object.__new__(OasisProfileGenerator)
+    monkeypatch.setattr("app.services.oasis_profile_generator.get_locale", lambda: "es_ES")
+
+    fallback = generator._localized_fallback("Alice", "Person", "")
+    assert "Alice" in fallback["bio"]
+    assert "参与公共讨论" in fallback["persona"]
+
+    guided = generator._add_agent_language_guidance({"persona": "Base"})
+    assert "Base" in guided["persona"]
+    assert "在本次模拟中" in guided["persona"]
+
+
+def test_add_agent_language_guidance_cleans_former_multilingual_guidance():
+    """Vérifie qu'un persona régénéré sous une autre locale ne conserve pas les consignes antérieures."""
+    generator = object.__new__(OasisProfileGenerator)
+    zh_persona = "Biographie initiale.\n在本次模拟中，帖子和回复均使用中文。"
+    profile_data = {"persona": zh_persona}
+
+    with use_locale("fr"):
+        result = generator._add_agent_language_guidance(profile_data)
+
+    assert "在本次模拟中" not in result["persona"]
+    assert "Biographie initiale." in result["persona"]
+    assert "Dans cette simulation, les publications et les réponses sont rédigées en français." in result["persona"]
+

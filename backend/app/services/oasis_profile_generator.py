@@ -770,20 +770,28 @@ class OasisProfileGenerator:
             "en": f"{entity_name} participates in public discussions.",
             "zh": f"{entity_name}参与公共讨论。",
         }
-        sentence = statements[get_locale()]
+        sentence = statements.get(get_locale(), statements["zh"])
         return {"bio": sentence, "persona": sentence}
 
     def _add_agent_language_guidance(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         """OASIS consumes persona text; guide actions without altering JSON keys."""
-        guidance = {
+        guidance_map = {
             "fr": "Dans cette simulation, les publications et les réponses sont rédigées en français.",
             "en": "In this simulation, posts and replies are written in English.",
             "zh": "在本次模拟中，帖子和回复均使用中文。",
-        }[get_locale()]
+        }
+        current_locale = get_locale()
+        target_guidance = guidance_map.get(current_locale, guidance_map["zh"])
         result = dict(profile_data)
         persona = _coerce_to_str(result.get("persona", ""))
-        if guidance not in persona:
-            result["persona"] = f"{persona}\n{guidance}".strip()
+        # Nettoyer d'éventuelles consignes d'autres langues issues d'une régénération
+        for g in guidance_map.values():
+            if g != target_guidance and g in persona:
+                persona = persona.replace(f"\n{g}", "").replace(g, "").strip()
+        if target_guidance not in persona:
+            result["persona"] = f"{persona}\n{target_guidance}".strip()
+        else:
+            result["persona"] = persona
         return result
 
     def _get_system_prompt(self, is_individual: bool) -> str:

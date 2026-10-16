@@ -157,12 +157,25 @@ docker compose down   # ne jamais ajouter -v sans raison explicite
 
 ## Revue
 
-**En cours — statut `in-progress`.** À l'implémentation, consigner ici les findings et correctifs de chaque couche BMAD :
+**Revue adverse BMAD à 4 couches (16 octobre 2026) — statut `in-progress`.**
+Revue contradictoire menée sur le diff de réalisation initiale (T2 et T3, `03515f9..55f6f04`, 16 fichiers modifiés, +349 / -34 lignes).
 
-1. **Contrat** : AC1–AC8, distinction IHM / contenu LLM et frontière avec l'Epic 011.
-2. **Architecture** : immutabilité de la locale d'une simulation, absence de fuite cross-thread/cross-process, contrats d'export JSON/CSV stables.
-3. **Résilience/sécurité** : données passives protégées, retries, fallback, erreurs, cas historiques, citations originales et changements de langue a posteriori.
-4. **Preuves** : tests hermétiques, CI verte, mesures comportementales réelles avec dénominateurs, exclusions justifiées et seuils atteints.
+### Review Findings
+
+#### Patches
+
+- [x] [Review][Patch] **`POST /api/simulation/create` ignore le paramètre `locale` du payload JSON** [`backend/app/api/simulation.py:294`] — Corrigé : `data.get('locale') or get_locale()` pris en compte en priorité sur l'en-tête HTTP.
+- [x] [Review][Patch] **Confinement manquant de `use_locale(state.locale)` dans `SimulationManager.prepare_simulation`** [`backend/app/services/simulation_manager.py:565`] — Corrigé : exécution de `_execute_prepare` systématiquement confinée sous `with use_locale(state.locale)`.
+- [x] [Review][Patch] **`KeyError` potentiel dans `_localized_fallback` et `_add_agent_language_guidance` sur locale non reconnue** [`backend/app/services/oasis_profile_generator.py:132,141`] — Corrigé : accès sécurisé via `.get(current_locale, default)` prévenant tout plantage de thread worker.
+- [x] [Review][Patch] **Nettoyage des consignes de langue antérieures dans `_add_agent_language_guidance` lors d'une régénération** [`backend/app/services/oasis_profile_generator.py:145`] — Corrigé : purge des anciennes consignes multilingues (`\n{g}`) avant adjonction de la consigne cible.
+
+#### Deferred
+
+- [x] [Review][Defer] **Injection de consigne linguistique directe dans le moteur camel-oasis** [`backend/scripts/run_parallel_simulation.py:1539`] — deferred: `camel-oasis` est une bibliothèque externe sans interaction directe avec `locale.py` ; l'alignement linguistique des agents repose sur les personas générés et sera qualifié empiriquement lors du banc réel (T7).
+
+#### Rejected
+
+- **Gabarit de repli persona en anglais résiduel dans `generate_profile_from_entity`** [`backend/app/services/oasis_profile_generator.py:403`] — `false` : code mort inatteignable car `_generate_profile_with_llm` et `_generate_profile_rule_based` garantissent toujours une clé `persona` non vide.
 
 Ne jamais cocher le DoD ni attribuer de verdict GO tant qu'aucune mesure réelle n'a été conduite. La validation empirique des sorties OASIS, des profils et du rapport demeure bloquante pour `done`.
 

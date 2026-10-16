@@ -4,7 +4,7 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas une seconde saisie.
 
-> Dernière mise à jour : **15 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **16 octobre 2026** · branche `local-first`
 
 ---
 
@@ -85,12 +85,12 @@ L'**Epic 007 (Ontologie dynamique, v2) est intégralement clos avec succès (7/7
 
 ## En cours / Prochaine étape
 
-L'**Epic 008 (« Support complet de la langue française — Localisation FR ») est en cours d'exécution** (2/3 stories closes — **1618 tests verts sur l'hôte**, 9 tests frontend, Verdict GO de parité) :
+L'**Epic 008 (« Support complet de la langue française — Localisation FR ») est en cours d'exécution** (2/3 stories closes, story 008-3 en cours — **1622 tests verts sur l'hôte**, 9 tests frontend, Verdict GO de parité) :
 - **Story 008-1 (done au 15 octobre 2026)** : Dictionnaire complet de traduction française (`locales/fr.json`) et parité stricte des clés. Rédaction intégrale des 679 clés réparties sur 17 sections (`common`, `meta`, `nav`, `home`, `main`, `step1`, `step2`, `step3`, `step4`, `step5`, `graph`, `history`, `api`, `progress`, `log`, `report`, `console`). Alignement rigoureux de la terminologie métier. Maintien strict de 100 % des variables de template `{var}`. Intégration backend dans `backend/app/utils/locale.py` avec fonction `normalize_locale()` selon RFC 7231 (`fr`, `fr-FR`, `fr-BE`, `fr-CA`). Suite unitaire hermétique de 7 tests (`backend/tests/test_i18n_parity.py`). Revue contradictoire BMAD 4 couches validée. Filet global porté à **1589 tests verts sur l'hôte** (0 échec).
 - **Story 008-2 (done au 16 octobre 2026)** : Intégration et bascule IHM frontend Vue 3 (sélecteur accessible `LanguageSwitcher.vue`, formats régionaux `fr-FR` via `regionalFormat.js`, synchronisation dynamique de l'en-tête Axios `Accept-Language`, persistance `localStorage`). Suite unitaire Node hermétique (`pnpm --dir frontend test`, 9/9 tests passés) et compilation Vite sans erreur. Revue contradictoire BMAD 4 couches menée avec succès (5 patches appliqués : localisation de `'FINALIZING'`, parité trilingue des dictionnaires, gardes défensives booléens/tableaux dans `validDate` et `formatNumberValue`, sécurisation de `formatElapsedTime` contre `undefined`/`NaN`, saut de ligne terminal CI). 5 travaux différés consignés dans `docs/deferred-work.md`. Validation visuelle Docker réelle réussie à 100 % sur navigateurs bureau (Accueil, Graphe, Config, Simulation, Rapport, Prévalidation des acteurs sans résidu). Ergonomie responsive mobile préexistante (héritée de l'amont desktop-first) consignée en travail différé pour story ergonomique dédiée. DoD 100 % satisfait. Filet global : **1618 tests verts sur l'hôte**, 9 tests frontend Node.
+- **Story 008-3 (in-progress au 16 octobre 2026)** : Génération de personas, simulations et rapports en français (prompts LLM & banc de validation). Implémentation initiale T2/T3 validée par revue de code adverse BMAD à 4 couches (4 patches appliqués : payload JSON `/create`, confinement `use_locale` dans `prepare_simulation`, robustesse `KeyError`, nettoyage des consignes multilingues). 33 tests hermétiques passants dans `test_simulation_locale.py`. Filet global porté à **1622 tests verts sur l'hôte** (0 échec). Banc Docker+LLM réel et audit prompts T1/T4/T5/T7 en cours de qualification.
 
 Chantiers consécutifs :
-- **Story 008-3** : Génération de personas, simulations et rapports en français (prompts LLM & banc de validation).
 - **Epic 011** : Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports (OASIS post-simulation vivant, `interview_agents`, traces d'actions, anti-affabulation, bouclier ToolShield).
 
 Dossier de plan complet : [`docs/plans/008-support-langue-francaise/`](plans/008-support-langue-francaise/epic-008.md).

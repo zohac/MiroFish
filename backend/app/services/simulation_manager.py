@@ -17,7 +17,7 @@ from ..utils.logger import get_logger
 from .zep_entity_reader import ZepEntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
-from ..utils.locale import t, normalize_locale
+from ..utils.locale import t, normalize_locale, use_locale
 from ..models.actor_eligibility import (
     ACTOR_ELIGIBILITY_POLICY_VERSION,
     ActorEligibility,
@@ -575,6 +575,43 @@ class SimulationManager:
         # Récupération de l'ontologie projet appliquée (Événement E5, AC1, C5)
         applied_ontology_id = getattr(project, "applied_ontology_id", None) if project else None
 
+        with use_locale(state.locale):
+            return self._execute_prepare(
+                simulation_id=simulation_id,
+                state=state,
+                project=project,
+                simulation_requirement=simulation_requirement,
+                document_text=document_text,
+                defined_entity_types=defined_entity_types,
+                use_llm_for_profiles=use_llm_for_profiles,
+                progress_callback=progress_callback,
+                parallel_profile_count=parallel_profile_count,
+                classifier=classifier,
+                simulation_brief=simulation_brief,
+                document_sections=document_sections,
+                block_on_review=block_on_review,
+                block_on_conflict=block_on_conflict,
+                applied_ontology_id=applied_ontology_id,
+            )
+
+    def _execute_prepare(
+        self,
+        simulation_id: str,
+        state: SimulationState,
+        project: Any,
+        simulation_requirement: str,
+        document_text: str,
+        defined_entity_types: Optional[List[str]] = None,
+        use_llm_for_profiles: bool = True,
+        progress_callback: Optional[callable] = None,
+        parallel_profile_count: int = 3,
+        classifier: Optional[ActorClassifierService] = None,
+        simulation_brief: Optional[SimulationBrief] = None,
+        document_sections: Optional[List[Dict[str, Any]]] = None,
+        block_on_review: bool = False,
+        block_on_conflict: bool = False,
+        applied_ontology_id: Optional[str] = None,
+    ) -> SimulationState:
         try:
             state.status = SimulationStatus.PREPARING
             state.error = None
