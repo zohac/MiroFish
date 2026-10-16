@@ -1,203 +1,246 @@
 <div align="center">
 
-<img src="./static/image/MiroFish_logo_compressed.jpeg" alt="MiroFish Logo" width="75%"/>
+<img src="./static/image/MiroFish_logo_compressed.jpeg" alt="Logo MiroFish" width="65%" />
 
-<a href="https://trendshift.io/repositories/16144" target="_blank"><img src="https://trendshift.io/api/badge/repositories/16144" alt="666ghj%2FMiroFish | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+# MiroFish — Local First
 
-简洁通用的群体智能引擎，预测万物
-</br>
-<em>A Simple and Universal Swarm Intelligence Engine, Predicting Anything</em>
+**Simulez des dynamiques sociales avec des agents IA, un graphe de connaissances local et des scénarios documentés.**
 
-<a href="https://www.shanda.com/" target="_blank"><img src="./static/image/shanda_logo.png" alt="666ghj%2FMiroFish | Shanda" height="40"/></a>
+[![Branche](https://img.shields.io/badge/branche-local--first-2563eb?style=flat-square)](https://github.com/zohac/MiroFish/tree/local-first)
+[![Licence](https://img.shields.io/badge/licence-AGPL--3.0-555?style=flat-square)](LICENSE)
+[![CI](https://github.com/zohac/MiroFish/actions/workflows/ci.yml/badge.svg?branch=local-first)](https://github.com/zohac/MiroFish/actions/workflows/ci.yml?query=branch%3Alocal-first)
 
-[![GitHub Stars](https://img.shields.io/github/stars/666ghj/MiroFish?style=flat-square&color=DAA520)](https://github.com/666ghj/MiroFish/stargazers)
-[![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/watchers)
-[![GitHub Forks](https://img.shields.io/github/forks/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/network)
-[![Docker](https://img.shields.io/badge/Docker-Build-2496ED?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/MiroFish)
-
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](http://discord.gg/ePf5aPaHnA)
-[![X](https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/mirofish_ai)
-[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/mirofish_ai/)
-
-[English](./README.md) | [中文文档](./README-ZH.md)
+**[Installation](#-installation-avec-docker-recommandée) · [Fonctionnalités](#-ce-que-change-ce-fork) · [État du projet](#-état-du-projet) · [Documentation](#-documentation)**
 
 </div>
 
-## ⚡ Overview
+> **À propos de ce dépôt.** Il s'agit du fork [`zohac/MiroFish`](https://github.com/zohac/MiroFish), développé sur la branche `local-first` à partir du projet original [`666ghj/MiroFish`](https://github.com/666ghj/MiroFish). Ce README décrit **le fork et son état actuel**, pas une version officielle de MiroFish. La [documentation chinoise historique](README-ZH.md) et la [présentation anglaise du projet amont](https://github.com/666ghj/MiroFish#readme) concernent principalement la version d'origine.
 
-**MiroFish** is a next-generation AI prediction engine powered by multi-agent technology. By extracting seed information from the real world (such as breaking news, policy drafts, or financial signals), it automatically constructs a high-fidelity parallel digital world. Within this space, thousands of intelligent agents with independent personalities, long-term memory, and behavioral logic freely interact and undergo social evolution. You can inject variables dynamically from a "God's-eye view" to precisely deduce future trajectories — **rehearse the future in a digital sandbox, and win decisions after countless simulations**.
+## 🔎 Présentation
 
-> You only need to: Upload seed materials (data analysis reports or interesting novel stories) and describe your prediction requirements in natural language</br>
-> MiroFish will return: A detailed prediction report and a deeply interactive high-fidelity digital world
+MiroFish est un **moteur de simulation sociale multi-agents**. On lui fournit des documents (études, rapports, scénarios…) et un objectif de simulation. Il construit un graphe de connaissances, identifie les acteurs pertinents, génère leurs profils, fait interagir des agents dans des environnements sociaux simulés (Twitter et Reddit via OASIS), puis produit un rapport exploitable et interrogeable.
 
-### Our Vision
+**Ce n'est pas un outil de prédiction infaillible.** Ses résultats sont des comportements simulés, dépendants des sources, des modèles, des paramètres et des hypothèses. Ils ne constituent pas à eux seuls des faits observés ni une prévision garantie.
 
-MiroFish is dedicated to creating a swarm intelligence mirror that maps reality. By capturing the collective emergence triggered by individual interactions, we break through the limitations of traditional prediction:
+### Le parcours
 
-- **At the Macro Level**: We are a rehearsal laboratory for decision-makers, allowing policies and public relations to be tested at zero risk
-- **At the Micro Level**: We are a creative sandbox for individual users — whether deducing novel endings or exploring imaginative scenarios, everything can be fun, playful, and accessible
+1. **Créer un projet** et importer des sources (`.pdf`, `.md`, `.txt`).
+2. **Construire le graphe** : extraction d'entités et de relations avec Graphiti, stockage dans Neo4j.
+3. **Préparer les agents** : ontologie adaptée au projet, qualification des acteurs, contrôle des sources et sélection des participants.
+4. **Lancer la simulation** : interactions OASIS sur Twitter, Reddit ou les deux, avec suivi de l'exécution.
+5. **Analyser les résultats** : rapport, provenance documentaire, consultation du graphe et outils d'interaction.
 
-From serious predictions to playful simulations, we let every "what if" see its outcome, making it possible to predict anything.
+## ✨ Ce que change ce fork
 
-## 🌐 Live Demo
+| Domaine | Branche `local-first` |
+| --- | --- |
+| **Graphe de connaissances** | **Graphiti + Neo4j local** via l'abstraction `GraphStore` ; Zep Cloud reste un backend optionnel de compatibilité. |
+| **Dépendance Zep** | **Aucune clé `ZEP_API_KEY` nécessaire** avec `ZEP_BACKEND=graphiti`. |
+| **Déploiement** | `docker-compose.yml` construit localement trois services : **Neo4j, backend Flask, frontend Vue 3/Vite**. |
+| **Installation reproductible** | **pnpm** pour Node.js, **uv** pour Python ; fichiers de verrouillage versionnés. |
+| **Modèles IA** | Configuration d'un **endpoint compatible API OpenAI**, distant ou hébergé localement selon les capacités du modèle. |
+| **Embeddings** | `sentence-transformers` local (modèle par défaut `all-MiniLM-L6-v2`) ; téléchargement initial du modèle possible. |
+| **Ontologie** | Génération, validation, versionnement et réutilisation d'une ontologie propre au projet. |
+| **Acteurs et sources** | Éligibilité des acteurs, prévalidation manuelle, traçabilité documentaire et distinction entre intentions exprimées et actions constatées dans les contrôles existants. |
+| **Cycle de simulation** | Fin automatique, réconciliation des états des processus et déblocage de la génération de rapport après les rounds. |
+| **Langues** | Dictionnaires **français, anglais et chinois**, sélecteur d'interface et formats régionaux ; **qualification française de bout en bout encore en cours**. |
+| **Données Zep existantes** | Scripts d'audit, migration vers Neo4j et purge distante contrôlée. |
 
-Welcome to visit our online demo environment and experience a prediction simulation on trending public opinion events we've prepared for you: [mirofish-live-demo](https://666ghj.github.io/mirofish-demo/)
+Le terme **local-first** signifie ici que le **graphe et l'infrastructure applicative peuvent être auto-hébergés**. Il ne garantit **ni un fonctionnement intégralement hors ligne ni l'absence d'appels externes** : tout dépend notamment du LLM choisi et du téléchargement initial des modèles.
 
-## 📸 Screenshots
+## 🚀 Installation avec Docker (recommandée)
 
-<div align="center">
-<table>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图1.png" alt="Screenshot 1" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图2.png" alt="Screenshot 2" width="100%"/></td>
-</tr>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图3.png" alt="Screenshot 3" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图4.png" alt="Screenshot 4" width="100%"/></td>
-</tr>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图5.png" alt="Screenshot 5" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图6.png" alt="Screenshot 6" width="100%"/></td>
-</tr>
-</table>
-</div>
+C'est l'**environnement de référence du projet**. Le `docker-compose.yml` principal construit les images à partir de **ce fork** et démarre Neo4j, l'API et l'interface. Il n'utilise pas l'image applicative préconstruite du projet amont.
 
-## 🎬 Demo Videos
+### Prérequis
 
-### 1. Wuhan University Public Opinion Simulation + MiroFish Project Introduction
+- Docker avec le plugin **Docker Compose**.
+- Une machine disposant de suffisamment de mémoire et d'espace disque pour Neo4j, Python/OASIS et les dépendances d'embedding.
+- L'accès à un **LLM compatible API OpenAI** et les identifiants éventuellement requis par ce fournisseur.
 
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1VYBsBHEMY/" target="_blank"><img src="./static/image/武大模拟演示封面.png" alt="MiroFish Demo Video" width="75%"/></a>
-
-Click the image to watch the complete demo video for prediction using BettaFish-generated "Wuhan University Public Opinion Report"
-</div>
-
-### 2. Dream of the Red Chamber Lost Ending Simulation
-
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1cPk3BBExq" target="_blank"><img src="./static/image/红楼梦模拟推演封面.jpg" alt="MiroFish Demo Video" width="75%"/></a>
-
-Click the image to watch MiroFish's deep prediction of the lost ending based on hundreds of thousands of words from the first 80 chapters of "Dream of the Red Chamber"
-</div>
-
-> **Financial Prediction**, **Political News Prediction** and more examples coming soon...
-
-## 🔄 Workflow
-
-1. **Graph Building**: Seed extraction & Individual/collective memory injection & GraphRAG construction
-2. **Environment Setup**: Entity relationship extraction & Persona generation & Agent configuration injection
-3. **Simulation**: Dual-platform parallel simulation & Auto-parse prediction requirements & Dynamic temporal memory updates
-4. **Report Generation**: ReportAgent with rich toolset for deep interaction with post-simulation environment
-5. **Deep Interaction**: Chat with any agent in the simulated world & Interact with ReportAgent
-
-## 🚀 Quick Start
-
-### Option 1: Source Code Deployment (Recommended)
-
-#### Prerequisites
-
-| Tool | Version | Description | Check Installation |
-|------|---------|-------------|-------------------|
-| **Node.js** | 18+ | Frontend runtime, includes npm | `node -v` |
-| **Python** | ≥3.11, ≤3.12 | Backend runtime | `python --version` |
-| **uv** | Latest | Python package manager | `uv --version` |
-
-#### 1. Configure Environment Variables
+### 1. Cloner la bonne branche
 
 ```bash
-# Copy the example configuration file
+git clone --branch local-first https://github.com/zohac/MiroFish.git
+cd MiroFish
 cp .env.example .env
-
-# Edit the .env file and fill in the required API keys
 ```
 
-**Required Environment Variables:**
+### 2. Configurer `.env`
 
-```env
-# LLM API Configuration (supports any LLM API with OpenAI SDK format)
-# Recommended: Alibaba Qwen-plus model via Bailian Platform: https://bailian.console.aliyun.com/
-# High consumption, try simulations with fewer than 40 rounds first
-LLM_API_KEY=your_api_key
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL_NAME=qwen-plus
+Modifiez au minimum ces valeurs dans le fichier `.env` de la racine :
 
-# Zep Cloud Configuration
-# Free monthly quota is sufficient for simple usage: https://app.getzep.com/
-ZEP_API_KEY=your_zep_api_key
+```dotenv
+# Backend de graphe local : pas de compte Zep Cloud nécessaire
+ZEP_BACKEND=graphiti
+
+# Neo4j : URI pour une exécution du backend sur l'hôte
+# Docker Compose substitue automatiquement bolt://neo4j:7687 dans le conteneur.
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=remplacer-par-un-mot-de-passe-fort
+
+# Télémétrie Graphiti désactivée
+GRAPHITI_TELEMETRY_ENABLED=false
+
+# LLM : exemple de fournisseur compatible OpenAI, à adapter
+LLM_API_KEY=votre_cle_api
+LLM_BASE_URL=https://votre-endpoint-compatible-openai/v1
+LLM_MODEL_NAME=votre_modele
 ```
 
-#### 2. Install Dependencies
+**Important :**
+
+- `NEO4J_PASSWORD` doit correspondre au mot de passe utilisé au **premier démarrage** de Neo4j. Si son volume existe déjà, changer seulement `.env` ne change pas le mot de passe enregistré.
+- **Ne commitez jamais `.env`** : il peut contenir des secrets. La clé Zep présente dans le fichier d'exemple est inutile en mode `graphiti` ; vous pouvez la retirer.
+- Les variables `LLM_BOOST_*` du fichier d'exemple sont **optionnelles** : retirez ou commentez leurs lignes si vous n'utilisez pas de fournisseur secondaire, plutôt que de laisser des valeurs factices.
+- Utilisez un modèle capable de suivre les instructions et de produire des sorties structurées ; un serveur « compatible OpenAI » ne garantit pas à lui seul la compatibilité de tous les comportements Graphiti/OASIS.
+- Si le LLM tourne **sur votre ordinateur**, l'URL vue depuis Docker doit être accessible **depuis le conteneur**, pas seulement via `localhost` de l'hôte. Sur Docker Desktop (macOS/Windows), utilisez par exemple `http://host.docker.internal:1234/v1` pour un serveur local écoutant sur le port 1234.
+
+### 3. Démarrer les services
 
 ```bash
-# One-click installation of all dependencies (root + frontend + backend)
-npm run setup:all
+docker compose up -d --build
+docker compose ps
 ```
 
-Or install step by step:
+| Service | Adresse par défaut |
+| --- | --- |
+| Interface web | http://localhost:3000 |
+| API Flask | http://localhost:5001 |
+| Neo4j Browser | http://localhost:7474 |
+| Neo4j Bolt | `bolt://localhost:7687` |
+
+Les ports publiés sont configurables avec `FRONTEND_PORT`, `FLASK_PORT`, `NEO4J_HTTP_PORT` et `NEO4J_BOLT_PORT`.
 
 ```bash
-# Install Node dependencies (root + frontend)
-npm run setup
+# Suivre les logs de l'API
+docker compose logs -f backend
 
-# Install Python dependencies (backend, auto-creates virtual environment)
-npm run setup:backend
+# Arrêter les services en conservant les données Neo4j
+docker compose down
 ```
 
-#### 3. Start Services
+> **Attention :** `docker compose down -v` supprime aussi les volumes nommés, donc les données Neo4j. Ne l'utilisez que si vous souhaitez explicitement repartir de zéro.
+
+### Environnement de développement, pas déploiement public
+
+La stack actuelle sert au développement et aux qualifications : le frontend Docker démarre **Vite en mode développement** et Neo4j publie ses ports. **Ne l'exposez pas directement à Internet** sans durcissement (authentification, secrets, restrictions réseau, HTTPS et configuration de production).
+
+## 🧰 Développement local (alternative)
+
+Pour travailler hors de la stack applicative Docker, vous pouvez faire tourner **seulement Neo4j dans Docker**, puis lancer les deux applications sur l'hôte.
+
+**Prérequis :** Node.js ≥ 18, pnpm **10.23.0**, Python ≥ 3.11 et < 3.13 (géré par `uv` si nécessaire), `uv` et Docker pour Neo4j.
 
 ```bash
-# Start both frontend and backend (run from project root)
-npm run dev
+# Depuis la racine du dépôt, après avoir renseigné .env :
+corepack enable
+corepack prepare pnpm@10.23.0 --activate
+
+# Dépendances Node et Python
+pnpm setup:all
+
+# Base Neo4j seule (ne pas démarrer simultanément les deux Compose)
+docker compose -f docker-compose.neo4j.yml up -d --wait
+
+# Backend Flask et frontend Vite
+pnpm dev
 ```
 
-**Service URLs:**
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:5001`
+**Pour ce mode**, conservez `ZEP_BACKEND=graphiti` et `NEO4J_URI=bolt://localhost:7687` dans `.env`. Le fichier `docker-compose.neo4j.yml` est un environnement de test **Neo4j seul** ; le `docker-compose.yml` principal est la stack complète. Ne démarrez pas les deux simultanément : ils se disputeraient notamment les ports Neo4j.
 
-**Start Individually:**
+Commandes individuelles :
 
 ```bash
-npm run backend   # Start backend only
-npm run frontend  # Start frontend only
+pnpm backend                   # API Flask
+pnpm frontend                  # Interface Vite
+pnpm --dir frontend build      # Build frontend
 ```
 
-### Option 2: Docker Deployment
+> Au premier usage, les embeddings locaux peuvent demander le téléchargement du modèle. Avec un fournisseur LLM distant, la simulation nécessite aussi un accès réseau et peut engendrer des frais d'API.
+
+## 🌍 Langues et localisation
+
+Le dépôt comporte les dictionnaires `locales/fr.json`, `locales/en.json` et `locales/zh.json`, utilisés par **Vue I18n**. L'interface propose un sélecteur de langue, conserve la préférence et transmet `Accept-Language` à l'API ; le backend possède également un mécanisme d'instructions linguistiques pour les appels LLM.
+
+**État réel de l'Epic 008 :**
+
+- **008-1 terminée** : dictionnaire français et tests de parité.
+- **008-2 en cours de qualification** : traduction et formatage de l'interface implémentés ; vérification visuelle/navigation réelle et critères DoD encore ouverts.
+- **008-3 en cours** : propagation de la langue dans les simulations, personas et rapports ; validation sur LLM réel encore nécessaire.
+
+**Ne considérez donc pas toutes les productions des agents et tous les rapports comme garantis à 100 % en français** à ce stade. Détails dans [l'Epic 008](docs/plans/008-support-langue-francaise/epic-008.md).
+
+## 🧪 Tests et qualité
+
+La CI de la branche `local-first` vérifie **Ruff, pytest, la structure des plans, les tests frontend et le build Vite**. Les tests automatisés de CI sont majoritairement hermétiques : leur succès ne remplace pas une simulation réelle avec Neo4j, OASIS et un LLM.
 
 ```bash
-# 1. Configure environment variables (same as source deployment)
-cp .env.example .env
+# Environnement Docker de référence
+docker compose run --rm backend uv run ruff check .
+docker compose run --rm backend uv run python scripts/validate_plans.py
+docker compose run --rm backend uv run pytest tests/ -q
 
-# 2. Pull image and start
-docker compose up -d
+# Sur l'hôte, après installation des dépendances
+pnpm --dir frontend test
+pnpm --dir frontend build
 ```
 
-Reads `.env` from root directory by default, maps ports `3000 (frontend) / 5001 (backend)`
+Suivi des qualifications : [`docs/STATUS.md`](docs/STATUS.md) et [workflow CI](https://github.com/zohac/MiroFish/actions/workflows/ci.yml?query=branch%3Alocal-first).
 
-> Mirror address for faster pulling is provided as comments in `docker-compose.yml`, replace if needed.
+## 📦 Données et migration depuis Zep Cloud
 
-## 📬 Join the Conversation
+Le backend reste compatible avec les deux implémentations derrière `GraphStore` :
+
+- **`ZEP_BACKEND=graphiti`** : stockage local dans Neo4j, sans `ZEP_API_KEY` (choix recommandé pour ce fork).
+- **`ZEP_BACKEND=cloud`** : Zep Cloud, nécessitant `ZEP_API_KEY`. C'est toujours la valeur de repli du backend **lors d'une exécution hors Compose** si la variable est absente ; définissez-la explicitement en développement local.
+
+Si vous avez d'anciens graphes Zep, l'[Epic 006](docs/plans/006-migration-donnees-zep/epic-006.md) documente les outils disponibles :
+
+- `backend/scripts/auditer_graphes_zep.py` — inventorier les graphes distants ;
+- `backend/scripts/migrer_zep_vers_graphiti.py` — transférer les nœuds et relations vers Neo4j ;
+- `backend/scripts/purger_graphes_zep.py` — supprimer des graphes distants **après confirmation explicite**.
+
+**La migration et la purge ne sont pas exécutées automatiquement** au démarrage. Vérifiez les résultats avant toute suppression de données distantes.
+
+## 🗺️ État du projet
+
+| Chantier | État au 16 octobre 2026 |
+| --- | --- |
+| Epics **001–006** : Graphiti, GraphStore, remplacement de Zep, Docker et migration | ✅ Terminés |
+| Epic **007** : ontologie dynamique | ✅ Terminé |
+| Epic **009** : éligibilité des acteurs et traçabilité des sources | ✅ Terminé |
+| Epic **010** : fin et réconciliation des simulations | ✅ Terminé |
+| Epic **008** : prise en charge complète du français | 🚧 En cours (008-1 terminée, 008-2/008-3 en cours) |
+| Epic **011** : preuves des événements, fiabilité des outils et rapports | 📋 Planifié |
+
+**Limite importante :** les protections de provenance et de distinction intention/action déjà livrées ne signifient pas que les rapports sont exempts d'affabulations. L'Epic 011 doit notamment fiabiliser les interviews d'agents après simulation, l'accès aux traces d'actions, les affirmations vérifiables et la validation finale des rapports. Consultez son [périmètre détaillé](docs/plans/011-preuve-simulation-et-fiabilite-rapport/epic-011.md).
+
+Les statuts et chiffres de tests évoluent : la référence à jour reste [`docs/STATUS.md`](docs/STATUS.md), avec le suivi détaillé dans [`docs/sprint-status.yaml`](docs/sprint-status.yaml).
+
+## 📚 Documentation
+
+| Ressource | Utilité |
+| --- | --- |
+| [`docs/README.md`](docs/README.md) | Index de la documentation et conventions. |
+| [`docs/STATUS.md`](docs/STATUS.md) | Ce qui est terminé, en cours et planifié. |
+| [`docs/LOCAL-FIRST.md`](docs/LOCAL-FIRST.md) | Historique technique des choix, expérimentations et configurations locales (certaines sections retracent des étapes anciennes). |
+| [`docs/architecture/flux-global-simulation.md`](docs/architecture/flux-global-simulation.md) | Architecture et séquence de simulation de bout en bout. |
+| [`docs/decisions/README.md`](docs/decisions/README.md) | Décisions d'architecture (ADR). |
+| [`docs/plans/`](docs/plans/) | PRD, epics, stories, revues et rapports de qualification. |
+| [`AGENTS.md`](AGENTS.md) | Règles du dépôt et exigences de contribution. |
+
+## 🙏 Crédits et licence
+
+Ce fork repose sur le projet original **[MiroFish — 666ghj](https://github.com/666ghj/MiroFish)**. Le moteur de simulation sociale utilise **[OASIS (CAMEL-AI)](https://github.com/camel-ai/oasis)**. Merci aux équipes et contributeurs de ces projets.
+
+**Licence du dépôt : [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).** En cas de redistribution ou de mise à disposition via un réseau, vérifiez les obligations de cette licence, notamment la mise à disposition du code source correspondant.
+
+---
 
 <div align="center">
-<img src="./static/image/QQ群.png" alt="QQ Group" width="60%"/>
+
+**[Code du fork](https://github.com/zohac/MiroFish/tree/local-first) · [Projet original](https://github.com/666ghj/MiroFish) · [Issues](https://github.com/zohac/MiroFish/issues)**
+
 </div>
-
-&nbsp;
-
-The MiroFish team is recruiting full-time/internship positions. If you're interested in multi-agent simulation and LLM applications, feel free to send your resume to: **mirofish@shanda.com**
-
-## 📄 Acknowledgments
-
-**MiroFish has received strategic support and incubation from Shanda Group!**
-
-MiroFish's simulation engine is powered by **[OASIS (Open Agent Social Interaction Simulations)](https://github.com/camel-ai/oasis)**, We sincerely thank the CAMEL-AI team for their open-source contributions!
-
-## 📈 Project Statistics
-
-<a href="https://github.com/666ghj/MiroFish">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="static/image/star-history-dark.svg" />
-   <source media="(prefers-color-scheme: light)" srcset="static/image/star-history-light.svg" />
-   <img alt="666ghj/MiroFish Star History Chart" src="static/image/star-history-light.svg" />
- </picture>
-</a>
