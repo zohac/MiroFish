@@ -17,7 +17,7 @@
 
 projet: mirofish-local-first
 branche: local-first
-# 16 oct. 2026 : rédaction du ticket story-011-4.md (Tableau de couverture de cohorte, anti-biais de confirmation, section limites obligatoire, respect du temps simulé time_horizon et neutralisation des métriques fantômes). Statut backlog.
+# 16 oct. 2026 : story 011-4 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches (5 patches appliqués). Tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire, check_executive_summary_bias), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). 23 tests hermétiques dédiés (test_cohort_coverage_time.py). Filet global porté à 1719 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (4/6 stories done).
 # 16 oct. 2026 : story 011-3 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches
 # (8 patches appliqués). Contrat structuré ReportClaim (ClaimKind, VerificationStatus, ReportClaimRegistry) et typage épistémique
 # EpistemicSourceKind (CANONICAL_DOCUMENT, HISTORICAL_CASE, PERSONA_SPECIFICATION, SCENARIO_BRIEF). Barrière
@@ -824,6 +824,6 @@ epics:
     # de simulations/<sim_id>/report_claims.json dans ReportAgent. Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués
     # (conformité roundtrip SourceReference, durcissement matching normalisé, gestion défensive des erreurs de sauvegarde, écriture atomique).
     # 17 tests hermétiques dédiés (test_report_claim_epistemic.py). Filet global de tests porté à 1696 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (3/6 stories done).
-    # Story 011-4 (BACKLOG) : tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). Fichier story-011-4.md rédigé.
+    # Story 011-4 (DONE) : tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués. 23 tests hermétiques dédiés (test_cohort_coverage_time.py). Filet global de tests porté à 1719 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (4/6 stories done).
 
 

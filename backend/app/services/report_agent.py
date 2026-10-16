@@ -1710,6 +1710,44 @@ class ReportAgent:
                 outline_title = response.get("title") or response.get("titre") or default_title
                 outline_summary = response.get("summary") or response.get("resume") or response.get("résumé") or default_outline.summary
 
+                # RÈGLE OBLIGATOIRE OBJECTIONS ET LIMITES (Story 011-4, T4, Critère C7) :
+                # Si la cohorte comprend au moins une objection ou un membre REJECTED / HESITANT,
+                # garantir qu'une section dédiée figure dans l'outline.
+                try:
+                    from .simulation_manager import SimulationManager
+                    from .oasis_log_reader import OasisLogReaderService
+                    from ..models.cohort_coverage import CohortCoverageTable
+                    sim_mgr = SimulationManager()
+                    act_sel = sim_mgr.get_actor_selection(self.simulation_id)
+                    ev_pack = OasisLogReaderService.load_evidence_pack(self.simulation_id)
+                    project = self._resolve_project()
+                    brief = project.get_brief() if project else None
+                    temp_cohort = CohortCoverageTable.build_from_simulation(
+                        simulation_id=self.simulation_id,
+                        actor_selection=act_sel,
+                        evidence_pack=ev_pack,
+                        brief=brief,
+                    )
+                    status_dict = temp_cohort.status_summary
+                    has_objections = (
+                        len(temp_cohort.all_objections) > 0
+                        or status_dict.get("rejected", 0) > 0
+                        or status_dict.get("hesitant", 0) > 0
+                    )
+                    if has_objections:
+                        sec_titles_lower = [s.title.lower() for s in sections]
+                        objection_keywords = [
+                            "objection", "limite", "contradiction", "reserve", "réserves", "risques",
+                            "limit", "risk", "caveat", "drawback", "concern",
+                        ]
+                        has_obj_section = any(any(k in st for k in objection_keywords) for st in sec_titles_lower)
+                        if not has_obj_section:
+                            target_title = "Objections non levées, contradictions et limites" if self.locale.startswith("fr") else "Unresolved Objections, Contradictions, and Limitations"
+                            sections.append(ReportSection(title=target_title, content=""))
+                            logger.info(f"Injection obligatoire de la section '{target_title}' (Critère C7)")
+                except Exception as ex_coh:
+                    logger.warning(f"Vérification d'outline cohorte ignorée: {ex_coh}")
+
                 outline = ReportOutline(
                     title=outline_title,
                     summary=outline_summary,
@@ -2271,9 +2309,25 @@ class ReportAgent:
                 with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(report.markdown_content)
 
-            # Audit, vérification et persistance de report_claims.json (Story 011-3, AC6)
+            # Tableau de couverture de cohorte et intégrité des silencieux (Story 011-4, FR-07, C7)
+            cohort_table = None
             try:
-                self.audit_and_save_report_claims(report.markdown_content)
+                cohort_table = self.generate_and_save_cohort_coverage(report.markdown_content)
+                if cohort_table and cohort_table.members:
+                    # Si le tableau n'est pas encore présent dans le rapport
+                    if "Statut Couverture" not in report.markdown_content and "Coverage Status" not in report.markdown_content and "Couverture de la cohorte" not in report.markdown_content:
+                        table_md = cohort_table.to_markdown_table(locale=self.locale)
+                        cohort_heading = "## Couverture de la cohorte simulée & Statuts d'adoption" if self.locale.startswith("fr") else "## Simulated Cohort Coverage & Adoption Status"
+                        report.markdown_content = report.markdown_content.rstrip() + f"\n\n---\n\n{cohort_heading}\n\n{table_md}\n"
+                        full_path = ReportManager._get_report_markdown_path(report_id)
+                        with open(full_path, 'w', encoding='utf-8') as f:
+                            f.write(report.markdown_content)
+            except Exception as cohort_err:
+                logger.warning(f"Avertissement lors de la génération du tableau de cohorte : {cohort_err}")
+
+            # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4)
+            try:
+                self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table)
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
@@ -2585,12 +2639,57 @@ class ReportAgent:
 
         return claims
 
+    def generate_and_save_cohort_coverage(
+        self,
+        markdown_content: Optional[str] = None,
+        evidence_pack: Optional[EvidencePack] = None,
+    ) -> Any:
+        """Construit, persiste et retourne le tableau de couverture de cohorte (Story 011-4, FR-07, C7)."""
+        from ..models.cohort_coverage import CohortCoverageTable
+        from .oasis_log_reader import OasisLogReaderService
+        from .simulation_manager import SimulationManager
+        from .time_horizon_guard import TimeHorizonGuard
+
+        sim_mgr = SimulationManager()
+        act_sel = sim_mgr.get_actor_selection(self.simulation_id)
+        if evidence_pack is None:
+            try:
+                evidence_pack = OasisLogReaderService.load_evidence_pack(self.simulation_id)
+            except Exception as e:
+                logger.debug(f"EvidencePack non chargé pour tableau de cohorte : {e}")
+                evidence_pack = None
+
+        project = self._resolve_project()
+        brief = project.get_brief() if project else None
+
+        table = CohortCoverageTable.build_from_simulation(
+            simulation_id=self.simulation_id,
+            actor_selection=act_sel,
+            evidence_pack=evidence_pack,
+            brief=brief,
+        )
+
+        # Sauvegarder dans simulations/<sim_id>/cohort_coverage.json
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+        cohort_path = os.path.join(sim_dir, "cohort_coverage.json")
+        try:
+            table.save_to_file(cohort_path)
+            logger.info(
+                f"Tableau cohort_coverage.json persisté ({table.total_members} membres, "
+                f"{table.active_members} actifs, {table.silent_members} silencieux)"
+            )
+        except Exception as err:
+            logger.warning(f"Erreur lors de la sauvegarde de cohort_coverage.json: {err}")
+
+        return table
+
     def audit_and_save_report_claims(
         self,
         markdown_content: str,
         evidence_pack: Optional[EvidencePack] = None,
+        cohort_table: Optional[Any] = None,
     ) -> ReportClaimRegistry:
-        """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, AC6)."""
+        """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, Story 011-4)."""
         registry = ReportClaimRegistry(simulation_id=self.simulation_id)
         raw_claims = self.extract_claims_from_content(markdown_content)
 
@@ -2603,10 +2702,32 @@ class ReportAgent:
                 logger.debug(f"EvidencePack non chargé pour audit des claims : {e}")
                 evidence_pack = None
 
+        # Si cohort_table n'a pas été injecté, tenter de le construire ou charger
+        if cohort_table is None:
+            try:
+                cohort_table = self.generate_and_save_cohort_coverage(
+                    markdown_content=markdown_content,
+                    evidence_pack=evidence_pack,
+                )
+            except Exception as e:
+                logger.debug(f"CohortCoverageTable non disponible pour audit des claims : {e}")
+                cohort_table = None
+
+        # Résoudre l'horizon temporel
+        horizon_hours = getattr(cohort_table, "horizon_hours", 72.0) if cohort_table else 72.0
+        if not horizon_hours or horizon_hours <= 0:
+            project = self._resolve_project()
+            brief = project.get_brief() if project else None
+            if brief and brief.time_horizon:
+                from .time_horizon_guard import TimeHorizonGuard
+                horizon_hours = TimeHorizonGuard.parse_horizon_hours(brief.time_horizon)
+
         for claim in raw_claims:
             verified = SimulationActionVerifier.verify_report_claim(
                 claim=claim,
                 evidence_pack=evidence_pack,
+                cohort_table=cohort_table,
+                horizon_hours=horizon_hours,
             )
             registry.add_claim(verified)
 

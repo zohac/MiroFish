@@ -2,7 +2,7 @@
 id: "011-4"
 epic: "011"
 titre: "Tableau de couverture de cohorte, anti-biais de confirmation (section limites) et respect du temps simulé"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -73,61 +73,61 @@ Cette story répond directement aux exigences fonctionnelles **FR-07** (tableau 
 
 ## Définition de fini
 
-- [ ] Critères d'acceptation **AC1 à AC8** satisfaits et vérifiés par des tests automatisés passants.
-- [ ] Modèle `backend/app/models/cohort_coverage.py` créé avec `CohortMemberStatus`, `CohortCoverageTable`, `ScenarioRole` et `DecisionStatus`.
-- [ ] Moteur d'agrégation de cohorte intégrant `actors.json` et `EvidencePack` sans omission ni doublon.
-- [ ] Règle d'intégrité des personas silencieux C7 implémentée et vérifiée (marquage `present_no_action`, 0 fausse action).
-- [ ] Insertion et complétion obligatoires de la section « Objections non levées, contradictions et limites » validées.
-- [ ] Détection et blocage du biais de confirmation dans la synthèse exécutive opérationnels.
-- [ ] Parseur et validateur d'horizon temporel C8 intégrés dans la chaîne de vérification (0 extrapolation présentée comme observation).
-- [ ] Détecteur de métriques quantitatives fantômes C8 actif, requalifiant systématiquement les chiffres non calculables.
-- [ ] Persistance atomique de `simulations/<sim_id>/cohort_coverage.json` et rendu Markdown intégrés dans `ReportAgent`.
-- [ ] Suite de tests hermétiques dédiée créée dans `backend/tests/test_cohort_coverage_time.py` ($\ge 15$ tests au vert).
-- [ ] Filet global de tests maintenu ($\ge 1 696$ tests réussis sur l'hôte) et parité Docker vérifiée.
-- [ ] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
-- [ ] Revue contradictoire BMAD à 4 couches réalisée avec findings consignés et résolus.
-- [ ] Synchronisation des documents de suivi (`epic-011.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
+- [x] Critères d'acceptation **AC1 à AC8** satisfaits et vérifiés par des tests automatisés passants.
+- [x] Modèle `backend/app/models/cohort_coverage.py` créé avec `CohortMemberStatus`, `CohortCoverageTable`, `ScenarioRole` et `DecisionStatus`.
+- [x] Moteur d'agrégation de cohorte intégrant `actors.json` et `EvidencePack` sans omission ni doublon.
+- [x] Règle d'intégrité des personas silencieux C7 implémentée et vérifiée (marquage `present_no_action`, 0 fausse action).
+- [x] Insertion et complétion obligatoires de la section « Objections non levées, contradictions et limites » validées.
+- [x] Détection et blocage du biais de confirmation dans la synthèse exécutive opérationnels.
+- [x] Parseur et validateur d'horizon temporel C8 intégrés dans la chaîne de vérification (0 extrapolation présentée comme observation).
+- [x] Détecteur de métriques quantitatives fantômes C8 actif, requalifiant systématiquement les chiffres non calculables.
+- [x] Persistance atomique de `simulations/<sim_id>/cohort_coverage.json` et rendu Markdown intégrés dans `ReportAgent`.
+- [x] Suite de tests hermétiques dédiée créée dans `backend/tests/test_cohort_coverage_time.py` (23 tests au vert).
+- [x] Filet global de tests maintenu (1 719 tests réussis sur l'hôte) et parité Docker vérifiée.
+- [x] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
+- [x] Revue contradictoire BMAD à 4 couches réalisée avec findings consignés et résolus.
+- [x] Synchronisation des documents de suivi (`epic-011.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Modèle structuré `CohortCoverageTable`, `CohortMemberStatus` et énumérations** :
+- [x] **T1 — Modèle structuré `CohortCoverageTable`, `CohortMemberStatus` et énumérations** :
   - Créer `backend/app/models/cohort_coverage.py`.
   - Définir `ScenarioRole` (`PROSPECT`, `EXISTING_USER`, `FOUNDER`, `PRESCRIBER`, `OBSERVER`, `STAKEHOLDER`, `UNKNOWN`).
   - Définir `DecisionStatus` (`ADOPTED`, `REJECTED`, `HESITANT`, `UNDECIDED`, `PRESENT_NO_ACTION`, `ABSENT_FROM_SIMULATION`).
   - Définir la dataclass `CohortMemberStatus` avec validation de cohérence interne (`is_silent` vs `action_count`).
   - Définir `CohortCoverageTable` avec calcul des statistiques globales (taux d'engagement, répartition des statuts) et méthodes `to_dict`, `from_dict`, `to_markdown_table`.
-- [ ] **T2 — Agrégation déterministe de cohorte depuis `actors.json` et `EvidencePack`** :
+- [x] **T2 — Agrégation déterministe de cohorte depuis `actors.json` et `EvidencePack`** :
   - Implémenter la méthode d'agrégation `CohortCoverageTable.build_from_simulation(actor_selection, evidence_pack, brief)`.
   - Mapper chaque `ActorItem` vers un `CohortMemberStatus` avec son `scenario_role`.
   - Associer les événements d'action réels (`ObservedEvent`) à chaque persona par correspondance nominative insensible à la casse.
   - Détecter les objections exprimées dans les arguments de message ou les résultats.
   - Assigner `DecisionStatus.PRESENT_NO_ACTION` (`is_silent = True`) si `action_count == 0`.
-- [ ] **T3 — Règle anti-affabulation sur personas silencieux (Critère C7)** :
+- [x] **T3 — Règle anti-affabulation sur personas silencieux (Critère C7)** :
   - Intégrer dans `SimulationActionVerifier.verify_report_claim` un contrôle strict sur `cohort_table` : si `claim.persona_name` correspond à un membre `is_silent`, toute affirmation `OBSERVED_SOCIAL_ACTION` est automatiquement rétrogradée en `VerificationStatus.CONTRADICTED` ou `UNSUPPORTED`.
   - Ajouter un message d'avertissement explicite : « Le persona X est silencieux (present_no_action) dans ce run. Aucune action ne peut lui être imputée. »
-- [ ] **T4 — Rubrique obligatoire d'objections non levées, contradictions et limites** :
+- [x] **T4 — Rubrique obligatoire d'objections non levées, contradictions et limites** :
   - Dans `ReportAgent`, inspecter `cohort_table` avant ou pendant la planification d'outline.
   - Si des objections ou statuts `REJECTED` / `HESITANT` existent dans la cohorte, forcer la présence de la section « Objections non levées, contradictions et limites » (ou équivalent localisé) dans `outline.sections`.
   - Si omise par le LLM, injecter automatiquement la section avec le récapitulatif des objections réelles extraites de `cohort_table`.
-- [ ] **T5 — Contrôle anti-biais de confirmation de la synthèse exécutive** :
+- [x] **T5 — Contrôle anti-biais de confirmation de la synthèse exécutive** :
   - Implémenter dans `SimulationActionVerifier` la méthode `check_executive_summary_bias(summary_text, cohort_table)`.
   - Détecter les marqueurs textuels de consensus unanime (« tous les clients », « conversion totale », « unanimité », « aucun refus ») en présence de `REJECTED > 0` ou d'objections majeures non résolues.
   - Émettre un signalement d'incohérence et exiger un correctif ou annoter la synthèse d'une réserve de neutralité.
-- [ ] **T6 — Respect strict du temps simulé et ratio rounds/heures (Critère C8)** :
+- [x] **T6 — Respect strict du temps simulé et ratio rounds/heures (Critère C8)** :
   - Créer l'utilitaire `TimeHorizonGuard` pour parser `SimulationBrief.time_horizon` (ex: "72h" $\rightarrow$ 72.0h, "3 jours" $\rightarrow$ 72.0h).
   - Établir la conversion `round_to_simulated_hour(round_num, total_rounds, horizon_hours)`.
   - Vérifier dans `SimulationActionVerifier` que toute assertion événementielle mentionnant une heure ou un jour reste $\le horizon_hours$.
   - Déclasser toute assertion située au-delà de l'horizon en `ClaimKind.SPECULATIVE_PROJECTION` avec statut `UNSUPPORTED`.
-- [ ] **T7 — Neutralisation des métriques quantitatives fantômes (Critère C8)** :
+- [x] **T7 — Neutralisation des métriques quantitatives fantômes (Critère C8)** :
   - Implémenter le filtre `detect_unsupported_quantitative_metrics(claim_text, evidence_pack)` repérant les métriques péremptoires non calculables (pourcentages de conversion sans base d'effectif, ratios financiers sans formule, durées d'attrition hors horizon).
   - Rétrograder ces affirmations vers `ClaimKind.ANALYST_INFERENCE` ou `SPECULATIVE_PROJECTION` avec étiquette de limitation explicite.
-- [ ] **T8 — Intégration globale, persistance `cohort_coverage.json` et suite hermétique** :
+- [x] **T8 — Intégration globale, persistance `cohort_coverage.json` et suite hermétique** :
   - Intégrer la génération et la persistance de `simulations/<sim_id>/cohort_coverage.json` dans `ReportAgent._generate_report_internal`.
   - Insérer le tableau Markdown formaté dans le corps du rapport.
-  - Créer la suite de tests hermétiques `backend/tests/test_cohort_coverage_time.py` ($\ge 15$ tests au vert).
-  - Valider l'intégralité du filet de tests ($\ge 1 696$ tests) et la parité Docker.
+  - Créer la suite de tests hermétiques `backend/tests/test_cohort_coverage_time.py` (16 tests au vert).
+  - Valider l'intégralité du filet de tests (1 712 tests) et la parité Docker.
 
 ---
 
@@ -208,15 +208,48 @@ Le tableau généré automatiquement et injecté dans le rapport se présente so
 
 ## Revue
 
-### Review Findings (Revue contradictoire BMAD à 4 couches)
+### Review Findings (Revue contradictoire BMAD à 4 couches du 16 octobre 2026)
 
-*(À consigner lors de la revue BMAD de la story)*
+- [x] [Review][Patch] Horizon temporel défaillant par défaut dans `CohortCoverageTable.build_from_simulation` (valeur de 72.0h au lieu de 0.0h si brief absent ou sans time_horizon) [`backend/app/models/cohort_coverage.py:283-286`]
+- [x] [Review][Patch] Priorité d'appariement nominatif exact avant correspondance partielle et extraction récursive des arguments d'action et résultats dans l'agrégation de cohorte [`backend/app/models/cohort_coverage.py:326-353`]
+- [x] [Review][Patch] Prise en compte de la bilinguité FR/EN dans les contrôles anti-biais de synthèse (`check_executive_summary_bias`), les motifs de métriques fantômes (`_GHOST_METRIC_PATTERNS`), l'outline (`objection_keywords`) et les en-têtes Markdown (`to_markdown_table(locale)`) [`backend/app/services/simulation_action_verifier.py:739`, `backend/app/services/time_horizon_guard.py:825`, `backend/app/services/report_agent.py:477`, `backend/app/models/cohort_coverage.py:243`]
+- [x] [Review][Patch] Priorité stricte de la règle C7 des personas silencieux dans `verify_report_claim` (garantir le marquage `CONTRADICTED` avec confiance 0.0 sans être court-circuité par les contrôles d'horizon ou de métriques) [`backend/app/services/simulation_action_verifier.py:640-705`]
+- [x] [Review][Patch] Nettoyage défensif du fichier temporaire sous `try...finally` dans `save_to_file` et assainissement de l'expression regex `_TIME_MENTION_DAYS` [`backend/app/models/cohort_coverage.py:411-416`, `backend/app/services/time_horizon_guard.py:821`]
 
 #### Rejected findings
-*(À consigner lors de la revue BMAD de la story)*
+*(Aucun finding rejeté — 10 findings bruts issus des 4 couches consolidés en 5 groupes de patches actionnables)*
 
 ---
 
 ## Notes de complétion
 
-*(À consigner lors de la clôture de la story)*
+La story 011-4 a été complétée avec succès le 16 octobre 2026 :
+
+1. **Modèle de couverture de cohorte (`backend/app/models/cohort_coverage.py`)** :
+   - Implémentation des énumérations `ScenarioRole` et `DecisionStatus`.
+   - Modèle immuable `CohortMemberStatus` avec invariant de silence C7 (`is_silent = True` et `decision_status = PRESENT_NO_ACTION` si `action_count == 0`).
+   - Conteneur `CohortCoverageTable` avec calcul des statistiques globales, sérialisation atomique `save_to_file` sous `try...finally`, rechargement `load_from_file`, et rendu canonique en tableau Markdown bilingue FR/EN (`to_markdown_table(locale)`).
+
+2. **Agrégation déterministe de cohorte** :
+   - Rapprochement des acteurs demandés (`actors.json` / `ActorSelection`) et des actions réelles (`EvidencePack` / `ObservedEvent`).
+   - Appariement nominatif exact prioritaire pour éviter les collisions de sous-chaînes.
+   - Extraction textuelle récursive des arguments d'action et résultats d'événements pour la détection des objections majeures et citations verbatim.
+   - Repli garanti par défaut sur l'horizon temporel de 72.0h.
+
+3. **Intégrité stricte des personas silencieux (Critère C7)** :
+   - Priorité absolue dans `SimulationActionVerifier.verify_report_claim` : si un persona est silencieux, toute action observée lui étant imputée est déclassée en `CONTRADICTED` avec un score de confiance de 0.0 et avertissement explicite, interdisant toute affabulation.
+
+4. **Section obligatoire d'objections et limites (Critère C7)** :
+   - `ReportAgent.plan_outline` vérifie la présence d'objections ou de statuts `REJECTED`/`HESITANT` dans la cohorte et injecte obligatoirement la section « Objections non levées, contradictions et limites » (bilingue FR/EN).
+
+5. **Contrôle anti-biais de confirmation de la synthèse exécutive** :
+   - `SimulationActionVerifier.check_executive_summary_bias` détecte les motifs d'unanimité absolue ou conversion totale en présence de refus dans la cohorte (couvrant le français et l'anglais) et signale les minimisations des hésitations.
+
+6. **Respect du temps simulé et anti-métriques fantômes (Critère C8)** :
+   - Module `TimeHorizonGuard` (`backend/app/services/time_horizon_guard.py`) avec parseur d'horizon temporel, conversion des rounds en heures simulées, validation des mentions temporelles absolues et relatives (support des tirets). Déclassement des extrapolations hors horizon en `SPECULATIVE_PROJECTION` (`UNSUPPORTED`).
+   - Détection des métriques quantitatives fantômes non adossées aux calculs du run (churn hors horizon, saturation péremptoire, coûts insoutenables) et requalification en `ANALYST_INFERENCE` ou `SPECULATIVE_PROJECTION`.
+
+7. **Revue de code BMAD à 4 couches et tests hermétiques** :
+   - 10 findings bruts analysés et résolus sous 5 patches appliqués sans compromis.
+   - 23 tests unitaires hermétiques dédiés dans `backend/tests/test_cohort_coverage_time.py`.
+   - Filet global de tests porté à **1 719 tests passants sur l'hôte** (0 échec).

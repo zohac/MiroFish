@@ -71,7 +71,7 @@ L'**Epic 011** résout l'ensemble de ces points pour que les rapports analytique
 | 011-1 | Maintien en vie interactif d'OASIS post-rounds, rétablissement d'`interview_agents` et clôture différée | `done` | [`story-011-1.md`](story-011-1.md) |
 | 011-2 | Registre d'événements observés (`OasisLogReaderService`, `EvidencePack`), bouclier `ToolShield` et déterminisme Round 0 | `done` | [`story-011-2.md`](story-011-2.md) |
 | 011-3 | Contrat structuré `ReportClaim`, typage épistémique des sources et contrôle anti-affabulation | `done` | [`story-011-3.md`](story-011-3.md) |
-| 011-4 | Tableau de couverture de cohorte, anti-biais de confirmation (section limites) et respect du temps simulé | `backlog` | [`story-011-4.md`](story-011-4.md) |
+| 011-4 | Tableau de couverture de cohorte, anti-biais de confirmation (section limites) et respect du temps simulé | `done` | [`story-011-4.md`](story-011-4.md) |
 | 011-5 | Barrière de publication `ReportQualityGate`, anti-troncature de section et dossier d'audit exportable (`simulation_audit/`) | `backlog` | [`story-011-5.md`](story-011-5.md) |
 | 011-6 | Banc de qualification de bout en bout multi-domaines et rapport de qualification final de l'Epic 011 | `backlog` | [`story-011-6.md`](story-011-6.md) |
 

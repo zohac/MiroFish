@@ -354,6 +354,12 @@ class OasisLogReaderService:
         events = self.load_events(target_sim_id)
         return EvidencePack.from_events(target_sim_id, events)
 
+    @classmethod
+    def load_evidence_pack(cls, simulation_id: str) -> EvidencePack:
+        """Méthode pratique pour instancier le service et charger l'EvidencePack."""
+        reader = cls(simulation_id=simulation_id)
+        return reader.build_evidence_pack()
+
     def query_events(
         self,
         simulation_id: Optional[str] = None,

@@ -792,17 +792,97 @@ class SimulationActionVerifier:
         claim: ReportClaim,
         evidence_pack: Optional[EvidencePack] = None,
         canonical_documents: Optional[List[Any]] = None,
+        cohort_table: Optional[Any] = None,
+        horizon_hours: Optional[float] = None,
     ) -> ReportClaim:
-        """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critère C4, C5).
+        """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critères C4, C5, C7, C8).
 
         Applique les règles fondamentales :
+          - Règle des personas silencieux C7 (Story 011-4) : si l'affirmation concerne un membre
+            noté `is_silent` / `present_no_action`, interdiction absolue de lui attribuer une action observée.
           - Règle anti-affabulation C4 : Une affirmation OBSERVED_SOCIAL_ACTION sans event_id valide
             exécuté (is_action_executed = True) est automatiquement déclassée en REPORTED_INTENTION (UNSUPPORTED).
+          - Respect de l'horizon temporel C8 (Story 011-4) : toute observation située au-delà de `horizon_hours`
+            est automatiquement déclassée en SPECULATIVE_PROJECTION (UNSUPPORTED).
+          - Neutralisation des métriques fantômes C8 (Story 011-4) : toute métrique péremptoire non calculable
+            est déclassée en ANALYST_INFERENCE ou SPECULATIVE_PROJECTION.
           - Étanchéité épistémique C5 : Une affirmation issue d'un persona fictif ne peut être SOURCE_FACT
             ni DOCUMENTARY.
           - Contrôle verbatim des citations simulées : si une citation est invoquée sans trace dans l'evidence_pack,
             marquage UNSUPPORTED.
         """
+        from .time_horizon_guard import TimeHorizonGuard
+
+        # RÈGLE DES PERSONAS SILENCIEUX C7 (Story 011-4) :
+        # Priorité absolue : un persona silencieux n'ayant produit aucune action ne peut se voir
+        # imputer aucune action sociale observée (interdiction d'affabulation, marquage CONTRADICTED).
+        if cohort_table and claim.agent_name:
+            member = cohort_table.get_member(claim.agent_name)
+            if member and member.is_silent:
+                limitations = list(claim.limitations)
+                limitations.append(
+                    f"Règle de silence C7 : Le persona '{member.persona_name}' est consigné comme "
+                    f"present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+                )
+                return ReportClaim(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_kind=ClaimKind.SPECULATIVE_PROJECTION,
+                    origin=InformationOrigin.HYPOTHESIS,
+                    evidence_refs=[],
+                    verification_status=VerificationStatus.CONTRADICTED,
+                    agent_name=claim.agent_name,
+                    round_num=claim.round_num,
+                    confidence=0.0,
+                    limitations=limitations,
+                )
+
+        # RÈGLE DU TEMPS SIMULÉ C8 (Story 011-4) :
+        if horizon_hours and horizon_hours > 0:
+            time_res = TimeHorizonGuard.validate_claim_time_horizon(
+                claim_text=claim.text,
+                horizon_hours=horizon_hours,
+                round_num=claim.round_num,
+            )
+            if time_res.is_out_of_bounds:
+                limitations = list(claim.limitations)
+                limitations.append(time_res.reason or "Affirmation située au-delà de l'horizon temporel simulé.")
+                return ReportClaim(
+                    claim_id=claim.claim_id,
+                    text=claim.text,
+                    claim_kind=ClaimKind.SPECULATIVE_PROJECTION,
+                    origin=InformationOrigin.HYPOTHESIS,
+                    evidence_refs=list(claim.evidence_refs),
+                    verification_status=VerificationStatus.UNSUPPORTED,
+                    agent_name=claim.agent_name,
+                    round_num=claim.round_num,
+                    confidence=min(claim.confidence, 0.4),
+                    limitations=limitations,
+                )
+
+        # RÈGLE DES MÉTRIQUES FANTÔMES C8 (Story 011-4) :
+        metric_res = TimeHorizonGuard.detect_unsupported_quantitative_metrics(claim.text, evidence_pack)
+        if metric_res.has_unsupported_metrics:
+            limitations = list(claim.limitations)
+            limitations.append(metric_res.reason or "Métrique quantitative non calculable dans le run.")
+            new_kind = (
+                ClaimKind.SPECULATIVE_PROJECTION
+                if claim.claim_kind in (ClaimKind.OBSERVED_SOCIAL_ACTION, ClaimKind.SOURCE_FACT)
+                else ClaimKind.ANALYST_INFERENCE
+            )
+            return ReportClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                claim_kind=new_kind,
+                origin=InformationOrigin.INFERENCE,
+                evidence_refs=list(claim.evidence_refs),
+                verification_status=VerificationStatus.UNSUPPORTED,
+                agent_name=claim.agent_name,
+                round_num=claim.round_num,
+                confidence=min(claim.confidence, 0.5),
+                limitations=limitations,
+            )
+
         # Si la claim est de type OBSERVED_SOCIAL_ACTION
         if claim.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
             # Événements candidats
@@ -980,3 +1060,62 @@ class SimulationActionVerifier:
             confidence=claim.confidence,
             limitations=list(claim.limitations),
         )
+
+    @classmethod
+    def check_executive_summary_bias(
+        cls,
+        summary_text: str,
+        cohort_table: Any,
+    ) -> Dict[str, Any]:
+        """Contrôle anti-biais de confirmation sur la synthèse exécutive (Story 011-4, FR-07, C7).
+
+        Vérifie qu'une synthèse n'affirme pas un consensus unanime, une adhésion totale
+        ou l'absence de rejet lorsque la cohorte compte des refus (REJECTED), des hésitations
+        ou des objections non résolues.
+        """
+        if not summary_text or not cohort_table:
+            return {"has_bias": False, "warnings": [], "contradictions": []}
+
+        summary_lower = summary_text.lower()
+        warnings: List[str] = []
+        contradictions: List[str] = []
+
+        status_counts = getattr(cohort_table, "status_summary", {})
+        rejected_count = status_counts.get("rejected", 0)
+        hesitant_count = status_counts.get("hesitant", 0)
+
+        # Motifs d'affirmation de consensus ou triomphe total (FR et EN)
+        consensus_patterns = [
+            (r"\b(?:tous\s+les\s+(?:clients|prospects|agents|utilisateurs|membres))\b", "Généralisation à l'ensemble de la cohorte"),
+            (r"\b(?:adhésion|conversion)\s+(?:totale|unanime|massive\s+de\s+l'ensemble|de\s+100\s*%)\b", "Affirmation de conversion totale"),
+            (r"\b(?:unanimité|aucun\s+refus|zéro\s+objection|sans\s+aucune\s+résistance)\b", "Affirmation d'unanimité absolue"),
+            (r"\b(?:convertit\s+l'ensemble|emporte\s+l'adhésion\s+de\s+tous)\b", "Affirmation d'adoption universelle"),
+            # Variantes anglaises (Epic 008, i18n)
+            (r"\b(?:all\s+(?:clients|prospects|agents|users|members))\b", "Cohort-wide generalization"),
+            (r"\b(?:total|unanimous|100%|full)\s+(?:conversion|adoption)\b", "Total conversion claim"),
+            (r"\b(?:unanimity|zero\s+rejections?|no\s+rejection|zero\s+objections?|no\s+resistance)\b", "Absolute unanimity claim"),
+            (r"\b(?:converts?\s+all|unanimous\s+support)\b", "Universal adoption claim"),
+        ]
+
+        if rejected_count > 0:
+            for pat, desc in consensus_patterns:
+                if re.search(pat, summary_lower):
+                    contradictions.append(
+                        f"Biais de confirmation critique : la synthèse affirme '{desc}' alors que la cohorte "
+                        f"comporte {rejected_count} refus avéré(s) (ex: statuts REJECTED)."
+                    )
+
+        if hesitant_count > 0:
+            hesitation_pat = r"\b(?:sans\s+hésitation|pleine\s+confiance|alignement\s+parfait|without\s+hesitation|full\s+confidence|perfect\s+alignment)\b"
+            if re.search(hesitation_pat, summary_lower):
+                warnings.append(
+                    f"Avertissement anti-biais : la synthèse minimise les réserves alors que la cohorte "
+                    f"comporte {hesitant_count} membre(s) hésitant(s)."
+                )
+
+        return {
+            "has_bias": len(contradictions) > 0 or len(warnings) > 0,
+            "contradictions": contradictions,
+            "warnings": warnings,
+        }
+
