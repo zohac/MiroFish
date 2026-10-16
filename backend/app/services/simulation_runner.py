@@ -832,51 +832,102 @@ class SimulationRunner:
                     )
                 
                 # 更新状态
+                # Mise à jour et persistance de l'état
                 cls._save_run_state(state)
 
-                # Active completion supervision (Story 010-1, FR-1, AC2, AC3)
-                # Si le mode persistant n'est pas requis et que toutes les plateformes activées ont terminé
-                if not state.keep_alive_on_completion and cls._check_all_platforms_completed(state):
+                # Surveillance de complétion et cycle interactif vivant (Story 011-1, AC1, AC5)
+                if cls._check_all_platforms_completed(state):
                     now = time.time()
                     if platforms_completed_at is None:
                         platforms_completed_at = now
-                        logger.info(
-                            f"Plateformes terminées détectées pour {simulation_id}, "
-                            "surveillance active de fin de processus initiée"
-                        )
-                    
+
+                    # Découplage AC1 : dès que les plateformes ont fini, basculer vers COMPLETED
+                    # et drainer Neo4j sous _finalization_lock sans tuer le processus.
+                    if state.runner_status == RunnerStatus.RUNNING:
+                        with cls._finalization_lock(simulation_id):
+                            # Éviter double passage si un autre thread l'a fait
+                            latest_st = cls.get_run_state(simulation_id, reconcile=False)
+                            if latest_st and latest_st.runner_status == RunnerStatus.RUNNING:
+                                logger.info(
+                                    f"Toutes plateformes terminées pour {simulation_id} : transition déterministe vers COMPLETED"
+                                )
+                                state.twitter_running = False
+                                state.reddit_running = False
+
+                                # Drain de la mémoire Neo4j sous barrière
+                                if cls._graph_memory_enabled.get(simulation_id, False):
+                                    try:
+                                        stats = ZepGraphMemoryManager.stop_updater(simulation_id)
+                                        cls._graph_memory_enabled.pop(simulation_id, None)
+                                        if stats and stats.get("failed_count", 0) > 0:
+                                            logger.warning(
+                                                "Simulation %s : %d lot(s) d'activités non ingérés lors du drain mémoire",
+                                                simulation_id,
+                                                stats["failed_count"],
+                                            )
+                                    except Exception as error:
+                                        logger.error(f"Échec drain mémoire Neo4j ({simulation_id}): {error}")
+
+                                state.runner_status = RunnerStatus.COMPLETED
+                                if not state.completed_at:
+                                    state.completed_at = datetime.now().isoformat()
+                                cls._save_run_state(state)
+                                cls._sync_simulation_status(
+                                    simulation_id,
+                                    RunnerStatus.COMPLETED,
+                                )
+
                     elapsed_since_completion = now - platforms_completed_at
-                    # Après 5s de grâce, envoyer close_env par IPC si le processus est toujours là
-                    if elapsed_since_completion >= 5.0 and not close_env_sent:
-                        close_env_sent = True
-                        logger.info(
-                            f"Processus toujours actif après 5s de complétion ({simulation_id}) : "
-                            "émission de la commande IPC close_env"
-                        )
-                        try:
-                            ipc_client = SimulationIPCClient(sim_dir)
-                            if ipc_client.check_env_alive():
-                                ipc_client.send_close_env(timeout=3.0)
-                        except Exception as ipc_err:
+
+                    # Si keep_alive_on_completion est explicitement False, conserver le repli rapide 5s/10s (Epic 010)
+                    if not state.keep_alive_on_completion:
+                        # Après 5s de grâce, envoyer close_env par IPC si le processus est toujours là
+                        if elapsed_since_completion >= 5.0 and not close_env_sent:
+                            close_env_sent = True
+                            logger.info(
+                                f"Processus toujours actif après 5s de complétion ({simulation_id}) : "
+                                "émission de la commande IPC close_env"
+                            )
+                            try:
+                                ipc_client = SimulationIPCClient(sim_dir)
+                                if ipc_client.check_env_alive():
+                                    ipc_client.send_close_env(timeout=3.0)
+                            except Exception as ipc_err:
+                                logger.warning(
+                                    f"Échec de l'envoi IPC close_env ({simulation_id}): {ipc_err}"
+                                )
+                        
+                        # Après 10s au total (5s supplémentaires), terminer le processus si toujours pas éteint
+                        if elapsed_since_completion >= 10.0:
                             logger.warning(
-                                f"Échec de l'envoi IPC close_env ({simulation_id}): {ipc_err}"
+                                f"Processus non terminé 10s après la fin des plateformes ({simulation_id}) : "
+                                "terminaison forcée de sécurité"
                             )
-                    
-                    # Après 10s au total (5s supplémentaires), terminer le processus si toujours pas éteint
-                    if elapsed_since_completion >= 10.0:
-                        logger.warning(
-                            f"Processus non terminé 10s après la fin des plateformes ({simulation_id}) : "
-                            "terminaison forcée de sécurité"
+                            try:
+                                cls._terminate_process(process, simulation_id, timeout=3)
+                            except Exception as term_err:
+                                logger.error(
+                                    f"Erreur lors de la terminaison de sécurité ({simulation_id}): {term_err}"
+                                )
+                            break
+                    else:
+                        # Mode interactif vivant : surveillance watchdog anti-zombie 15 minutes (AC5)
+                        inactivity_watchdog_seconds = float(
+                            getattr(Config, "SIMULATION_INACTIVITY_TIMEOUT_SECONDS", 900.0)
                         )
-                        try:
-                            cls._terminate_process(process, simulation_id, timeout=3)
-                        except Exception as term_err:
-                            logger.error(
-                                f"Erreur lors de la terminaison de sécurité ({simulation_id}): {term_err}"
+                        if elapsed_since_completion >= inactivity_watchdog_seconds:
+                            logger.warning(
+                                f"Watchdog inactivité déclenché après {inactivity_watchdog_seconds}s "
+                                f"pour {simulation_id} : clôture de sécurité de l'environnement"
                             )
-                        break
+                            try:
+                                cls.close_simulation_environment(simulation_id, timeout=5.0)
+                            except Exception as watch_err:
+                                logger.error(f"Erreur clôture watchdog inactivité ({simulation_id}): {watch_err}")
+                            break
 
                 time.sleep(2)
+
             
             # 进程结束后，最后读取一次日志
             if os.path.exists(twitter_actions_log):
@@ -2116,6 +2167,76 @@ class SimulationRunner:
         )
     
     @classmethod
+    def close_simulation_environment(
+        cls,
+        simulation_id: str,
+        timeout: float = 10.0
+    ) -> Dict[str, Any]:
+        """
+        Clôture différée ordonnée de l'environnement OASIS (Story 011-1, AC3).
+
+        Envoie send_close_env() via IPC pour demander l'extinction gracieuse du
+        sous-processus, attend sa terminaison avec code de sortie 0 (ou force
+        l'arrêt de sécurité si récalcitrant), et ferme proprement les descripteurs
+        de logs et registres associés.
+        """
+        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        if not os.path.exists(sim_dir):
+            return {"success": False, "message": f"模拟不存在: {simulation_id}"}
+
+        ipc_client = SimulationIPCClient(sim_dir)
+        ipc_alive = ipc_client.check_env_alive()
+
+        res_msg = "环境已经关闭"
+        ipc_success = True
+        ipc_result = {}
+
+        if ipc_alive:
+            logger.info(f"发送关闭环境命令 (Story 011-1): simulation_id={simulation_id}")
+            try:
+                response = ipc_client.send_close_env(timeout=min(timeout, 5.0))
+                ipc_success = response.status.value == "completed"
+                ipc_result = response.result
+                res_msg = "环境关闭命令已发送"
+            except TimeoutError:
+                res_msg = "环境关闭命令已发送（等待响应超时）"
+            except Exception as e:
+                logger.warning(f"Échec de l'envoi IPC send_close_env ({simulation_id}): {e}")
+                res_msg = f"IPC close_env warning: {e}"
+
+        # Attendre l'extinction du sous-processus si géré
+        process = cls._processes.get(simulation_id)
+        if process and process.poll() is None:
+            try:
+                process.wait(timeout=min(timeout, 5.0))
+            except Exception:
+                logger.warning(f"Sous-processus {simulation_id} encore actif après délai : extinction forcée")
+                try:
+                    cls._terminate_process(process, simulation_id, timeout=3)
+                except Exception as term_err:
+                    logger.error(f"Erreur extinction forcée {simulation_id}: {term_err}")
+
+        # Nettoyage des ressources et descripteurs de fichiers
+        with cls._finalization_lock(simulation_id):
+            cls._processes.pop(simulation_id, None)
+            cls._action_queues.pop(simulation_id, None)
+            cls._monitor_threads.pop(simulation_id, None)
+
+            for file_map in (cls._stdout_files, cls._stderr_files):
+                f_handle = file_map.pop(simulation_id, None)
+                if f_handle:
+                    try:
+                        f_handle.close()
+                    except Exception:
+                        pass
+
+        return {
+            "success": ipc_success,
+            "message": res_msg,
+            "result": ipc_result,
+        }
+
+    @classmethod
     def close_simulation_env(
         cls,
         simulation_id: str,
@@ -2124,44 +2245,10 @@ class SimulationRunner:
         """
         关闭模拟环境（而不是停止模拟进程）
         
-        向模拟发送关闭环境命令，使其优雅退出等待命令模式
-        
-        Args:
-            simulation_id: 模拟ID
-            timeout: 超时时间（秒）
-            
-        Returns:
-            操作结果字典
+        向模拟发送关闭环境命令，使其优雅退出等待命令模式 (alias vers close_simulation_environment)
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
-        if not os.path.exists(sim_dir):
-            raise ValueError(f"模拟不存在: {simulation_id}")
-        
-        ipc_client = SimulationIPCClient(sim_dir)
-        
-        if not ipc_client.check_env_alive():
-            return {
-                "success": True,
-                "message": "环境已经关闭"
-            }
-        
-        logger.info(f"发送关闭环境命令: simulation_id={simulation_id}")
-        
-        try:
-            response = ipc_client.send_close_env(timeout=timeout)
-            
-            return {
-                "success": response.status.value == "completed",
-                "message": "环境关闭命令已发送",
-                "result": response.result,
-                "timestamp": response.timestamp
-            }
-        except TimeoutError:
-            # 超时可能是因为环境正在关闭
-            return {
-                "success": True,
-                "message": "环境关闭命令已发送（等待响应超时，环境可能正在关闭）"
-            }
+        return cls.close_simulation_environment(simulation_id, timeout=timeout)
+
     
     @classmethod
     def _get_interview_history_from_db(

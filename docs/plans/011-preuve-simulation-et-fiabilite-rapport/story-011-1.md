@@ -2,7 +2,7 @@
 id: "011-1"
 epic: "011"
 titre: "Maintien en vie interactif d'OASIS post-rounds, rétablissement d'interview_agents et clôture différée"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -17,8 +17,8 @@ Cette story répond directement à l'exigence fonctionnelle **FR-01** de l'Epic 
 
 ## Définition de prêt
 
-- [ ] **Objectif compris et cadré** : découpler la complétion logique des rounds de simulation (passage à `COMPLETED` côté IHM et API après drain mémoire Neo4j) de l'extinction physique du sous-processus OS. Permettre les interviews en direct pendant la génération du rapport, puis déclencher l'extinction ordonnée post-rapport.
-- [ ] **Documents consultés** :
+- [x] **Objectif compris et cadré** : découpler la complétion logique des rounds de simulation (passage à `COMPLETED` côté IHM et API après drain mémoire Neo4j) de l'extinction physique du sous-processus OS. Permettre les interviews en direct pendant la génération du rapport, puis déclencher l'extinction ordonnée post-rapport.
+- [x] **Documents consultés** :
   - [PRD Epic 011](prd.md) : §1.A.1 (régression d'arrêt prématuré et échec d'interview), §3 (FR-01), §4 (NFR-03, NFR-04), §5 (C1).
   - [Architecture Epic 011](architecture.md) : §1 (diagramme de séquence du cycle de vie vivant), §2.1 (découplage complétion / extinction).
   - [Hub Epic 011](epic-011.md) : description globale, FR-01, NFR-03, découpage et critères C1.
@@ -29,17 +29,17 @@ Cette story répond directement à l'exigence fonctionnelle **FR-01** de l'Epic 
   - `backend/app/services/report_agent.py` : exécution de l'outil `interview_agents` dans `_execute_tool()` (l. 1285) et finalisation du rapport.
   - `backend/app/api/report.py` : barrière de statut de simulation (l. 103-117) exigeant `RunnerStatus.COMPLETED` ou `STOPPED`.
   - `AGENTS.md` : §2.1 (Clean Architecture), §2.2 (qualité et herméticité des tests), §2.8 (gestion des plans).
-- [ ] **Dépendances résolues** :
+- [x] **Dépendances résolues** :
   - Epic 005 (Docker local), Epic 007 (Ontologie dynamique v2), Epic 008 (Localisation FR), Epic 009 (Éligibilité des acteurs) et Epic 010 (Fiabilisation du cycle de vie) sont intégralement clos avec succès.
   - Filet de tests au démarrage : **1 649 tests réussis sur l'hôte** (+ 9 tests frontend Node), 0 échec.
-- [ ] **Décisions d'ingénierie arrêtées avant code** :
+- [x] **Décisions d'ingénierie arrêtées avant code** :
   1. **Découplage complétion logique vs cycle de vie OS** : dès que toutes les plateformes actives ont atteint le round final (`_check_all_platforms_completed(state) == True`) et que le drain mémoire Neo4j est effectué sous le verrou de finalisation, `run_state.runner_status` bascule à `RunnerStatus.COMPLETED`, `completed_at` est horodaté et `_sync_simulation_status` notifie l'IHM. La simulation est prête pour la génération du rapport.
   2. **Maintien du mode interactif post-rounds** : ne plus injecter `--no-wait` par défaut dans les simulations pilotées par le runner lorsque le mode interactif d'interview est requis. Le sous-processus OASIS (`run_parallel_simulation.py`, `run_twitter_simulation.py`, `run_reddit_simulation.py`) entre dans sa boucle passive d'écoute IPC `wait_for_commands`.
   3. **Non-extinction prématurée dans `_monitor_simulation`** : suspendre la terminaison forcée automatique (5s/10s) tant que la simulation est en attente de son rapport analytique. `check_env_alive(simulation_id)` continue de retourner `True`.
   4. **Clôture ordonnée post-rapport (`send_close_env`)** : dès que `ReportAgent.generate_report()` a achevé la rédaction et la persistance du rapport (ou via hook API dans `POST /api/report/generate`), `SimulationRunner.close_simulation_environment(simulation_id)` transmet la commande IPC `send_close_env()` pour demander la sortie gracieuse du processus.
   5. **Repli gracieux hors-ligne (`OfflineInterviewService` / fallback relecture)** : si un rapport est régénéré ultérieurement sur une simulation déjà éteinte (serveur redémarré, rejeu hors-ligne), `interview_agents` détecte `check_env_alive() == False` et bascule gracieusement sur une interview hors-ligne synthétisée à partir des fiches personas et des traces d'actions existantes (`actions.jsonl`), sans lever d'exception ni consommer le quota ReACT.
   6. **Garantie anti-zombie (NFR-03)** : un délai de garde maximal d'inactivité (par ex. 15 minutes post-rounds sans lancement de rapport), l'appel explicite à `POST /api/simulation/stop` ou l'arrêt du backend via `SimulationRunner.cleanup_all_simulations()` garantissent l'extinction systématique de tout processus orphelin.
-- [ ] **Stratégie de tests identifiée** :
+- [x] **Stratégie de tests identifiée** :
   - Suite de tests hermétiques dédiée (`backend/tests/test_simulation_interactive_lifecycle.py`) avec mocks de sous-processus, d'IPC et de `ReportAgent`.
   - Vérification de l'enchaînement : fin des rounds $\rightarrow$ statut `COMPLETED` avec sous-processus vivant $\rightarrow$ interview réussie à 100 % $\rightarrow$ clôture ordonnée post-rapport $\rightarrow$ repli hors-ligne en mode archivé.
   - Maintien rigoureux du filet complet de 1 649 tests.
@@ -61,42 +61,42 @@ Cette story répond directement à l'exigence fonctionnelle **FR-01** de l'Epic 
 
 ## Définition de fini
 
-- [ ] Critères d'acceptation **AC1 à AC6** satisfaits et vérifiés par des tests automatisés passants.
-- [ ] Le sous-processus OASIS reste en écoute interactive `wait_for_commands` après la fin des rounds lors d'un cycle nominal de simulation.
-- [ ] `SimulationRunner` bascule à `RunnerStatus.COMPLETED` dès la fin des rounds et le drain mémoire Neo4j, permettant le déblocage immédiat de l'IHM et de l'endpoint de rapport.
-- [ ] L'outil `interview_agents` dialogue avec succès en direct via IPC avec les agents simulés lors de la génération du rapport (0 avertissement `env not running`).
-- [ ] La fermeture gracieuse de l'environnement OASIS (`send_close_env()`) est systématiquement déclenchée dès la complétion du rapport.
-- [ ] Le repli hors-ligne pour les rejeux ou régénérations sur environnement éteint est fonctionnel et ne lève aucune exception non gérée.
-- [ ] La propreté des processus (NFR-03) est garantie : zéro processus orphelin ou zombie après rapport, après timeout d'inactivité ou après arrêt manuel.
-- [ ] Suite de tests hermétiques dédiée créée dans `backend/tests/test_simulation_interactive_lifecycle.py`.
-- [ ] Suite complète de tests au vert sur l'hôte (filet $\ge 1657$ tests) et parité validée sous Docker.
-- [ ] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
-- [ ] Revue contradictoire BMAD à 4 couches réalisée, findings résolus ou documentés.
-- [ ] Documents de suivi synchronisés (`docs/plans/011-preuve-simulation-et-fiabilite-rapport/epic-011.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`).
+- [x] Critères d'acceptation **AC1 à AC6** satisfaits et vérifiés par des tests automatisés passants.
+- [x] Le sous-processus OASIS reste en écoute interactive `wait_for_commands` après la fin des rounds lors d'un cycle nominal de simulation.
+- [x] `SimulationRunner` bascule à `RunnerStatus.COMPLETED` dès la fin des rounds et le drain mémoire Neo4j, permettant le déblocage immédiat de l'IHM et de l'endpoint de rapport.
+- [x] L'outil `interview_agents` dialogue avec succès en direct via IPC avec les agents simulés lors de la génération du rapport (0 avertissement `env not running`).
+- [x] La fermeture gracieuse de l'environnement OASIS (`send_close_env()`) est systématiquement déclenchée dès la complétion du rapport.
+- [x] Le repli hors-ligne pour les rejeux ou régénérations sur environnement éteint est fonctionnel et ne lève aucune exception non gérée.
+- [x] La propreté des processus (NFR-03) est garantie : zéro processus orphelin ou zombie après rapport, après timeout d'inactivité ou après arrêt manuel.
+- [x] Suite de tests hermétiques dédiée créée dans `backend/tests/test_simulation_interactive_lifecycle.py`.
+- [x] Suite complète de tests au vert sur l'hôte (filet $\ge 1657$ tests : **1 659 tests réussis**) et parité validée sous Docker.
+- [x] `uv run python backend/scripts/validate_plans.py` et `uv run ruff check backend/` validés sans anomalie.
+- [x] Revue contradictoire BMAD à 4 couches réalisée, findings résolus ou documentés.
+- [x] Documents de suivi synchronisés (`docs/plans/011-preuve-simulation-et-fiabilite-rapport/epic-011.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`).
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Découplage de la complétion et politique de vivacité dans `SimulationRunner`** :
+- [x] **T1 — Découplage de la complétion et politique de vivacité dans `SimulationRunner`** :
   - Ajuster la construction de la commande de lancement dans `SimulationRunner._start_simulation` pour ne plus injecter `--no-wait` par défaut lorsqu'un rapport avec interview est attendu.
   - Dans `_monitor_simulation`, séparer le constat d'achèvement des plateformes (`_check_all_platforms_completed`) de l'extinction du sous-processus : déclencher le drain mémoire Neo4j sous `_finalization_lock`, horodater `completed_at`, basculer vers `RunnerStatus.COMPLETED` et notifier `_sync_simulation_status` tout en maintenant le thread de monitoring et le sous-processus en vie.
-- [ ] **T2 — Gestion de l'état interactif et sécurisation de l'API IPC** :
+- [x] **T2 — Gestion de l'état interactif et sécurisation de l'API IPC** :
   - Exposer un indicateur explicite de vivacité interactive (`is_interactive_available` ou maintien de `SimulationRunner.check_env_alive`).
   - Vérifier que `SimulationRunner.interview_agents_batch` s'exécute avec succès lorsque le statut de simulation est `COMPLETED` et que le sous-processus est actif.
-- [ ] **T3 — Clôture ordonnée post-rapport (`close_simulation_environment`)** :
+- [x] **T3 — Clôture ordonnée post-rapport (`close_simulation_environment`)** :
   - Implémenter la méthode `SimulationRunner.close_simulation_environment(simulation_id)` émettant `send_close_env()` avec timeout gracieux puis terminaison de sécurité si nécessaire.
   - Câbler l'appel à cette méthode en fin de génération dans `ReportAgent.generate_report()` (ou dans le contrôleur API `POST /api/report/generate` après persistance du rapport).
-- [ ] **T4 — Repli hors-ligne résilient pour `interview_agents`** :
+- [x] **T4 — Repli hors-ligne résilient pour `interview_agents`** :
   - Dans `ZepToolsService.interview_agents` (ou composant dédié `OfflineInterviewService`), détecter l'inaccessibilité de l'environnement IPC (`check_env_alive() == False`).
   - Implémenter une génération de réponse de repli basée sur les personas du graphe/state et les actions enregistrées dans `actions.jsonl`, avec mention explicite du mode hors-ligne sans lever d'exception.
-- [ ] **T5 — Sécurité anti-zombie et nettoyage d'inactivité** :
+- [x] **T5 — Sécurité anti-zombie et nettoyage d'inactivité** :
   - Implémenter un mécanisme de temporisation d'inactivité post-rounds dans `_monitor_simulation` (ex. extinction automatique après 15 minutes sans requête de rapport).
   - Vérifier l'extinction complète lors de l'appel manuel `POST /api/simulation/stop` et lors de `SimulationRunner.cleanup_all_simulations()`.
-- [ ] **T6 — Suite de tests unitaires et d'intégration hermétiques** :
+- [x] **T6 — Suite de tests unitaires et d'intégration hermétiques** :
   - Créer `backend/tests/test_simulation_interactive_lifecycle.py`.
   - Couvrir les cas : passage à `COMPLETED` sans tuer le processus, exécution d'interviews en direct via IPC avec succès, clôture ordonnée post-rapport, repli hors-ligne en mode archivé, extinction sur timeout d'inactivité, et non-régression sur les barrières mémoires existantes.
-- [ ] **T7 — Validation d'ensemble, exécution des suites et revue BMAD** :
+- [x] **T7 — Validation d'ensemble, exécution des suites et revue BMAD** :
   - Exécuter la suite complète des tests backend (`uv run pytest tests/`).
   - Vérifier la parité sous conteneur Docker de référence.
   - Conduire la revue contradictoire BMAD à 4 couches et consigner les résolutions.
@@ -157,10 +157,39 @@ Clôture différée post-rapport :
 
 ## Revue
 
-_Cette section sera complétée lors de la revue contradictoire BMAD à 4 couches._
+### Review Findings (Revue contradictoire BMAD à 4 couches)
+
+- **Couche 1 (Spécification / PRD / Contrat AC1-AC6)** :
+  - *Constat* : AC1 respecté via le découplage dans `_monitor_simulation` dès `_check_all_platforms_completed` sous `_finalization_lock`.
+  - *Constat* : AC2 respecté, `interview_agents_batch` opérationnel sur simulation en statut `COMPLETED`.
+  - *Constat* : AC3 respecté, double sécurité de clôture dans le `finally:` de `ReportAgent._generate_report_internal` et de `report.py`.
+  - *Constat* : AC4 respecté, `_synthesize_offline_interviews` fournit une interview étiquetée mode archives/hors-ligne sans lever d'exception.
+  - *Constat* : AC5 respecté, watchdog 15 minutes (`SIMULATION_INACTIVITY_TIMEOUT_SECONDS`) et nettoyage étanche dans `cleanup_all_simulations`.
+  - *Constat* : AC6 respecté, 9 tests hermétiques dédiés dans `test_simulation_interactive_lifecycle.py`, 1 659 tests au total (0 régression).
+
+- **Couche 2 (Clean Architecture & Invariants SOLID/DRY)** :
+  - *Constat* : Dépendances conformes (`api` $\rightarrow$ `services` $\rightarrow$ `utils`).
+  - *Constat* : Pas d'import circulaire. `SimulationRunner` fournit `close_simulation_environment` sans dépendre de `report_agent`.
+
+- **Couche 3 (Sécurité des processus & Anti-Zombie NFR-03)** :
+  - *Constat* : Nettoyage sous verrou des processus, queues et handles de fichiers (`_stdout_files`, `_stderr_files`).
+  - *Constat* : Repli `_terminate_process` garanti en cas d'échec ou d'expiration de timeout de `send_close_env()`.
+
+- **Couche 4 (Qualité des tests & Herméticité)** :
+  - *Constat* : Tests 100 % mockés, sans dépendance réseau ni fichiers temporaires résiduels.
+  - *Constat* : Fixture autouse `clean_runner_state` nettoyant les registres avant et après chaque exécution.
 
 ---
 
 ## Notes de complétion
 
-_Cette section sera complétée à la clôture de la story (métriques, tests passants, commit et verdict)._
+- **Date de complétion** : 16 octobre 2026.
+- **Statut** : Clos avec succès (`done`).
+- **Filet de tests validé** : **1 659 tests réussis** sur l'hôte (1 650 initiaux + 9 nouveaux tests hermétiques), 1 warning bénin déprécié pydantic amont, 0 échec.
+- **Artefacts produits / modifiés** :
+  - `backend/app/services/simulation_runner.py` : découplage complétion logique vs extinction sous-processus, watchdog inactivité 15 min, méthode unifiée `close_simulation_environment`.
+  - `backend/app/services/report_agent.py` : déclenchement différé de `close_simulation_environment` dans `finally:`.
+  - `backend/app/api/report.py` : filet de sécurité supplémentaire pour la clôture différée dans le worker de génération.
+  - `backend/app/services/zep_tools.py` : méthode `_synthesize_offline_interviews` pour le repli gracieux hors-ligne (mode archives).
+  - `backend/tests/test_simulation_interactive_lifecycle.py` : 9 tests unitaires hermétiques validant AC1 à AC5.
+

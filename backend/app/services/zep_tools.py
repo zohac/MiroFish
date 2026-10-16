@@ -1665,16 +1665,24 @@ class ZepToolsService:
             result.interviewed_count = len(result.interviews)
             
         except ValueError as e:
-            # 模拟环境未运行
-            logger.warning(t("console.interviewApiCallFailed", error=e))
-            result.summary = f"采访失败：{str(e)}。模拟环境可能已关闭，请确保OASIS环境正在运行。"
-            return result
+            # Environnement non disponible ou arrêté (Story 011-1, AC4) : repli gracieux hors-ligne
+            logger.info(
+                f"Environnement OASIS non actif ({e}) : bascule vers le repli d'interview hors-ligne contextuel (Story 011-1, AC4)"
+            )
+            self._synthesize_offline_interviews(
+                simulation_id=simulation_id,
+                selected_agents=selected_agents,
+                selected_indices=selected_indices,
+                combined_prompt=combined_prompt,
+                result=result,
+            )
         except Exception as e:
             logger.error(t("console.interviewApiCallException", error=e))
             import traceback
             logger.error(traceback.format_exc())
             result.summary = f"采访过程发生错误：{str(e)}"
             return result
+
         
         # Step 6: 生成采访摘要
         if result.interviews:
@@ -1707,7 +1715,104 @@ class ZepToolsService:
                 return match.group(1).replace('\\n', '\n').replace('\\"', '"')
         return response
 
+    def _synthesize_offline_interviews(
+        self,
+        simulation_id: str,
+        selected_agents: List[Dict[str, Any]],
+        selected_indices: List[int],
+        combined_prompt: str,
+        result: InterviewResult,
+    ) -> None:
+        """Synthétise des réponses d'interview hors-ligne étiquetées à partir des profils et traces (Story 011-1, AC4)."""
+        import re
+        from .simulation_action_verifier import SimulationActionVerifier
+
+        verifier = SimulationActionVerifier(simulation_id)
+        actions = verifier.load_simulation_actions(simulation_id)
+
+        # Regrouper les actions observées par agent_id
+        actions_by_agent: Dict[int, List[Any]] = {}
+        for act in actions:
+            actions_by_agent.setdefault(act.agent_id, []).append(act)
+
+        for i, agent_idx in enumerate(selected_indices):
+            agent = selected_agents[i] if i < len(selected_agents) else {}
+            agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
+            agent_role = agent.get("profession", "未知")
+            agent_bio = agent.get("bio", "")
+            agent_persona = agent.get("persona", "")
+
+            # Récupérer les actions enregistrées dans actions.jsonl pour cet agent
+            agent_acts = actions_by_agent.get(agent_idx, [])
+            action_snippets = []
+            for act in agent_acts[:5]:
+                content = ""
+                if isinstance(act.action_args, dict):
+                    content = act.action_args.get("content", act.action_args.get("text", ""))
+                action_snippets.append(
+                    f"[{act.platform}] Round {act.round_num} ({act.action_type}): {content[:120]}"
+                )
+            context_str = "\n".join(action_snippets) if action_snippets else "（Aucune action directe consignée）"
+
+            # Synthèse via LLM sous persona ou repli déterministe
+            offline_twitter_resp = ""
+            offline_reddit_resp = ""
+            try:
+                system_prompt = (
+                    f"Tu incarnes l'agent simulé {agent_name} ({agent_role}).\n"
+                    f"Bio: {agent_bio[:300]}\n"
+                    f"Persona: {agent_persona[:300]}\n"
+                    f"Tes actions historiques consignées dans la simulation:\n{context_str}\n\n"
+                    "L'environnement de simulation est actuellement hors-ligne (mode archives). "
+                    "Réponds aux questions de l'interview fidèlement à ton rôle et à tes actions observées, "
+                    "en formulant une réponse concise et directe."
+                )
+                user_msg = f"Questions d'interview:\n{combined_prompt}"
+                llm_resp = self.llm.chat(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_msg},
+                    ],
+                    temperature=0.3,
+                )
+                clean_resp = self._clean_tool_call_response(llm_resp)
+                offline_twitter_resp = f"{clean_resp}\n[Mode archives / Traces historiques]"
+                offline_reddit_resp = f"{clean_resp}\n[Mode archives / Traces historiques]"
+            except Exception as synth_err:
+                logger.warning(f"Repli heuristique sans LLM pour l'agent {agent_idx}: {synth_err}")
+                default_resp = (
+                    f"Selon mon profil ({agent_role}) et mes {len(agent_acts)} intervention(s) observées dans la simulation : "
+                    f"mes prises de position restent conformes aux actions consignées dans les journaux du run."
+                )
+                offline_twitter_resp = default_resp
+                offline_reddit_resp = default_resp
+
+            response_text = (
+                f"【Twitter - Mode archives / Hors-ligne】\n{offline_twitter_resp}\n\n"
+                f"【Reddit - Mode archives / Hors-ligne】\n{offline_reddit_resp}"
+            )
+
+            # Extraire key_quotes
+            sentences = re.split(r'[。！？\.\n]', offline_twitter_resp)
+            key_quotes = [
+                s.strip() + "。" for s in sentences
+                if len(s.strip()) >= 15 and not s.strip().startswith(('【', '['))
+            ][:3]
+
+            interview = AgentInterview(
+                agent_name=agent_name,
+                agent_role=agent_role,
+                agent_bio=agent_bio[:1000],
+                question=combined_prompt,
+                response=response_text,
+                key_quotes=key_quotes,
+            )
+            result.interviews.append(interview)
+
+        result.interviewed_count = len(result.interviews)
+
     def _load_agent_profiles(self, simulation_id: str) -> List[Dict[str, Any]]:
+
         """加载模拟的Agent人设文件"""
         import os
         import csv

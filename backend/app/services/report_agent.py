@@ -2258,6 +2258,16 @@ class ReportAgent:
                 self.console_logger = None
             
             return report
+        finally:
+            # Clôture différée ordonnée de l'environnement OASIS post-rapport (Story 011-1, AC3)
+            try:
+                from .simulation_runner import SimulationRunner
+                SimulationRunner.close_simulation_environment(self.simulation_id)
+            except Exception as close_err:
+                logger.warning(
+                    f"Avertissement lors de la clôture différée de l'environnement OASIS ({self.simulation_id}): {close_err}"
+                )
+
 
     def build_sources_provenance_section(self) -> str:
         """Génère la section obligatoire « Sources & Provenance » (AC7, FR-7, NFR-5)."""

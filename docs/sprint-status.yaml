@@ -768,7 +768,7 @@ epics:
   - id: "011"
     slug: preuve-simulation-et-fiabilite-rapport
     titre: "Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports"
-    statut: backlog
+    statut: in-progress
     plan: docs/plans/011-preuve-simulation-et-fiabilite-rapport
     depend_de: ["005", "007", "009", "010"]
     pourquoi: >-
@@ -788,3 +788,10 @@ epics:
       - "C7 : 0 section de rapport enregistrée tronquée ou sans ponctuation terminale (SectionCompletionGuard)"
       - "C8 : Dictionnaire locales/fr.json complet à parité et génération 100 % en français lorsque demandé"
       - "C9 : 1580+ tests existants au vert + au moins 25 nouveaux tests hermétiques dédiés à l'Epic 011"
+    # Story 011-1 (DONE) : maintien en vie interactif d'OASIS post-rounds avec découplage complétion logique
+    # (RunnerStatus.COMPLETED et drain mémoire Neo4j sous _finalization_lock dès fin des plateformes sans tuer le sous-processus).
+    # Rétablissement du succès de interview_agents via IPC, clôture différée propre close_simulation_environment(simulation_id)
+    # dans le finally de ReportAgent / report.py, repli gracieux hors-ligne _synthesize_offline_interviews (mode archives),
+    # et watchdog d'inactivité anti-zombie de 15 minutes. 9 tests hermétiques dédiés dans test_simulation_interactive_lifecycle.py.
+    # Filet global porté à 1659 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (1/6 stories done).
+

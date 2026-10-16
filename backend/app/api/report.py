@@ -294,6 +294,11 @@ def generate_report():
                     task_manager.fail_task(task_id, str(e))
                 finally:
                     unregister_graph_reader(graph_id, report_id)
+                    try:
+                        from ..services.simulation_runner import SimulationRunner
+                        SimulationRunner.close_simulation_environment(simulation_id)
+                    except Exception as env_err:
+                        logger.warning(f"Clôture environnement différée dans report.py ({simulation_id}): {env_err}")
 
             try:
                 thread = threading.Thread(target=run_generate, daemon=True)
