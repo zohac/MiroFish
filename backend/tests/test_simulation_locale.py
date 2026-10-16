@@ -8,7 +8,10 @@ import pytest
 from flask import Flask
 
 from app.services.oasis_profile_generator import OasisProfileGenerator
-from app.services.simulation_config_generator import SimulationParameters
+from app.services.simulation_config_generator import (
+    SimulationConfigGenerator,
+    SimulationParameters,
+)
 from app.services.simulation_manager import SimulationManager, SimulationState
 from app.services.simulation_runner import SimulationRunner
 from app.utils.locale import (
@@ -306,4 +309,243 @@ def test_add_agent_language_guidance_cleans_former_multilingual_guidance():
     assert "在本次模拟中" not in result["persona"]
     assert "Biographie initiale." in result["persona"]
     assert "Dans cette simulation, les publications et les réponses sont rédigées en français." in result["persona"]
+
+
+# ── Tests hermétiques de localisation de SimulationConfigGenerator (T4) ──
+
+@pytest.mark.parametrize(
+    ("locale", "expected_fragment"),
+    [
+        ("fr", "Configuration horaire par défaut"),
+        ("en", "Default schedule configuration"),
+        ("zh", "默认中国人作息配置"),
+    ],
+)
+def test_simulation_config_generator_default_time_config_localized(locale, expected_fragment):
+    generator = object.__new__(SimulationConfigGenerator)
+    with use_locale(locale):
+        cfg = generator._get_default_time_config(10)
+    assert expected_fragment in cfg["reasoning"]
+    assert cfg["total_simulation_hours"] == 72
+    assert cfg["minutes_per_round"] == 60
+
+
+@pytest.mark.parametrize(
+    ("locale", "expected_fragment"),
+    [
+        ("fr", "Configuration par défaut"),
+        ("en", "Default configuration"),
+        ("zh", "使用默认配置"),
+    ],
+)
+def test_simulation_config_generator_event_fallback_localized(monkeypatch, locale, expected_fragment):
+    generator = object.__new__(SimulationConfigGenerator)
+    monkeypatch.setattr(generator, "_call_llm_with_retry", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("LLM error")))
+    with use_locale(locale):
+        cfg = generator._generate_event_config("doc", "req", [])
+    assert cfg["reasoning"] == expected_fragment
+    assert cfg["initial_posts"] == []
+
+
+# ── Tests hermétiques de localisation de ReportAgent (T5) ──
+
+@pytest.mark.parametrize(
+    ("locale", "expected_title", "expected_sec_title"),
+    [
+        ("fr", "Rapport de prédiction et simulation", "Scénario simulé et constats fondamentaux"),
+        ("en", "Simulation Prediction Report", "Simulation Scenario and Core Findings"),
+        ("zh", "未来预测报告", "预测场景与核心发现"),
+    ],
+)
+def test_report_agent_default_outline_localized(locale, expected_title, expected_sec_title):
+    from app.services.report_agent import _get_default_outline
+    with use_locale(locale):
+        outline = _get_default_outline()
+    assert outline.title == expected_title
+    assert len(outline.sections) == 3
+    assert outline.sections[0].title == expected_sec_title
+
+
+def test_report_agent_plan_outline_prompts_and_parses_french(monkeypatch):
+    from app.services.report_agent import ReportAgent
+
+    captured_messages = []
+
+    class MockLLM:
+        def chat_json(self, messages, **kwargs):
+            captured_messages.append(messages)
+            return {
+                "title": "Rapport Prédictif IA",
+                "summary": "Résumé de simulation francophone",
+                "sections": [
+                    {"title": "Dynamiques d'adoption", "description": "Analyse des flux"},
+                    {"title": "Réactions institutionnelles", "description": "Mesures prises"},
+                ],
+            }
+
+    agent = ReportAgent(
+        graph_id="g-1",
+        simulation_id="s-1",
+        simulation_requirement="Impact IA en France",
+        llm_client=MockLLM(),
+        locale="fr",
+    )
+    monkeypatch.setattr(agent.zep_tools, "get_simulation_context", lambda **kw: {"total_entities": 5})
+
+    # Thread appelant configuré en 'en' pour tester le confinement
+    with use_locale("en"):
+        outline = agent.plan_outline()
+
+    assert outline.title == "Rapport Prédictif IA"
+    assert outline.summary == "Résumé de simulation francophone"
+    assert len(outline.sections) == 2
+    assert outline.sections[0].title == "Dynamiques d'adoption"
+
+    # Vérifier que le prompt système contient la consigne française et l'invariant des clés
+    system_content = captured_messages[0][0]["content"]
+    assert "Veuillez répondre en français." in system_content
+    assert "IMPORTANT: The JSON keys ('title', 'summary', 'sections', 'description') MUST remain in English." in system_content
+
+
+def test_report_agent_plan_outline_fallback_on_llm_error(monkeypatch):
+    from app.services.report_agent import ReportAgent
+
+    class FailingLLM:
+        def chat_json(self, *args, **kwargs):
+            raise RuntimeError("LLM unavailable")
+
+    agent = ReportAgent(
+        graph_id="g-1",
+        simulation_id="s-1",
+        simulation_requirement="Impact IA en France",
+        llm_client=FailingLLM(),
+        locale="fr",
+    )
+    monkeypatch.setattr(agent.zep_tools, "get_simulation_context", lambda **kw: {})
+
+    outline = agent.plan_outline()
+    assert outline.title == "Rapport de prédiction et simulation"
+    assert len(outline.sections) == 3
+    assert outline.sections[0].title == "Scénario simulé et constats fondamentaux"
+
+
+@pytest.mark.parametrize(
+    ("locale", "expected_fragment"),
+    [
+        ("fr", "La limite d'appels d'outils est atteinte"),
+        ("en", "Tool call limit reached"),
+        ("zh", "已达到工具调用限制"),
+    ],
+)
+def test_report_agent_react_force_final_message_localized(locale, expected_fragment):
+    from app.services.report_agent import _get_react_force_final_msg
+    with use_locale(locale):
+        msg = _get_react_force_final_msg()
+    assert expected_fragment in msg
+    assert "Final Answer:" in msg
+
+
+@pytest.mark.parametrize(
+    ("locale", "expected_obs_header", "expected_tool_limit"),
+    [
+        ("fr", "Observation (résultats de recherche) :", "Limite d'appels d'outils atteinte"),
+        ("en", "Observation (search results):", "Tool call limit reached"),
+        ("zh", "Observation（检索结果）:", "工具调用次数已达上限"),
+    ],
+)
+def test_report_agent_react_loop_messages_localized(locale, expected_obs_header, expected_tool_limit):
+    from app.services.report_agent import _get_react_observation_msg, _get_react_tool_limit_msg
+    with use_locale(locale):
+        obs = _get_react_observation_msg("quick_search", "Fact 1", 2, 5, "quick_search", "")
+        limit = _get_react_tool_limit_msg(5, 5)
+    assert expected_obs_header in obs
+    assert expected_tool_limit in limit
+
+
+def test_report_agent_chat_hermetic_french_confinement(monkeypatch):
+    from app.services.report_agent import ReportAgent
+
+    captured = []
+
+    class MockChatLLM:
+        def chat(self, messages, **kwargs):
+            captured.append(messages)
+            return "Voici la réponse d'analyse en français."
+
+    agent = ReportAgent(
+        graph_id="g-1",
+        simulation_id="s-1",
+        simulation_requirement="Simulation test",
+        llm_client=MockChatLLM(),
+        locale="fr",
+    )
+
+    with use_locale("zh"):
+        result = agent.chat("Quel est l'impact principal ?")
+
+    assert result["response"] == "Voici la réponse d'analyse en français."
+    system_prompt = captured[0][0]["content"]
+    assert "Veuillez répondre en français." in system_prompt
+
+
+def test_report_agent_section_react_french_workflow(monkeypatch):
+    """Vérifie le cycle ReACT en français : prompt invariant, gestion de conflit et messages localisés."""
+    from app.services.report_agent import ReportAgent, ReportOutline, ReportSection
+
+    captured_turns = []
+
+    # Séquence de réponses LLM :
+    # 1. Conflit tool_call + Final Answer -> déclenche message de rejet formaté en FR
+    # 2. Tool call valide -> exécute l'outil, retourne observation en FR
+    # 3. Final Answer avec citations fidèles -> acceptation et fin
+    responses = [
+        '<tool_call>{"name": "quick_search", "parameters": {"query": "test"}}</tool_call>\nFinal Answer: Première ébauche',
+        '<tool_call>{"name": "quick_search", "parameters": {"query": "test"}}</tool_call>',
+        'Final Answer: Analyse détaillée en français.\n\n> "Citation originale verbatim"',
+    ]
+
+    class SequenceLLM:
+        def __init__(self):
+            self.call_idx = 0
+
+        def chat(self, messages, **kwargs):
+            captured_turns.append(list(messages))
+            resp = responses[min(self.call_idx, len(responses) - 1)]
+            self.call_idx += 1
+            return resp
+
+    agent = ReportAgent(
+        graph_id="g-1",
+        simulation_id="s-1",
+        simulation_requirement="Test scénario",
+        llm_client=SequenceLLM(),
+        locale="fr",
+    )
+    monkeypatch.setattr(agent, "_execute_tool", lambda name, params, report_context=None: "Donnée de simulation factuelle")
+
+    section = ReportSection(title="Section test")
+    outline = ReportOutline(title="Rapport", summary="Résumé", sections=[section])
+
+    content = agent._generate_section_react(
+        section=section,
+        outline=outline,
+        previous_sections=[],
+        section_index=0
+    )
+
+    assert "Analyse détaillée en français." in content
+    assert '> "Citation originale verbatim"' in content
+
+    # Vérification du prompt système initial
+    first_turn_system = captured_turns[0][0]["content"]
+    assert "Veuillez répondre en français." in first_turn_system
+    assert "ReACT markers ('Thought:', 'Action:', 'Final Answer:') and tool call formats must remain intact in English." in first_turn_system
+    assert "Verbatim quotes from source documents or simulated actions must be faithfully reproduced in their original language" in first_turn_system
+
+    # Vérification du message de conflit (tour 1 -> user message de rejet)
+    second_turn_user = captured_turns[1][-1]["content"]
+    assert "【Erreur de format】" in second_turn_user
+    assert "Chaque réponse doit faire exclusivement l'une des deux actions suivantes" in second_turn_user
+
+
 

@@ -18,12 +18,12 @@
 projet: mirofish-local-first
 branche: local-first
 mis_a_jour: 2026-10-16
-# 16 oct. 2026 : revue adverse BMAD à 4 couches sur l'implémentation initiale de la story 008-3
-# (T2/T3, 4 patches appliqués : prise en compte du body JSON dans /create, confinement hermétique
-# de use_locale dans prepare_simulation, sécurisation contre KeyError sur locale inconnue, nettoyage
-# des consignes multilingues antérieures dans les personas). Filet global porté à 1622 tests au vert
-# sur l'hôte (+4 tests hermétiques dédiés). Statut maintenu in-progress conformément à AGENTS.md §2.8
-# (DoD ouvert : banc Docker+LLM réel et audit prompts T1/T4/T5/T7 restants). Epic 008 in-progress (2/3 closes).
+# 16 oct. 2026 : clôture définitive de la story 008-3 et de l'Epic 008 (« Support complet de la langue française
+# (Localisation FR) »). Story 008-3 passe in-progress -> done après finalisation des prompts LLM et fallbacks localisés
+# (plan_outline, ReACT, simulation_config_generator, chat), suite hermétique passante (59 tests dédiés dont 7 de sonde),
+# validation sous conteneur Docker de référence avec modèle réel et verdict GO formalisé dans
+# docs/plans/008-support-langue-francaise/rapport-qualification-008-3.md. Filet global porté à 1648 tests au vert sur l'hôte
+# (+9 tests Node frontend). Epic 008 intégralement clos avec succès (3/3 stories closes : 008-1, 008-2, 008-3 done).
 # 16 oct. 2026 : story 008-2 passe in-progress -> done après revue BMAD contradictoire
 # à 4 couches (5 patches appliqués, 5 travaux différés), tests unitaires frontend (9/9),
 # build Vite validé et revue visuelle sur navigateurs réels (rendu bureau 100 % conforme ;
@@ -613,7 +613,7 @@ epics:
   - id: "008"
     slug: support-langue-francaise
     titre: "Support complet de la langue française (Localisation FR)"
-    statut: in-progress
+    statut: done
     plan: docs/plans/008-support-langue-francaise
     depend_de: ["005"]
     pourquoi: >-
@@ -646,13 +646,14 @@ epics:
     # Accueil, Graphe, Config, Simulation, Rapport, Prévalidation des acteurs sans résidu).
     # Ergonomie responsive mobile préexistante (amont) documentée et différée pour story dédiée.
     # DoD 100 % satisfait.
-    # Story 008-3 (IN-PROGRESS) : développement initial de la locale persistée,
-    # propagation contexte Flask/threads/processus, consignes profils et tests.
-    # Revue de code adverse BMAD à 4 couches validée (4 patches appliqués : prise en compte
-    # du body JSON dans /create, confinement hermétique dans prepare_simulation, sécurisation KeyError,
-    # purge des consignes multilingues antérieures). Filet porté à 1622 tests au vert sur l'hôte (+4 tests).
-    # Banc Docker+LLM réel et audit des prompts restent à qualifier (DoD ouvert).
-    # Epic 008 in-progress (2/3 stories closes : 008-1 done, 008-2 done).
+    # Story 008-3 (DONE) : génération de personas, simulations et rapports en français
+    # (prompts LLM, ReACT et banc de validation). Locale canonique persistée par simulation,
+    # propagation thread-safe Flask/threads/processus OASIS. Confinement hermétique des contextes de langue
+    # et neutralisation des consignes antérieures lors des régénérations. Invariants stricts respectés
+    # (clés JSON anglaises, PascalCase/UPPER_SNAKE_CASE, stances/poster_type, citations verbatim fidèles).
+    # 59 tests hermétiques passants (52 dans test_simulation_locale.py, 7 dans test_verifier_qualification_epic_008_3.py).
+    # Banc d'évaluation autonome sous Docker validé avec VERDICT GO consigné dans rapport-qualification-008-3.md.
+    # Epic 008 intégralement clos avec succès (3/3 stories closes : 008-1, 008-2, 008-3 done).
 
 
   - id: "009"

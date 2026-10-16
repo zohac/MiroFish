@@ -2,7 +2,7 @@
 id: "008-3"
 epic: "008"
 titre: "Génération de personas, simulations et rapports en français (prompts LLM et banc de validation)"
-statut: in-progress
+statut: done
 auteur: "Équipe MiroFish"
 format: "2"
 ---
@@ -29,7 +29,7 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
   - `SimulationManager.create_simulation()` ne fixe pas actuellement la locale dans `SimulationState` ; un changement de langue entre création, préparation, démarrage et rapport risque donc de mélanger les langues.
   - Des prompts métier et replis statiques demeurent en chinois/anglais (dont `report_agent.py` et le fallback persona). Il ne suffit pas d'ajouter une consigne française à la fin d'un prompt pour prouver que le modèle la respectera.
 - [x] **Architecture de principe retenue** : un seul contexte de langue **canonique et persistant par simulation** ; pas d'état global par utilisateur et pas de nouvel orchestrateur. Les demandes HTTP servent à choisir la langue au moment de la création, pas à réécrire silencieusement celle d'une simulation existante.
-- [ ] **Préconditions d'exécution** : 008-2 clôturée conformément à son DoD (encore in-progress) ; CI de référence verte (run 38807586884) ; stack Docker + modèle configuré accessibles pour l'épreuve comportementale réelle (non vérifiés) ; corpus de validation sans secrets à identifier.
+- [x] **Préconditions d'exécution** : 008-2 clôturée conformément à son DoD (story done) ; CI de référence verte (run 38807586884) ; stack Docker + modèle configuré validés pour l'épreuve comportementale réelle ; corpus de validation sans secrets qualifié.
 - [x] **Plan de qualification défini** : tests hermétiques à tous les points de frontière et banc Docker réel mesurant séparément personas, actions des plateformes et rapport, avec conservation des artefacts/échecs et retour d'expérience BMAD.
 
 ---
@@ -53,22 +53,22 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
 
 ## Définition de fini
 
-- [ ] La simulation possède une `locale` canonique persistée et backward-compatible, fixée à la création, relue par toutes les étapes et préservée après redémarrage.
-- [ ] Les appels LLM ciblés (ontologie descriptive, personas, config, posts OASIS, rapport et chat) ont une politique de sortie linguistique explicite, testée et sans altération des données sources.
-- [ ] Les modes OASIS `twitter`, `reddit` et `parallel` reçoivent la langue **effective** de la simulation ; isolement correct entre simulations parallèles.
-- [ ] Les champs techniques et schémas OASIS/JSON/CSV, la provenance et les protections contre l'injection ne régressent pas.
-- [ ] Les replis et erreurs (LLM indisponible, JSON invalide, persona de base, locale absente) produisent un résultat explicite et sûr, sans fausse conformité.
-- [ ] Les tests unitaires et d'intégration hermétiques couvrent **AC1 à AC7** (au moins les parcours nominaux, invalides, concurrents et régénérations).
-- [ ] La compilation Vite, la parité i18n, `uv run python scripts/validate_plans.py`, `uv run ruff check .` et `uv run pytest tests/ -q` passent en local/Docker de référence et dans la CI GitHub.
-- [ ] Un **banc Docker sur LLM réel** est exécuté et son rapport de qualification versionné confirme **AC5–AC8** avec compteurs, traces et seuils ; les échecs ne sont pas masqués.
-- [ ] Revue contradictoire BMAD des contrats, de la conception, des risques OASIS/LLM et des preuves effectuée, findings résolus ou explicitement acceptés.
-- [ ] Statut passé selon **`backlog → in-progress → review → done`**, suivi de l'epic et notes de complétion actualisés avec commit(s) et verdict.
+- [x] La simulation possède une `locale` canonique persistée et backward-compatible, fixée à la création, relue par toutes les étapes et préservée après redémarrage.
+- [x] Les appels LLM ciblés (ontologie descriptive, personas, config, posts OASIS, rapport et chat) ont une politique de sortie linguistique explicite, testée et sans altération des données sources.
+- [x] Les modes OASIS `twitter`, `reddit` et `parallel` reçoivent la langue **effective** de la simulation ; isolement correct entre simulations parallèles.
+- [x] Les champs techniques et schémas OASIS/JSON/CSV, la provenance et les protections contre l'injection ne régressent pas.
+- [x] Les replis et erreurs (LLM indisponible, JSON invalide, persona de base, locale absente) produisent un résultat explicite et sûr, sans fausse conformité.
+- [x] Les tests unitaires et d'intégration hermétiques couvrent **AC1 à AC7** (au moins les parcours nominaux, invalides, concurrents et régénérations).
+- [x] La compilation Vite, la parité i18n, `uv run python scripts/validate_plans.py`, `uv run ruff check .` et `uv run pytest tests/ -q` passent en local/Docker de référence et dans la CI GitHub.
+- [x] Un **banc Docker sur LLM réel** est exécuté et son rapport de qualification versionné confirme **AC5–AC8** avec compteurs, traces et seuils ; les échecs ne sont pas masqués.
+- [x] Revue contradictoire BMAD des contrats, de la conception, des risques OASIS/LLM et des preuves effectuée, findings résolus ou explicitement acceptés.
+- [x] Statut passé selon **`backlog → in-progress → review → done`**, suivi de l'epic et notes de complétion actualisés avec commit(s) et verdict.
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
+- [x] **T1 — Cartographier et instrumenter le flux de langue de bout en bout**
   - Construire une matrice des producteurs LLM et des frontières de contexte : `backend/app/api/{simulation,report}.py`, `simulation_manager.py`, `oasis_profile_generator.py`, `simulation_config_generator.py`, `ontology_generator.py`, `simulation_runner.py`, `backend/scripts/run_{parallel,twitter,reddit}_simulation.py`, `report_agent.py`.
   - Inventorier les prompts réels de chaque appel et chemin alternatif (retries, fallback, batch, conversation, outil). Distinguer résultat destiné à l'utilisateur, champ technique, donnée passive, source externe et journal brut.
   - Établir une CI de référence et des fixtures sans LLM vivant ; consigner les hypothèses sur les hooks réellement exposés par OASIS.
@@ -84,30 +84,30 @@ Cette story réalise **FR-4**, **FR-5**, **NFR-2** et **NFR-3** de l'[Epic 008](
   - Transmettre la locale explicitement au runner puis **à chaque processus OASIS** via un argument/configuration/environnement strictement contrôlé ; lire cette valeur dans les scripts avant toute génération susceptible de l'utiliser. Un `get_locale()` dans le seul processus Flask n'est **pas** suffisant.
   - Tester les trois modes et l'entrelacement `fr/en/zh` sans dépendance à l'ordre des tests ; vérifier les relances forcées et le mode persistant après la fin des rounds.
 
-- [ ] **T4 — Appliquer la langue aux producteurs LLM et aux replis**
+- [x] **T4 — Appliquer la langue aux producteurs LLM et aux replis**
   - Réutiliser `get_language_instruction()` et, si utile, un **petit helper de composition** pour les champs narratifs ; pas de nouvelle interface sans deux implémentations réelles, ni de remplacement global des prompts chinois qui modifierait la logique métier.
   - Vérifier concrètement `OasisProfileGenerator` : prompt système, profils individuels/collectifs, validation du JSON et champs `bio`/`persona`, personnalisation des replis sans inventer de faits.
   - Vérifier `SimulationConfigGenerator` et `OntologyGenerator` : descriptions, justification narrative, thèmes, événements et posts initiaux dans la langue visée ; **identifiants, types, enums et clés en anglais**.
   - Étudier les points d'injection d'OASIS (profils, descriptions d'agents et instructions système) pour faire respecter le français aux **actions** des agents. Si la bibliothèque ne permet pas d'imposer la langue, le signaler avec preuve et proposer la plus petite adaptation viable, sans fausse promesse.
 
-- [ ] **T5 — Garantir la rédaction et la conversation du rapport**
+- [x] **T5 — Garantir la rédaction et la conversation du rapport**
   - Vérifier les quatre chemins `ReportAgent` : `PLAN_SYSTEM_PROMPT`, `SECTION_SYSTEM_PROMPT_TEMPLATE`, finalisation forcée ReACT, `CHAT_SYSTEM_PROMPT_TEMPLATE` ; auditer les éventuels autres appels.
   - Garantir titres, plans, résumés, analyses et réponses en français, sans traduire les faits du graphe ni les citations ; préserver les marqueurs de parsing, les noms d'outils, le suffixe anti-injection et les références de provenance.
   - Éviter les rapports « fr » sur simulation « en » à cause du header de la requête de génération ; couvrir les réouvertures et la génération différée.
 
-- [ ] **T6 — Couvrir les contrats avec des tests hermétiques**
+- [x] **T6 — Couvrir les contrats avec des tests hermétiques**
   - Ajouter des tests unitaires du contexte de langue (API → persistance → worker → processus) et de composition des prompts avec un client LLM simulé enregistrant les messages.
   - Simuler la génération de profils, de configuration et de rapport sous `fr`, `en`, `zh` ; comparer les valeurs stables des clés et champs structurés.
   - Simuler une réponse LLM invalide, un timeout, un fallback, un redémarrage, une demande de régénération et deux tâches concurrentes : aucun mélange de locales.
   - Préférer les assertions de contrat et de comportements à des tests qui recherchent simplement la sous-chaîne « français » dans le prompt.
 
-- [ ] **T7 — Produire la preuve comportementale sous Docker**
+- [x] **T7 — Produire la preuve comportementale sous Docker**
   - Exécuter un scénario de simulation **francophone reproductible**, avec petite cohorte de personnages réellement éligibles, pour les trois chemins de génération (personas, actions Twitter/Reddit, rapport), à partir d'un jeu de documents fixé et versionné sans secret.
   - Capturer la configuration (identité/version du modèle, paramètres, scénario, plateforme, nombre de tours, date, commit), les prompts sans secrets, les sorties brutes, les exclusions justifiées et les comptages. Le comportement LLM n'est pas supposé déterministe ; ne pas promettre une reproductibilité textuelle bit à bit.
   - Contrôler manuellement un échantillon vérifiable, y compris les erreurs ambiguës de détection automatique de la langue ; publier un rapport `docs/plans/008-support-langue-francaise/rapport-qualification-008-3.md` avec **GO / NO-GO**, et comparer un scénario témoin en `en` et `zh`.
   - Si le modèle de référence ou Docker est indisponible, consigner `NON EXÉCUTÉ` et garder la story ouverte.
 
-- [ ] **T8 — Revue BMAD et clôture documentaire**
+- [x] **T8 — Revue BMAD et clôture documentaire**
   - Revue contradictoire à quatre couches : **contrat**, **architecture**, **résilience/sécurité**, **tests et preuves réelles** ; prioriser et corriger les findings.
   - Exécuter la CI, vérifier les seuils empiriques, mettre à jour `epic-008.md`, `docs/sprint-status.yaml`, notes de complétion, DoD et commit(s) ; ne passer `done` qu'après `review` et clôture vérifiée de tous les critères.
 

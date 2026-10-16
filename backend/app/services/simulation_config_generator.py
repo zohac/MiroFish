@@ -806,6 +806,13 @@ class SimulationConfigGenerator:
     
     def _get_default_time_config(self, num_entities: int) -> Dict[str, Any]:
         """获取默认时间配置（中国人作息）"""
+        loc = get_locale()
+        if loc == "fr":
+            reasoning = "Configuration horaire par défaut (1 heure par cycle)"
+        elif loc == "en":
+            reasoning = "Default schedule configuration (1 hour per cycle)"
+        else:
+            reasoning = "使用默认中国人作息配置（每轮1小时）"
         return {
             "total_simulation_hours": 72,
             "minutes_per_round": 60,  # 每轮1小时，加快时间流速
@@ -815,7 +822,7 @@ class SimulationConfigGenerator:
             "off_peak_hours": [0, 1, 2, 3, 4, 5],
             "morning_hours": [6, 7, 8],
             "work_hours": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "reasoning": "使用默认中国人作息配置（每轮1小时）"
+            "reasoning": reasoning
         }
     
     def _parse_time_config(self, result: Dict[str, Any], num_entities: int) -> TimeSimulationConfig:
@@ -919,11 +926,18 @@ class SimulationConfigGenerator:
             return self._call_llm_with_retry(prompt, system_prompt)
         except Exception as e:
             logger.warning(f"事件配置LLM生成失败: {e}, 使用默认配置")
+            loc = get_locale()
+            if loc == "fr":
+                fallback_reasoning = "Configuration par défaut"
+            elif loc == "en":
+                fallback_reasoning = "Default configuration"
+            else:
+                fallback_reasoning = "使用默认配置"
             return {
                 "hot_topics": [],
                 "narrative_direction": "",
                 "initial_posts": [],
-                "reasoning": "使用默认配置"
+                "reasoning": fallback_reasoning
             }
     
     def _parse_event_config(self, result: Dict[str, Any]) -> EventConfig:
