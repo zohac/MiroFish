@@ -29,8 +29,17 @@ from graphiti_core.embedder.client import EmbedderClient
 from graphiti_core.llm_client.config import LLMConfig
 
 
+@pytest.fixture(autouse=True)
+def reset_shared_embedder_cache():
+    """Isole chaque test unitaire en réinitialisant le cache de modèles partagés."""
+    SentenceTransformerEmbedder.clear_shared_cache()
+    yield
+    SentenceTransformerEmbedder.clear_shared_cache()
+
+
 class FakeSentenceTransformer:
     """Double factice de SentenceTransformer pour tests déterministes et hors-ligne."""
+
 
     def __init__(self, dim: int = 384):
         self.dim = dim

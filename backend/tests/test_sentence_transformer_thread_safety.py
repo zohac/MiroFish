@@ -15,7 +15,7 @@ import threading
 import time
 from types import SimpleNamespace
 from typing import Any, List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -31,9 +31,11 @@ from app.services.zep_graph_memory_updater import (
     ZepGraphMemoryUpdater,
 )
 from app.utils.graphiti_embedder import (
+    DEFAULT_EMBEDDING_MODEL,
     SentenceTransformerEmbedder,
     SentenceTransformerEmbedderConfig,
 )
+
 
 
 class ConcurrencyCheckingSentenceTransformer:
@@ -305,4 +307,58 @@ def test_manager_stop_updater_resilient_mode_cleans_up_on_timeout(monkeypatch):
         assert sim_id not in ZepGraphMemoryManager._updaters
     finally:
         ZepGraphMemoryManager._updaters.pop(sim_id, None)
+
+
+def test_sentence_transformer_multi_instance_process_level_concurrency():
+    """Vérifie la sérialisation globale et le partage de modèle entre instances distinctes de SentenceTransformerEmbedder."""
+    SentenceTransformerEmbedder.clear_shared_cache()
+    model = ConcurrencyCheckingSentenceTransformer()
+
+    # Pré-remplir le modèle partagé pour simuler l'injection
+    model_key = f"{DEFAULT_EMBEDDING_MODEL}::None"
+    with SentenceTransformerEmbedder._global_lock:
+        SentenceTransformerEmbedder._shared_models[model_key] = model
+
+    def worker(idx: int) -> List[List[float]]:
+        # Chaque worker crée sa PROPRE instance indépendante (comme dans Flask et ZepGraphMemoryUpdater)
+        local_embedder = SentenceTransformerEmbedder()
+        return local_embedder._encode_sync([f"Multi-instance text {idx}"])
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(worker, i) for i in range(16)]
+        results = [f.result() for f in futures]
+
+    assert len(results) == 16
+    for res in results:
+        assert len(res[0]) == 384
+
+    assert model.total_calls == 16
+    assert model.max_concurrent_calls == 1, (
+        f"Concurrence non protégée entre instances : {model.max_concurrent_calls} appels simultanés"
+    )
+    SentenceTransformerEmbedder.clear_shared_cache()
+
+
+def test_zep_tools_search_graph_falls_back_to_local_search_on_error():
+    """Vérifie que search_graph bascule gracieusement sur _local_search en cas d'erreur dans store.search."""
+    from app.services.zep_tools import SearchResult, ZepToolsService
+
+    mock_store = MagicMock()
+    mock_store.search.side_effect = RuntimeError("Cannot copy out of meta tensor; no data!")
+
+    service = ZepToolsService(store=mock_store)
+
+    fake_fallback_result = SearchResult(
+        facts=["[Fait repli]: Information trouvée"],
+        edges=[],
+        nodes=[],
+        query="requête test",
+        total_count=1,
+    )
+    with patch.object(service, "_local_search", return_value=fake_fallback_result) as mock_local:
+        res = service.search_graph("graph_fallback_test", "requête test")
+        assert res.total_count == 1
+        assert res.facts == ["[Fait repli]: Information trouvée"]
+        mock_local.assert_called_once()
+
 

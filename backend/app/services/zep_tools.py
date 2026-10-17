@@ -613,7 +613,13 @@ class ZepToolsService:
             
         except Exception as e:
             logger.error(t("console.zepSearchApiFallback", error=str(e)))
-            raise
+            return self._local_search(
+                graph_id=graph_id,
+                query=query,
+                limit=limit,
+                scope=scope,
+            )
+
     
     def _local_search(
         self, 

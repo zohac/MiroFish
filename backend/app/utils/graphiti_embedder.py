@@ -17,7 +17,7 @@ import asyncio
 from collections.abc import Iterable
 import logging
 import threading
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
@@ -41,6 +41,15 @@ class SentenceTransformerEmbedderConfig(EmbedderConfig):
 class SentenceTransformerEmbedder(EmbedderClient):
     """Client d'embeddings local pour Graphiti utilisant SentenceTransformer."""
 
+    _shared_models: Dict[str, Any] = {}
+    _global_lock = threading.Lock()
+
+    @classmethod
+    def clear_shared_cache(cls) -> None:
+        """Vide le cache de modèles partagés (utile pour l'isolation des tests)."""
+        with cls._global_lock:
+            cls._shared_models.clear()
+
     def __init__(
         self,
         config: Optional[SentenceTransformerEmbedderConfig] = None,
@@ -63,42 +72,50 @@ class SentenceTransformerEmbedder(EmbedderClient):
         self._lock = threading.Lock()
 
     def _get_model(self) -> Any:
-        """Récupère l'instance du modèle, en effectuant un chargement paresseux thread-safe."""
-        if self._model is None:
-            with self._lock:
-                if self._model is None:
-                    logger.info(
-                        f"Chargement du modèle d'embedding local : {self.config.model_name}"
-                    )
-                    from sentence_transformers import SentenceTransformer
+        """Récupère l'instance du modèle, en effectuant un chargement paresseux thread-safe au niveau du processus."""
+        if self._model is not None:
+            return self._model
 
-                    self._model = SentenceTransformer(
-                        model_name_or_path=self.config.model_name,
-                        device=self.config.device,
-                    )
-                    if hasattr(self._model, "get_sentence_embedding_dimension"):
-                        dim_model = self._model.get_sentence_embedding_dimension()
-                        if dim_model and dim_model != self.config.embedding_dim:
-                            logger.warning(
-                                "La dimension du modèle SentenceTransformer (%d) "
-                                "diffère de la configuration (%d)",
-                                dim_model,
-                                self.config.embedding_dim,
-                            )
+        model_key = f"{self.config.model_name}::{self.config.device}"
+        with self._global_lock:
+            if model_key not in self._shared_models:
+                logger.info(
+                    f"Chargement du modèle d'embedding local : {self.config.model_name}"
+                )
+                from sentence_transformers import SentenceTransformer
+
+                loaded_model = SentenceTransformer(
+                    model_name_or_path=self.config.model_name,
+                    device=self.config.device,
+                )
+                if hasattr(loaded_model, "get_sentence_embedding_dimension"):
+                    dim_model = loaded_model.get_sentence_embedding_dimension()
+                    if dim_model and dim_model != self.config.embedding_dim:
+                        logger.warning(
+                            "La dimension du modèle SentenceTransformer (%d) "
+                            "diffère de la configuration (%d)",
+                            dim_model,
+                            self.config.embedding_dim,
+                        )
+                self._shared_models[model_key] = loaded_model
+            self._model = self._shared_models[model_key]
         return self._model
 
     def _encode_sync(self, texts: List[str]) -> List[List[float]]:
-        """Encode une liste de textes en vecteurs d'embeddings (exécution synchrone)."""
+        """Encode une liste de textes en vecteurs d'embeddings (exécution synchrone et thread-safe globale)."""
         if not texts:
             return []
 
         model = self._get_model()
-        with self._lock:
+        # Sérialisation globale au niveau du processus pour éliminer tout risque
+        # de collision de meta tensors dans PyTorch / transformers (Story 010-3 & patch runtime).
+        with self._global_lock:
             embeddings = model.encode(
                 texts,
                 normalize_embeddings=self.config.normalize_embeddings,
                 convert_to_numpy=True,
             )
+
 
         dim = self.config.embedding_dim
         # S'assurer que le résultat est converti en list[list[float]] natif Python
