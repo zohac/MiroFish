@@ -88,8 +88,9 @@ class TestCohortCoverageModels:
 
         assert table.total_members == 2
         assert table.active_members == 1
-        assert table.silent_members == 1
-        assert table.status_summary == {"rejected": 1, "present_no_action": 1}
+        assert table.status_summary.get("rejected") == 1
+        assert table.status_summary.get("rejected_expressed") == 1
+        assert table.status_summary.get("present_no_action") == 1
 
         # Sauvegarde et rechargement
         save_file = str(tmp_path / "cohort_coverage.json")

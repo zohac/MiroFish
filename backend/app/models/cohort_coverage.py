@@ -16,7 +16,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 from .actor_selection import ActorItem, ActorRole, ActorSelection
 from .evidence_pack import EvidencePack, ObservedEvent
@@ -60,6 +60,8 @@ class AgentIdentityResolver:
         self.alias_to_name: Dict[str, str] = {}
         # normalized name -> canonical persona name
         self.name_to_canonical: Dict[str, str] = {}
+        # normalized name -> ScenarioRole optionnel déduit de la config
+        self.name_to_role: Dict[str, ScenarioRole] = {}
 
         # 0. Initialiser depuis agent_id_map s'il est fourni (conversion int tolérante)
         if agent_id_map:
@@ -89,7 +91,7 @@ class AgentIdentityResolver:
                 self.name_to_canonical[norm] = name
 
     def _load_from_simulation_config(self) -> None:
-        """Tente de charger simulation_config.json pour lier agent_id -> entity_name."""
+        """Tente de charger simulation_config.json pour lier agent_id -> entity_name et rôles."""
         if not self.simulation_id:
             return
         try:
@@ -99,26 +101,32 @@ class AgentIdentityResolver:
             if os.path.isfile(cfg_path):
                 with open(cfg_path, "r", encoding="utf-8") as f:
                     cfg_data = json.load(f)
-                agent_configs = cfg_data.get("agent_configs") or []
+                agent_configs = cfg_data.get("agent_configs") or cfg_data.get("profiles") or cfg_data.get("agents") or []
                 for ac in agent_configs:
                     aid = ac.get("agent_id")
-                    ename = (ac.get("entity_name") or "").strip()
-                    if aid is not None and ename:
+                    ename = (ac.get("entity_name") or ac.get("name") or "").strip()
+                    raw_role = ac.get("scenario_role") or ac.get("role") or ac.get("entity_type")
+                    role = ScenarioRole.from_str(str(raw_role)) if raw_role else None
+                    aid_int: Optional[int] = None
+                    if aid is not None:
                         try:
                             aid_int = int(aid)
                         except (ValueError, TypeError):
-                            continue
-                        self.register_persona(aid_int, ename)
+                            aid_int = None
+                    if ename:
+                        self.register_persona(aid_int, ename, role=role)
         except Exception:
             pass
 
-    def register_persona(self, agent_id: Optional[int], persona_name: str) -> None:
-        """Enregistre un persona nommé et son identifiant technique optionnel."""
+    def register_persona(self, agent_id: Optional[int], persona_name: str, role: Optional[ScenarioRole] = None) -> None:
+        """Enregistre un persona nommé, son identifiant technique et son rôle optionnel."""
         pname = persona_name.strip()
         if not pname:
             return
         norm = normalize_agent_name(pname)
         self.name_to_canonical[norm] = pname
+        if role is not None and role != ScenarioRole.UNKNOWN:
+            self.name_to_role[norm] = role
         if agent_id is not None:
             self.id_to_name[agent_id] = pname
             self.alias_to_name[f"agent_{agent_id}"] = pname
@@ -162,14 +170,17 @@ class AgentIdentityResolver:
 
 
 class ScenarioRole(str, Enum):
-    """Rôle fonctionnel d'un membre de la cohorte au sein du scénario (Story 011-4, FR-07)."""
+    """Rôle fonctionnel d'un membre de la cohorte au sein du scénario (Story 011-4, FR-07, Story 012-2, FR-03)."""
 
     PROSPECT = "PROSPECT"
     EXISTING_USER = "EXISTING_USER"
     FOUNDER = "FOUNDER"
+    TEAM_MEMBER = "TEAM_MEMBER"
     PRESCRIBER = "PRESCRIBER"
     OBSERVER = "OBSERVER"
     STAKEHOLDER = "STAKEHOLDER"
+    PARTNER = "PARTNER"
+    INSTITUTION = "INSTITUTION"
     UNKNOWN = "UNKNOWN"
 
     @classmethod
@@ -178,68 +189,106 @@ class ScenarioRole(str, Enum):
         if not value or not isinstance(value, str):
             return cls.UNKNOWN
         val = value.strip().upper()
+        if val in cls.__members__:
+            return cls[val]
         for member in cls:
             if member.value == val or member.name == val:
                 return member
-        # Synonymes & déductions
+        # Normalisation sans accent pour les synonymes
+        val_norm = unicodedata.normalize("NFKD", val).encode("ASCII", "ignore").decode("utf-8")
+        val = val_norm
         if any(k in val for k in ("PROSPECT", "LEAD", "CIBLE", "CLIENT_POTENTIEL")):
             return cls.PROSPECT
         if any(k in val for k in ("USER", "UTILISATEUR", "CLIENT", "EXISTING")):
             return cls.EXISTING_USER
         if any(k in val for k in ("FOUNDER", "FONDATEUR", "DIRIGEANT", "CREATOR")):
             return cls.FOUNDER
+        if any(k in val for k in ("TEAM", "COLLABORATEUR", "EMPLOYE", "SALARIE", "DEVELOPPEUR", "INTERNE")):
+            return cls.TEAM_MEMBER
         if any(k in val for k in ("PRESCRIBER", "PRESCRIPTEUR", "EXPERT", "ADVISOR")):
             return cls.PRESCRIBER
         if any(k in val for k in ("OBSERVER", "OBSERVATEUR", "TEMOIN")):
             return cls.OBSERVER
-        if any(k in val for k in ("STAKEHOLDER", "PARTENAIRE", "INVESTISSEUR", "INSTITUTION")):
+        if any(k in val for k in ("PARTNER", "PARTENAIRE", "ALLIE", "FOURNISSEUR", "PRESTATAIRE")):
+            return cls.PARTNER
+        if any(k in val for k in ("INSTITUTION", "REGULATEUR", "ORGANISME", "MINISTERE", "ETAT", "OFFICIEL")):
+            return cls.INSTITUTION
+        if any(k in val for k in ("STAKEHOLDER", "INVESTISSEUR", "ACTIONNAIRE")):
             return cls.STAKEHOLDER
         return cls.UNKNOWN
 
     @classmethod
-    def from_actor_role(cls, actor_role: Optional[ActorRole]) -> "ScenarioRole":
-        """Déduit le rôle de scénario depuis l'ActorRole d'ActorSelection."""
+    def from_actor_role(cls, actor_role: Optional[Union[ActorRole, str]]) -> "ScenarioRole":
+        """Déduit le rôle de scénario depuis l'ActorRole d'ActorSelection (Story 012-2, AC1).
+        
+        Supprime le forçage aveugle ActorRole.PERSON -> ScenarioRole.PROSPECT.
+        Sans qualification explicite, les personnes et rôles inconnus sont ScenarioRole.UNKNOWN.
+        Supporte les instances ActorRole ou les chaînes brutes insensibles à la casse.
+        """
         if not actor_role:
             return cls.UNKNOWN
-        if actor_role == ActorRole.PERSON:
-            return cls.PROSPECT
-        if actor_role == ActorRole.ORGANIZATION:
-            return cls.STAKEHOLDER
-        if actor_role == ActorRole.COLLECTIVE:
+        role_val = actor_role.value if isinstance(actor_role, ActorRole) else str(actor_role).strip().lower()
+        if role_val == ActorRole.PERSON.value:
+            return cls.UNKNOWN
+        if role_val == ActorRole.ORGANIZATION.value:
+            return cls.INSTITUTION
+        if role_val == ActorRole.COLLECTIVE.value:
             return cls.OBSERVER
         return cls.UNKNOWN
 
 
 class DecisionStatus(str, Enum):
-    """Statut d'adoption, de rejet ou d'engagement final d'un persona (Story 011-4, FR-07)."""
+    """Statut d'adoption, de rejet ou d'engagement final d'un persona (Story 011-4, FR-07, Story 012-2, FR-03)."""
 
-    ADOPTED = "ADOPTED"
-    REJECTED = "REJECTED"
-    HESITANT = "HESITANT"
-    UNDECIDED = "UNDECIDED"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
     PRESENT_NO_ACTION = "PRESENT_NO_ACTION"
+    NO_DECISION = "NO_DECISION"
+    INTERESTED = "INTERESTED"
+    DEMO_REQUESTED = "DEMO_REQUESTED"
+    HESITANT = "HESITANT"
+    REJECTED_EXPRESSED = "REJECTED_EXPRESSED"
+    ADOPTED_VERIFIED = "ADOPTED_VERIFIED"
     ABSENT_FROM_SIMULATION = "ABSENT_FROM_SIMULATION"
+    # Rétrocompatibilité alias historiques
+    ADOPTED = "ADOPTED_VERIFIED"
+    REJECTED = "REJECTED_EXPRESSED"
+    UNDECIDED = "NO_DECISION"
 
     @classmethod
     def from_str(cls, value: Optional[str]) -> "DecisionStatus":
-        """Convertit une chaîne en DecisionStatus."""
+        """Convertit une chaîne en DecisionStatus avec rétrocompatibilité transparente (Story 012-2, AC6)."""
         if not value or not isinstance(value, str):
-            return cls.UNDECIDED
+            return cls.NO_DECISION
         val = value.strip().upper()
+        if val in cls.__members__:
+            return cls[val]
+        # Correspondance exacte par valeur ou nom de membre
         for member in cls:
             if member.value == val or member.name == val:
                 return member
-        if any(k in val for k in ("ADOPT", "CONVERT", "VALIDE", "ACCORD")):
-            return cls.ADOPTED
-        if any(k in val for k in ("REJECT", "REFUS", "REJET", "ABANDON", "CONTRE")):
-            return cls.REJECTED
+        # Normalisation sans accent pour les synonymes
+        val_norm = unicodedata.normalize("NFKD", val).encode("ASCII", "ignore").decode("utf-8")
+        val = val_norm
+        # Synonymes & correspondances historiques
+        if any(k in val for k in ("NOT_APPLICABLE", "NON_APPLICABLE", "INAPPLICABLE", "N/A", "NA")):
+            return cls.NOT_APPLICABLE
+        if any(k in val for k in ("DEMO", "DEMONSTRATION", "CONTACT_COMMERCIAL", "DEVIS")):
+            return cls.DEMO_REQUESTED
+        if any(k in val for k in ("INTEREST", "INTERESSE", "CURIEUX", "EXPLORATION", "POSITIVE_INQUIRY")):
+            return cls.INTERESTED
+        if any(k in val for k in ("REJECTED_EXPRESSED", "REJECT", "REFUS", "REJET", "ABANDON", "CONTRE")):
+            return cls.REJECTED_EXPRESSED
+        if any(k in val for k in ("ADOPTED_VERIFIED", "ADOPT", "CONVERT", "VALIDE", "ACCORD", "SOUSCRIPTION")):
+            return cls.ADOPTED_VERIFIED
         if any(k in val for k in ("HESIT", "REPORT", "RESERVE", "ATTENTE")):
             return cls.HESITANT
         if any(k in val for k in ("SILENT", "NO_ACTION", "AUCUNE")):
             return cls.PRESENT_NO_ACTION
         if "ABSENT" in val:
             return cls.ABSENT_FROM_SIMULATION
-        return cls.UNDECIDED
+        if any(k in val for k in ("NO_DECISION", "UNDECIDED", "INDECIS", "NEUTRE")):
+            return cls.NO_DECISION
+        return cls.NO_DECISION
 
 
 @dataclass(frozen=True)
@@ -266,6 +315,7 @@ class CohortMemberStatus:
             if self.decision_status not in (
                 DecisionStatus.PRESENT_NO_ACTION,
                 DecisionStatus.ABSENT_FROM_SIMULATION,
+                DecisionStatus.NOT_APPLICABLE,
             ):
                 object.__setattr__(self, "decision_status", DecisionStatus.PRESENT_NO_ACTION)
         else:
@@ -324,9 +374,47 @@ class CohortCoverageTable:
     def status_summary(self) -> Dict[str, int]:
         summary: Dict[str, int] = {}
         for m in self.members:
-            key = m.decision_status.value.lower()
-            summary[key] = summary.get(key, 0) + 1
+            val_lower = m.decision_status.value.lower()
+            summary[val_lower] = summary.get(val_lower, 0) + 1
+            # Rétrocompatibilité alias historiques pour les consommateurs existants
+            if m.decision_status == DecisionStatus.REJECTED_EXPRESSED:
+                summary["rejected"] = summary.get("rejected", 0) + 1
+            elif m.decision_status == DecisionStatus.ADOPTED_VERIFIED:
+                summary["adopted"] = summary.get("adopted", 0) + 1
+            elif m.decision_status == DecisionStatus.NO_DECISION:
+                summary["undecided"] = summary.get("undecided", 0) + 1
         return summary
+
+    @property
+    def prospect_members(self) -> List[CohortMemberStatus]:
+        """Retourne uniquement les membres éligibles à l'adoption (exclut strictement NOT_APPLICABLE, fondateurs, institutions)."""
+        return [
+            m for m in self.members
+            if m.decision_status != DecisionStatus.NOT_APPLICABLE
+            and m.scenario_role not in (ScenarioRole.FOUNDER, ScenarioRole.TEAM_MEMBER, ScenarioRole.INSTITUTION)
+        ]
+
+    @property
+    def adopted_prospects(self) -> List[CohortMemberStatus]:
+        """Retourne les prospects ayant un statut d'adoption avéré."""
+        return [
+            m for m in self.prospect_members
+            if m.decision_status == DecisionStatus.ADOPTED_VERIFIED
+        ]
+
+    @property
+    def adoption_rate(self) -> float:
+        """Calcule le taux d'adoption de la cohorte assaini (Story 012-2, AC5).
+
+        Exclut strictement les membres non-clients (fondateurs, équipe interne, institutions, NOT_APPLICABLE)
+        du dénominateur afin de ne pas fausser le taux de conversion réel des prospects.
+        Retourne un ratio entre 0.0 et 1.0 (ou 0.0 si aucun prospect).
+        """
+        prospects = self.prospect_members
+        if not prospects:
+            return 0.0
+        adopted = sum(1 for m in prospects if m.decision_status == DecisionStatus.ADOPTED_VERIFIED)
+        return round(adopted / len(prospects), 4)
 
     @property
     def all_objections(self) -> List[Dict[str, Any]]:
@@ -359,6 +447,7 @@ class CohortCoverageTable:
             "active_members": self.active_members,
             "silent_members": self.silent_members,
             "status_summary": self.status_summary,
+            "adoption_rate": self.adoption_rate,
             "members": [m.to_dict() for m in self.members],
         }
 
@@ -391,14 +480,33 @@ class CohortCoverageTable:
             if m.is_silent:
                 obs_text = "0 action"
                 coverage_badge = "`present_no_action`"
-                decision_label = "No observation" if is_en else "Aucune observation"
+                if m.decision_status == DecisionStatus.NOT_APPLICABLE:
+                    decision_label = "Not applicable" if is_en else "Non applicable"
+                else:
+                    decision_label = "No observation" if is_en else "Aucune observation"
                 objections_text = "None" if is_en else "Aucune"
             else:
                 actions_label = "actions"
                 events_label = "events" if is_en else "événements"
                 obs_text = f"{m.action_count} {actions_label} ({len(m.observed_event_ids)} {events_label})"
                 coverage_badge = "`observed_active`"
-                decision_label = m.decision_status.value.replace("_", " ").title()
+                if m.decision_status == DecisionStatus.NOT_APPLICABLE:
+                    decision_label = "Not applicable" if is_en else "Non applicable"
+                elif m.decision_status == DecisionStatus.NO_DECISION:
+                    decision_label = "No decision" if is_en else "Sans décision"
+                elif m.decision_status == DecisionStatus.ADOPTED_VERIFIED:
+                    decision_label = "Adopted" if is_en else "Adopté"
+                elif m.decision_status == DecisionStatus.REJECTED_EXPRESSED:
+                    decision_label = "Rejected"
+                elif m.decision_status == DecisionStatus.DEMO_REQUESTED:
+                    decision_label = "Demo requested" if is_en else "Démo demandée"
+                elif m.decision_status == DecisionStatus.INTERESTED:
+                    decision_label = "Interested" if is_en else "Intéressé"
+                elif m.decision_status == DecisionStatus.HESITANT:
+                    decision_label = "Hesitant" if is_en else "Hésitant"
+                else:
+                    decision_label = m.decision_status.value.replace("_", " ").title()
+
                 if m.objections:
                     objections_text = "; ".join(m.objections)
                 else:
@@ -436,6 +544,34 @@ class CohortCoverageTable:
         )
         members_map: Dict[str, Dict[str, Any]] = {}
 
+        # 2.1 Extraction des rôles explicites issus du brief de simulation (Étape 1)
+        brief_roles: Dict[str, ScenarioRole] = {}
+        if brief:
+            # Recherche de fondateurs dans le texte du brief ou des consignes
+            founder_patterns = [
+                r"(?i:\b(?:fondateur|fondatrice|fondateurs|créateur|créatrice|founder|ceo|cofondateur|cofondatrice)\s*(?:est|sont|:|de)?\s*)([A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+)?)",
+                r"([A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+)?)\s*(?:\(|,)\s*(?i:(?:fondateur|fondatrice|founder|ceo|cofondateur|cofondatrice))",
+            ]
+            full_brief_text = " ".join([
+                brief.goal,
+                brief.initial_state,
+                brief.additional_context,
+                " ".join(brief.rules),
+                " ".join(brief.hypotheses),
+            ])
+            for pat in founder_patterns:
+                for match in re.finditer(pat, full_brief_text):
+                    c_name = match.group(1).strip()
+                    # Ne garder que des noms plausibles (pas des phrases entières)
+                    if 2 <= len(c_name) <= 30 and not any(k in c_name.lower() for k in ("le ", "la ", "les ", "un ", "une ")):
+                        brief_roles[normalize_agent_name(c_name)] = ScenarioRole.FOUNDER
+
+            # Target audiences -> PROSPECT par défaut si nommés explicitement
+            for aud in brief.target_audiences:
+                norm_aud = normalize_agent_name(aud)
+                if norm_aud and norm_aud not in brief_roles:
+                    brief_roles[norm_aud] = ScenarioRole.PROSPECT
+
         if actor_selection and actor_selection.actors:
             for item in actor_selection.actors:
                 # Filtrer strictement les entités inéligibles (Story 012-1, AC3)
@@ -446,31 +582,45 @@ class CohortCoverageTable:
                 name = item.entity_name.strip()
                 if not name:
                     continue
-                role = ScenarioRole.from_actor_role(item.qualified_role)
                 norm_key = normalize_agent_name(name)
+
+                # Résolution hiérarchique du rôle (Story 012-2, AC1) :
+                # 1. Brief explicite (fondateur, target audience)
+                # 2. Config d'agent OASIS (simulation_config.json)
+                # 3. Qualification d'acteurs (actor_selection)
+                # 4. Repli ScenarioRole.UNKNOWN (interdiction de forcer PROSPECT sans preuve)
+                if norm_key in brief_roles:
+                    role = brief_roles[norm_key]
+                elif norm_key in resolver.name_to_role:
+                    role = resolver.name_to_role[norm_key]
+                else:
+                    role = ScenarioRole.from_actor_role(item.qualified_role)
+
                 members_map[norm_key] = {
                     "persona_name": name,
                     "scenario_role": role,
                     "actions": [],
                     "objections": [],
                     "citations": [],
+                    "full_texts": [],
                 }
-                resolver.register_persona(None, name)
+                resolver.register_persona(None, name, role=role)
         elif brief and brief.target_audiences:
             for aud in brief.target_audiences:
                 name = aud.strip()
                 if not name:
                     continue
-                role = ScenarioRole.PROSPECT
                 norm_key = normalize_agent_name(name)
+                role = brief_roles.get(norm_key, ScenarioRole.PROSPECT)
                 members_map[norm_key] = {
                     "persona_name": name,
                     "scenario_role": role,
                     "actions": [],
                     "objections": [],
                     "citations": [],
+                    "full_texts": [],
                 }
-                resolver.register_persona(None, name)
+                resolver.register_persona(None, name, role=role)
 
         # 3. Association des événements réels issus de EvidencePack (sans matching par sous-chaîne)
         if evidence_pack and evidence_pack.events:
@@ -486,14 +636,17 @@ class CohortCoverageTable:
                 else:
                     # Persona présent dans les traces mais non pré-enregistré dans actor_selection
                     matched_key = norm_key
+                    # Rôle déduit de la config ou du brief, sinon UNKNOWN
+                    dyn_role = brief_roles.get(norm_key) or resolver.name_to_role.get(norm_key) or ScenarioRole.UNKNOWN
                     members_map[matched_key] = {
                         "persona_name": resolved_name,
-                        "scenario_role": ScenarioRole.UNKNOWN,
+                        "scenario_role": dyn_role,
                         "actions": [],
                         "objections": [],
                         "citations": [],
+                        "full_texts": [],
                     }
-                    resolver.register_persona(ev.agent_id if ev.agent_id is not None else None, resolved_name)
+                    resolver.register_persona(ev.agent_id if ev.agent_id is not None else None, resolved_name, role=dyn_role)
 
                 entry = members_map[matched_key]
                 # Garantie d'unicité de l'événement (AC5)
@@ -523,8 +676,19 @@ class CohortCoverageTable:
                     parts.extend(_extract_strings(ev.result))
                 text_content = " ".join(parts).strip()
 
+                if ev.action_args and isinstance(ev.action_args, dict):
+                    explicit_obj = ev.action_args.get("objection") or ev.action_args.get("objections")
+                    if explicit_obj:
+                        if isinstance(explicit_obj, list):
+                            for eo in explicit_obj:
+                                if str(eo).strip() and str(eo).strip() not in entry["objections"]:
+                                    entry["objections"].append(str(eo).strip())
+                        elif str(explicit_obj).strip() and str(explicit_obj).strip() not in entry["objections"]:
+                            entry["objections"].append(str(explicit_obj).strip())
+
                 if text_content:
                     entry["citations"].append(text_content[:160])
+                    entry.setdefault("full_texts", []).append(text_content)
                     # Détection d'objections par motifs lexicaux
                     lower_text = text_content.lower()
                     objection_markers = [
@@ -539,26 +703,60 @@ class CohortCoverageTable:
                             if extracted_obj not in entry["objections"]:
                                 entry["objections"].append(extracted_obj)
 
-        # 4. Construction des CohortMemberStatus
+        # 4. Construction des CohortMemberStatus avec qualification honnête (Story 012-2, AC2-AC4)
+        # Motifs probants d'adoption vérifiée (souscription formelle, achat, contrat signé, passage à l'acte)
+        ADOPTION_PROOF_PATTERNS = [
+            r"\b(?:souscri\w+|souscription|ach[eè]t\w+|achat|abonn\w+|abonnement|sign[ée]\w*\s+le\s+contrat|valid[ée]\w*\s+la\s+commande|pass(?:é|er?|e)\s+commande)\b",
+            r"\b(?:subscrib\w+|purchas\w+|bought|signed\s+the\s+contract|order\s+confirmed|placed\s+an?\s+order)\b",
+            r"\b(?:pass[ée]\s+au\s+plan|migr[ée]\s+sur|adopt[ée]\s+définitivement|converted\s+to\s+paid)\b",
+        ]
+        # Motifs de demande de démo ou contact commercial
+        DEMO_REQUEST_PATTERNS = [
+            r"\b(?:demand\w+\s+(?:une\s+|de\s+|d['\x27]une\s+)?d[eé]mo|souhait\w+\s+(?:une\s+)?d[eé]mo|prendre\s+rendez-vous|planifier\s+un\s+[eé]change|contact\s+commercial|devis)\b",
+            r"\b(?:demo\s+request|request(?:ed|ing)?\s+a\s+demo|schedule\s+a\s+call|sales\s+contact|quote\s+request)\b",
+        ]
+        # Motifs d'intérêt exploratoire
+        INTEREST_PATTERNS = [
+            r"\b(?:int[eé]ress\w+|tr[eè]s\s+prometteur|bonne\s+initiative|curieu[sx]\s+d['\x27]en\s+savoir\s+plus|[aà]\s+suivre|bravo)\b",
+            r"\b(?:interesting|promising|looks\s+great|curious\s+to\s+know\s+more|worth\s+watching)\b",
+        ]
+
         built_members: List[CohortMemberStatus] = []
         for key, entry in members_map.items():
             actions: List[ObservedEvent] = entry["actions"]
             action_count = len(actions)
             ev_ids = [a.event_id for a in actions if a.event_id]
+            role = entry["scenario_role"]
 
-            # Inférence de la décision finale basée sur les objections et actions
-            if action_count == 0:
+            # Règle AC2 : les fondateurs, membres internes et institutions sont NOT_APPLICABLE
+            if role in (ScenarioRole.FOUNDER, ScenarioRole.TEAM_MEMBER, ScenarioRole.INSTITUTION):
+                decision = DecisionStatus.NOT_APPLICABLE
+            elif action_count == 0:
                 decision = DecisionStatus.PRESENT_NO_ACTION
             elif any("refus" in o.lower() or "trop cher" in o.lower() or "rejection" in o.lower() or "refusal" in o.lower() for o in entry["objections"]):
-                decision = DecisionStatus.REJECTED
+                decision = DecisionStatus.REJECTED_EXPRESSED
             elif entry["objections"]:
                 decision = DecisionStatus.HESITANT
             else:
-                decision = DecisionStatus.ADOPTED
+                # Analyse probante des textes d'actions (Anti-Affabulation AC3, AC4)
+                full_text = " ".join(entry.get("full_texts") or entry["citations"]).lower()
+                is_adopted = any(re.search(pat, full_text) for pat in ADOPTION_PROOF_PATTERNS)
+                is_demo = any(re.search(pat, full_text) for pat in DEMO_REQUEST_PATTERNS)
+                is_interested = any(re.search(pat, full_text) for pat in INTEREST_PATTERNS)
+
+                if is_adopted:
+                    decision = DecisionStatus.ADOPTED_VERIFIED
+                elif is_demo:
+                    decision = DecisionStatus.DEMO_REQUESTED
+                elif is_interested:
+                    decision = DecisionStatus.INTERESTED
+                else:
+                    # Règle anti-affabulation absolue C3 : activité sans objection = NO_DECISION, JAMAIS ADOPTED
+                    decision = DecisionStatus.NO_DECISION
 
             status = CohortMemberStatus(
                 persona_name=entry["persona_name"],
-                scenario_role=entry["scenario_role"],
+                scenario_role=role,
                 action_count=action_count,
                 observed_event_ids=ev_ids,
                 objections=entry["objections"],

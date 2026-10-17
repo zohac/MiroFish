@@ -426,3 +426,10 @@ Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `ver
 Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) de la génération de personas, simulations et rapports en français (prompts LLM et banc de validation).
 
 - **`backend/scripts/run_parallel_simulation.py:1539` — Injection de consigne linguistique directe dans le moteur camel-oasis.** `set_locale(os.environ.get('MIROFISH_SIMULATION_LOCALE') or self.config.get('locale'))` initialise le thread-local dans les processus de simulation, mais `camel-oasis` est une bibliothèque externe sans interaction directe avec `locale.py` ; l'alignement linguistique des actions des agents repose sur les personas générés (`_add_agent_language_guidance`) et sera mesuré empiriquement lors du banc de qualification sous Docker (T7).
+
+## Deferred from: code review of story-012-2.md (2026-10-17)
+
+Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) des rôles de scénario et statuts de décision d'adoption déterministes.
+
+- **`backend/app/models/cohort_coverage.py:471-477` — Arbitrage de préséance entre ADOPTED_VERIFIED et objections antérieures en cas de conversion tardive.** Si un persona exprime une objection au Round 1 mais souscrit formellement au Round 5, la condition `elif any("refus"...):` priorise actuellement le statut de refus ou d'hésitation sur l'adoption. Maintenu en l'état pour préserver le principe anti-affabulation conservateur (fail-safe contre le sur-optimisme) de l'Epic 012.
+
