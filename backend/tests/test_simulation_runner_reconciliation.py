@@ -385,3 +385,81 @@ def test_is_pid_alive_windows_still_active_logic(monkeypatch):
     assert SimulationRunner._is_pid_alive(5555) is False
     assert kernel32_terminated.closed is True
 
+
+def test_simulation_run_state_to_dict_when_memory_active(monkeypatch):
+    """Vérifie l'exposition de graph_memory_active et is_report_ready=False pendant la simulation."""
+    from app.services.zep_graph_memory_updater import ZepGraphMemoryManager
+
+    sim_id = "sim-mem-active"
+    state = SimulationRunState(
+        simulation_id=sim_id,
+        runner_status=RunnerStatus.RUNNING,
+        current_round=10,
+        total_rounds=40,
+        twitter_running=True,
+        reddit_running=True,
+    )
+
+    class MockUpdater:
+        def get_stats(self):
+            return {"items_sent": 42, "queue_size": 5, "running": True}
+
+    monkeypatch.setattr(ZepGraphMemoryManager, "get_updater", classmethod(lambda cls, sid: MockUpdater() if sid == sim_id else None))
+
+    data = state.to_dict()
+    assert data["graph_memory_active"] is True
+    assert data["graph_memory_draining"] is False
+    assert data["graph_memory_stats"]["items_sent"] == 42
+    assert data["graph_memory_stats"]["queue_size"] == 5
+    assert data["is_report_ready"] is False
+
+
+def test_simulation_run_state_to_dict_when_memory_draining(monkeypatch):
+    """Vérifie la détection de la phase graph_memory_draining quand les plateformes ont fini."""
+    from app.services.zep_graph_memory_updater import ZepGraphMemoryManager
+
+    sim_id = "sim-mem-draining"
+    state = SimulationRunState(
+        simulation_id=sim_id,
+        runner_status=RunnerStatus.RUNNING,
+        current_round=40,
+        total_rounds=40,
+        twitter_completed=True,
+        reddit_completed=True,
+    )
+
+    class MockUpdater:
+        def get_stats(self):
+            return {"items_sent": 100, "queue_size": 8, "running": True}
+
+    monkeypatch.setattr(ZepGraphMemoryManager, "get_updater", classmethod(lambda cls, sid: MockUpdater() if sid == sim_id else None))
+
+    data = state.to_dict()
+    assert data["graph_memory_active"] is True
+    assert data["graph_memory_draining"] is True
+    assert data["is_report_ready"] is False
+
+
+def test_simulation_run_state_to_dict_when_completed_and_memory_drained(monkeypatch):
+    """Vérifie is_report_ready=True uniquement quand runner_status est terminal et mémoire vidée."""
+    from app.services.zep_graph_memory_updater import ZepGraphMemoryManager
+
+    sim_id = "sim-mem-completed"
+    state = SimulationRunState(
+        simulation_id=sim_id,
+        runner_status=RunnerStatus.COMPLETED,
+        current_round=40,
+        total_rounds=40,
+        twitter_completed=True,
+        reddit_completed=True,
+    )
+
+    monkeypatch.setattr(ZepGraphMemoryManager, "get_updater", classmethod(lambda cls, sid: None))
+
+    data = state.to_dict()
+    assert data["graph_memory_active"] is False
+    assert data["graph_memory_draining"] is False
+    assert data["graph_memory_stats"] is None
+    assert data["is_report_ready"] is True
+
+

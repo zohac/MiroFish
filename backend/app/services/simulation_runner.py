@@ -168,6 +168,23 @@ class SimulationRunState:
         self.updated_at = datetime.now().isoformat()
     
     def to_dict(self) -> Dict[str, Any]:
+        # Données de synchronisation de la mémoire du graphe
+        from .zep_graph_memory_updater import ZepGraphMemoryManager
+        updater = ZepGraphMemoryManager.get_updater(self.simulation_id)
+        graph_memory_active = updater is not None
+        graph_memory_stats = updater.get_stats() if updater is not None else None
+
+        platforms_done = (self.twitter_completed and self.reddit_completed) or (
+            self.total_rounds > 0 and self.current_round >= self.total_rounds
+        )
+        graph_memory_draining = bool(
+            graph_memory_active and (platforms_done or self.runner_status == RunnerStatus.STOPPING)
+        )
+        is_report_ready = bool(
+            self.runner_status in (RunnerStatus.COMPLETED, RunnerStatus.STOPPED)
+            and not graph_memory_active
+        )
+
         return {
             "simulation_id": self.simulation_id,
             "runner_status": self.runner_status.value,
@@ -194,6 +211,11 @@ class SimulationRunState:
             "error": self.error,
             "process_pid": self.process_pid,
             "keep_alive_on_completion": self.keep_alive_on_completion,
+            # Synchronisation mémoire du graphe
+            "graph_memory_active": graph_memory_active,
+            "graph_memory_draining": graph_memory_draining,
+            "graph_memory_stats": graph_memory_stats,
+            "is_report_ready": is_report_ready,
         }
     
     def to_detail_dict(self) -> Dict[str, Any]:

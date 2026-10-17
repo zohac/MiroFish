@@ -88,17 +88,71 @@
             </div>
           </div>
         </div>
+
+        <!-- Mémoire du Graphe (Graph Memory) -->
+        <div 
+          class="platform-status memory" 
+          :class="{ 
+            active: isMemoryActive && !isMemorySynced, 
+            draining: isMemoryDraining, 
+            completed: isMemorySynced 
+          }"
+        >
+          <div class="platform-header">
+            <svg class="platform-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            <span class="platform-name">{{ $t('step3.graphMemory') }}</span>
+            <span v-if="isMemorySynced" class="status-badge" :title="$t('step3.memorySynced')">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+            <span v-else-if="isMemoryDraining" class="loading-spinner-micro" :title="$t('step3.memoryDraining')"></span>
+          </div>
+          <div class="platform-stats">
+            <span class="stat">
+              <span class="stat-label">{{ $t('step3.status') }}</span>
+              <span class="stat-value mono" :class="{ 'text-pulse': isMemoryDraining }">
+                {{ memoryStatusLabel }}
+              </span>
+            </span>
+            <span class="stat" v-if="memoryIngestedCount > 0 || isMemoryActive">
+              <span class="stat-label">{{ $t('step3.syncedActs') }}</span>
+              <span class="stat-value mono">{{ memoryIngestedCount }}</span>
+            </span>
+            <span class="stat" v-if="memoryQueueSize > 0">
+              <span class="stat-label">{{ $t('step3.queue') }}</span>
+              <span class="stat-value mono">{{ memoryQueueSize }}</span>
+            </span>
+          </div>
+          <!-- Info Tooltip -->
+          <div class="actions-tooltip">
+            <div class="tooltip-title">{{ $t('step3.graphMemoryTooltipTitle') }}</div>
+            <div class="tooltip-desc">{{ $t('step3.graphMemoryTooltipDesc') }}</div>
+          </div>
+        </div>
       </div>
 
       <div class="action-controls">
         <button 
           class="action-btn primary"
-          :disabled="phase !== 2 || isGeneratingReport"
+          :disabled="!isReportReady || isGeneratingReport"
           @click="handleNextStep"
         >
-          <span v-if="isGeneratingReport" class="loading-spinner-small"></span>
-          {{ isGeneratingReport ? $t('step3.generatingReportBtn') : $t('step3.startGenerateReportBtn') }}
-          <span v-if="!isGeneratingReport" class="arrow-icon">→</span>
+          <span v-if="isGeneratingReport || isMemoryDraining" class="loading-spinner-small"></span>
+          {{ 
+            isGeneratingReport 
+              ? $t('step3.generatingReportBtn') 
+              : (isMemoryDraining 
+                  ? $t('step3.finalizingMemoryBtn') 
+                  : $t('step3.startGenerateReportBtn'))
+          }}
+          <span v-if="!isGeneratingReport && !isMemoryDraining" class="arrow-icon">→</span>
         </button>
       </div>
     </div>
@@ -363,6 +417,48 @@ const redditElapsedTime = computed(() => {
   return formatElapsedTime(runStatus.value.reddit_current_round || 0)
 })
 
+// Mémoire du graphe et réactivité
+const hasLoggedDraining = ref(false)
+const hasLoggedReady = ref(false)
+
+const isMemoryActive = computed(() => Boolean(runStatus.value?.graph_memory_active))
+
+const isMemorySynced = computed(() => {
+  const terminal = runStatus.value?.runner_status === 'completed' || runStatus.value?.runner_status === 'stopped'
+  return terminal && !runStatus.value?.graph_memory_active
+})
+
+const isMemoryDraining = computed(() => {
+  if (isMemorySynced.value) return false
+  if (runStatus.value?.graph_memory_draining) return true
+  const platformsDone = (runStatus.value?.twitter_completed && runStatus.value?.reddit_completed) ||
+    (runStatus.value?.total_rounds > 0 && runStatus.value?.current_round >= runStatus.value?.total_rounds)
+  return Boolean(runStatus.value?.graph_memory_active && (platformsDone || runStatus.value?.runner_status === 'stopping'))
+})
+
+const memoryStatusLabel = computed(() => {
+  if (isMemorySynced.value) return t('step3.synced')
+  if (isMemoryDraining.value) return t('step3.finalizing')
+  if (isMemoryActive.value) return t('step3.syncing')
+  return t('step3.idle')
+})
+
+const memoryIngestedCount = computed(() => {
+  return runStatus.value?.graph_memory_stats?.items_sent || 0
+})
+
+const memoryQueueSize = computed(() => {
+  return runStatus.value?.graph_memory_stats?.queue_size || 0
+})
+
+const isReportReady = computed(() => {
+  if (runStatus.value?.is_report_ready !== undefined) {
+    return Boolean(runStatus.value.is_report_ready)
+  }
+  const terminal = runStatus.value?.runner_status === 'completed' || runStatus.value?.runner_status === 'stopped'
+  return terminal && !runStatus.value?.graph_memory_active
+})
+
 // Methods
 const addLog = (msg) => {
   emit('add-log', msg)
@@ -376,6 +472,8 @@ const resetAllState = () => {
   actionIds.value = new Set()
   prevTwitterRound.value = 0
   prevRedditRound.value = 0
+  hasLoggedDraining.value = false
+  hasLoggedReady.value = false
   startError.value = null
   isStarting.value = false
   isStopping.value = false
@@ -514,30 +612,35 @@ const fetchRunStatus = async () => {
         prevRedditRound.value = data.reddit_current_round
       }
       
-      // 检测模拟是否已完成（通过 runner_status 或 complétion par les faits : FR-2, C2, T3）
+      // 检测各阶段完成状态（plateformes, barrière mémoire, statut terminal）
       const factsCompleted = (data.progress_percent >= 100 || (data.current_round >= data.total_rounds && data.total_rounds > 0)) && checkPlatformsCompleted(data)
       const terminalStatus = data.runner_status === 'completed' || data.runner_status === 'stopped'
-      const isCompleted = terminalStatus || factsCompleted
       const isFailed = data.runner_status === 'failed'
-      
-      // runner_status is authoritative, mais la complétion par les faits débloque immédiatement
-      // l'accès au rapport dès que l'ensemble des plateformes actives ont terminé leurs rounds.
+      const isReportReadyNow = (data.is_report_ready !== undefined)
+        ? Boolean(data.is_report_ready)
+        : (terminalStatus && !data.graph_memory_active)
+      const isDrainingNow = Boolean(data.graph_memory_draining || (factsCompleted && data.graph_memory_active))
+
       if (isFailed) {
         addLog(t('log.simFailed') + (data.error ? `: ${data.error}` : ''))
         phase.value = 2
         stopPolling()
         emit('update-status', 'error')
-      } else if (isCompleted) {
-        if (phase.value !== 2) {
-          addLog(t('log.simCompleted'))
+      } else if (isReportReadyNow) {
+        if (!hasLoggedReady.value) {
+          addLog(t('log.simGraphMemorySyncedReady'))
+          hasLoggedReady.value = true
         }
         phase.value = 2
-        // Ne couper le polling que si le runner_status backend est terminal pour éviter
-        // d'interrompre le suivi si la barrière de flush mémoire (STOPPING) est encore en cours (Review Patch 4).
-        if (terminalStatus) {
-          stopPolling()
-        }
+        stopPolling()
         emit('update-status', 'completed')
+      } else if (factsCompleted || isDrainingNow) {
+        if (!hasLoggedDraining.value) {
+          addLog(t('log.simRoundsCompletedDrainingMemory', { rounds: data.current_round, total: data.total_rounds }))
+          hasLoggedDraining.value = true
+        }
+        phase.value = 2
+        // Maintenir impérativement le polling actif pour attendre la fin de l'ingestion mémoire
       }
     }
   } catch (err) {
@@ -669,18 +772,23 @@ const handleNextStep = async () => {
       router.push({ name: 'Report', params: { reportId } })
     } else {
       const errorMsg = res.error || t('common.unknownError')
-      if (errorMsg.includes('still active') || errorMsg.includes('ingestion is still active')) {
-        addLog(t('log.reportGenFailed', { error: 'Finalisation de la simulation en cours (vidange mémoire). Veuillez patienter quelques secondes...' }))
-        if (!statusTimer) {
-          startStatusPolling()
-        }
-      } else {
-        addLog(t('log.reportGenFailed', { error: errorMsg }))
-      }
+      addLog(t('log.reportGenFailed', { error: errorMsg }))
       isGeneratingReport.value = false
     }
   } catch (err) {
-    addLog(t('log.reportGenException', { error: err.message }))
+    const errData = err.response?.data
+    const isPending = err.response?.status === 409 || (
+      err.message?.includes('still active') ||
+      err.message?.includes('ingestion is still active')
+    )
+    if (isPending) {
+      addLog(t('log.reportGenWaitingMemory'))
+      if (!statusTimer) {
+        startStatusPolling()
+      }
+    } else {
+      addLog(t('log.reportGenException', { error: err.message }))
+    }
     isGeneratingReport.value = false
   }
 }
@@ -1271,5 +1379,44 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-right: 6px;
+}
+
+/* Micro spinner for cards */
+.loading-spinner-micro {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border-top-color: #E29578;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: auto;
+}
+
+/* Memory Status Card */
+.platform-status.memory .platform-icon {
+  color: #000;
+}
+
+.platform-status.memory.draining {
+  opacity: 1;
+  border-color: #E29578;
+  background: #FFF9F5;
+}
+
+.text-pulse {
+  animation: pulse-text 1.5s ease-in-out infinite;
+  color: #D97706;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.tooltip-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #CCC;
 }
 </style>
