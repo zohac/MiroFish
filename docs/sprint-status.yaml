@@ -830,5 +830,30 @@ epics:
     # Story 011-4 (DONE) : tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire, check_executive_summary_bias), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). Invariant absolu des personas silencieux (present_no_action, is_silent = True). Persistance atomique cohort_coverage.json et rendu Markdown bilingue FR/EN. Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués. 23 tests hermétiques dédiés (test_cohort_coverage_time.py). Filet global porté à 1719 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (4/6 stories done).
     # Story 011-6 (DONE) : banc de qualification de bout en bout multi-domaines (backend/scripts/verifier_qualification_epic_011.py) validant 100 % des critères C1 à C11 sur 3 corpus distincts (SaaS Keova, Politique Publique, Télécom), rapport formel de qualification rapport-qualification-epic-011.md avec VERDICT GO, suite hermétique dédiée (test_verifier_qualification_epic_011.py, 15 tests). Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. Filet global porté à 1 755 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 intégralement clos avec succès (6/6 stories done).
 
+  - id: "012"
+    slug: fiabilite-preuves-et-publication
+    titre: "Fiabilité des acteurs, intégrité des preuves et publication stricte"
+    statut: in-progress
+    plan: docs/plans/012-fiabilite-preuves-et-publication
+    depend_de: ["005", "007", "008", "009", "010", "011"]
+    pourquoi: >-
+      Éliminer les collisions d'identités (Agent_1 absorbé par Agent_16), filtrer et dédoublonner
+      la cohorte cible (exclure entités inéligibles et alias techniques dupliqués), qualifier
+      honnêtement les décisions et rôles (zéro adoption fictive sans action probante), réconcilier
+      de façon robuste les affirmations avec l'EvidencePack (supprimer les 0 VERIFIED), et durcir
+      la barrière de publication en mode fail-closed avec statuts explicites (draft, needs_review,
+      verified_publishable, failed_validation).
+    criteres_de_sortie:
+      - "C1 : Zéro collision d'identités (Agent_1 vs Agent_16 strictement disjoints)"
+      - "C2 : Cohorte d'intérêt filtrée (eligible == True) et dédoublonnée (0 alias Agent_X dupliqué avec persona nommé)"
+      - "C3 : Rôles fidèles (fondateur non prospect) et statuts d'adoption étayés (0 ADOPTED par simple absence d'objection)"
+      - "C4 : Réconciliation déterministe des claims avec l'EvidencePack (taux >= 80% sur actions observées nominales)"
+      - "C5 : Barrière de publication fail-closed (0 publication certifiée avec 0 claim vérifié)"
+      - "C6 : Prévalence absolue du type épistémique des sources sur les rôles génériques"
+      - "C7 : Détection et invalidation propre sur fixture de non-régression du run réel R6"
+      - "C8 : 1 761 tests existants au vert + nouvelle suite hermétique dédiée (>= 1 785 tests au vert sur l'hôte)"
+    # Story 012-1 (DONE) : résolution stricte des identités d'acteurs et couverture de cohorte sans collision (AgentIdentityResolver, normalisation canonique Unicode NFKD stricte == sans inclusion par sous-chaîne, 23 événements d'Agent_1 et 18 d'Agent_16 strictement disjoints, filtrage des entités inéligibles Stripe/CPAM, dédoublonnage des alias techniques Agent_X en faveur des personas nommés et attribution univoque d'event_id). 11 tests hermétiques dédiés (test_cohort_identity_resolution.py). Revue contradictoire BMAD 4 couches validée avec 4 patches appliqués (sécurisation falsy 0, conversion int défensive, garde simulation_id vide, initialisation complète alias/noms). Filet global porté à 1 771 tests passants sur l'hôte (+ 9 tests Node frontend). Epic 012 in-progress (1/6 stories done).
+
+
 
 

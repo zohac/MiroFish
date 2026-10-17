@@ -1,0 +1,145 @@
+{
+  "status": "FAIL",
+  "metrics": {
+    "run_id": "sim_ea4f3cfe1028",
+    "event_rows": 786,
+    "unique_event_ids": 786,
+    "actors_total": 44,
+    "eligible_actors": 20,
+    "cohort_members": 63,
+    "cohort_total_action_references": 786,
+    "claims_total": 258,
+    "claims_verified": 0,
+    "claims_unsupported": 241,
+    "claims_contradicted": 17,
+    "bundle_publishable": true,
+    "diagnostics_errors": 5,
+    "diagnostics_warnings": 5
+  },
+  "findings": [
+    {
+      "code": "COVERAGE_ALIAS_COLLISION",
+      "severity": "ERROR",
+      "message": "Événements attribués à un autre identifiant d'agent",
+      "details": {
+        "count": 23,
+        "sample": [
+          {
+            "member": "Agent_16",
+            "event_id": "evt_twitter_0_1_fac32d0f8107addc",
+            "actual_agent_id": 1
+          },
+          {
+            "member": "Agent_16",
+            "event_id": "evt_twitter_0_1_2b0c6630470200f7",
+            "actual_agent_id": 1
+          },
+          {
+            "member": "Agent_16",
+            "event_id": "evt_reddit_0_1_774b32799be4dc05",
+            "actual_agent_id": 1
+          },
+          {
+            "member": "Agent_16",
+            "event_id": "evt_reddit_0_1_b35c478a0d41e7ce",
+            "actual_agent_id": 1
+          },
+          {
+            "member": "Agent_16",
+            "event_id": "evt_reddit_0_1_752de6c49b5f5796",
+            "actual_agent_id": 1
+          }
+        ]
+      }
+    },
+    {
+      "code": "DUPLICATE_COHORT_VIEW",
+      "severity": "WARN",
+      "message": "Cohorte contient des agents génériques en plus des profils nommés : risque de double comptage",
+      "details": {
+        "aliases": 19,
+        "aggregate_actions": 558
+      }
+    },
+    {
+      "code": "SCENARIO_ROLE_INVALID",
+      "severity": "ERROR",
+      "message": "Fondateur/pilote de ce scénario étiqueté prospect",
+      "details": {
+        "names": [
+          "Simon",
+          "Sophie Jouan"
+        ]
+      }
+    },
+    {
+      "code": "ADOPTION_NONPROSPECT",
+      "severity": "ERROR",
+      "message": "Un statut ADOPTED est attribué à des rôles non prospects",
+      "details": {
+        "names": [
+          "Agent_17",
+          "Agent_18",
+          "Agent_9",
+          "Assurance Maladie",
+          "CPAM",
+          "Stripe",
+          "WhatsApp"
+        ]
+      }
+    },
+    {
+      "code": "ZERO_VERIFIED_CLAIMS",
+      "severity": "ERROR",
+      "message": "Aucune affirmation du rapport n'a été vérifiée",
+      "details": {
+        "claims_total": 258
+      }
+    },
+    {
+      "code": "FAIL_OPEN_PUBLICATION",
+      "severity": "ERROR",
+      "message": "Rapport déclaré publiable malgré une couverture de preuve non vérifiée",
+      "details": {
+        "verification_ratio": 0.0
+      }
+    },
+    {
+      "code": "SOURCE_ROLE_CONFLICT",
+      "severity": "WARN",
+      "message": "Documents de personas typés facts dans le contrat source",
+      "details": {
+        "files": [
+          "personas-et-cibles-keova.md"
+        ]
+      }
+    },
+    {
+      "code": "SOURCE_CHUNK_METADATA_EMPTY",
+      "severity": "WARN",
+      "message": "Métadonnées de fragments à zéro ; vérifier si c'est inconnu ou réellement absent",
+      "details": {
+        "files": [
+          "01-identite-et-vision.md",
+          "02-utilisateurs-et-offre.md",
+          "personas-et-cibles-keova.md"
+        ]
+      }
+    },
+    {
+      "code": "BRIEF_HORIZON_UNSTRUCTURED",
+      "severity": "WARN",
+      "message": "Horizon exprimé dans le texte mais champ time_horizon vide",
+      "details": {}
+    },
+    {
+      "code": "INCOMPLETE_RUN_MANIFEST",
+      "severity": "WARN",
+      "message": "Manifest incomplet pour le rejeu",
+      "details": {
+        "git_commit": "unknown-git-commit",
+        "completed_at": null
+      }
+    }
+  ]
+}

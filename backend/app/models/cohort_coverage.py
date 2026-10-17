@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Set
@@ -20,6 +21,144 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 from .actor_selection import ActorItem, ActorRole, ActorSelection
 from .evidence_pack import EvidencePack, ObservedEvent
 from .simulation_brief import SimulationBrief
+
+
+AGENT_ALIAS_RE = re.compile(r"^agent_(\d+)$", re.IGNORECASE)
+
+
+def normalize_agent_name(name: str) -> str:
+    """Normalisation canonique stricte pour la comparaison nominative d'acteurs.
+
+    Supprime les espaces surnuméraires, décompose l'Unicode (NFKD) et
+    passe en minuscules sans diacritiques pour une égalité insensible
+    aux accents et à la casse, mais stricte en termes de tokens complets (0 sous-chaîne).
+    """
+    if not name or not isinstance(name, str):
+        return ""
+    nfkd = unicodedata.normalize("NFKD", name.strip())
+    without_accents = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(without_accents.lower().split())
+
+
+class AgentIdentityResolver:
+    """Résolveur déterministe d'identités d'agents pour l'attribution d'événements (Story 012-1, AC1-AC5).
+
+    Élimine 100 % des collisions par sous-chaîne (ex: Agent_1 vs Agent_16)
+    et unifie les alias techniques OASIS vers leurs personas nommés réels.
+    """
+
+    def __init__(
+        self,
+        simulation_id: str,
+        actor_selection: Optional[ActorSelection] = None,
+        agent_id_map: Optional[Dict[Any, str]] = None,
+    ):
+        self.simulation_id = simulation_id
+        # agent_id int -> canonical persona name
+        self.id_to_name: Dict[int, str] = {}
+        # alias canonical ("agent_1") -> canonical persona name
+        self.alias_to_name: Dict[str, str] = {}
+        # normalized name -> canonical persona name
+        self.name_to_canonical: Dict[str, str] = {}
+
+        # 0. Initialiser depuis agent_id_map s'il est fourni (conversion int tolérante)
+        if agent_id_map:
+            for aid_raw, pname in agent_id_map.items():
+                aid_int: Optional[int] = None
+                if aid_raw is not None:
+                    try:
+                        aid_int = int(aid_raw)
+                    except (ValueError, TypeError):
+                        aid_int = None
+                self.register_persona(aid_int, pname)
+
+        # 1. Tenter de charger simulation_config.json s'il existe
+        self._load_from_simulation_config()
+
+        # 2. Enregistrer les acteurs issus de actor_selection
+        if actor_selection and actor_selection.actors:
+            for item in actor_selection.actors:
+                raw_status = getattr(item, "eligibility_status", None)
+                status_str = raw_status.value if hasattr(raw_status, "value") else str(raw_status or "")
+                if status_str.lower() == "ineligible":
+                    continue
+                name = item.entity_name.strip()
+                if not name:
+                    continue
+                norm = normalize_agent_name(name)
+                self.name_to_canonical[norm] = name
+
+    def _load_from_simulation_config(self) -> None:
+        """Tente de charger simulation_config.json pour lier agent_id -> entity_name."""
+        if not self.simulation_id:
+            return
+        try:
+            from ..config import Config
+            sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+            cfg_path = os.path.join(sim_dir, "simulation_config.json")
+            if os.path.isfile(cfg_path):
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg_data = json.load(f)
+                agent_configs = cfg_data.get("agent_configs") or []
+                for ac in agent_configs:
+                    aid = ac.get("agent_id")
+                    ename = (ac.get("entity_name") or "").strip()
+                    if aid is not None and ename:
+                        try:
+                            aid_int = int(aid)
+                        except (ValueError, TypeError):
+                            continue
+                        self.register_persona(aid_int, ename)
+        except Exception:
+            pass
+
+    def register_persona(self, agent_id: Optional[int], persona_name: str) -> None:
+        """Enregistre un persona nommé et son identifiant technique optionnel."""
+        pname = persona_name.strip()
+        if not pname:
+            return
+        norm = normalize_agent_name(pname)
+        self.name_to_canonical[norm] = pname
+        if agent_id is not None:
+            self.id_to_name[agent_id] = pname
+            self.alias_to_name[f"agent_{agent_id}"] = pname
+
+    def resolve_event_actor(self, ev: ObservedEvent) -> str:
+        """Résout le persona canonique pour un événement donné.
+
+        Priorité stricte :
+        1. ev.agent_id s'il est mappé à un persona nommé dans id_to_name
+        2. ev.agent_name si c'est un alias technique Agent_X et X est dans id_to_name
+        3. ev.agent_name normalisé égal strictement (==) à un persona enregistré
+        4. Si ev.agent_name est de la forme Agent_X (numérique), on renvoie f"Agent_{X}" canonique
+        5. Sinon, le nom d'agent nettoyé tel quel.
+
+        Garantie : aucune correspondance par sous-chaîne (in).
+        """
+        # 1. Résolution par agent_id entier OASIS
+        if ev.agent_id is not None and ev.agent_id in self.id_to_name:
+            return self.id_to_name[ev.agent_id]
+
+        ev_name = (ev.agent_name or "").strip()
+
+        # 2. Vérifier si ev_name est un alias technique Agent_X
+        match = AGENT_ALIAS_RE.match(ev_name)
+        if match:
+            aid = int(match.group(1))
+            if aid in self.id_to_name:
+                return self.id_to_name[aid]
+            # Si pas de persona nommé associé, l'acteur canonique est Agent_{aid} strict
+            return f"Agent_{aid}"
+
+        # 3. Correspondance nominative stricte par égalité normalisée (==)
+        norm_ev = normalize_agent_name(ev_name)
+        if norm_ev in self.name_to_canonical:
+            return self.name_to_canonical[norm_ev]
+
+        # 4. Fallback vers le nom d'origine ou l'identifiant numérique
+        if ev_name:
+            return ev_name
+        return f"Agent_{ev.agent_id}"
 
 
 class ScenarioRole(str, Enum):
@@ -204,10 +343,10 @@ class CohortCoverageTable:
         return objs
 
     def get_member(self, persona_name: str) -> Optional[CohortMemberStatus]:
-        """Recherche un persona par son nom (insensible à la casse)."""
-        target = persona_name.strip().lower()
+        """Recherche un persona par son nom (normalisation stricte sans sous-chaîne)."""
+        target = normalize_agent_name(persona_name)
         for m in self.members:
-            if m.persona_name.strip().lower() == target:
+            if normalize_agent_name(m.persona_name) == target:
                 return m
         return None
 
@@ -281,7 +420,7 @@ class CohortCoverageTable:
         brief: Optional[SimulationBrief] = None,
         total_rounds: int = 40,
     ) -> CohortCoverageTable:
-        """Agrège déterministement la cohorte depuis les acteurs et les faits observés."""
+        """Agrège déterministement la cohorte depuis les acteurs et les faits observés (Story 012-1, AC1-AC5)."""
         # 1. Résolution de l'horizon (garantit un repli par défaut de 72.0h)
         from ..services.time_horizon_guard import TimeHorizonGuard
 
@@ -290,65 +429,76 @@ class CohortCoverageTable:
             default_hours=72.0,
         )
 
-        # 2. Recensement des membres requis
+        # 2. Initialisation du résolveur d'identités et recensement des membres requis
+        resolver = AgentIdentityResolver(
+            simulation_id=simulation_id,
+            actor_selection=actor_selection,
+        )
         members_map: Dict[str, Dict[str, Any]] = {}
 
         if actor_selection and actor_selection.actors:
             for item in actor_selection.actors:
+                # Filtrer strictement les entités inéligibles (Story 012-1, AC3)
+                raw_status = getattr(item, "eligibility_status", None)
+                status_str = raw_status.value if hasattr(raw_status, "value") else str(raw_status or "")
+                if status_str.lower() == "ineligible":
+                    continue
                 name = item.entity_name.strip()
                 if not name:
                     continue
                 role = ScenarioRole.from_actor_role(item.qualified_role)
-                members_map[name.lower()] = {
+                norm_key = normalize_agent_name(name)
+                members_map[norm_key] = {
                     "persona_name": name,
                     "scenario_role": role,
                     "actions": [],
                     "objections": [],
                     "citations": [],
                 }
+                resolver.register_persona(None, name)
         elif brief and brief.target_audiences:
             for aud in brief.target_audiences:
                 name = aud.strip()
                 if not name:
                     continue
-                members_map[name.lower()] = {
+                role = ScenarioRole.PROSPECT
+                norm_key = normalize_agent_name(name)
+                members_map[norm_key] = {
                     "persona_name": name,
-                    "scenario_role": ScenarioRole.PROSPECT,
+                    "scenario_role": role,
                     "actions": [],
                     "objections": [],
                     "citations": [],
                 }
+                resolver.register_persona(None, name)
 
-        # 3. Association des événements réels issus de EvidencePack
+        # 3. Association des événements réels issus de EvidencePack (sans matching par sous-chaîne)
         if evidence_pack and evidence_pack.events:
             for ev in evidence_pack.events:
-                ev_agent = ev.agent_name.strip()
-                if not ev_agent:
+                # Résolution stricte et déterministe (AC1, AC2, AC4)
+                resolved_name = resolver.resolve_event_actor(ev)
+                if not resolved_name or not resolved_name.strip():
                     continue
 
-                # Trouver la correspondance (passe exacte prioritaire puis partielle)
-                ev_agent_lower = ev_agent.lower()
-                matched_key = None
-                if ev_agent_lower in members_map:
-                    matched_key = ev_agent_lower
+                norm_key = normalize_agent_name(resolved_name)
+                if norm_key in members_map:
+                    matched_key = norm_key
                 else:
-                    for key in members_map:
-                        if key in ev_agent_lower or ev_agent_lower in key:
-                            matched_key = key
-                            break
-
-                if not matched_key:
-                    # Persona présent dans les traces mais non répertorié dans actor_selection
-                    matched_key = ev_agent_lower
+                    # Persona présent dans les traces mais non pré-enregistré dans actor_selection
+                    matched_key = norm_key
                     members_map[matched_key] = {
-                        "persona_name": ev_agent,
+                        "persona_name": resolved_name,
                         "scenario_role": ScenarioRole.UNKNOWN,
                         "actions": [],
                         "objections": [],
                         "citations": [],
                     }
+                    resolver.register_persona(ev.agent_id if ev.agent_id is not None else None, resolved_name)
 
                 entry = members_map[matched_key]
+                # Garantie d'unicité de l'événement (AC5)
+                if ev.event_id and any(a.event_id == ev.event_id for a in entry["actions"]):
+                    continue
                 entry["actions"].append(ev)
 
                 # Extraction d'arguments textuels récursive pour détecter les objections et citations
