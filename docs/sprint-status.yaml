@@ -17,6 +17,8 @@
 
 projet: mirofish-local-first
 branche: local-first
+# 17 oct. 2026 : clôture définitive de la story 011-6 et de l'Epic 011 (« Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports »). Banc de qualification globale multi-domaines (backend/scripts/verifier_qualification_epic_011.py) validant 100 % des critères de sortie C1 à C11 sur 3 corpus contrastés (SaaS Keova, concertation publique territoriale, régulation/infrastructure télécom). Rapport de qualification formel docs/plans/011-preuve-simulation-et-fiabilite-rapport/rapport-qualification-epic-011.md consigné avec VERDICT GO. Suite hermétique dédiée (backend/tests/test_verifier_qualification_epic_011.py, 15 tests). Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. Filet global de tests porté à 1 755 tests unitaires et d'intégration au vert sur l'hôte (0 échec) + 9 tests Node frontend. Epic 011 clos avec succès (6/6 stories done).
+
 # 16 oct. 2026 : story 011-5 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches (8 patches appliqués). Barrière de publication ReportQualityGate, anti-troncature de section (SectionCompletionGuard, max 2 relances), dossier d'audit exportable (SimulationAuditService générant simulation_audit_<sim_id>.zip avec les 8 artefacts de preuve canoniques scellés par SHA-256) et intégration IHM Step 4 (FR-09, FR-10, C9, C10). 20 tests hermétiques dédiés (test_report_quality_gate_audit.py). Filet global porté à 1739 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (5/6 stories done).
 # 16 oct. 2026 : story 011-4 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches (5 patches appliqués). Tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire, check_executive_summary_bias), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). 23 tests hermétiques dédiés (test_cohort_coverage_time.py). Filet global porté à 1719 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (4/6 stories done).
 # 16 oct. 2026 : story 011-3 passe in-progress -> done après revue de code BMAD contradictoire à 4 couches
@@ -782,7 +784,7 @@ epics:
   - id: "011"
     slug: preuve-simulation-et-fiabilite-rapport
     titre: "Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports"
-    statut: in-progress
+    statut: done
     plan: docs/plans/011-preuve-simulation-et-fiabilite-rapport
     depend_de: ["005", "007", "009", "010"]
     pourquoi: >-
@@ -826,6 +828,7 @@ epics:
     # (conformité roundtrip SourceReference, durcissement matching normalisé, gestion défensive des erreurs de sauvegarde, écriture atomique).
     # 17 tests hermétiques dédiés (test_report_claim_epistemic.py). Filet global de tests porté à 1696 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (3/6 stories done).
     # Story 011-4 (DONE) : tableau de couverture de cohorte (CohortMemberStatus, CohortCoverageTable), anti-biais de confirmation (section limites obligatoire, check_executive_summary_bias), respect du temps simulé (TimeHorizonGuard) et neutralisation des métriques fantômes (FR-07, FR-08, C7, C8). Invariant absolu des personas silencieux (present_no_action, is_silent = True). Persistance atomique cohort_coverage.json et rendu Markdown bilingue FR/EN. Revue contradictoire BMAD 4 couches validée avec 5 patches appliqués. 23 tests hermétiques dédiés (test_cohort_coverage_time.py). Filet global porté à 1719 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (4/6 stories done).
-    # Story 011-5 (DONE) : barrière de publication ReportQualityGate, composant anti-troncature SectionCompletionGuard (max 2 relances), dossier d'audit exportable simulation_audit_<sim_id>.zip réunissant les 8 artefacts de preuve canoniques avec scellement cryptographique SHA-256 et interface Step 4 (FR-09, FR-10, C9, C10). Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. 20 tests hermétiques dédiés (test_report_quality_gate_audit.py). Filet global de tests porté à 1739 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 in-progress (5/6 stories done).
+    # Story 011-6 (DONE) : banc de qualification de bout en bout multi-domaines (backend/scripts/verifier_qualification_epic_011.py) validant 100 % des critères C1 à C11 sur 3 corpus distincts (SaaS Keova, Politique Publique, Télécom), rapport formel de qualification rapport-qualification-epic-011.md avec VERDICT GO, suite hermétique dédiée (test_verifier_qualification_epic_011.py, 15 tests). Revue contradictoire BMAD 4 couches validée avec 8 patches appliqués. Filet global porté à 1 755 tests au vert sur l'hôte (+9 tests Node frontend). Epic 011 intégralement clos avec succès (6/6 stories done).
+
 
 

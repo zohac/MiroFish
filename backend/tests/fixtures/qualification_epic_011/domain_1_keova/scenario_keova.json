@@ -1,0 +1,98 @@
+{
+  "domain": "keova",
+  "brief": {
+    "project_id": "proj_keova_001",
+    "simulation_name": "Lancement Commercial Keova Essentiel",
+    "simulation_goal": "Évaluer l'accueil du marché et les réactions des prospects face à la grille tarifaire",
+    "scenario_description": "Campagne de lancement commercial sur 72 heures avec 4 segments de prospects cibles",
+    "time_horizon": "72h",
+    "locale": "fr"
+  },
+  "personas": [
+    {
+      "id": "pers_emilie",
+      "name": "Émilie Directrice Commerciale",
+      "role": "Directrice Commerciale PME",
+      "stance": "intéressée mais prudente sur l'engagement annuel",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_simon",
+      "name": "Simon Responsable Marketing",
+      "role": "Responsable Acquisition ETI",
+      "stance": "enthousiaste sur les fonctionnalités prédictives",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_sylvie",
+      "name": "Sylvie Directrice Financière",
+      "role": "DAF PME",
+      "stance": "hostile aux coûts variables à l'usage et au préavis de 60 jours",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_christine",
+      "name": "Christine Consultante CRM",
+      "role": "Auditrice externe",
+      "stance": "observatrice neutre sans interaction active durant le run",
+      "expected_silent": true
+    }
+  ],
+  "initial_posts": [
+    {
+      "persona_name": "Émilie Directrice Commerciale",
+      "content": "Je découvre l'offre Keova Essentiel. Le tarif de base est attractif mais qu'en est-il de la flexibilité des contrats ?"
+    },
+    {
+      "persona_name": "Simon Responsable Marketing",
+      "content": "Très curieux de tester l'attribution prédictive sur nos campagnes multi-canales !"
+    },
+    {
+      "persona_name": "Sylvie Directrice Financière",
+      "content": "Attention aux coûts cachés : 0,05 € par contact additionnel peut faire exploser la facture mensuelle."
+    }
+  ],
+  "observed_actions": [
+    {
+      "platform": "twitter",
+      "agent_name": "Émilie Directrice Commerciale",
+      "action_type": "post",
+      "round": 1,
+      "content": "Après échange avec mon équipe, nous reportons notre décision d'achat pour analyser l'historique de consommation.",
+      "timestamp": "2026-10-15T14:30:00Z"
+    },
+    {
+      "platform": "twitter",
+      "agent_name": "Simon Responsable Marketing",
+      "action_type": "post",
+      "round": 2,
+      "content": "La démonstration technique est convaincante, mais la DAF freine des quatre fers.",
+      "timestamp": "2026-10-15T16:15:00Z"
+    },
+    {
+      "platform": "reddit",
+      "agent_name": "Sylvie Directrice Financière",
+      "action_type": "comment",
+      "round": 3,
+      "content": "Le surcoût au contact rend le ROI négatif face aux solutions forfaitaires classiques. Je refuse de valider ce bon de commande.",
+      "timestamp": "2026-10-15T18:00:00Z"
+    }
+  ],
+  "citations": [
+    {
+      "agent_name": "Sylvie Directrice Financière",
+      "verbatim": "Le surcoût au contact rend le ROI négatif face aux solutions forfaitaires classiques. Je refuse de valider ce bon de commande.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Émilie Directrice Commerciale",
+      "verbatim": "Après échange avec mon équipe, nous reportons notre décision d'achat pour analyser l'historique de consommation.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Simon Responsable Marketing",
+      "verbatim": "Nous avons déjà signé le contrat et payé l'acompte de 5000 euros.",
+      "is_valid": false
+    }
+  ]
+}

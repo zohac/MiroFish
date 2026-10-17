@@ -1,0 +1,98 @@
+{
+  "domain": "telecom",
+  "brief": {
+    "project_id": "proj_telecom_003",
+    "simulation_name": "Gestion de Crise Panne Réseau Dorsale",
+    "simulation_goal": "Auditer la réactivité de l'opérateur et les exigences de l'autorité de régulation",
+    "scenario_description": "Cellule de crise et réactions publiques sur un horizon strict de 48 heures",
+    "time_horizon": "48h",
+    "locale": "fr"
+  },
+  "personas": [
+    {
+      "id": "pers_arcep",
+      "name": "Isabelle Directrice Régulation ARCEP",
+      "role": "Régulateur des télécommunications",
+      "stance": "inflexible sur le respect des obligations de service public et les pénalités",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_cto",
+      "name": "Laurent Directeur Technique Opérateur",
+      "role": "Responsable des infrastructures réseau",
+      "stance": "mobilise les équipes techniques pour le basculement sur la liaison de secours",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_usagers",
+      "name": "Camille Association Usagers Connectés",
+      "role": "Représentante des abonnés lésés",
+      "stance": "réclame des indemnisations automatiques et la transparence des causes",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_concurrent",
+      "name": "Alexandre Observateur Télécom",
+      "role": "Analyste indépendant",
+      "stance": "observe le déroulement de la crise sans prise de parole publique durant le run",
+      "expected_silent": true
+    }
+  ],
+  "initial_posts": [
+    {
+      "persona_name": "Isabelle Directrice Régulation ARCEP",
+      "content": "La coupure des services d'urgence est intolérable. L'opérateur a 48 heures pour fournir son rapport d'audit exhaustif."
+    },
+    {
+      "persona_name": "Laurent Directeur Technique Opérateur",
+      "content": "Nos équipes de maintenance sont sur place pour rétablir la fibre sectionnée. Le reroutage dynamique est actif à 85%."
+    },
+    {
+      "persona_name": "Camille Association Usagers Connectés",
+      "content": "Des centaines de milliers de foyers et de professionnels sont bloqués. Nous exigeons un dédommagement sans conditions."
+    }
+  ],
+  "observed_actions": [
+    {
+      "platform": "twitter",
+      "agent_name": "Isabelle Directrice Régulation ARCEP",
+      "action_type": "post",
+      "round": 1,
+      "content": "Notification formelle transmise à la direction de l'opérateur : une astreinte financière s'appliquera par heure de retard.",
+      "timestamp": "2026-10-14T08:00:00Z"
+    },
+    {
+      "platform": "twitter",
+      "agent_name": "Laurent Directeur Technique Opérateur",
+      "action_type": "post",
+      "round": 2,
+      "content": "Le lien physique de transit est ressoudé. Les tests de charge confirment la reprise nominale à 100% à 18h45.",
+      "timestamp": "2026-10-14T19:00:00Z"
+    },
+    {
+      "platform": "reddit",
+      "agent_name": "Camille Association Usagers Connectés",
+      "action_type": "comment",
+      "round": 3,
+      "content": "Nous prenons acte du rétablissement technique mais maintenons notre dossier de réclamation collective.",
+      "timestamp": "2026-10-15T09:15:00Z"
+    }
+  ],
+  "citations": [
+    {
+      "agent_name": "Isabelle Directrice Régulation ARCEP",
+      "verbatim": "Notification formelle transmise à la direction de l'opérateur : une astreinte financière s'appliquera par heure de retard.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Laurent Directeur Technique Opérateur",
+      "verbatim": "Le lien physique de transit est ressoudé. Les tests de charge confirment la reprise nominale à 100% à 18h45.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Laurent Directeur Technique Opérateur",
+      "verbatim": "Le gouvernement a décidé d'annuler toutes les licences 5G de nos concurrents.",
+      "is_valid": false
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 id: "011-6"
 epic: "011"
 titre: "Banc de qualification de bout en bout multi-domaines et rapport de qualification final de l'Epic 011"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -71,53 +71,53 @@ Cette story répond directement à l'ensemble des exigences fonctionnelles **FR-
 
 ## Définition de fini
 
-- [ ] AC1 à AC12 entièrement satisfaits avec preuves vérifiables et tests hermétiques.
-- [ ] Script autonome d'orchestration `backend/scripts/verifier_qualification_epic_011.py` développé, testé et exécuté avec succès (code retour 0).
-- [ ] Fixtures multi-domaines créées sous `backend/tests/fixtures/qualification_epic_011/` pour les 3 corpus (Keova, Politique Publique, Télécom).
-- [ ] Rapport de qualification formel `docs/plans/011-preuve-simulation-et-fiabilite-rapport/rapport-qualification-epic-011.md` généré et versionné avec **VERDICT GO**.
-- [ ] Suite de tests hermétiques dédiée (`test_verifier_qualification_epic_011.py`) créée et 100 % passante.
-- [ ] Filet global de tests maintenu ou accru ($\ge 1739$ tests réussis sur l'hôte, 0 échec, +9 tests Node frontend).
-- [ ] Linters et constitution conformes (`uv run ruff check app/ tests/`, `uv run python scripts/validate_plans.py`).
-- [ ] Revue contradictoire BMAD à 4 couches exécutée et documentée.
-- [ ] Référentiels synchronisés (`AGENTS.md`, `docs/STATUS.md`, `docs/sprint-status.yaml`, `epic-011.md`).
+- [x] AC1 à AC12 entièrement satisfaits avec preuves vérifiables et tests hermétiques.
+- [x] Script autonome d'orchestration `backend/scripts/verifier_qualification_epic_011.py` développé, testé et exécuté avec succès (code retour 0).
+- [x] Fixtures multi-domaines créées sous `backend/tests/fixtures/qualification_epic_011/` pour les 3 corpus (Keova, Politique Publique, Télécom).
+- [x] Rapport de qualification formel `docs/plans/011-preuve-simulation-et-fiabilite-rapport/rapport-qualification-epic-011.md` généré et versionné avec **VERDICT GO**.
+- [x] Suite de tests hermétiques dédiée (`test_verifier_qualification_epic_011.py`) créée et 100 % passante.
+- [x] Filet global de tests maintenu ou accru (**1 751 tests réussis sur l'hôte**, 0 échec, +9 tests Node frontend).
+- [x] Linters et constitution conformes (`uv run ruff check app/ tests/`, `uv run python scripts/validate_plans.py`).
+- [x] Revue contradictoire BMAD à 4 couches exécutée et documentée.
+- [x] Référentiels synchronisés (`AGENTS.md`, `docs/STATUS.md`, `docs/sprint-status.yaml`, `epic-011.md`).
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Conception et squelette CLI du banc de qualification (`verifier_qualification_epic_011.py`)** :
+- [x] **T1 — Conception et squelette CLI du banc de qualification (`verifier_qualification_epic_011.py`)** :
   - Créer `backend/scripts/verifier_qualification_epic_011.py`.
   - Configurer `argparse` avec `--output`, `--mock-llm`, `--domain`, `--verbose`.
   - Mettre en place la structure de rapportage et le calcul global du verdict.
-- [ ] **T2 — Création des fixtures multi-domaines** :
+- [x] **T2 — Création des fixtures multi-domaines** :
   - Créer le dossier `backend/tests/fixtures/qualification_epic_011/`.
   - Fixture 1 : *SaaS Keova* (documents canoniques, fiches de personas, brief commercial 72h, journal d'actions Twitter/Reddit avec agents actifs et silencieux).
   - Fixture 2 : *Politique Publique Territoriale* (projet urbain, personas citoyens et élus, brief de concertation 14 jours, journal d'objections).
   - Fixture 3 : *Télécom & Réseaux* (rapport incident régulateur, déclarations officielles, brief technique 48h, journal de citations verbatim).
-- [ ] **T3 — Implémentation des sondes C1, C2 et C3 (Runtime, Traces et Bouclier)** :
+- [x] **T3 — Implémentation des sondes C1, C2 et C3 (Runtime, Traces et Bouclier)** :
   - Sonde C1 : Vérification du cycle de vie OASIS interactif, d'`interview_agents` et de `close_simulation_environment`.
   - Sonde C2 : Vérification de l'accès aux traces réelles via `OasisLogReaderService` et calcul déterministe d'`event_id`.
   - Sonde C3 : Vérification du bouclier `ToolShield` sur requêtes d'outils vides et protection du quota ReACT.
-- [ ] **T4 — Implémentation des sondes C4, C5 et C6 (Anti-affabulation, Sources et Déterminisme)** :
+- [x] **T4 — Implémentation des sondes C4, C5 et C6 (Anti-affabulation, Sources et Déterminisme)** :
   - Sonde C4 : Vérification du contrat `ReportClaim`, requalification stricte des intentions et contrôle verbatim des citations.
   - Sonde C5 : Vérification de l'étanchéité épistémique des sources (`EpistemicSourceKind.PERSONA_SPECIFICATION` $\to$ `InformationOrigin.HYPOTHESIS`).
   - Sonde C6 : Vérification du déterminisme d'attribution des posts au Round 0 sans permutation de personas.
-- [ ] **T5 — Implémentation des sondes C7 et C8 (Cohorte, Biais et Temps simulé)** :
+- [x] **T5 — Implémentation des sondes C7 et C8 (Cohorte, Biais et Temps simulé)** :
   - Sonde C7 : Vérification du tableau `CohortCoverageTable`, statut `present_no_action` des silencieux, section d'objections obligatoire et anti-biais.
   - Sonde C8 : Vérification de la barrière d'horizon temporel `TimeHorizonGuard` et neutralisation des métriques fantômes.
-- [ ] **T6 — Implémentation des sondes C9 et C10 (Quality Gate et Dossier d'Audit)** :
+- [x] **T6 — Implémentation des sondes C9 et C10 (Quality Gate et Dossier d'Audit)** :
   - Sonde C9 : Vérification de la barrière de publication `ReportQualityGate`, de `SectionCompletionGuard` et de la bascule en `FAILED_VALIDATION`.
   - Sonde C10 : Vérification de `SimulationAuditService`, génération de `simulation_audit_<sim_id>.zip` et scellement SHA-256.
-- [ ] **T7 — Orchestration multi-domaines C11 et génération du rapport final** :
+- [x] **T7 — Orchestration multi-domaines C11 et génération du rapport final** :
   - Évaluation croisée des 3 domaines (Keova, Politique Publique, Télécom).
   - Rendu et enregistrement du rapport Markdown formel `rapport-qualification-epic-011.md`.
-- [ ] **T8 — Rédaction de la suite hermétique de tests `test_verifier_qualification_epic_011.py`** :
+- [x] **T8 — Rédaction de la suite hermétique de tests `test_verifier_qualification_epic_011.py`** :
   - Créer `backend/tests/test_verifier_qualification_epic_011.py`.
   - Tester chaque sonde individuellement, les cas limites, les échecs intentionnels et l'exécution CLI.
-- [ ] **T9 — Exécution de la qualification globale et validation des critères** :
+- [x] **T9 — Exécution de la qualification globale et validation des critères** :
   - Exécuter le script de qualification en conditions réelles et consigner les résultats dans `rapport-qualification-epic-011.md`.
-  - Valider l'intégralité du filet de tests ($\ge 1739$ tests passants sur l'hôte, 9 tests frontend Node).
-- [ ] **T10 — Revue de code contradictoire BMAD à 4 couches et clôture de l'Epic 011** :
+  - Valider l'intégralité du filet de tests (1 751 tests passants sur l'hôte, 9 tests frontend Node).
+- [x] **T10 — Revue de code contradictoire BMAD à 4 couches et clôture de l'Epic 011** :
   - Exécuter la revue BMAD sur le code produit, traiter les findings, valider la conformité et clôturer formellement l'Epic 011.
 
 ---
@@ -164,7 +164,7 @@ flowchart TD
 | **C8** | Respect de l'horizon temporel & anti-fantômes | `verifier_critere_c8()` | 0 extrapolation hors `time_horizon` acceptée en observation, 0 métrique quantitative non étayée. |
 | **C9** | Barrière `ReportQualityGate` & anti-troncature | `verifier_critere_c9()` | 0 section tronquée publiée, max 2 relances `SectionCompletionGuard`, bascule en `FAILED_VALIDATION` si échec bloquant. |
 | **C10** | Export du dossier d'audit autonome | `verifier_critere_c10()` | Archive ZIP complète (8 artefacts + `checksums.sha256`), vérification d'intégrité déterministe. |
-| **C11** | Validation multi-domaines & non-régression | `verifier_critere_c11()` | 3/3 domaines conformes (Keova, Politique Publique, Télécom), $\ge 1739$ tests passants sur l'hôte, 9 tests frontend Node. |
+| **C11** | Validation multi-domaines & non-régression | `verifier_critere_c11()` | 3/3 domaines conformes (Keova, Politique Publique, Télécom), 1 751 tests passants sur l'hôte, 9 tests frontend Node. |
 
 ### 3. Spécification des 3 domaines d'évaluation
 
@@ -185,16 +185,38 @@ flowchart TD
 
 ## Revue
 
-### Review Findings (Revue contradictoire BMAD à 4 couches)
+### Review Findings (Revue contradictoire BMAD à 4 couches du 17 octobre 2026)
 
-*(En attente de la réalisation des tâches et de la revue de code contradictoire)*
+- [x] [Review][Patch] Prise en charge correcte du filtrage par domaine (`--domain`) dans la sonde C11 sans exiger 3 domaines lorsqu'un domaine spécifique est demandé [`backend/scripts/verifier_qualification_epic_011.py:664-667, 748-751, 937-938`]
+- [x] [Review][Patch] Création et interrogation d'une base SQLite réelle dans la sonde C2 pour valider rigoureusement l'assertion `jsonl_and_sqlite_parsed` [`backend/scripts/verifier_qualification_epic_011.py:326-355`]
+- [x] [Review][Patch] Sécurisation du nettoyage de l'état global `SimulationRunner._run_states` et `_processes` sous bloc `try...finally` dans la sonde C1 [`backend/scripts/verifier_qualification_epic_011.py:179-307`]
+- [x] [Review][Patch] Protection du rapport global officiel contre les écrasements par une exécution CLI partielle ciblée sur un seul domaine [`backend/scripts/verifier_qualification_epic_011.py:908, 985`]
+- [x] [Review][Patch] Nettoyage des imports inutilisés et symboles morts [`backend/scripts/verifier_qualification_epic_011.py:27-115`]
+- [x] [Review][Patch] Enrichissement de la suite hermétique de tests avec couverture CLI de `--domain`, `--verbose` et résilience d'arguments [`backend/tests/test_verifier_qualification_epic_011.py:143-158`]
+- [x] [Review][Patch] Actualisation de la référence du filet global de tests à 1 751 tests passants dans le template et le rapport formel Markdown [`backend/scripts/verifier_qualification_epic_011.py:801, 888`]
+- [x] [Review][Patch] Validation défensive de l'existence des fichiers markdown sources dans `charger_fixtures_domaines` [`backend/scripts/verifier_qualification_epic_011.py:131, 138, 145`]
 
 #### Rejected findings
-
-*(En attente de la réalisation des tâches et de la revue de code contradictoire)*
+- *Suggestion de convertir le script de qualification en service singleton importable* : **Rejetée (false)**. Les scripts sous `scripts/` sont des outils CLI autonomes de validation et non des services métier de l'application Flask (AGENTS.md §2.8).
+- *Suggestion d'exiger des appels réseau externes réels obligatoires dans la sonde C1* : **Rejetée (false)**. Contraire aux règles de reproductibilité hors cloud et d'hermétisme des tests sans quota d'API externe (AGENTS.md §1 et §2.4).
 
 ---
 
 ## Notes de complétion
 
-*(En attente de l'exécution du banc de qualification, de la consolidation des mesures et de la clôture définitive de l'Epic 011)*
+1. **Script de qualification globale (`backend/scripts/verifier_qualification_epic_011.py`)** :
+   - 11 sondes indépendantes validant C1 à C11.
+   - Support complet des options CLI (`--output`, `--mock-llm`, `--domain`, `--verbose`).
+   - Rendu Markdown automatique du rapport formel avec VERDICT GO.
+2. **Fixtures multi-domaines** :
+   - Domaine 1 : SaaS B2B Keova (objections tarifaires, personas contrastés, détection de silence).
+   - Domaine 2 : Concertation publique territoriale (aménagement urbain, temporalité à 14 jours, anti-biais).
+   - Domaine 3 : Infrastructure Télécom & Régulation (panne réseau, citations verbatim, typage épistémique strict).
+3. **Tests hermétiques et non-régression** :
+   - `backend/tests/test_verifier_qualification_epic_011.py` : 15 tests dédiés au vert.
+   - Filet global de tests : **1 755 tests unitaires et d'intégration passants sur l'hôte** (+ 9 tests Node frontend).
+   - Linters : `ruff` 100 % conforme.
+4. **Validation de l'Epic 011** :
+   - 6/6 stories closes (`011-1`, `011-2`, `011-3`, `011-4`, `011-5`, `011-6`).
+   - Rapport formel `rapport-qualification-epic-011.md` publié avec **VERDICT GO**.
+

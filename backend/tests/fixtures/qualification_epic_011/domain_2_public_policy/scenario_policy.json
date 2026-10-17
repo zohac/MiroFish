@@ -1,0 +1,98 @@
+{
+  "domain": "public_policy",
+  "brief": {
+    "project_id": "proj_policy_002",
+    "simulation_name": "Concertation Citoyenne BHNS République",
+    "simulation_goal": "Analyser les arbitrages locaux entre mobilité douce, préservation des arbres et accès aux commerces",
+    "scenario_description": "Débat public de concertation territoriale sur un horizon de 14 jours",
+    "time_horizon": "14j",
+    "locale": "fr"
+  },
+  "personas": [
+    {
+      "id": "pers_adjoint",
+      "name": "Marc Adjoint aux Mobilités",
+      "role": "Élu métropolitain",
+      "stance": "défend la décarbonation des transports et la régularité des bus",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_commercante",
+      "name": "Nathalie Présidente des Commerçants",
+      "role": "Porte-parole commerces de proximité",
+      "stance": "vivement inquiète de la disparition des 85 places de stationnement",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_ecologiste",
+      "name": "Yassine Association Arbres en Ville",
+      "role": "Militant écologiste local",
+      "stance": "oppose un veto catégorique à l'abattage des 18 platanes",
+      "expected_silent": false
+    },
+    {
+      "id": "pers_riverain_abstention",
+      "name": "Gérard Riverain Retraité",
+      "role": "Habitant de l'avenue",
+      "stance": "indifférent et ne participant à aucune réunion publique",
+      "expected_silent": true
+    }
+  ],
+  "initial_posts": [
+    {
+      "persona_name": "Marc Adjoint aux Mobilités",
+      "content": "Le BHNS est un levier majeur pour réduire la pollution urbaine et faire gagner 12 minutes aux usagers quotidiens."
+    },
+    {
+      "persona_name": "Nathalie Présidente des Commerçants",
+      "content": "Supprimer 85 places de stationnement va étouffer nos boutiques au profit des centres commerciaux périphériques."
+    },
+    {
+      "persona_name": "Yassine Association Arbres en Ville",
+      "content": "Abattre 18 platanes cinquantenaires en pleine crise climatique est un non-sens écologique inacceptable."
+    }
+  ],
+  "observed_actions": [
+    {
+      "platform": "twitter",
+      "agent_name": "Marc Adjoint aux Mobilités",
+      "action_type": "post",
+      "round": 1,
+      "content": "Nous engageons des études complémentaires pour intégrer une replantation triple et 30 places dépose-minute.",
+      "timestamp": "2026-10-10T10:00:00Z"
+    },
+    {
+      "platform": "reddit",
+      "agent_name": "Nathalie Présidente des Commerçants",
+      "action_type": "comment",
+      "round": 2,
+      "content": "Les propositions de replantation ne compensent pas les pertes de chiffre d'affaires immédiates durant les 18 mois de travaux.",
+      "timestamp": "2026-10-12T15:30:00Z"
+    },
+    {
+      "platform": "twitter",
+      "agent_name": "Yassine Association Arbres en Ville",
+      "action_type": "post",
+      "round": 3,
+      "content": "Pétition citoyenne déposée avec 1200 signatures pour préserver l'alignement végétal de l'avenue.",
+      "timestamp": "2026-10-14T11:45:00Z"
+    }
+  ],
+  "citations": [
+    {
+      "agent_name": "Marc Adjoint aux Mobilités",
+      "verbatim": "Nous engageons des études complémentaires pour intégrer une replantation triple et 30 places dépose-minute.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Yassine Association Arbres en Ville",
+      "verbatim": "Pétition citoyenne déposée avec 1200 signatures pour préserver l'alignement végétal de l'avenue.",
+      "is_valid": true
+    },
+    {
+      "agent_name": "Nathalie Présidente des Commerçants",
+      "verbatim": "Tous les commerces de l'avenue fermeront définitivement leurs portes dès le premier jour de chantier.",
+      "is_valid": false
+    }
+  ]
+}
