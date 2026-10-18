@@ -722,6 +722,7 @@ class SimulationActionVerifier:
         claimed_text: str,
         evidence_pack: Optional[EvidencePack] = None,
         actions: Optional[List[Any]] = None,
+        resolver: Optional[Any] = None,
     ) -> Tuple[bool, bool, Optional[str]]:
         """Contrôle de conformité d'une citation simulée attribuée à un persona (AC5, Critère C4).
 
@@ -738,18 +739,43 @@ class SimulationActionVerifier:
 
         name_lower = agent_name.strip().lower()
 
-        # Extraire les événements pertinents
+        # Extraire les événements pertinents (Story 012-3 : égalité stricte, résolution univoque sans collision)
+        from ..models.cohort_coverage import AgentIdentityResolver, normalize_agent_name
+
+        active_resolver = resolver
+        if active_resolver is None and evidence_pack and evidence_pack.simulation_id:
+            try:
+                active_resolver = AgentIdentityResolver(simulation_id=evidence_pack.simulation_id)
+            except Exception:
+                active_resolver = None
+
+        resolved_agent = (
+            active_resolver.resolve_name(agent_name)
+            if active_resolver
+            else agent_name
+        ) or agent_name
+        norm_target_agent = normalize_agent_name(resolved_agent)
+
         candidate_events: List[Any] = []
         if evidence_pack and evidence_pack.events:
             for ev in evidence_pack.events:
-                ev_agent = (ev.agent_name or "").lower()
-                if name_lower in ev_agent or ev_agent in name_lower:
+                if active_resolver:
+                    resolved_ev = active_resolver.resolve_event_actor(ev)
+                    ev_norm = normalize_agent_name(resolved_ev)
+                else:
+                    ev_agent = getattr(ev, "agent_name", "") or ""
+                    ev_norm = normalize_agent_name(ev_agent)
+                if ev_norm == norm_target_agent:
                     candidate_events.append(ev)
         elif actions:
             for act in actions:
                 act_name = getattr(act, "agent_name", "") or (act.get("agent_name") if isinstance(act, dict) else "") or ""
-                act_lower = str(act_name).strip().lower()
-                if name_lower in act_lower or act_lower in name_lower:
+                if active_resolver:
+                    resolved_act = active_resolver.resolve_name(str(act_name)) or str(act_name)
+                    act_norm = normalize_agent_name(resolved_act)
+                else:
+                    act_norm = normalize_agent_name(str(act_name))
+                if act_norm == norm_target_agent:
                     candidate_events.append(act)
 
         for ev in candidate_events:
@@ -794,6 +820,7 @@ class SimulationActionVerifier:
         canonical_documents: Optional[List[Any]] = None,
         cohort_table: Optional[Any] = None,
         horizon_hours: Optional[float] = None,
+        resolver: Optional[Any] = None,
     ) -> ReportClaim:
         """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critères C4, C5, C7, C8).
 
@@ -802,6 +829,8 @@ class SimulationActionVerifier:
             noté `is_silent` / `present_no_action`, interdiction absolue de lui attribuer une action observée.
           - Règle anti-affabulation C4 : Une affirmation OBSERVED_SOCIAL_ACTION sans event_id valide
             exécuté (is_action_executed = True) est automatiquement déclassée en REPORTED_INTENTION (UNSUPPORTED).
+          - Réconciliation déterministe (Story 012-3, AC4) : Résolution univoque de l'acteur via
+            AgentIdentityResolver (ou normalize_agent_name ==), 0 sous-chaîne `in`.
           - Respect de l'horizon temporel C8 (Story 011-4) : toute observation située au-delà de `horizon_hours`
             est automatiquement déclassée en SPECULATIVE_PROJECTION (UNSUPPORTED).
           - Neutralisation des métriques fantômes C8 (Story 011-4) : toute métrique péremptoire non calculable
@@ -812,6 +841,7 @@ class SimulationActionVerifier:
             marquage UNSUPPORTED.
         """
         from .time_horizon_guard import TimeHorizonGuard
+        from ..models.cohort_coverage import AgentIdentityResolver, normalize_agent_name
 
         # RÈGLE DES PERSONAS SILENCIEUX C7 (Story 011-4) :
         # Priorité absolue : un persona silencieux n'ayant produit aucune action ne peut se voir
@@ -885,50 +915,157 @@ class SimulationActionVerifier:
 
         # Si la claim est de type OBSERVED_SOCIAL_ACTION
         if claim.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+            active_resolver = resolver
+            if active_resolver is None and evidence_pack and evidence_pack.simulation_id:
+                try:
+                    active_resolver = AgentIdentityResolver(simulation_id=evidence_pack.simulation_id)
+                except Exception:
+                    active_resolver = None
+
+            norm_claim_agent = None
+            if claim.agent_name:
+                resolved_claim_agent = (
+                    active_resolver.resolve_name(claim.agent_name)
+                    if active_resolver
+                    else claim.agent_name
+                ) or claim.agent_name
+                norm_claim_agent = normalize_agent_name(resolved_claim_agent)
+
             # Événements candidats
             candidate_events: List[ObservedEvent] = []
+            valid_evidence_refs: List[str] = []
             if evidence_pack and claim.evidence_refs:
                 for ref in claim.evidence_refs:
                     matching = [e for e in evidence_pack.events if e.event_id == ref and e.is_action_executed]
-                    candidate_events.extend(matching)
+                    for m_ev in matching:
+                        if norm_claim_agent:
+                            m_name = (
+                                active_resolver.resolve_event_actor(m_ev)
+                                if active_resolver
+                                else (m_ev.agent_name or "")
+                            )
+                            if normalize_agent_name(m_name) != norm_claim_agent:
+                                continue
+                        candidate_events.append(m_ev)
+                        if ref not in valid_evidence_refs:
+                            valid_evidence_refs.append(ref)
 
-            if not candidate_events and evidence_pack and claim.agent_name:
-                agent_lower = claim.agent_name.strip().lower()
-                agent_evts = [
-                    e for e in evidence_pack.events
-                    if e.is_action_executed and (agent_lower in (e.agent_name or "").lower() or (e.agent_name or "").lower() in agent_lower)
-                ]
+            # Résolution d'acteur sans collision (Story 012-3, AC4) :
+            if not candidate_events and evidence_pack and norm_claim_agent:
+                agent_evts: List[ObservedEvent] = []
+                for e in evidence_pack.events:
+                    if not e.is_action_executed:
+                        continue
+                    if active_resolver:
+                        resolved_ev_name = active_resolver.resolve_event_actor(e)
+                        if normalize_agent_name(resolved_ev_name) == norm_claim_agent:
+                            agent_evts.append(e)
+                    else:
+                        if normalize_agent_name(e.agent_name or "") == norm_claim_agent:
+                            agent_evts.append(e)
+
+                # Priorité au round mentionné si précisé
                 if claim.round_num is not None:
-                    agent_evts = [e for e in agent_evts if e.round_num == claim.round_num]
+                    round_evts = [e for e in agent_evts if e.round_num == claim.round_num]
+                    if round_evts:
+                        agent_evts = round_evts
+
                 candidate_events = agent_evts
 
             # Vérifier si l'un des événements candidats est une action concrète d'exécution (et non un simple post d'intention)
             has_valid_event = False
             matching_events: List[ObservedEvent] = []
+            claim_text_lower = claim.text.lower()
+            raw_transaction_detected = any(k in claim_text_lower for k in (
+                "acheté", "souscrit", "payé", "commandé", "résilié", "quitté", "boycotté", "voté",
+                "bought", "purchased", "subscribed", "canceled", "cancelled", "ordered", "paid"
+            ))
+            # Si le texte exprime un refus, une hésitation ou une négation explicite, ce n'est pas une affirmation de transaction réussie
+            has_refusal_or_negation = any(k in claim_text_lower for k in (
+                "refus", "refusé", "refuse", "n'a pas", "ne souhaite pas", "ne compte pas",
+                "n'a point", "sans souscrire", "sans acheter", "hésite", "hesite",
+                "refused", "refuses", "did not", "does not", "without subscribing", "without buying"
+            ))
+            claims_transaction = raw_transaction_detected and not has_refusal_or_negation
+
+            # Extraire les citations entre guillemets du claim (« ... » ou " ... ")
+            quote_matches = re.findall(r'[«"“]([^»"”]{4,})[»"”]', claim.text)
 
             for ev in candidate_events:
-                # Si l'affirmation prétend un achat/souscription/boycott/etc. alors que l'événement est un simple POST/TWEET
                 ev_type = ev.action_type.upper()
                 is_pure_messaging = ev_type in ("CREATE_POST", "POST", "TWEET", "COMMENT", "MESSAGE")
-                
-                # Examiner le texte du post si c'est de la messagerie
+
                 args = ev.action_args or {}
                 content = str(args.get("content", "") or ev.result or "")
                 has_intent_pattern = any(pat.search(content) for pat, _ in cls.INTENTION_PATTERNS)
 
-                # Si l'événement est un post contenant une déclaration d'intention ou si la claim affirme une action transactionnelle
-                claim_text_lower = claim.text.lower()
-                claims_transaction = any(k in claim_text_lower for k in ("acheté", "souscrit", "payé", "commandé", "résilié", "quitté", "boycotté", "voté", "bought", "purchased", "subscribed", "canceled"))
-
+                # AC5 : Règle anti-affabulation transactionnelle
+                # Si l'affirmation prétend une souscription, un achat ou un paiement alors que l'événement
+                # est un simple message/post sans événement métier dédié, rejet absolu.
                 if is_pure_messaging and (has_intent_pattern or claims_transaction):
-                    # Ce n'est pas une action concrète exécutée mais un post de parole/intention
                     continue
+
+                # Contrôle sémantique et textuel (AC4) :
+                # 1. Si des citations entre guillemets sont présentes dans le claim :
+                if quote_matches:
+                    quote_matched = False
+                    for q in quote_matches:
+                        q_norm = cls.normalize_text_for_comparison(q)
+                        c_norm = cls.normalize_text_for_comparison(content)
+                        if q.lower() in content.lower() or (len(q_norm) >= 8 and q_norm in c_norm):
+                            quote_matched = True
+                            break
+                        if len(q_norm) >= 15 and len(c_norm) >= 15:
+                            if difflib.SequenceMatcher(None, q_norm, c_norm).ratio() >= 0.80:
+                                quote_matched = True
+                                break
+                    # Patch 10 : suppression du bypass 'and not claim.evidence_refs'
+                    if not quote_matched:
+                        continue
+                elif is_pure_messaging:
+                    # Patch 1 : Si aucune citation entre guillemets n'est présente sur un post/message,
+                    # exiger un contrôle sémantique minimal (termes clés significatifs de l'action)
+                    words_in_claim = re.findall(r"\b\w{3,}\b", claim.text.lower(), re.UNICODE)
+                    stop_words = {
+                        "round", "tour", "agent", "post", "tweet", "message", "reddit", "twitter",
+                        "cette", "dans", "pour", "avec", "sans", "suite", "afin", "alors", "après",
+                        "selon", "fait", "faire", "plus", "très", "bien", "aussi", "avoir", "être",
+                        "publié", "tweeté", "posté", "commenté", "réagi", "déclaré", "exprimé",
+                        "posted", "tweeted", "commented", "replied", "reacted", "son", "ses", "des",
+                        "les", "une", "par", "sur", "aux", "leur", "leurs", "qui", "que", "dont",
+                    }
+                    if claim.agent_name:
+                        for part in claim.agent_name.lower().split():
+                            stop_words.add(part)
+                            stop_words.add(cls.normalize_text_for_comparison(part))
+
+                    meaningful_words = [
+                        w for w in words_in_claim
+                        if w not in stop_words and cls.normalize_text_for_comparison(w) not in stop_words
+                    ]
+
+                    if meaningful_words and content:
+                        c_norm = cls.normalize_text_for_comparison(content)
+                        c_lower = content.lower()
+                        matched_words = [
+                            w for w in meaningful_words
+                            if w in c_lower or cls.normalize_text_for_comparison(w) in c_norm
+                        ]
+                        min_required = 1 if len(meaningful_words) <= 3 else 2
+                        if len(matched_words) < min_required:
+                            continue
+                    elif meaningful_words and not content:
+                        continue
+                else:
+                    # Événement applicatif structuré non-messaging (ex: SUBSCRIBE, UPVOTE, BUY)
+                    if claims_transaction and ev_type not in ("SUBSCRIBE", "BUY", "PURCHASE", "ORDER", "PAY"):
+                        continue
 
                 has_valid_event = True
                 matching_events.append(ev)
 
             if has_valid_event:
-                new_refs = list(claim.evidence_refs)
+                new_refs = list(valid_evidence_refs) if evidence_pack else list(claim.evidence_refs)
                 for ev in matching_events:
                     if ev.event_id not in new_refs:
                         new_refs.append(ev.event_id)
@@ -945,19 +1082,25 @@ class SimulationActionVerifier:
                     limitations=list(claim.limitations),
                 )
             else:
-                # DÉCLASSEMENT STRICT (Critère C4) :
-                # Aucune action exécutée correspondante n'a été prouvée.
+                # DÉCLASSEMENT STRICT (Critère C4, AC5) :
                 limitations = list(claim.limitations)
-                limitations.append(
-                    "Déclassement anti-affabulation (C4) : aucune action exécutée "
-                    "n'a été observée dans les traces du run pour cette affirmation."
-                )
+                if claims_transaction:
+                    limitations.append(
+                        "Déclassement anti-affabulation (C4) transactionnelle (AC5) : les événements "
+                        "de messagerie sociale ne peuvent prouver une transaction métier (achat/souscription) "
+                        "en l'absence d'événement applicatif dédié."
+                    )
+                else:
+                    limitations.append(
+                        "Déclassement anti-affabulation (C4) : aucune action exécutée "
+                        "n'a été observée dans les traces du run pour cette affirmation."
+                    )
                 return ReportClaim(
                     claim_id=claim.claim_id,
                     text=claim.text,
                     claim_kind=ClaimKind.REPORTED_INTENTION,
                     origin=claim.origin if claim.origin != InformationOrigin.DOCUMENTARY else InformationOrigin.HYPOTHESIS,
-                    evidence_refs=list(claim.evidence_refs),
+                    evidence_refs=list(valid_evidence_refs) if evidence_pack else list(claim.evidence_refs),
                     verification_status=VerificationStatus.UNSUPPORTED,
                     agent_name=claim.agent_name,
                     round_num=claim.round_num,
@@ -973,6 +1116,7 @@ class SimulationActionVerifier:
                     agent_name=claim.agent_name,
                     claimed_text=claim.text,
                     evidence_pack=evidence_pack,
+                    resolver=resolver,
                 )
                 if valid:
                     new_refs = list(claim.evidence_refs)

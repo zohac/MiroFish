@@ -13,7 +13,7 @@ import os
 import json
 import time
 import re
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, List, Optional, Callable, Set, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -2602,16 +2602,80 @@ class ReportAgent:
 
         return entity_counts, edge_counts
 
-    def extract_claims_from_content(self, markdown_content: str) -> List[ReportClaim]:
-        """Extrait les affirmations du rapport à partir de phrases ou puces clés (Story 011-3, AC6)."""
+    def extract_claims_from_content(
+        self,
+        markdown_content: str,
+        resolver: Optional[Any] = None,
+        known_agent_names: Optional[Set[str]] = None,
+    ) -> List[ReportClaim]:
+        """Extrait les affirmations du rapport à partir de phrases ou puces clés (Story 011-3, Story 012-3, AC1-AC3).
+
+        Assainit l'extraction :
+          - Élimine formellement les titres Markdown (#, ##, ###).
+          - Valide les noms d'agents contre les personas réels ou l'AgentIdentityResolver.
+          - Rejette la liste noire absolue des faux agents (mots de liaison, débuts de phrase: Si, Dès, Tout, etc.).
+          - Extrait les actions sociales sans dépendre d'identifiants techniques evt_* écrits en dur.
+        """
         if not markdown_content:
             return []
+
+        # Résolution du catalogue des personas connus
+        from ..models.cohort_coverage import AgentIdentityResolver, normalize_agent_name
+        valid_resolver = resolver
+        if valid_resolver is None and self.simulation_id:
+            try:
+                from .simulation_manager import SimulationManager
+                sim_mgr = SimulationManager()
+                act_sel = sim_mgr.get_actor_selection(self.simulation_id)
+                valid_resolver = AgentIdentityResolver(
+                    simulation_id=self.simulation_id,
+                    actor_selection=act_sel,
+                )
+            except Exception:
+                valid_resolver = None
+
+        has_known_participants = False
+        known_canonical_map: Dict[str, str] = {}
+        if valid_resolver:
+            for k, v in getattr(valid_resolver, "name_to_canonical", {}).items():
+                if v and isinstance(v, str) and v.strip():
+                    known_canonical_map[k] = v.strip()
+                    has_known_participants = True
+            for aid, v in getattr(valid_resolver, "id_to_name", {}).items():
+                if v and isinstance(v, str) and v.strip():
+                    known_canonical_map[normalize_agent_name(v)] = v.strip()
+                    known_canonical_map[f"agent_{aid}"] = v.strip()
+                    has_known_participants = True
+        if known_agent_names:
+            for kn in known_agent_names:
+                if kn and isinstance(kn, str) and kn.strip():
+                    norm_kn = normalize_agent_name(kn)
+                    if norm_kn:
+                        known_canonical_map[norm_kn] = kn.strip()
+                        has_known_participants = True
+
+        # Liste noire absolue des mots français/anglais courants et conjonctions
+        agent_blacklist = {
+            "si", "des", "dès", "tout", "tous", "toute", "toutes", "en", "selon", "apres", "après",
+            "par", "or", "donc", "plus", "alors", "bien", "ces", "dans", "pour", "if", "as",
+            "when", "then", "le", "la", "les", "un", "une", "cette", "ce", "cet", "suite", "afin",
+            "mais", "ou", "et", "ni", "car", "avec", "sans", "sous", "sur", "chez", "vers",
+            "ainsi", "de", "quant", "enfin", "malgre", "malgré", "outre", "face", "notons",
+            "rappelons", "globalement", "contrairement", "voici", "depuis", "pendant", "durant",
+            "furthermore", "moreover", "however", "although", "overall", "finally", "note", "regarding",
+            "conclusions", "conclusion", "synthese", "synthèse", "analyse", "recommandations",
+            "recommandation", "resume", "résumé", "bilan", "rapport", "round", "tour", "agent",
+            "dynamique", "dynamiques", "perspective", "perspectives", "etat", "état",
+        }
 
         claims: List[ReportClaim] = []
         lines = markdown_content.split("\n")
 
         # Motifs pour détecter l'agent et le round
-        agent_pattern = re.compile(r"(?:Agent\s+)?([A-ZÀ-ÖØ-ß][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-ß][a-zà-öø-ÿ]+)?)", re.UNICODE)
+        agent_pattern = re.compile(
+            r"(?:Agent\s+)?([A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+(?:\s+[A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+)?)",
+            re.UNICODE,
+        )
         round_pattern = re.compile(r"(?:Round|Tour)\s*(\d+)", re.IGNORECASE)
         event_ref_pattern = re.compile(r"\b(evt_[a-z0-9_]+)\b")
         doc_ref_pattern = re.compile(r"`([^`]+\.(?:md|txt|pdf|json))`")
@@ -2620,6 +2684,7 @@ class ReportAgent:
 
         for line in lines:
             trimmed = line.strip()
+            # AC2 : Les lignes de titres (#, ##, ###, etc.) ne sont JAMAIS transformées en assertions de faits
             if trimmed.startswith("#"):
                 current_section = trimmed.lstrip("#").strip()
                 continue
@@ -2627,27 +2692,84 @@ class ReportAgent:
             if not trimmed or len(trimmed) < 15:
                 continue
 
-            # Ne garder que les lignes d'affirmations (puces ou phrases déclaratives)
-            is_bullet = trimmed.startswith(("-", "*", "•")) or (trimmed[:2].isdigit() and trimmed[2:4] in (". ", ") "))
+            # Ne garder que les lignes d'affirmations (puces, listes numérotées ou phrases déclaratives)
+            bullet_match = re.match(r"^(?:[-*•]|\d+[.)])\s+", trimmed)
+            is_bullet = bool(bullet_match)
             is_bold_start = trimmed.startswith("**")
 
             if not (is_bullet or is_bold_start or len(trimmed) > 30):
                 continue
 
-            clean_text = trimmed.lstrip("-*•0123456789. )").strip()
+            if bullet_match:
+                clean_text = trimmed[bullet_match.end():].strip()
+            else:
+                clean_text = trimmed.lstrip("-*•").strip()
 
-            # Détecter références d'événements
+            # Détecter références d'événements et de documents
             ev_refs = event_ref_pattern.findall(clean_text)
             doc_refs = doc_ref_pattern.findall(clean_text)
 
-            # Détecter l'agent
+            # Détecter l'agent (Story 012-3, AC1) :
             agent_name = None
-            agent_match = agent_pattern.search(clean_text)
-            if agent_match:
-                candidate = agent_match.group(1).strip()
-                # Écarter les mots de début de phrase courants
-                if candidate.lower() not in ("le", "la", "les", "un", "une", "des", "cette", "ce", "ces", "dans", "pour", "selon", "suite", "afin"):
-                    agent_name = candidate
+
+            # Priorité 1 : Vérifier si des noms canoniques connus apparaissent en tant que mots/tokens entiers
+            # Retenir prioritairement l'agent apparaissant le plus tôt dans la phrase (sujet grammatical)
+            if known_canonical_map:
+                earliest_pos = None
+                earliest_agent = None
+                for norm_kn, canonical_name in known_canonical_map.items():
+                    if not canonical_name:
+                        continue
+                    kn_pattern = re.compile(rf"\b{re.escape(canonical_name)}\b", re.IGNORECASE | re.UNICODE)
+                    m = kn_pattern.search(clean_text)
+                    if m:
+                        pos = m.start()
+                        if earliest_pos is None or pos < earliest_pos:
+                            earliest_pos = pos
+                            earliest_agent = canonical_name
+                if earliest_agent:
+                    agent_name = earliest_agent
+
+            # Priorité 2 : Recherche de candidats via regex si aucun persona connu n'a été détecté directement
+            if not agent_name:
+                candidates_found: List[Tuple[int, str]] = []
+                for m in agent_pattern.finditer(clean_text):
+                    cand = m.group(1).strip()
+                    tokens = cand.split()
+                    while tokens and (
+                        normalize_agent_name(tokens[0]) in agent_blacklist
+                        or tokens[0].lower() in agent_blacklist
+                    ):
+                        tokens = tokens[1:]
+
+                    if not tokens:
+                        continue
+
+                    cand = " ".join(tokens)
+                    c_norm = normalize_agent_name(cand)
+
+                    is_blacklisted = (
+                        c_norm in agent_blacklist
+                        or cand.lower() in agent_blacklist
+                        or any(c_norm.startswith(b + " ") for b in agent_blacklist)
+                    )
+                    if not is_blacklisted:
+                        candidates_found.append((m.start(), cand))
+
+                if candidates_found:
+                    candidates_found.sort(key=lambda x: x[0])
+                    for _, cand in candidates_found:
+                        c_norm = normalize_agent_name(cand)
+                        if known_canonical_map and c_norm in known_canonical_map:
+                            agent_name = known_canonical_map[c_norm]
+                            break
+                        elif valid_resolver:
+                            resolved = valid_resolver.resolve_name(cand)
+                            if resolved:
+                                agent_name = resolved
+                                break
+                    if not agent_name and not has_known_participants:
+                        agent_name = candidates_found[0][1]
 
             # Détecter le round
             round_num = None
@@ -2658,17 +2780,22 @@ class ReportAgent:
                 except ValueError:
                     pass
 
-            # Déterminer claim_kind
+            # Déterminer claim_kind (AC3 : extraction d'actions sans dépendance d'evt_*)
             sec_lower = current_section.lower()
             text_lower = clean_text.lower()
 
             if "source" in sec_lower or "provenance" in sec_lower or "contexte documentaire" in sec_lower or doc_refs:
                 claim_kind = ClaimKind.SOURCE_FACT
                 origin = InformationOrigin.DOCUMENTARY
-            elif any(k in text_lower for k in ("va", "veut", "compte", "prévoit", "songe", "intention", "plans to", "intends to")):
+            elif any(k in text_lower for k in ("va", "veut", "compte", "prévoit", "songe", "intention", "plans to", "intends to", "souhaite")):
                 claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.SIMULATION
-            elif ev_refs or any(k in text_lower for k in ("a publié", "a tweeté", "a posté", "a commenté", "a réagi", "a acheté", "a souscrit", "exprimé")):
+            elif ev_refs or any(k in text_lower for k in (
+                "a publié", "a tweeté", "a posté", "a commenté", "a réagi", "a acheté", "a souscrit",
+                "exprimé", "a formulé", "a déclaré", "a répondu", "a interrogé", "a partagé",
+                "a vivement critiqué", "a salué", "a souligné", "a manifesté", "a rejeté",
+                "posted", "tweeted", "commented", "replied", "reacted", "shared"
+            )):
                 claim_kind = ClaimKind.OBSERVED_SOCIAL_ACTION
                 origin = InformationOrigin.SIMULATION
             elif any(k in text_lower for k in ("hypothèse", "scénario", "consigne", "brief", "hypothesis")):
@@ -2750,8 +2877,6 @@ class ReportAgent:
     ) -> ReportClaimRegistry:
         """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, Story 011-4)."""
         registry = ReportClaimRegistry(simulation_id=self.simulation_id)
-        raw_claims = self.extract_claims_from_content(markdown_content)
-
         # Si evidence_pack n'a pas été injecté, tenter de le charger via OasisLogReaderService
         if evidence_pack is None:
             try:
@@ -2772,6 +2897,33 @@ class ReportAgent:
                 logger.debug(f"CohortCoverageTable non disponible pour audit des claims : {e}")
                 cohort_table = None
 
+        # Initialiser resolver pour validation stricte des claims (Story 012-3, AC1, AC4)
+        from ..models.cohort_coverage import AgentIdentityResolver
+        from .simulation_manager import SimulationManager
+        sim_mgr = SimulationManager()
+        act_sel = sim_mgr.get_actor_selection(self.simulation_id)
+        resolver = AgentIdentityResolver(
+            simulation_id=self.simulation_id,
+            actor_selection=act_sel,
+        )
+        if cohort_table and hasattr(cohort_table, "members") and cohort_table.members:
+            for m in cohort_table.members:
+                p_name = getattr(m, "persona_name", "") or ""
+                if p_name and p_name not in resolver.name_to_canonical.values():
+                    aid = getattr(m, "agent_id", None)
+                    if aid is None or not isinstance(aid, int):
+                        aid = len(resolver.id_to_name) + 1
+                    resolver.register_persona(
+                        agent_id=aid,
+                        persona_name=p_name,
+                        role=getattr(m, "scenario_role", None),
+                    )
+
+        raw_claims = self.extract_claims_from_content(
+            markdown_content,
+            resolver=resolver,
+        )
+
         # Résoudre l'horizon temporel
         horizon_hours = getattr(cohort_table, "horizon_hours", 72.0) if cohort_table else 72.0
         if not horizon_hours or horizon_hours <= 0:
@@ -2787,6 +2939,7 @@ class ReportAgent:
                 evidence_pack=evidence_pack,
                 cohort_table=cohort_table,
                 horizon_hours=horizon_hours,
+                resolver=resolver,
             )
             registry.add_claim(verified)
 

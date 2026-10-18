@@ -168,6 +168,44 @@ class AgentIdentityResolver:
             return ev_name
         return f"Agent_{ev.agent_id}"
 
+    def get_known_names(self) -> Set[str]:
+        """Retourne l'ensemble des noms canoniques de personas connus (Story 012-3, AC1)."""
+        names = {
+            v for v in self.name_to_canonical.values()
+            if v and isinstance(v, str) and v.strip()
+        }
+        names.update(
+            v for v in self.id_to_name.values()
+            if v and isinstance(v, str) and v.strip()
+        )
+        return names
+
+    def resolve_name(self, candidate_name: Optional[str]) -> Optional[str]:
+        """Résout un nom brut ou candidat vers son persona canonique strict (== normalisé) (Story 012-3, AC1, AC4).
+
+        Ne réalise AUCUNE correspondance par sous-chaîne. Retourne le nom canonique si trouvé,
+        ou None si non réconciliable avec les participants connus.
+        """
+        if not candidate_name or not isinstance(candidate_name, str):
+            return None
+        c_stripped = candidate_name.strip()
+        if not c_stripped:
+            return None
+
+        # Alias technique Agent_X
+        match = AGENT_ALIAS_RE.match(c_stripped)
+        if match:
+            aid = int(match.group(1))
+            if aid in self.id_to_name:
+                return self.id_to_name[aid]
+            return None
+
+        norm = normalize_agent_name(c_stripped)
+        if norm in self.name_to_canonical:
+            return self.name_to_canonical[norm]
+
+        return None
+
 
 class ScenarioRole(str, Enum):
     """Rôle fonctionnel d'un membre de la cohorte au sein du scénario (Story 011-4, FR-07, Story 012-2, FR-03)."""
