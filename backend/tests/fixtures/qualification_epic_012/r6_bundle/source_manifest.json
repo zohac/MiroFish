@@ -1,0 +1,46 @@
+{
+  "simulation_id": "sim_ea4f3cfe1028",
+  "project_id": "proj_551198ca50f8",
+  "total_documents": 3,
+  "documents": [
+    {
+      "document_id": "doc_997e25f8d2a5",
+      "filename": "01-identite-et-vision.md",
+      "role": "facts",
+      "saved_filename": "997faf12.md",
+      "priority": 1,
+      "date": null,
+      "total_chunks": 0,
+      "author": null,
+      "source": null,
+      "validation_status": "unvalidated",
+      "epistemic_kind": "CANONICAL_DOCUMENT"
+    },
+    {
+      "document_id": "doc_0b45f26f2649",
+      "filename": "02-utilisateurs-et-offre.md",
+      "role": "facts",
+      "saved_filename": "2785c411.md",
+      "priority": 1,
+      "date": null,
+      "total_chunks": 0,
+      "author": null,
+      "source": null,
+      "validation_status": "unvalidated",
+      "epistemic_kind": "CANONICAL_DOCUMENT"
+    },
+    {
+      "document_id": "doc_0789fddf265a",
+      "filename": "personas-et-cibles-keova.md",
+      "role": "facts",
+      "saved_filename": "eacd53e5.md",
+      "priority": 1,
+      "date": null,
+      "total_chunks": 0,
+      "author": null,
+      "source": null,
+      "validation_status": "unvalidated",
+      "epistemic_kind": "PERSONA_SPECIFICATION"
+    }
+  ]
+}

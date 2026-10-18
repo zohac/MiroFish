@@ -47,6 +47,12 @@ class SimulationAuditService:
 
     def _get_git_commit(self) -> str:
         """Récupère l'empreinte git commit active ou un repli."""
+        # Priorité aux variables d'environnement (CI/CD, conteneurs Docker sans montage .git)
+        for env_var in ("GIT_COMMIT", "COMMIT_SHA", "GITHUB_SHA"):
+            val = os.environ.get(env_var, "").strip()
+            if val:
+                return val
+
         try:
             res = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
@@ -65,6 +71,71 @@ class SimulationAuditService:
         sim_manager = SimulationManager()
         sim_state = sim_manager.get_simulation(self.simulation_id)
 
+        # Récupération de completed_at depuis sim_state, SimulationRunner ou run_state.json direct
+        completed_at = getattr(sim_state, "completed_at", None)
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+        if not completed_at:
+            try:
+                from ..services.simulation_runner import SimulationRunner
+                run_state = SimulationRunner.get_run_state(self.simulation_id, reconcile=False)
+                if run_state and run_state.completed_at:
+                    completed_at = run_state.completed_at
+            except Exception:
+                pass
+        if not completed_at:
+            state_p = os.path.join(sim_dir, "run_state.json")
+            if os.path.exists(state_p):
+                try:
+                    with open(state_p, "r", encoding="utf-8") as sf:
+                        s_data = json.load(sf)
+                        completed_at = s_data.get("completed_at")
+                except Exception:
+                    pass
+        if not completed_at and sim_state:
+            status_val = sim_state.status.value if hasattr(sim_state.status, "value") else str(getattr(sim_state, "status", ""))
+            if status_val.lower() == "completed" and getattr(sim_state, "updated_at", None):
+                completed_at = getattr(sim_state, "updated_at", None)
+
+        # Récupération de time_horizon et d'informations de scénario depuis simulation_brief
+        time_horizon = None
+        brief_path = os.path.join(sim_dir, "simulation_brief.json")
+        if os.path.exists(brief_path):
+            try:
+                with open(brief_path, "r", encoding="utf-8") as bf:
+                    b_data = json.load(bf)
+                    time_horizon = b_data.get("time_horizon")
+                    if (not time_horizon or str(time_horizon).lower() in ("unknown", "none", "null")) and b_data.get("goal"):
+                        from ..models.simulation_brief import extract_inferred_horizon
+                        inferred = extract_inferred_horizon(b_data["goal"], "")
+                        if inferred.time_horizon and inferred.time_horizon != "unknown":
+                            time_horizon = inferred.time_horizon
+            except Exception:
+                pass
+
+        # Récupération du nombre d'agents instanciés
+        agent_count = 0
+        config_path = os.path.join(sim_dir, "simulation_config.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as cf:
+                    c_data = json.load(cf)
+                    agents_list = c_data.get("agents") or c_data.get("agent_configs") or []
+                    agent_count = len(agents_list)
+            except Exception:
+                pass
+        if agent_count == 0:
+            actors_path = os.path.join(sim_dir, "actors.json")
+            if os.path.exists(actors_path):
+                try:
+                    with open(actors_path, "r", encoding="utf-8") as af:
+                        a_data = json.load(af)
+                        agents_list = a_data.get("actors") or []
+                        agent_count = len(agents_list)
+                except Exception:
+                    pass
+        if agent_count == 0 and sim_state:
+            agent_count = getattr(sim_state, "actors_count", 0) or getattr(sim_state, "profiles_count", 0)
+
         manifest = {
             "version": "1.0.0",
             "simulation_id": self.simulation_id,
@@ -80,8 +151,10 @@ class SimulationAuditService:
             "simulation": {
                 "status": sim_state.status.value if sim_state and hasattr(sim_state.status, "value") else str(getattr(sim_state, "status", "unknown")),
                 "created_at": getattr(sim_state, "created_at", None),
-                "completed_at": getattr(sim_state, "completed_at", None),
+                "completed_at": completed_at,
                 "platform": getattr(sim_state, "platform", "all"),
+                "time_horizon": time_horizon,
+                "agent_count": agent_count,
             },
         }
         return manifest

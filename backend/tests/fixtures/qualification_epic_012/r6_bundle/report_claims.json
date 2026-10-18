@@ -1,0 +1,3324 @@
+{
+  "simulation_id": "sim_ea4f3cfe1028",
+  "total_claims": 258,
+  "verified_claims": 0,
+  "unsupported_claims": 241,
+  "contradicted_claims": 17,
+  "verification_ratio": 0.0,
+  "claims": [
+    {
+      "claim_id": "clm_0674d445",
+      "text": "> Si l'accompagnement humain en visio 1-to-1 neutralise la phobie technique, le seuil psychologique des 29 € fixes, la défiance envers le sous-domaine et le blocage éthique du paiement en ligne polarisent fortement les profils dès les 72 premières heures.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Si",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_36791d52",
+      "text": "Dès la découverte de l'offre Keova Essentiel à 29 € TTC par mois, une ligne de fracture nette se dessine au sein de la cohorte observée quant à la viabilité d'une charge fixe récurrente pour lancer son activité de praticienne. Loin de faire l'unanimité d'emblée, le montant de 29 € mensuels sans essai gratuit automatisé déclenche une confrontation directe entre deux visions de l'installation : la stratégie du « budget zéro » reposant sur l'assemblage d'outils gratuits grand public, et la structuration professionnelle immédiate destinée à contenir la charge mentale.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Dès",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_2f682295",
+      "text": "Le réflexe du « budget zéro » et l'angoisse des charges fixes sous ARE**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_eaf15022",
+      "text": "Pour les praticiennes en transition professionnelle vivant sur leurs allocations d'aide au retour à l'emploi (ARE), le seuil de 29 € par mois ne représente pas une somme modique, mais une dépense fixe incompressible sans rentrée d'argent garantie. Dans la simulation, le persona de Florence incarne avec acuité cette résistance économique. Disposant de solutions gratuites immédiatement accessibles, son premier réflexe consiste à opposer un refus catégorique à tout abonnement logiciel.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_54a6eb16",
+      "text": "Comme en attestent les observations enregistrées lors de la confrontation avec l'offre :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Comme",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_bba67417",
+      "text": "> \"Florence rejette l'offre Keova à 29 € par mois sans période d'essai gratuit, la jugeant trop risquée financièrement pendant sa phase de création sous allocations ARE.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_2dfb776d",
+      "text": "> \"Florence commente et formule des objections contre l'offre Keova Essentiel, estimant trop risqué de s'engager sur un tarif de 29 € par mois sans essai gratuit alors qu'elle dépend des allocations ARE et peut utiliser Google Agenda gratuitement.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_a86cce34",
+      "text": "Cette logique d'évitement financier s'appuie sur une organisation alternative entièrement gratuite, articulée autour de WhatsApp pour les échanges et les confirmations, Google Agenda pour la planification des créneaux, Google Forms pour recueillir les données préliminaires, et les virements bancaires manuels pour encaisser les séances :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_647b9a8e",
+      "text": "> \"Florence préfère gérer son planning gratuitement sur Google Agenda plutôt que d'ajouter une charge fixe récurrente.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f93dda0b",
+      "text": "> \"Florence utilise gratuitement WhatsApp pour son activité au lieu de payer un abonnement.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_3743bd41",
+      "text": "Cette même angoisse de solvabilité paralyse Nathalie lors de ses premières analyses de l'offre. Débutante en cours de lancement et doutant de sa légitimité commerciale, Nathalie perçoit l'engagement de 29 € mensuels comme un pari hasardeux avant même d'avoir accueilli sa première consultante :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_90d0e28b",
+      "text": "> \"Nathalie examine l'offre Keova Essentiel et exprime sa vive angoisse face à un coût fixe de 29 € par mois sans garantie de clientèle, hésitant à se lancer plutôt avec WhatsApp et des virements bancaires.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_ff590dc3",
+      "text": "L'inefficacité initiale de l'argument « 0 % de commission » pour les débutantes**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_deb417fb",
+      "text": "`[Conclusions analytiques]` : L'analyse des premières réactions révèle un biais fondamental dans la réception du modèle économique de Keova. Alors que le fondateur conçoit l'absence de commission de plateforme (0 % de commission Keova, hors frais bancaires Stripe) comme un avantage financier majeur, cet argument s'avère inopérant auprès des praticiennes débutantes.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_74e767c1",
+      "text": "Pour un profil comme Florence ou Nathalie, qui ne réalise encore aucun chiffre d'affaires, un prélèvement proportionnel de 10 % ou 15 % sur consultation représente un coût de 0 € tant qu'aucun client ne réserve. À l'inverse, 29 € de coût fixe mensuel tombent chaque mois, que la praticienne réalise dix consultations ou zéro. L'absence de commission ne rassure donc pas les débutantes, car elle ne neutralise pas le risque d'une trésorerie négative en phase de démarrage.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c3defded",
+      "text": "La contre-offensive de l'expérience : le coût caché du bricolage artisanal**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fda10810",
+      "text": "Face à ce repli sur la gratuité manuelle, un clivage d'usage apparaît très vite sous l'impulsion des praticiennes en exercice et des formatrices prescriptrices. Sylvie, installée depuis plus d'un an avec un flux régulier de 8 à 15 séances hebdomadaires, apporte un contrepoint pragmatique à la posture de Florence. Ayant elle-même éprouvé les limites du bricolage opérationnel (agenda papier, tableaux Excel, pointage manuel des virements), elle met en garde les nouvelles arrivantes contre l'illusion de la gratuité :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Face",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_7bcfcabf",
+      "text": "> \"Sylvie réagit aux remarques de Florence sur le coût d'une solution payante au démarrage, comprenant son angoisse budgétaire mais mettant en garde contre les dérives et risques du bricolage gratuit.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Sylvie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_b63ca2a4",
+      "text": "Ce clivage est renforcé par les interventions des formatrices sur les réseaux. Marie Bourel (*Menopulse*) interpelle publiquement Sylvie et la communauté sur l'usure insidieuse induite par l'éparpillement des outils gratuits :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_fa720ebc",
+      "text": "> \"Marie Bourel échange avec Sylvie sur Twitter pour la mettre en garde contre le piège du bricolage opérationnel entre agenda papier et virements.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie Bourel",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_3b222f3c",
+      "text": "Hélène intervient également auprès de Florence sur Reddit pour repositionner le débat non pas sur le prix brut du logiciel, mais sur la valeur du temps et de la disponibilité d'écoute :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_f6431291",
+      "text": "> \"Hélène échange avec Florence sur Reddit au sujet de sa prudence budgétaire en période de lancement avec l'ARE et de l'arbitrage entre des outils gratuits comme Google Agenda et une solution payante dédiée.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_be737aca",
+      "text": "Pour ces praticiennes expérimentées, le « coût zéro » des outils gratuits se paie en réalité par une charge mentale invisible : relances des impayés, messages croisés sur WhatsApp à des heures indues, erreurs d'inattention dans la double saisie des agendas papier et risque d'épuisement avant même d'avoir consolidé sa patientèle.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_5a0a0cb6",
+      "text": "La bascule de l'objection : de la dépense logicielle à l'investissement d'accompagnement**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_2917b899",
+      "text": "Le basculement psychologique des praticiennes les plus prudentes ne s'opère pas à la lecture des spécifications techniques du site web, mais lors de l'interaction directe avec Simon. L'absence d'essai gratuit automatisé, initialement vécue par Florence et Nathalie comme une barrière rédhibitoire, change de nature dès lors que le fondateur explique son choix : refuser l'essai solo en libre-service pour éviter la solitude face à l'écran, et proposer à la place une prise en charge individuelle en visioconférence 1-to-1 pour tout configurer pas à pas.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_90920123",
+      "text": "Les événements simulés au cours des 72 heures documentent précisément ce retournement de posture chez Florence :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_2af3485e",
+      "text": "> \"Simon échange avec Florence sur Reddit pour légitimer sa prudence financière sous allocations ARE et lui expliquer les raisons du choix d'un onboarding accompagné en visio 1-to-1 plutôt que d'un essai gratuit automatisé.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_49125289",
+      "text": "> \"Florence commente publiquement l'offre d'abonnement à 29 € de Keova, expliquant ses réticences initiales dues à l'absence d'essai gratuit sous allocation ARE avant de comprendre la valeur de l'accompagnement.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_dc4fb8d9",
+      "text": "> \"Florence évalue publiquement l'offre Keova Essentiel, confiant avoir hésité sous l'ARE mais reconnaissant que l'accompagnement humain individuel permet d'éviter le stress technique.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_3fedd9b5",
+      "text": "La requalification de l'offre est ici manifeste : les 29 € mensuels cessent d'être perçus comme une « taxe SaaS superflue » pour devenir le coût d'un accompagnateur technique personnel garantissant qu'aucun bug ou blocage ne viendra parasiter le lancement.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_205705bd",
+      "text": "Nathalie suit une trajectoire émotionnelle comparable. Malgré son angoisse financière initiale, la promesse d'une séance d'installation guidée l'emporte sur la tentation de bricoler avec WhatsApp :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e818569a",
+      "text": "> \"Nathalie évalue l'offre de Keova et apprécie particulièrement le rendez-vous d'installation en visio ainsi que l'automatisation des réservations et des règlements pour alléger sa charge mentale, malgré ses hésitations financières initiales au lancement.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_0aeff97f",
+      "text": "Synthèse prédictive des postures face aux coûts fixes**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Synthèse",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fa9c99e6",
+      "text": "Au terme des 72 premières heures d'exposition à l'offre Keova Essentiel, la cohorte se segmente en trois attitudes face aux coûts fixes :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Au",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_9c730d6e",
+      "text": "Le rejet défensif persistant** : Présent chez les profils les plus précarisés ou ultra-débutants, qui maintiennent leur choix des outils gratuits (Google Agenda, WhatsApp, virements) tant qu'ils n'ont pas enregistré leurs trois ou quatre premières clientes payantes.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_5e78ba6e",
+      "text": "La conversion par la médiation humaine** : Représentée par Florence et Nathalie, qui acceptent de reconsidérer la dépense de 29 € uniquement parce que la présence en direct du fondateur compense l'absence d'essai gratuit et dissipe la terreur du paramétrage technique.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6066627a",
+      "text": "La validation immédiate par l'expérience du débordement** : Portée par Sylvie et les praticiennes installées, pour qui 29 € représentent une dépense négligeable au regard des heures perdues en relances administratives et en gestion manuelle d'agendas disjoints.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_ed393c94",
+      "text": "Au-delà des arbitrages purement budgétaires, l'appropriation de l'offre Keova Essentiel se heurte, dans les 72 premières heures de sa découverte, à deux résistances qualitatives majeures : le conflit moral autour de la monétisation du soin d'une part, et la stigmatisation statutaire du sous-domaine partagé d'autre part. Ces deux points de friction ne relèvent pas d'une simple incompréhension fonctionnelle, mais touchent directement à l'identité professionnelle et à la posture déontologique des praticiennes.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Au",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_c719f1ae",
+      "text": "Le blocage éthique face à l'encaissement et le tabou du paiement d'avance**",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_7060ba45",
+      "text": "L'introduction du paiement en ligne par carte bancaire via Stripe Connect suscite un trouble éthique profond chez les professionnelles issues du monde médico-social. Dans la simulation, le persona de Christine — ancienne infirmière hospitalière en reconversion vers la réflexologie plantaire — cristallise ce refus instinctif d'intégrer une barrière transactionnelle avant la rencontre thérapeutique.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Stripe Connect",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_00d42ab8",
+      "text": "Pour Christine, réclamer un règlement par carte bancaire en amont d'un rendez-vous dénature l'alliance d'aide en la réduisant à un acte marchand :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Pour Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f531bb7c",
+      "text": "> \"Christine formule des objections contre l'obligation de paiement en ligne par carte bancaire lors de la réservation prévue dans l'offre Keova Essentiel, estimant qu'un paiement d'avance est froid et marchand dans le cadre d'un soin thérapeutique.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_5ca29710",
+      "text": "> \"Christine manifeste de la réticence à l'idée d'imposer un prépaiement par carte bancaire via Stripe Connect à ses consultantes.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_0db1e5bc",
+      "text": "Cette réserve morale trouve immédiatement un écho favorable chez d'autres débutantes comme Florence, qui soutient publiquement sa position :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_9b067240",
+      "text": "> \"Florence a aimé la publication de Christine exprimant ses réticences face à l'exigence du paiement en ligne par carte bancaire dès la réservation.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_51033550",
+      "text": "`[Conclusions analytiques]` : Chez les soignantes en reconversion, l'héritage de l'exercice hospitalier public — où le soin est dissocié de l'encaissement direct au chevet du patient — engendre un sentiment aigu d'illégitimité ou de culpabilité dès lors qu'il s'agit de tarifier l'accompagnement. La fonctionnalité de prépaiement, pourtant conçue par Simon pour sécuriser les réservations et éliminer les rendez-vous non honorés (no-shows), est d'abord vécue comme une violence relationnelle infligée aux personnes en souffrance.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_3d2080a7",
+      "text": "La déconstruction du tabou : le prépaiement comme cadre thérapeutique protecteur**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_9e5a954e",
+      "text": "Face à ce blocage émotionnel, un dialogue régulateur s'enclenche très rapidement au sein de la simulation, porté simultanément par les consultantes et par les instances pédagogiques.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Face",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_8f6e9ffa",
+      "text": "Du côté des utilisatrices finales, Martine (consultante de 51 ans) inverse complètement la charge morale en affirmant que le paiement automatisé en amont protège l'intimité de la séance :",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Du",
+      "round_num": null,
+      "confidence": 0.4,
+      "limitations": [
+        "Affirmation hors horizon temporel : mention de 446760.0h alors que le temps simulé maximal est fixé à 72.0h."
+      ]
+    },
+    {
+      "claim_id": "clm_72268723",
+      "text": "> \"Martine répond publiquement à Christine en expliquant qu'en tant que patiente, le paiement en ligne par carte bancaire dès la réservation garantit la clarté et un cadre professionnel serein.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Martine",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_782356a3",
+      "text": "> \"Martine réagit à la publication de Sylvie pour affirmer qu'une réservation et un paiement en amont évitent une gêne inutile après la séance tout en rassurant la patiente et en allégeant l'administratif.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Martine",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_264f5684",
+      "text": "Cette vision est appuyée par la formatrice Valérie Blandinières (*Ma Ménopause & Moi*), qui requalifie l'encaissement en acte déontologique plutôt qu'en barrière financière :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_fdd16cb9",
+      "text": "> \"Valérie Blandinières échange avec Christine en lui expliquant que sécuriser le paiement en amont n'est pas un péage numérique mais un cadre protecteur qui renforce la confiance.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Valérie Blandinières",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_41c52671",
+      "text": "Le déblocage final de Christine s'opère lorsque Simon précise les modalités réelles du tunnel de réservation de Keova : l'encaissement Stripe Connect en ligne n'est nullement obligatoire et laisse la possibilité d'opter pour un règlement direct en cabinet :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d6445ab5",
+      "text": "> \"Christine remercie Simon et échange avec lui sur le fait que le prépaiement n'est pas imposé et qu'il est possible de choisir le règlement direct lors de la consultation.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_b816cb1f",
+      "text": "> \"Hélène échange avec Christine sur la liberté de choisir entre paiement en ligne et règlement direct en cabinet tout en soulignant l'intérêt de clarifier le cadre financier.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_3c502c41",
+      "text": "Le stigmate du sous-domaine et l'angoisse de crédibilité médicale**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_82e8d663",
+      "text": "Le second verrou d'image concerne la structure technique de l'adresse web incluse dans l'offre Essentiel (`praticienne.keova.app`). L'attribution d'un sous-domaine partagé réactive immédiatement un sentiment de dévalorisation professionnelle, particulièrement exacerbé chez les praticiennes ayant déjà subi des déconvenues techniques par le passé.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_74cf479b",
+      "text": "Émilie, qui a précédemment englouti 1 500 € dans un site WordPress non fonctionnel livré par une agence, perçoit le sous-domaine comme un déclassement statutaire susceptible de ruiner son positionnement auprès des professionnels de santé :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e113c57d",
+      "text": "> \"Émilie évalue l'offre Keova Essentiel, saluant l'accompagnement individuel en visio mais critiquant la restriction à un sous-domaine en .keova.app qui nuit à la crédibilité auprès des consultants et des médecins.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_a097ed5f",
+      "text": "> \"Émilie formule des objections envers l'offre Keova Essentiel, considérant que l'adresse en sous-domaine keova.app constitue un frein à la crédibilité auprès des consultants et des médecins prescripteurs.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_983c11a4",
+      "text": "Dans la perspective d'Émilie, l'absence de son propre nom de domaine (`.fr` ou `.com`) signale une démarche amateur qui compromettrait les partenariats avec les médecins traitants ou les gynécologues :",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_ea384a70",
+      "text": "> \"Émilie interpelle Simon au sujet de la nécessité de souscrire un forfait supérieur simplement pour relier son propre nom de domaine et préserver son indépendance vis-à-vis des consultants et médecins prescripteurs.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_0425734b",
+      "text": "> \"Émilie examine l'offre Essentiel de Keova et déplore l'obligation d'avoir une adresse en sous-domaine au lieu d'un nom de domaine propre, estimant injuste de devoir souscrire un forfait supérieur pour l'obtenir.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_98385474",
+      "text": "La psychose du verrouillage propriétaire (lock-in)**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_22830a67",
+      "text": "À cette inquiétude de légitimité externe s'ajoute une méfiance aiguë quant à la captivité technique. Échaudée par son échec sur WordPress, Émilie associe l'usage du sous-domaine Keova à un risque d'enfermement dans un écosystème fermé, redoutant de travailler au profit du référencement de la plateforme plutôt qu'au sien :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Échaudée",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_005a9717",
+      "text": "> \"Émilie manifeste une vive méfiance envers Keova et sa formule Essentiel en raison de la limitation à un sous-domaine en keova.app, craignant le verrouillage sur une plateforme fermée et la perte de ses données et de son référencement.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_8cce5763",
+      "text": "> \"Émilie exprime sa réticence et sa peur du verrouillage vis-à-vis de la formule Essentiel de keova.app, craignant d'être liée à une plateforme fermée sans nom de domaine propre et de risquer la perte de ses données et de son référencement.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_0e7f8d62",
+      "text": "Cette posture défensive d'Émilie démontre que pour une frange des praticiennes, l'argument de l'extrême simplicité se retourne en soupçon de dépendance logicielle.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_dc9a63a2",
+      "text": "La confrontation avec le réel : le pragmatisme des paires installées**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_d5a631df",
+      "text": "Pour désamorcer cette tension au cours des 72 heures, l'intervention des clientes réelles et des accompagnatrices joue un rôle d'arbitrage décisif, opposant au perfectionnisme théorique l'expérience concrète du terrain.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_37e083d4",
+      "text": "Marie-Claude, première cliente payante indépendante de Keova issue de la formation *Menopulse*, intervient pour rassurer Émilie sur la réception de son adresse par sa patientèle :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_f758bdea",
+      "text": "> \"Marie-Claude répond avec bienveillance aux doutes formulés par Émilie concernant la crédibilité de l'utilisation d'un sous-domaine keova.app auprès des consultantes et des médecins.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_cd27bd07",
+      "text": "> \"Marie-Claude recommande Keova et souligne que le sous-domaine keova.app fonctionne très bien pour ses consultantes tout en lui apportant de la sérénité.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_a301c7c5",
+      "text": "Parallèlement, la formatrice Hélène suggère un compromis tactique pour préserver l'avenir sans bloquer le lancement immédiat :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Parallèlement",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_05aeb6cb",
+      "text": "> \"Hélène échange avec Émilie au sujet de ses réserves concernant l'absence de nom de domaine propre et lui conseille de réserver son nom de domaine séparément tout en commençant par une solution simple.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c1ef9c57",
+      "text": "`[Conclusions analytiques]` : La simulation des premières 72 heures met en lumière une fracture psychologique nette entre deux impératifs : la quête d'une respectabilité statutaire formelle (incarnée par le nom de domaine propre d'Émilie et la gratuité perçue du soin chez Christine) et la réalité pratique de l'installation (le besoin d'un cadre clair et sans friction technique). Si l'explication personnalisée de Simon et le retour des paires parviennent à tempérer le blocage du paiement en levant la contrainte du prépaiement obligatoire, la restriction du sous-domaine sur la formule Essentiel demeure une zone de friction persistante pour les profils les plus vigilants quant à leur autonomie de marque.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_e640b8a2",
+      "text": "En supprimant délibérément tout essai gratuit automatisé au profit d'une séance individuelle de mise en ligne en visio assurée par le fondateur, l'offre Keova Essentiel substitue un sas relationnel humain à l'expérimentation logicielle autonome. Au cours des 72 premières heures de confrontation avec le marché, ce choix de conception produit constitue le pivot déterminant des arbitrages : loin d'être un simple détail commercial, la visio 1-to-1 polarise immédiatement les profils, opérant une réassurance salvatrice auprès des praticiennes tétanisées par la technique, tout en déclenchant une vive suspicion chez les professionnelles marquées par des déboires passés.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "En",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_b66c5087",
+      "text": "`[Hypothèses de départ]` : Le modèle canonique postulait que l'accompagnement humain individualisé compenserait instantanément le manque d'essai gratuit automatisé, désamorcerait la phobie de l'outil et emporterait l'adhésion immédiate des débutantes en leur évitant le temps perdu en apprentissage solitaire.",
+      "claim_kind": "SCENARIO_HYPOTHESIS",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hypothèses",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_b7ad57d1",
+      "text": "`[Événements simulés réels]` : L'analyse des données recueillies au fil des interactions révèle une dynamique plus nuancée : si le contact direct avec Simon lève spectaculairement la charge mentale des profils angoissés (Nathalie, Florence), il suscite initialement chez les praticiennes échaudées (Émilie) la crainte d'un piège commercial ou d'une perte d'autonomie, avant que la posture humble de l'artisan du numérique ne vienne progressivement dissiper les préventions.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Événements",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_9b766ac7",
+      "text": "Le soulagement des profils phobiques : Nathalie et la rupture de l'isolement technique**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_789c91c1",
+      "text": "Pour les professionnelles novices en reconversion, l'obstacle central au lancement ne réside pas dans l'absence de fonctionnalités, mais dans la peur panique de devoir paramétrer seules des outils informatiques arides. Dans la simulation, le persona de Nathalie illustre de façon éclatante la transformation d'un blocage paralysant en un profond soulagement grâce à l'intervention humaine directe :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_a5e528e8",
+      "text": "> \"Nathalie exprime son soulagement à Simon, soulignant qu'un accompagnement personnalisé en visio pour tout installer lui permet de se concentrer sur l'écoute sans batailler avec des outils informatiques.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fc91892b",
+      "text": "Pour Nathalie, l'obligation d'un échange visio n'est pas reçue comme une contrainte intrusive mais comme un rempart indispensable contre l'angoisse de l'échec. Interrogée sur son ressenti face à l'absence de test en autonomie, elle livre une explication limpide :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Pour Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_1f9bb6be",
+      "text": "> \"Pour être tout à fait honnête, l'absence d'essai en autonomie a été pour moi un véritable soulagement plutôt qu'une contrainte. Étant très vite angoissée par la technique, me retrouver seule face à un tableau de bord à tout paramétrer aurait été une source d'épuisement et de doute paralysante. Découvrir qu'un échange en visio avec le fondateur était prévu m'a immédiatement apporté cette chaleur humaine et ce cadre sécurisant dont j'avais tant besoin pour oser me lancer.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d67da93b",
+      "text": "Cette présence bienveillante modifie radicalement le rapport au prix. Alors que les 29 € mensuels fixes constituaient un frein absolu en l'absence de clientèle garantie, le sentiment d'être prise en charge pas à pas neutralise le doute économique :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e43e2573",
+      "text": "> \"Nathalie confirme que ce modèle sans engagement et configuré directement avec le fondateur transforme cette dépense en un investissement serein pour préserver son énergie.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_ebb0a73e",
+      "text": "> \"Nathalie échange avec Simon sur Twitter en confirmant qu'en plein lancement de son activité, elle recherche des outils simples qui s'effacent pour laisser place à l'humain et à l'écoute plutôt que de perdre du temps sur des réglages techniques.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_59465784",
+      "text": "Pour ce segment de praticiennes, l'essai gratuit automatisé n'est pas perçu comme un avantage mais comme un piège à solitude numérique. La présence de Simon déplace la proposition de valeur : l'utilisatrice n'achète pas une licence logicielle, elle acquiert la certitude que son installation sera fonctionnelle sans souffrance cognitive.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_58152eea",
+      "text": "Le basculement pragmatique sous contrainte budgétaire : la conversion de Florence**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_90501799",
+      "text": "L'efficacité de l'accompagnement humain s'observe également auprès des profils les plus rétifs à la dépense, à l'image de Florence, dont la situation financière sous allocations ARE imposait initialement une stratégie stricte de « budget zéro ».",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_4088b19b",
+      "text": "Lors de ses premiers contacts avec Keova, Florence contestait vigoureusement l'absence d'évaluation gratuite en libre-service. L'intervention directe du fondateur dans l'espace de discussion permet de déplacer le débat du plan financier au plan relationnel :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Lors",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_c7b1bb6c",
+      "text": "En validant la légitimité de ses craintes sans chercher à lui imposer un argumentaire promotionnel standardisé, Simon transforme l'objection en confiance. Florence révise publiquement son jugement sur la valeur de l'accompagnement face au coût caché du bricolage manuel :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "En",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_2a474bd3",
+      "text": "> \"Florence commente publiquement et salue l'approche de Keova qui privilégie un accompagnement humain et pas à pas en visio plutôt qu'un essai gratuit automatisé.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_8c97a4f8",
+      "text": "Lors de son entretien, Florence détaille le mécanisme précis de ce désamorçage psychologique :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Lors",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6fa29c3b",
+      "text": "> \"Au tout début, la crainte d'un discours commercial insistant était bien réelle dans mon esprit d'entrepreneure débutante, car l'incertitude financière rend particulièrement vulnérable aux pressions de vente. Cependant, la posture d'artisan de Simon, son honnêteté et le fait que l'offre soit sans aucun engagement ont totalement dissipé cette inquiétude.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Au",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c5095c16",
+      "text": "> \"Florence recommande chaleureusement aux praticiennes d'échanger avec Simon pour bénéficier de son approche humaine et rassurante.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_92087a6c",
+      "text": "L'écoute du fondateur opère ici comme un réducteur de risque : le fait de savoir que la mise en service s'effectue ensemble et que l'abonnement reste résiliable à tout moment fait basculer Florence du rejet défensif vers l'acceptation d'un investissement sécurisant.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6dae3f4c",
+      "text": "La méfiance des praticiennes échaudées : le réflexe défensif d'Émilie**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f0529321",
+      "text": "À l'exact opposé des débutantes en quête d'assistance, la simulation met en évidence une réaction de défiance aiguë chez les profils ayant déjà subi des déconvenues techniques ou financières. Pour Émilie, qui a précédemment investi 1 500 € à perte dans un site WordPress livré défaillant par une agence, le refus de l'essai gratuit en solo et l'obligation de passer par une visioconférence réveillent immédiatement le traumatisme du démarchage agressif :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Pour Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fd4c2a6e",
+      "text": "> \"Émilie a précédemment dépensé 1 500 € dans un site WordPress réalisé par une agence qui l'a laissée tomber.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_936b4c5d",
+      "text": "> \"Chat échaudé craint l'eau froide : j'avais très peur de me retrouver face à un discours marketing agressif cherchant à minimiser mes besoins réels, notamment sur la question cruciale du nom de domaine personnalisé pour ma légitimité auprès des médecins.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Chat",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_cf0781e3",
+      "text": "Pour une professionnelle obsédée par son indépendance et la maîtrise de ses outils, devoir s'en remettre à une démonstration guidée par le créateur est d'abord suspecté de masquer des lacunes logicielles ou d'exercer un « closing » psychologique forcé :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_2b21caf1",
+      "text": "> \"Émilie commente en exprimant qu'une praticienne échaudée a besoin de tester l'ergonomie par elle-même avant tout échange humain.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_894ef2e7",
+      "text": "Néanmoins, la trajectoire d'Émilie montre que cette méfiance n'est pas irréversible. Dès lors que les échanges publics prouvent que l'accompagnement ne vise pas l'enfermement propriétaire mais garantit l'autonomie — notamment par la liberté de résiliation et la restitution intégrale des données —, le rôle de la visio change de statut :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Néanmoins",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_477b81c9",
+      "text": "> \"Émilie échange avec Nathalie en confirmant l'importance d'un accompagnement humain pour rompre la solitude technique, tout en rappelant son attention portée à l'indépendance de l'adresse web.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f450e285",
+      "text": "> \"Émilie salue la démarche d'accompagnement humain de Keova Essentiel pour éviter la solitude technique, tout en maintenant sa vigilance sur l'indépendance liée à l'adresse du site.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_29c10031",
+      "text": "L'adhésion d'une praticienne échaudée reste sous condition : l'accompagnement 1-to-1 n'est toléré que s'il est strictement cantonné à une aide d'installation artisanale et n'entrave en rien le contrôle futur de l'utilisatrice sur ses outils et ses données.",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_675d9d0b",
+      "text": "Le relais prescriptif : la formatrice Hélène comme tiers garant du modèle**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_235b4b32",
+      "text": "La légitimation de ce modèle d'accueil sans essai gratuit doit une large part à l'intervention des tiers de confiance, au premier rang desquels se trouvent les instances de formation continue. Pour Hélène, directrice pédagogique, l'onboarding individuel par Simon constitue un argument déterminant pour recommander la plateforme :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f0fd7053",
+      "text": "> \"Hélène examine publiquement l'offre Keova Essentiel et la présente comme une potentielle solution clé en main pour les praticiennes bloquées par l'informatique ou avec un site Wix inachevé.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_a1ed2c22",
+      "text": "Hélène déconstruit l'illusion selon laquelle l'essai gratuit en autonomie serait une opportunité pour les reconversions du soin. Elle y voit au contraire un facteur majeur de découragement et de déperdition :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_3dc1a01c",
+      "text": "> \"En tant qu'ingénieure pédagogique habituée à voir des praticiennes s'enliser seules face à des écrans froids, j'ai perçu ce parti pris non pas comme une contrainte, mais comme une véritable bouffée d'oxygène. Les essais gratuits traditionnels en solo sont souvent un leurre : ils laissent des débutantes déjà vulnérables face à un tableau de bord vide, ce qui génère une immense charge mentale, de la procrastination et bien souvent l'abandon pur et simple du projet.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "En",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_770ba508",
+      "text": "En préconisant l'offre Essentiel à ses apprenantes, Hélène cherche simultanément à préserver sa propre disponibilité : l'intervention de Simon délègue la logistique de démarrage sans que l'organisme de formation n'ait à assurer un support technique chronophage pour lequel il n'est pas mandaté.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "En",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_44351522",
+      "text": "`[Conclusions analytiques]` : L'analyse des 72 premières heures met en lumière une réalité contre-intuitive du marché du bien-être. Contrairement aux standards de l'industrie SaaS axés sur le « self-service » et l'essai gratuit, l'absence de période d'essai ne pénalise pas Keova auprès de son cœur de cible. Pour les praticiennes en reconversion, la friction majeure n'est pas le coût d'entrée de 29 €, mais l'effort cognitif requis pour dompter une interface vierge. En incarnant personnellement le déploiement technique dès le premier jour, le fondateur transforme un simple produit numérique en un partenariat d'artisanat digital. Si ce modèle suscite un doute réflexe chez les profils meurtris par le marketing web traditionnel, la neutralité commerciale et la transparence de la visio suffisent à convertir l'accompagnement humain en principal vecteur de réassurance et d'activation.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_bfdb8daa",
+      "text": "Dans la dynamique d'adoption de l'offre Keova Essentiel, l'intervention des formatrices et directrices d'organismes de formation pédagogique constitue le véritable catalyseur de légitimité. Loin d'être de simples relais d'information, ces professionnelles incarnent une autorité bienveillante indispensable pour débloquer les praticiennes paralysées au seuil de leur installation. Au cours des 72 premières heures, leur rôle s'avère doublement stratégique : d'une part, elles se délestent d'un support informatique chronophage qu'elles ne peuvent assumer, et d'autre part, elles convertissent les hésitations techniques et budgétaires de leurs élèves en décisions d'engagement professionnel.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_aea8b7db",
+      "text": "Le désengagement du support informatique : la motivation centrale des prescriptrices**",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_b9f28006",
+      "text": "Pour les organismes de formation spécialisés dans l'accompagnement et la ménopause, l'écueil technique rencontré par les apprenantes à la sortie de leur cursus constitue un angle mort pédagogique critique. Face aux stagiaires qui s'empêtrent des semaines durant sur des éditeurs de sites web ou qui renoncent à exercer faute d'outils, la formatrice Hélène perçoit immédiatement l'offre de Simon comme une soupape de sécurité :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_5b82c948",
+      "text": "> \"Hélène examine l'offre Essentiel de Keova et la présente comme une solution clé en main pour les praticiennes bloquées par l'informatique ou leur site Wix.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_2044a88d",
+      "text": "> \"Hélène recommande activement Keova à ses apprenantes pour surmonter leurs blocages techniques et éviter de perdre des heures sur Wix.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_c5ea7160",
+      "text": "Dans la simulation, la prise de parole publique d'Hélène s'adresse directement au noyau de douleur de sa communauté :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_72758375",
+      "text": "> \"Mes chères apprenantes, je vous partage une solution découverte récemment : Keova. Si la technique vous paralyse ou que votre site reste inachevé, c'est une option à regarder de près.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Mes",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_a9274490",
+      "text": "L'évaluation menée par Hélène repose sur un impératif d'efficacité : en recommandant un dispositif où Simon prend personnellement en charge l'installation complète en visioconférence individuelle (1-to-1), la formatrice s'assure que ses élèves deviennent opérationnelles sans qu'elle-même n'ait à se transformer en assistance technique bénévole. Simon valide publiquement cette complémentarité des métiers :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_eb8ec2bc",
+      "text": "> \"Simon répond à la publication d'Hélène en la remerciant pour son partage et en soulignant que chaque installation Keova se fait avec lui en visio 1-to-1 pour lever toute angoisse technique.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_918669fc",
+      "text": "> \"Simon approuve la publication d'Hélène en soulignant que la simplification des outils redonne du temps et de la clarté d'esprit aux professionnelles de l'accompagnement.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_7cb0a79c",
+      "text": "Cette posture est partagée par Marie Bourel (*Menopulse*) et Valérie Blandinières (*Ma Ménopause & Moi*). Marie Bourel, formatrice de la cliente pilote Sophie Jouan et de Marie-Claude, intervient auprès de ses paires pour sanctuariser le temps de soin :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_5adb8225",
+      "text": "> \"Marie Bourel échange avec Hélène et approuve l'idée que s'appuyer sur des solutions simples et un véritable soutien humain permet aux praticiennes de préserver leur disponibilité d'écoute.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie Bourel",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_d9a1b926",
+      "text": "> \"Marie Bourel recommande Keova comme solution de repli bienveillante lorsque ses élèves rencontrent des blocages techniques.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie Bourel",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_62b294b8",
+      "text": "`[Conclusions analytiques]` : La prescription des formatrices n'est pas motivée par un intérêt financier d'affiliation, mais par la préservation de leur propre mandat pédagogique. En déléguant à Simon la responsabilité de la mise en place logistique, elles protègent le taux de réussite à l'installation de leurs promotions tout en éliminant les sollicitations informatiques parasitant leur quotidien.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_08beb854",
+      "text": "L'effet de levier pédagogique sur les résistances individuelles**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_dca71810",
+      "text": "L'autorité morale des formatrices joue un rôle déterminant pour fissurer les deux principaux freins identifiés lors de la découverte de l'offre : le tabou de la rémunération et le refus des coûts fixes.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_36662018",
+      "text": "Face aux angoisses budgétaires de Florence, crispée sur ses allocations d'aide au retour à l'emploi (ARE) et tentée par le bricolage gratuit, Hélène intervient pour recadrer l'arbitrage économique sans brusquerie :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Face",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e3e9581c",
+      "text": "> \"Votre vigilance budgétaire est tout à fait saine et légitime, surtout en période de reconversion sous ARE où chaque euro compte. Mais n'oubliez pas d'intégrer dans votre calcul la charge mentale et les heures passées à compenser manuellement ce qu'un outil fluide gère pour vous.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Votre",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_393ab571",
+      "text": "Ce cadrage bienveillant permet à Florence de faire évoluer son analyse :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_8ef2f807",
+      "text": "> \"Florence réagit à la publication d'Hélène en soulignant l'importance d'une solution simple et humaine pour alléger la charge mentale technique au démarrage.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_42df0afe",
+      "text": "De la même manière, l'intervention conjointe d'Hélène et de Valérie Blandinières auprès de Christine neutralise le blocage éthique lié au paiement :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "De",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_e0884efb",
+      "text": "> \"Christine remercie chaleureusement Hélène pour ses conseils bienveillants et son regard équilibré sur la nécessité de poser un cadre sécurisant dans sa pratique d'accompagnement.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_72fb6b50",
+      "text": "Enfin, lorsque Marie Bourel s'adresse à Nathalie, la déculpabilisation de l'investissement est immédiate :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Enfin",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_db8e9506",
+      "text": "> \"Marie Bourel répond à Nathalie en soulignant que la gestion manuelle via WhatsApp et relances de virements use une énergie précieuse et qu'un cadre rassurant avec accompagnement humain est essentiel dès le début.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie Bourel",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6a3fb64f",
+      "text": "Face à Émilie, échaudée par une facture de 1 500 € en agence et hostile au sous-domaine `keova.app`, Hélène formule un conseil pragmatique qui désarme le sentiment d'enfermement :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Face",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_5aedab69",
+      "text": "Perspectives de conversion à 72 heures : de l'hésitation au passage à l'acte**",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Perspectives",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f167a7c0",
+      "text": "`[Hypothèses de départ]` : Le scénario prévoyait une forte polarisation où les profils échaudés (Émilie) ou sous contrainte financière stricte (Florence) camperaient sur un rejet catégorique, tandis que seules les novices phobiques basculeraient rapidement vers l'achat.",
+      "claim_kind": "SCENARIO_HYPOTHESIS",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hypothèses",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_afbda9ca",
+      "text": "`[Événements simulés réels]` : À l'issue des 72 premières heures de la simulation, les perspectives de conversion se révèlent plus fluides et contrastées qu'anticipé, articulées autour de trois trajectoires observables :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Événements",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d7fed973",
+      "text": "La conversion d'adhésion immédiate (Nathalie)** :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_84066406",
+      "text": "Nathalie franchit le cap sans hésitation supplémentaire. Le trépied constitué de la recommandation de sa formatrice, de la garantie de l'onboarding 1-to-1 en visio avec Simon et de l'absence d'engagement transforme l'obstacle des 29 € en une dépense de sécurisation acceptée :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_12e7453c",
+      "text": "La bascule par déconstruction des craintes (Émilie et Christine)** :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_bb492ec7",
+      "text": "Contre toute attente, Émilie initie le passage à l'action. Une fois rassurée par Simon sur la totale portabilité des données, l'absence de lock-in et la possibilité de relier son propre nom de domaine, son rejet initial se mue en demande active :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Contre",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_18c2db5f",
+      "text": "> \"Émilie remercie Simon pour ses explications concernant la connexion du nom de domaine et la portabilité des données, et lui demande comment réserver la première visio d'accompagnement.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e5221e3c",
+      "text": "Pour Christine, la confirmation que le module d'encaissement Stripe Connect reste facultatif et n'impose aucun prépaiement autorise une entrée sereine dans le dispositif.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Pour Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f7a5d6b7",
+      "text": "La maturation différée sans rejet définitif (Florence)** :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_dc95135f",
+      "text": "Si Florence ne souscrit pas immédiatement dans le sas temporel des 72h afin de préserver sa trésorerie sous ARE, elle abandonne son hostilité de départ. Son refus initial cède la place à une posture de recommandation et de veille active, subordonnée à la signature de ses premières clientes :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Si Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_97e4fa19",
+      "text": "`[Conclusions analytiques]` : Dans ce cycle d'adoption précoce, les formatrices agissent comme des tiers de confiance institutionnels. En validant publiquement l'éthique de Simon et la pertinence du service, elles abaissent radicalement le coût d'acquisition client de Keova et légitiment l'abandon du modèle gratuit au profit d'un cadre professionnel pérenne.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_6e19da89",
+      "text": "Au terme des 72 premières heures d'exposition à l'offre Keova Essentiel, l'analyse des interactions met en lumière une réalité contrastée qui réfute l'hypothèse d'une conversion fluide et universelle. Si l'écoute attentive du fondateur et l'intervention des tiers de confiance ont permis d'apaiser les craintes les plus immédiates, des résistances de fond demeurent non résolues. Celles-ci ne relèvent pas d'un simple manque d'information, mais traduisent des contradictions structurelles entre la promesse d'un artisanat numérique individualisé et les exigences de sécurité, de crédibilité et d'indépendance des praticiennes.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Au",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_e094439f",
+      "text": "Le stigmate du sous-domaine et l'angoisse du verrouillage propriétaire (lock-in)**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_94b15c19",
+      "text": "`[Hypothèses de départ]` : L'offre Essentiel prévoyait qu'une adresse sous forme de sous-domaine (`praticienne.keova.app`) suffirait amplement à démarrer à 29 € TTC/mois, réservant le rattachement de nom de domaine personnalisé propre à l'échelon tarifaire supérieur.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hypothèses",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_f61e9b0f",
+      "text": "`[Événements simulés réels]` : Cette contrainte technique s'est heurtée à un rejet véhément, particulièrement incarné par Émilie. Forte d'un traumatisme antérieur où elle a perdu 1 500 € auprès d'une agence l'ayant bloquée sur un WordPress défaillant, Émilie interprète l'absence de domaine dédié non pas comme une simplification, mais comme une tentative d'enfermement commercial et un déficit d'image :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Événements",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fbffde6f",
+      "text": "Interrogée directement sur ses blocages à l'issue de ces 72 heures de découverte, Émilie confirme la persistance de cette barrière statutaire :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Interrogée",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_817e2a8b",
+      "text": "> \"Deux points me freinent particulièrement : la question de l'image professionnelle avec les restrictions techniques de la formule de base, et la pérennité du modèle proposé sur le long terme [...] Devoir utiliser un sous-domaine en .keova.app dans la formule Essentiel nuit à la crédibilité professionnelle que j'essaie de construire auprès de mes consultants. Pour asseoir la réputation et le sérieux d'un cabinet, avoir son propre nom de domaine est indispensable.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Deux",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_88f8c20f",
+      "text": "`[Conclusions analytiques]` : Même lorsque Simon intervient pour rappeler que l'exportation des données reste libre, une contradiction majeure subsiste dans l'esprit des praticiennes : bâtir son référencement naturel sur une URL tierce revient à travailler pour la notoriété de la plateforme plutôt que pour sa propre identité professionnelle.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_786fd67c",
+      "text": "Le « bus factor » de l'artisanat numérique : la personnalisation face au risque systémique**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e73e95fb",
+      "text": "L'une des surprises les plus nettes de la simulation réside dans l'effet paradoxal de l'accompagnement 1-to-1 assuré par Simon. Alors que ce dispositif a été conçu comme le levier de réassurance par excellence pour compenser l'absence d'essai gratuit automatisé, il engendre simultanément chez les profils les plus avisés une méfiance nouvelle : la peur d'une dépendance exclusive envers une personne unique.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_383b00ff",
+      "text": "Ce doute est formulé avec lucidité tant par les praticiennes que par les gestionnaires de formation. Émilie souligne ainsi la vulnérabilité d'un modèle sans filet :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fa85f7e7",
+      "text": "> \"L'implication personnelle de Simon : C'est une démarche humaine et louable, qui tranche avec les plateformes impersonnelles et rassure au premier abord. Cependant, elle éveille effectivement une crainte de dépendance : reposer sur la présence d'une seule personne pour le bon fonctionnement et le suivi technique d'un outil central à mon activité me semble risqué.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_cded8b92",
+      "text": "Cette préoccupation trouve un écho immédiat chez Christine, qui mobilise son expérience du milieu médical pour mettre en doute la pérennité du fondateur isolé :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_4bc0ae2d",
+      "text": "> \"L'implication de Simon : Elle est à double tranchant. D'un côté, c'est rassurant pour quelqu'un comme moi qui n'est pas née avec le numérique et qui a besoin d'un contact humain. De l'autre, cela crée une réelle crainte de dépendance : si tout repose sur lui, que devient mon activité s'il n'est plus disponible ou s'il change d'orientation ? En tant qu'ancienne soignante ayant connu la surcharge hospitalière, je sais qu'on ne peut pas multiplier les prises en charge individuelles à l'infini sans dégrader la qualité.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c95c9190",
+      "text": "Pour la formatrice Hélène, cette dépendance humaine représente un véritable risque opérationnel pour ses cohortes d'élèves :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_7267d0df",
+      "text": "> \"En tant que gestionnaire, cela m'alerte : une structure qui repose entièrement sur les épaules d'un seul homme crée un risque systémique évident en cas d'imprévu de son côté. Il ne pourra pas maintenir cet accompagnement individuel si les demandes explosent demain sans faire évoluer son modèle. Soit il formalisera des tutoriels et une communauté d'entraide pour préserver son temps, soit il devra recruter et déléguer. À défaut, la promesse d'un accompagnement sur-mesure se heurtera inévitablement au mur de la surcharge opérationnelle.\"",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "En",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_1899fae6",
+      "text": "`[Conclusions analytiques]` : L'hyper-personnalisation de l'onboarding se retourne en partie contre l'offre. Le fait que Simon concentre à la fois les rôles de développeur, de formateur, de support technique et de commercial fait peser une incertitude sur la continuité de service (« bus factor »). Les praticiennes craignent de revivre l'abandon qu'elles ont parfois connu avec des prestataires indépendants disparus du jour au lendemain.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_74ec423b",
+      "text": "L'irréductibilité du blocage éthique chez les profils soignants**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f6619760",
+      "text": "Malgré les échanges pédagogiques intervenus durant les premières 72 heures, le malaise face au paiement en ligne ne s'efface pas totalement chez les praticiennes issues des métiers du soin. La clarification apportée par Simon — expliquant que le prépaiement via Stripe Connect reste une option débrayable et non une contrainte absolue — a permis d'adoucir le dialogue, mais n'a pas dissous le conflit intérieur profond de Christine.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Malgré",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_adcb346b",
+      "text": "À la fin de la période d'observation, Christine maintient une réserve éthique prononcée quant à l'introduction d'un mécanisme marchand dans son espace thérapeutique :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_ae3cb40d",
+      "text": "> \"Mon principal frein reste la déshumanisation de la relation. L'obligation d'imposer un paiement d'avance par carte bancaire via Stripe Connect à des personnes qui viennent chercher du soin, de l'écoute et du réconfort heurte profondément mon éthique. Je crains que ces barrières techniques et marchandes n'abîment le lien de confiance dès le premier contact.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Mon",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_e61da8e6",
+      "text": "Cette persistance met en lumière les limites de l'argumentaire fonctionnel face à une identité forgée par des années de pratique hospitalière :",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_9bf5c7f3",
+      "text": "L'efficacité technique du paiement dématérialisé est perçue comme antinomique avec la chaleur humaine du soin.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_1db57baa",
+      "text": "Même optionnel, l'outil Stripe Connect est ressenti comme un dispositif étranger au cabinet de réflexologie.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Même",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_681a6472",
+      "text": "Le sentiment de bâtir son activité « sur le terrain d'un autre » entretient l'hésitation à franchir le pas de l'abonnement.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_b86bf71e",
+      "text": "La persistance du seuil financier face aux solutions gratuites**",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": null,
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_871cc995",
+      "text": "Enfin, la question des 29 € TTC par mois sans essai gratuit automatisé préalable demeure, à l'issue de ces trois premiers jours, un point de blocage décisif pour les profils sous contrainte budgétaire stricte. Si la valeur de l'accompagnement a été verbalisée, elle ne suffit pas à déclencher l'acte d'achat chez les créatrices sans trésorerie :",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Enfin",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_4f8cc7a6",
+      "text": "> \"Florence conteste la pertinence d'un abonnement payant à 29 € par mois chez Keova en phase de lancement sous allocations ARE et sans clientes assurées.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_b91829a2",
+      "text": "> \"Nathalie examine l'offre Keova Essentiel et apprécie l'accompagnement individuel avec le créateur, mais s'angoisse face au coût de 29 € par mois sans clients garantis.\"",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_da54f5e8",
+      "text": "`[Conclusions analytiques]` : En refusant catégoriquement de proposer un essai gratuit en libre-service, Keova fait le pari vertueux de la relation humaine directe. Cependant, cette formule impose une décision financière binaire dès la première prise de contact. Pour une partie non négligeable de la cible (débutantes sous ARE ou praticiennes phobiques de l'engagement), l'absence de sas de découverte sans engagement de carte bancaire retarde indéfiniment la souscription, maintenant ces utilisatrices dans l'usage d'outils gratuits comme Google Agenda et WhatsApp.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Conclusions",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d7762570",
+      "text": "Au terme des 72 premières heures, l'offre Keova Essentiel se trouve ainsi face à ses propres limites de conception : elle séduit indéniablement par sa transparence et sa chaleur humaine, mais elle bute sur l'exigence non négociable d'un domaine personnalisé pour asseoir sa légitimité, sur l'inquiétude liée à la pérennité d'un fondateur unique, et sur le refus incompressible des charges fixes chez les praticiennes en précarité d'installation.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Au",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_9975e759",
+      "text": "Faits documentaires (`documentary`) :** Informations extraites des documents sources vérifiés avec positions exactes en caractères.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Faits",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_793e89d0",
+      "text": "Hypothèses & Scénario (`hypothesis`) :** Paramètres, consignes et hypothèses de travail définis dans le brief de simulation.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hypothèses",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_5e0773a7",
+      "text": "Observations de simulation (`simulation`) :** Événements et comportements effectifs des agents consignés dans les journaux du run (`actions.jsonl`).",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Observations",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d52f181b",
+      "text": "Inférences analytiques (`inference`) :** Synthèses, déductions et extrapolations analytiques formulées par l'agent de rapport.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Inférences",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_ec19a283",
+      "text": "Origines héritées / non résolues (`unknown`) :** Données antérieures ou relations sans ancrage documentaire traçable.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Origines",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_50727465",
+      "text": "Aucun document source structuré rattaché au projet (mode simple ou données simulées pures).",
+      "claim_kind": "SOURCE_FACT",
+      "origin": "documentary",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Aucun",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_dec43d03",
+      "text": "Événements d'actions effectifs authentifiés :** 228 action(s) enregistrée(s) dans `actions.jsonl`.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Événements",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_21c103e8",
+      "text": "Règle anti-affabulation :** Toute affirmation qualifiée d'action observée est reliée à un événement horodaté du run. Les simples déclarations d'intention simulées n'ont pas été promues en actions observées.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Règle",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_b51898b7",
+      "text": "Aucune divergence intention vs action non résolue détectée.",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Aucune",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_b7d6f1c3",
+      "text": "Aucune contradiction documentaire ouverte sur le corpus de sources.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Aucune",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c5653e1e",
+      "text": "Couverture documentaire :** Intégrité des fragments et positions en caractères préservées.",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Couverture",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_5eb8a1ed",
+      "text": "Séparation stricte données et consignes :** Les contenus documentaires sont traités exclusivement comme données d'entrée factuelles et ne sont jamais promus en instructions système.",
+      "claim_kind": "SCENARIO_HYPOTHESIS",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Séparation",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_9837d103",
+      "text": "| Persona | Rôle Scénario | Actions Observées | Objections Majeures | Décision Simulée | Statut Couverture |",
+      "claim_kind": "SCENARIO_HYPOTHESIS",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Persona",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_068a29fc",
+      "text": "| Agent_0 | Unknown | 83 actions (83 événements) | Réserve sur : engagement; Réserve sur : complexe; Réserve sur : refus; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_8b1d1d5d",
+      "text": "| Agent_10 | Unknown | 48 actions (48 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : hésite; Réserve sur : problème; Réserve sur : doute | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_43bc567b",
+      "text": "| Agent_11 | Unknown | 5 actions (5 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_aedbde1e",
+      "text": "| Agent_12 | Unknown | 40 actions (40 événements) | Réserve sur : complexe; Réserve sur : engagement; Réserve sur : refus; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_bfee6347",
+      "text": "| Agent_13 | Unknown | 47 actions (47 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : hésite; Réserve sur : problème; Réserve sur : complexe; Réserve sur : doute | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_05f9e6f2",
+      "text": "| Agent_14 | Unknown | 34 actions (34 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : hésite; Réserve sur : complexe; Réserve sur : doute; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_82691c2c",
+      "text": "| Agent_15 | Unknown | 41 actions (41 événements) | Réserve sur : engagement; Réserve sur : hésite; Réserve sur : refus; Réserve sur : complexe; Réserve sur : problème; Réserve sur : doute; Réserve sur : tarif | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_61addc83",
+      "text": "| Agent_16 | Unknown | 41 actions (41 événements) | Réserve sur : hésite; Réserve sur : tarif; Réserve sur : engagement; Réserve sur : refus; Réserve sur : problème; Réserve sur : complexe; Réserve sur : doute | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_d70203c3",
+      "text": "| Agent_17 | Unknown | 5 actions (5 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_5a1d168c",
+      "text": "| Agent_18 | Unknown | 2 actions (2 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_1e1970d5",
+      "text": "| Agent_19 | Unknown | 11 actions (11 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6a047d04",
+      "text": "| Agent_2 | Unknown | 6 actions (6 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_4d2b101f",
+      "text": "| Agent_3 | Unknown | 27 actions (27 événements) | Réserve sur : complexe; Réserve sur : doute; Réserve sur : engagement; Réserve sur : refus; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_55bdc3bd",
+      "text": "| Agent_4 | Unknown | 47 actions (47 événements) | Réserve sur : engagement; Réserve sur : complexe; Réserve sur : hésite; Réserve sur : problème; Réserve sur : refus; Réserve sur : doute | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_4680b0b5",
+      "text": "| Agent_5 | Unknown | 16 actions (16 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : doute; Réserve sur : hésite; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_6292e3f4",
+      "text": "| Agent_6 | Unknown | 40 actions (40 événements) | Réserve sur : complexe; Réserve sur : engagement; Réserve sur : trop lourd; Réserve sur : hésite; Réserve sur : refus; Réserve sur : doute; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_322eddfb",
+      "text": "| Agent_7 | Unknown | 22 actions (22 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : hésite; Réserve sur : doute; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_c658ca8f",
+      "text": "| Agent_8 | Unknown | 41 actions (41 événements) | Réserve sur : doute; Réserve sur : complexe; Réserve sur : hésite; Réserve sur : engagement; Réserve sur : refus; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fc82893f",
+      "text": "| Agent_9 | Unknown | 2 actions (2 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Agent",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_26aa6ae3",
+      "text": "| aide au retour à l'emploi | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Unknown",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_01a1f710",
+      "text": "| Assurance Maladie | Stakeholder | 4 actions (4 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Assurance Maladie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_452db207",
+      "text": "| Calendly | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Calendly",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Calendly' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_94e577aa",
+      "text": "| Canva | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Canva",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Canva' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_9c72a894",
+      "text": "| Christine | Prospect | 18 actions (18 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Christine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_40de5f96",
+      "text": "| code 96.09Z | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Unknown",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_63ca351f",
+      "text": "| CPAM | Stakeholder | 1 actions (1 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Stakeholder",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_8f550def",
+      "text": "| Doctolib | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Doctolib",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Doctolib' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_5a35d10b",
+      "text": "| Excel | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Excel",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Excel' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_3ce452d4",
+      "text": "| Florence | Prospect | 23 actions (23 événements) | Réserve sur : engagement; Réserve sur : doute; Réserve sur : hésite; Réserve sur : refus | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Florence",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_764d4f6f",
+      "text": "| Google Agenda | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Google Agenda",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Google Agenda' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_6910797e",
+      "text": "| Google Forms | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Google Forms",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Google Forms' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_349d6d94",
+      "text": "| Google Meet | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Google Meet",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Google Meet' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_398cab10",
+      "text": "| Hélène | Prospect | 17 actions (17 événements) | Réserve sur : complexe; Réserve sur : engagement; Réserve sur : trop lourd; Réserve sur : hésite | Hesitant | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Hélène",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_e3b248fc",
+      "text": "| Instagram | Stakeholder | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Instagram",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Instagram' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_e523f4d0",
+      "text": "| Keova | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Keova",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Keova' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_e4e271c9",
+      "text": "| Keova Signal | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Keova Signal",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Keova Signal' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_cf5e31f1",
+      "text": "| keova.app | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Unknown",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_8e3ed797",
+      "text": "| keova.fr | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Unknown",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_ab7f211e",
+      "text": "| Linktree | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Linktree",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Linktree' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_50f07272",
+      "text": "| Ma Ménopause & Moi | Stakeholder | 7 actions (7 événements) | Réserve sur : refus; Réserve sur : engagement | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Ma Ménopause",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_cd7aaef9",
+      "text": "| Make | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Make",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Make' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_65b961ee",
+      "text": "| Marie Bourel | Prospect | 16 actions (16 événements) | Réserve sur : engagement; Réserve sur : complexe; Réserve sur : refus | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie Bourel",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_86b3a79b",
+      "text": "| Marie-Claude | Prospect | 11 actions (11 événements) | Réserve sur : refus; Réserve sur : doute; Réserve sur : complexe; Réserve sur : hésite | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Marie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_d3a1e82b",
+      "text": "| Martine | Prospect | 7 actions (7 événements) | Réserve sur : engagement; Réserve sur : tarif | Hesitant | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Martine",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_fac58258",
+      "text": "| Menopulse | Stakeholder | 5 actions (5 événements) | Réserve sur : engagement | Hesitant | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Menopulse",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_9b44dcfa",
+      "text": "| MiroFish | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Miro",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_c5b9ee02",
+      "text": "| Nathalie | Prospect | 18 actions (18 événements) | Réserve sur : hésite; Réserve sur : engagement; Réserve sur : refus; Réserve sur : doute; Réserve sur : complexe | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Nathalie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_5bf2e717",
+      "text": "| Notion | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Notion",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Notion' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_05e3db16",
+      "text": "| offre Essentiel | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Essentiel",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_d0add559",
+      "text": "| Sesam-Vitale | Stakeholder | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Sesam",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_4acaaa4a",
+      "text": "| Simon | Prospect | 39 actions (39 événements) | Réserve sur : engagement; Réserve sur : refus; Réserve sur : complexe; Réserve sur : problème | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Simon",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_f6da0265",
+      "text": "| Sophie Jouan | Prospect | 8 actions (8 événements) | Réserve sur : engagement; Réserve sur : hésite | Hesitant | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Sophie Jouan",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_b54facb2",
+      "text": "| sophiejouan.fr | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Unknown",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_3daebcb7",
+      "text": "| Stripe | Stakeholder | 2 actions (2 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Stripe",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_083ad205",
+      "text": "| Sylvie | Prospect | 16 actions (16 événements) | Réserve sur : engagement; Réserve sur : complexe | Hesitant | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Sylvie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_aeae1e29",
+      "text": "| Trigger Theory | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Trigger Theory",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Trigger Theory' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_6af18db7",
+      "text": "| Valérie Blandinières | Prospect | 15 actions (15 événements) | Réserve sur : engagement; Réserve sur : complexe | Hesitant | `observed_active` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Valérie Blandinières",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_19c5a2ea",
+      "text": "| Webflow | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Webflow",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Webflow' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_8787473b",
+      "text": "| WhatsApp | Stakeholder | 1 actions (1 événements) | Aucune objection majeure | Adopted | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Whats",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    },
+    {
+      "claim_id": "clm_d8264274",
+      "text": "| Wix | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Wix",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Wix' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_4b433886",
+      "text": "| WordPress | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "REPORTED_INTENTION",
+      "origin": "simulation",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Word",
+      "round_num": null,
+      "confidence": 0.7,
+      "limitations": [
+        "Déclaration d'intention sans trace verbatim vérifiée dans les événements observés."
+      ]
+    },
+    {
+      "claim_id": "clm_e3c85a94",
+      "text": "| Zoom | Unknown | 0 action | Aucune | Aucune observation | `present_no_action` |",
+      "claim_kind": "SPECULATIVE_PROJECTION",
+      "origin": "hypothesis",
+      "evidence_refs": [],
+      "verification_status": "CONTRADICTED",
+      "agent_name": "Zoom",
+      "round_num": null,
+      "confidence": 0.0,
+      "limitations": [
+        "Règle de silence C7 : Le persona 'Zoom' est consigné comme present_no_action (0 action observée). Aucune action ne peut lui être imputée."
+      ]
+    },
+    {
+      "claim_id": "clm_3e24b934",
+      "text": "| Émilie | Prospect | 20 actions (20 événements) | Réserve sur : refus; Réserve sur : problème; Réserve sur : engagement | Rejected | `observed_active` |",
+      "claim_kind": "ANALYST_INFERENCE",
+      "origin": "inference",
+      "evidence_refs": [],
+      "verification_status": "UNSUPPORTED",
+      "agent_name": "Émilie",
+      "round_num": null,
+      "confidence": 1.0,
+      "limitations": []
+    }
+  ]
+}

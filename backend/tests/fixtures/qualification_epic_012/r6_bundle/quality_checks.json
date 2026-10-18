@@ -1,0 +1,76 @@
+{
+  "simulation_id": "sim_ea4f3cfe1028",
+  "report_id": "report_77d96ea4c1c9",
+  "evaluated_at": "2026-10-17T14:34:00.441855Z",
+  "is_publishable": true,
+  "final_status": "warning",
+  "summary": "Validé avec réserves : 4 réussis, 1 avertissement(s).",
+  "total_checks": 5,
+  "passed_checks": 4,
+  "warning_checks": 1,
+  "failed_checks": 0,
+  "checks": [
+    {
+      "category": "structural_integrity",
+      "title": "Intégrité structurelle des sections",
+      "status": "passed",
+      "message": "100 % des sections prévues (5) sont générées et complètes (> 50 caractères).",
+      "details": {
+        "total_expected": 5,
+        "empty_sections": 0,
+        "missing_sections": 0
+      }
+    },
+    {
+      "category": "completion_guard",
+      "title": "Anti-troncature et clôture du texte",
+      "status": "passed",
+      "message": "Toutes les sections se terminent par une ponctuation ou clôture terminale valide.",
+      "details": {
+        "truncated": false,
+        "total_retries_applied": 0,
+        "section_retries": {
+          "La barrière des coûts fixes et le clivage des modèles d'installation": 0,
+          "Verrous psychologiques et d'image : l'éthique du paiement et le stigmate du sous-domaine": 0,
+          "L'accompagnement 1-to-1 du fondateur : vecteur de réassurance et alternative à l'essai gratuit": 0,
+          "Le rôle charnière des formatrices et perspectives de conversion": 0,
+          "Objections non levées, contradictions et limites": 0
+        }
+      }
+    },
+    {
+      "category": "language_compliance",
+      "title": "Conformité linguistique",
+      "status": "passed",
+      "message": "Texte et titres conformes à la locale active 'fr'.",
+      "details": {
+        "locale": "fr",
+        "foreign_titles": []
+      }
+    },
+    {
+      "category": "limitations_section",
+      "title": "Section d'objections et limites",
+      "status": "passed",
+      "message": "Section d'objections et limites conforme aux observations de la cohorte.",
+      "details": {
+        "has_rejections_or_objections": true,
+        "limitations_heading_present": true
+      }
+    },
+    {
+      "category": "claim_verification",
+      "title": "Intégrité des affirmations d'actions simulées",
+      "status": "warning",
+      "message": "17 affirmation(s) contredite(s) ou divergente(s) répertoriée(s) dans le registre d'audit.",
+      "details": {
+        "total_claims": 258,
+        "contradicted": 17,
+        "verification_ratio": 0.0
+      }
+    }
+  ],
+  "metadata": {
+    "locale": "fr"
+  }
+}
