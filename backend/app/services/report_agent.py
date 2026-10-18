@@ -2475,17 +2475,56 @@ class ReportAgent:
 
         project = self._resolve_project()
 
-        # Section Documents sources et statut de validation
+        # Section Documents sources et statut de validation (AC4 / QA-10)
         lines.append("### 2. Documents sources et statut de validation")
+        source_docs_to_display: List[Any] = []
         if project and project.source_documents:
-            lines.append("| Document | Rôle | Statut de validation | Priorité | Date |")
-            lines.append("|---|---|---|---|---|")
-            for doc_dict in project.source_documents:
-                doc = SourceDocument.from_dict(doc_dict) if isinstance(doc_dict, dict) else doc_dict
-                role_val = doc.role.value if hasattr(doc.role, "value") else str(doc.role)
-                status_val = doc.validation_status.value if hasattr(doc.validation_status, "value") else str(doc.validation_status)
+            source_docs_to_display = list(project.source_documents)
+        else:
+            # Repli : essayer de charger depuis source_manifest.json si disponible dans la simulation
+            sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+            manifest_path = os.path.join(sim_dir, "source_manifest.json")
+            if os.path.exists(manifest_path):
+                try:
+                    with open(manifest_path, "r", encoding="utf-8") as f:
+                        manifest_data = json.load(f)
+                        source_docs_to_display = manifest_data.get("documents", [])
+                except Exception:
+                    pass
+
+        if source_docs_to_display:
+            lines.append(f"- **Documents sources déclarés :** {len(source_docs_to_display)} document(s) inventorié(s).")
+            lines.append("| Document | Rôle | Type épistémique | Statut de validation | Fragments | Priorité | Date |")
+            lines.append("|---|---|---|---|---|---|---|")
+            for doc_dict in source_docs_to_display:
+                try:
+                    doc = SourceDocument.from_dict(doc_dict) if isinstance(doc_dict, dict) else doc_dict
+                except Exception:
+                    doc = doc_dict
+
+                role = getattr(doc, "role", None) or (doc_dict.get("role") if isinstance(doc_dict, dict) else "")
+                role_val = role.value if hasattr(role, "value") else str(role or "")
+
+                v_status = getattr(doc, "validation_status", None) or (doc_dict.get("validation_status") if isinstance(doc_dict, dict) else "")
+                status_val = v_status.value if hasattr(v_status, "value") else str(v_status or "")
+
+                epistemic = getattr(doc, "epistemic_kind", None) or (doc_dict.get("epistemic_kind") if isinstance(doc_dict, dict) else "")
+                epistemic_val = epistemic.value if hasattr(epistemic, "value") else str(epistemic or "CANONICAL_DOCUMENT")
+
+                total_chunks = getattr(doc, "total_chunks", None)
+                if total_chunks is None and isinstance(doc_dict, dict):
+                    total_chunks = doc_dict.get("total_chunks", 0)
+                try:
+                    total_chunks_int = int(total_chunks or 0)
+                except (ValueError, TypeError):
+                    total_chunks_int = 0
+                chunks_info = f"{total_chunks_int} fragment(s)" if total_chunks_int > 0 else "0 (non découpé)"
+
+                fn = getattr(doc, "filename", None) or (doc_dict.get("filename") if isinstance(doc_dict, dict) else "document")
+                prio = getattr(doc, "priority", None) or (doc_dict.get("priority", 1) if isinstance(doc_dict, dict) else 1)
+                dt = getattr(doc, "date", None) or (doc_dict.get("date") if isinstance(doc_dict, dict) else None) or "N/A"
                 lines.append(
-                    f"| `{doc.filename}` | `{role_val}` | `{status_val}` | {doc.priority} | {doc.date or 'N/A'} |"
+                    f"| `{fn}` | `{role_val}` | `{epistemic_val}` | `{status_val}` | {chunks_info} | {prio} | {dt} |"
                 )
             lines.append("")
         else:
@@ -2925,19 +2964,62 @@ class ReportAgent:
             resolver=resolver,
         )
 
-        # Résoudre l'horizon temporel
-        horizon_hours = getattr(cohort_table, "horizon_hours", 72.0) if cohort_table else 72.0
+        project = self._resolve_project()
+
+        # Résoudre l'horizon temporel (avec inférence traçable depuis goal si vide, Story 012-5, AC3 / QA-11)
+        horizon_hours = getattr(cohort_table, "horizon_hours", 0.0) if cohort_table else 0.0
         if not horizon_hours or horizon_hours <= 0:
-            project = self._resolve_project()
             brief = project.get_brief() if project else None
-            if brief and brief.time_horizon:
+            effective_horizon = brief.time_horizon if brief else None
+            if brief and (not effective_horizon or str(effective_horizon).strip().lower() in ("", "unknown", "inconnu", "none", "null")):
+                from ..models.simulation_brief import extract_inferred_horizon
+                inferred = extract_inferred_horizon(brief.goal, brief.time_horizon)
+                if inferred.is_inferred:
+                    effective_horizon = inferred.time_horizon
+            if effective_horizon:
                 from .time_horizon_guard import TimeHorizonGuard
-                horizon_hours = TimeHorizonGuard.parse_horizon_hours(brief.time_horizon)
+                horizon_hours = TimeHorizonGuard.parse_horizon_hours(effective_horizon)
+            else:
+                horizon_hours = 72.0
+
+        # Récupérer les documents canoniques validés pour le contrat de faits (QA-12, AC5)
+        canonical_docs = []
+        if project and project.source_documents:
+            from ..models.source_document import SourceDocument
+            proj_id = getattr(project, "project_id", "")
+            files_dir = os.path.join(Config.UPLOAD_FOLDER, "projects", proj_id, "files") if proj_id else ""
+            extracted_text = None
+            if proj_id:
+                extracted_path = os.path.join(Config.UPLOAD_FOLDER, "projects", proj_id, "extracted_text.txt")
+                if os.path.exists(extracted_path):
+                    try:
+                        with open(extracted_path, "r", encoding="utf-8", errors="ignore") as f:
+                            extracted_text = f.read()
+                    except Exception:
+                        pass
+            for d in project.source_documents:
+                doc_obj = SourceDocument.from_dict(d) if isinstance(d, dict) else d
+                doc_dict = doc_obj.to_dict() if hasattr(doc_obj, "to_dict") else dict(d)
+                # Attacher le contenu texte si manquant
+                if not doc_dict.get("text"):
+                    saved_fn = getattr(doc_obj, "saved_filename", None) or doc_dict.get("saved_filename")
+                    if files_dir and saved_fn:
+                        file_path = os.path.join(files_dir, saved_fn)
+                        if os.path.exists(file_path):
+                            try:
+                                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                                    doc_dict["text"] = f.read()
+                            except Exception:
+                                pass
+                    if not doc_dict.get("text") and extracted_text:
+                        doc_dict["text"] = extracted_text
+                canonical_docs.append(doc_dict)
 
         for claim in raw_claims:
             verified = SimulationActionVerifier.verify_report_claim(
                 claim=claim,
                 evidence_pack=evidence_pack,
+                canonical_documents=canonical_docs,
                 cohort_table=cohort_table,
                 horizon_hours=horizon_hours,
                 resolver=resolver,

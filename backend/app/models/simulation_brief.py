@@ -237,3 +237,190 @@ def build_minimal_brief(
         additional_context=additional_context or "",
         source_document_ids=list(source_document_ids or []),
     )
+
+
+@dataclass(frozen=True)
+class InferredHorizonResult:
+    """Résultat de l'extraction ou de l'inférence traçable d'horizon temporel (Story 012-5, AC3 / QA-11)."""
+
+    time_horizon: str
+    is_inferred: bool
+    source_mention: Optional[str] = None
+    diagnostics: List[str] = field(default_factory=list)
+
+
+def extract_inferred_horizon(
+    goal_text: Optional[str],
+    current_horizon: Optional[str] = None,
+) -> InferredHorizonResult:
+    r"""Extrait ou infère de manière traçable l'horizon temporel depuis le champ goal si time_horizon est vide (AC3).
+
+    Regex universelle : \b(\d+(?:[.,]\d+)?)\s*(h|heures?|hours?|j|jours?|days?|semaines?|weeks?|mois|months?)\b
+    Si un horizon explicite est déjà fourni (non vide et non 'unknown'), il est conservé.
+    Sinon, recherche dans goal_text :
+      - Si trouvé : affecte la forme normalisée avec trace d'inférence.
+      - Si non trouvé : affecte 'unknown' avec diagnostic explicite sans champ silencieusement vide.
+    """
+    import re
+
+    cleaned_cur = str(current_horizon or "").strip()
+    if cleaned_cur and cleaned_cur.lower() not in ("unknown", "inconnu", "none", "null", ""):
+        return InferredHorizonResult(
+            time_horizon=cleaned_cur,
+            is_inferred=False,
+            source_mention=None,
+            diagnostics=[],
+        )
+
+    text = str(goal_text or "").strip()
+    if not text:
+        return InferredHorizonResult(
+            time_horizon="unknown",
+            is_inferred=False,
+            source_mention=None,
+            diagnostics=["Aucun texte d'objectif fourni pour inférer l'horizon temporel."],
+        )
+
+    # Regex universelle temporelle (heures, jours, semaines, mois)
+    pattern = re.compile(
+        r"\b(\d+(?:[.,]\d+)?)\s*(h(?:eures?)?|hours?|j(?:ours?)?|days?|semaines?|weeks?|mois|months?)\b",
+        re.IGNORECASE,
+    )
+    match = pattern.search(text)
+    if match:
+        num_str = match.group(1).replace(",", ".")
+        unit_str = match.group(2).lower()
+
+        # Normalisation standard de l'unité
+        if unit_str.startswith("h"):
+            normalized_unit = "h"
+        elif unit_str.startswith("j") or unit_str.startswith("day"):
+            normalized_unit = "j"
+        elif unit_str.startswith("sem") or unit_str.startswith("week"):
+            normalized_unit = "semaine" if num_str in ("1", "1.0", "1,0") else "semaines"
+        elif unit_str.startswith("moi") or unit_str.startswith("month"):
+            normalized_unit = "mois"
+        else:
+            normalized_unit = unit_str
+
+        # Format normalisé compact (ex: 72h, 3j, 2 semaines, 1 mois)
+        inferred = f"{num_str}{normalized_unit}" if normalized_unit in ("h", "j") else f"{num_str} {normalized_unit}"
+        raw_mention = match.group(0)
+        return InferredHorizonResult(
+            time_horizon=inferred,
+            is_inferred=True,
+            source_mention=raw_mention,
+            diagnostics=[f"Horizon '{inferred}' inféré depuis le texte de consigne ('{raw_mention}')."],
+        )
+
+    return InferredHorizonResult(
+        time_horizon="unknown",
+        is_inferred=False,
+        source_mention=None,
+        diagnostics=["Aucune indication temporelle identifiable dans l'objectif : horizon marqué 'unknown'."],
+    )
+
+
+@dataclass(frozen=True)
+class BriefAuditDiagnostic:
+    """Diagnostic structuré d'audit sur l'intégrité et la structuration du brief (AC3)."""
+
+    code: str
+    field_name: str
+    severity: str  # "warning" | "info"
+    message: str
+
+
+@dataclass
+class BriefAuditResult:
+    """Résultat de l'audit d'intégrité du brief (Story 012-5, AC3 / QA-11)."""
+
+    has_lacunae: bool = False
+    inferred_time_horizon: Optional[str] = None
+    diagnostics: List[BriefAuditDiagnostic] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "has_lacunae": self.has_lacunae,
+            "inferred_time_horizon": self.inferred_time_horizon,
+            "diagnostics": [
+                {
+                    "code": d.code,
+                    "field_name": d.field_name,
+                    "severity": d.severity,
+                    "message": d.message,
+                }
+                for d in self.diagnostics
+            ],
+        }
+
+
+def audit_brief(brief: Optional[SimulationBrief]) -> BriefAuditResult:
+    """Audite la complétude et l'intégrité structurée d'un brief de simulation (QA-11).
+
+    Identifie les champs vides non renseignés (règles, audiences, horizon temporel)
+    et procède à l'inférence traçable de l'horizon pour interdire les omissions silencieuses.
+    """
+    result = BriefAuditResult()
+    if brief is None:
+        result.has_lacunae = True
+        result.diagnostics.append(
+            BriefAuditDiagnostic(
+                code="BRIEF_MISSING",
+                field_name="simulation_brief",
+                severity="warning",
+                message="Aucun brief de simulation structuré n'est rattaché au projet.",
+            )
+        )
+        return result
+
+    # 1. Horizon temporel
+    if not brief.time_horizon or brief.time_horizon.strip().lower() in ("", "unknown", "inconnu", "none", "null"):
+        inferred_res = extract_inferred_horizon(brief.goal, brief.time_horizon)
+        result.inferred_time_horizon = inferred_res.time_horizon
+        if inferred_res.is_inferred:
+            result.diagnostics.append(
+                BriefAuditDiagnostic(
+                    code="TIME_HORIZON_INFERRED",
+                    field_name="time_horizon",
+                    severity="info",
+                    message=(
+                        f"Le champ time_horizon était vide. Inférence traçable appliquée : "
+                        f"'{inferred_res.time_horizon}' (trouvé dans goal)."
+                    ),
+                )
+            )
+        else:
+            result.has_lacunae = True
+            result.diagnostics.append(
+                BriefAuditDiagnostic(
+                    code="TIME_HORIZON_UNKNOWN",
+                    field_name="time_horizon",
+                    severity="warning",
+                    message="time_horizon absent et indétectable dans l'objectif : marqué 'unknown'.",
+                )
+            )
+
+    # 2. Audiences cibles et règles
+    if not brief.target_audiences:
+        result.has_lacunae = True
+        result.diagnostics.append(
+            BriefAuditDiagnostic(
+                code="TARGET_AUDIENCES_EMPTY",
+                field_name="target_audiences",
+                severity="warning",
+                message="Aucune audience cible structurée n'est déclarée dans le brief.",
+            )
+        )
+
+    if not brief.rules:
+        result.diagnostics.append(
+            BriefAuditDiagnostic(
+                code="RULES_EMPTY",
+                field_name="rules",
+                severity="info",
+                message="Aucune règle négative ou contrainte spécifique définie dans le brief.",
+            )
+        )
+
+    return result

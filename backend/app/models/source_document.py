@@ -171,7 +171,11 @@ def derive_epistemic_kind(
     filename: Optional[str] = None,
     explicit_kind: Optional[Any] = None,
 ) -> EpistemicSourceKind:
-    """Dérive de manière déterministe le type épistémique d'une source (AC2)."""
+    """Dérive de manière déterministe le type épistémique d'une source (AC2).
+    
+    Règle de prévalence épistémique stricte (Story 012-5, AC1 / QA-10) :
+    `explicit_kind` fait strictement foi et prévaut sur toute valeur de rôle ou de nom de fichier.
+    """
     if explicit_kind is not None:
         if isinstance(explicit_kind, EpistemicSourceKind):
             return explicit_kind
@@ -204,7 +208,7 @@ def derive_epistemic_kind(
 
 
 def classify_record_origin(record: Any) -> InformationOrigin:
-    """Détermine l'une des 5 origines d'un ProvenanceRecord ou dict de provenance (Story 011-3, C5)."""
+    """Détermine l'une des 5 origines d'un ProvenanceRecord ou dict de provenance (Story 011-3, C5, Story 012-5, AC1)."""
     if record is None:
         return InformationOrigin.UNKNOWN
 
@@ -223,9 +227,10 @@ def classify_record_origin(record: Any) -> InformationOrigin:
         role=role, filename=filename, explicit_kind=epistemic_kind
     )
 
-    # BARRIÈRE HERMÉTIQUE C5 (AC3) :
+    # BARRIÈRE HERMÉTIQUE C5 & PRÉVALENCE ÉPISTÉMIQUE ABSOLUE QA-10 (Story 012-5, AC1) :
     # Tout fait ou fragment issu d'un persona fictif ou d'un brief de scénario
-    # est STRICTEMENT INTERDIT d'être qualifié DOCUMENTARY (contexte historique).
+    # est STRICTEMENT INTERDIT d'être qualifié DOCUMENTARY (contexte historique),
+    # même si son rôle déclaratif est role="facts" ou son origine est "document".
     if derived_epistemic in (
         EpistemicSourceKind.PERSONA_SPECIFICATION,
         EpistemicSourceKind.SCENARIO_BRIEF,
@@ -930,7 +935,10 @@ def _content_terms(text: str) -> frozenset:
     contradictoires parce que l'une contient un marqueur négatif et l'autre non.
     """
 
-    tokens = re.findall(r"[\w']+", _normalise(text))
+    # Les apostrophes d'élision (l', d', n', j', etc.) sont normalisées en espaces
+    # pour que "l'accès" et "accès" soient identifiés comme le même concept.
+    clean_text = re.sub(r"['’]", " ", _normalise(text))
+    tokens = re.findall(r"\w+", clean_text)
     return frozenset(
         token for token in tokens
         if token not in _STOPWORDS and len(token) > 2
@@ -1039,5 +1047,166 @@ def detect_conflicts(
                     source_references=[left["reference"], right["reference"]],
                 )
             )
+
+    return result
+
+
+@dataclass(frozen=True)
+class SourceManifestDiagnostic:
+    """Diagnostic structuré d'anomalie ou conflit de métadonnées sur une source (Story 012-5, AC2)."""
+
+    code: str
+    document_id: str
+    filename: str
+    severity: str  # "warning" | "error"
+    message: str
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "code": self.code,
+            "document_id": self.document_id,
+            "filename": self.filename,
+            "severity": self.severity,
+            "message": self.message,
+            "details": self.details,
+        }
+
+
+@dataclass
+class SourceManifestAuditResult:
+    """Résultat complet de l'audit d'un inventaire de documents sources (AC2)."""
+
+    total_documents: int = 0
+    diagnostics: List[SourceManifestDiagnostic] = field(default_factory=list)
+    has_conflicts: bool = False
+    has_unchunked: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_documents": self.total_documents,
+            "diagnostics": [d.to_dict() for d in self.diagnostics],
+            "has_conflicts": self.has_conflicts,
+            "has_unchunked": self.has_unchunked,
+        }
+
+
+def audit_source_manifest(
+    manifest: Any,
+) -> SourceManifestAuditResult:
+    """Audite l'inventaire des sources et détecte les anomalies de métadonnées (Story 012-5, AC2 / QA-10).
+
+    Détecte formellement :
+      - METADATA_ROLE_EPISTEMIC_MISMATCH (warning) : Si un document déclare `role == DocumentRole.FACTS`
+        alors que son `epistemic_kind` est `PERSONA_SPECIFICATION` ou `SCENARIO_BRIEF` (ou inversement).
+      - EMPTY_OR_UNCHUNKED_SOURCE (warning) : Si `total_chunks == 0` ou document vide alors qu'il est déclaré.
+    """
+    if manifest is None:
+        return SourceManifestAuditResult()
+
+    raw_docs: List[Any] = []
+    if isinstance(manifest, dict):
+        raw_docs = manifest.get("documents", [])
+    elif isinstance(manifest, list):
+        raw_docs = manifest
+    elif hasattr(manifest, "source_documents"):
+        raw_docs = getattr(manifest, "source_documents", []) or []
+
+    result = SourceManifestAuditResult(total_documents=len(raw_docs))
+
+    for doc_entry in raw_docs:
+        doc_dict: Dict[str, Any] = {}
+        if isinstance(doc_entry, dict):
+            doc_dict = doc_entry
+        elif hasattr(doc_entry, "to_dict"):
+            doc_dict = doc_entry.to_dict()
+        else:
+            continue
+
+        doc_id = str(doc_dict.get("document_id", "") or "")
+        filename = str(doc_dict.get("filename", "") or "")
+        raw_role = doc_dict.get("role", DocumentRole.FACTS.value)
+        role_str = raw_role.value if hasattr(raw_role, "value") else str(raw_role or "").lower()
+
+        explicit_epistemic = doc_dict.get("epistemic_kind")
+        epistemic = derive_epistemic_kind(
+            role=role_str,
+            filename=filename,
+            explicit_kind=explicit_epistemic,
+        )
+
+        try:
+            total_chunks = int(doc_dict.get("total_chunks", 0) or 0)
+        except (ValueError, TypeError):
+            total_chunks = 0
+
+        # 1. Conflit de métadonnées rôle vs épistémique (QA-10)
+        # Si un document déclare facts alors que son type épistémique est PERSONA_SPECIFICATION ou SCENARIO_BRIEF
+        if role_str in (DocumentRole.FACTS.value, "facts") and epistemic in (
+            EpistemicSourceKind.PERSONA_SPECIFICATION,
+            EpistemicSourceKind.SCENARIO_BRIEF,
+        ):
+            diag = SourceManifestDiagnostic(
+                code="METADATA_ROLE_EPISTEMIC_MISMATCH",
+                document_id=doc_id,
+                filename=filename,
+                severity="warning",
+                message=(
+                    f"Divergence de métadonnées : le document '{filename}' déclare un rôle déclaratif "
+                    f"'{role_str}' mais relève du type épistémique {epistemic.value}. "
+                    f"La prévalence épistémique (HYPOTHESIS) s'applique sans écrasement silencieux."
+                ),
+                details={
+                    "declared_role": role_str,
+                    "epistemic_kind": epistemic.value,
+                },
+            )
+            result.diagnostics.append(diag)
+            result.has_conflicts = True
+
+        # Réciproquement : si un document déclare role="personas" ou "scenario" alors que epistemic est CANONICAL_DOCUMENT ou HISTORICAL_CASE
+        elif role_str in (
+            DocumentRole.PERSONAS.value,
+            DocumentRole.SCENARIO.value,
+            DocumentRole.HYPOTHESES.value,
+            "personas",
+            "scenario",
+            "hypotheses",
+        ) and epistemic in (
+            EpistemicSourceKind.CANONICAL_DOCUMENT,
+            EpistemicSourceKind.HISTORICAL_CASE,
+        ):
+            diag = SourceManifestDiagnostic(
+                code="METADATA_ROLE_EPISTEMIC_MISMATCH",
+                document_id=doc_id,
+                filename=filename,
+                severity="warning",
+                message=(
+                    f"Divergence de métadonnées : le document '{filename}' déclare un rôle '{role_str}' "
+                    f"mais est typé épistémiquement en {epistemic.value}."
+                ),
+                details={
+                    "declared_role": role_str,
+                    "epistemic_kind": epistemic.value,
+                },
+            )
+            result.diagnostics.append(diag)
+            result.has_conflicts = True
+
+        # 2. Document non découpé en fragments ou vide (QA-10 / R6)
+        if total_chunks == 0:
+            diag = SourceManifestDiagnostic(
+                code="EMPTY_OR_UNCHUNKED_SOURCE",
+                document_id=doc_id,
+                filename=filename,
+                severity="warning",
+                message=(
+                    f"Document non découpé : '{filename}' est enregistré avec total_chunks == 0. "
+                    "Ses entités et faits ne sont pas indexés par fragments à positions exactes."
+                ),
+                details={"total_chunks": total_chunks},
+            )
+            result.diagnostics.append(diag)
+            result.has_unchunked = True
 
     return result

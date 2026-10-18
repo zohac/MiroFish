@@ -707,6 +707,99 @@ class SimulationActionVerifier:
         return "\n".join(lines)
 
     @classmethod
+    def check_company_facts_contradiction(
+        cls,
+        claim_text: str,
+        canonical_documents: Optional[List[Any]],
+    ) -> Tuple[bool, Optional[str], Optional[str]]:
+        """Vérifie si une allégation d'un agent d'entreprise contredit un fait canonique validé (QA-12, AC5).
+
+        Générique (NFR-1) : Sans terme en dur spécifique à Keova.
+        Retourne (is_contradicted, conflict_reason, conflicting_source_filename).
+        """
+        if not claim_text or not canonical_documents:
+            return False, None, None
+
+        from ..models.source_document import (
+            DocumentValidationStatus,
+            EpistemicSourceKind,
+            _content_terms,
+            _polarity,
+        )
+
+        claim_pol = _polarity(claim_text)
+        claim_terms = _content_terms(claim_text)
+        if not claim_terms:
+            return False, None, None
+
+        for doc_item in canonical_documents:
+            # Inspection d'un document ou d'un fragment
+            doc_dict = doc_item if isinstance(doc_item, dict) else (
+                doc_item.to_dict() if hasattr(doc_item, "to_dict") else {}
+            )
+            v_status = doc_dict.get("validation_status")
+            if hasattr(v_status, "value"):
+                v_status = v_status.value
+            v_status_str = str(v_status or "").lower()
+
+            # Uniquement documents ou fragments validés
+            if v_status_str != DocumentValidationStatus.VALIDATED.value:
+                continue
+
+            epistemic = doc_dict.get("epistemic_kind")
+            if hasattr(epistemic, "value"):
+                epistemic = epistemic.value
+            epistemic_str = str(epistemic or "").upper()
+            if epistemic_str not in (
+                EpistemicSourceKind.CANONICAL_DOCUMENT.value,
+                "CANONICAL_DOCUMENT",
+            ):
+                continue
+
+            doc_fn = str(
+                doc_dict.get("filename")
+                or getattr(doc_item, "filename", None)
+                or doc_dict.get("source_filename")
+                or getattr(doc_item, "source_filename", None)
+                or "source_canonique"
+            )
+            doc_text = str(
+                doc_dict.get("text")
+                or getattr(doc_item, "text", None)
+                or doc_dict.get("content")
+                or getattr(doc_item, "content", None)
+                or ""
+            )
+            if not doc_text:
+                continue
+
+            # Découper en phrases ou propositions pour comparaison de polarité
+            propositions = re.split(r"(?<=\D)\.(?=\s|\Z)|[\n;!]+", doc_text)
+            for prop in propositions:
+                prop_cleaned = prop.strip()
+                if not prop_cleaned or len(prop_cleaned) < 10:
+                    continue
+                prop_terms = _content_terms(prop_cleaned)
+                if not prop_terms:
+                    continue
+
+                # Intersection significative de termes : au moins 2 termes partagés ou 1 terme si court
+                shared = claim_terms & prop_terms
+                min_shared = 1 if (len(claim_terms) <= 2 or len(prop_terms) <= 2) else 2
+                if len(shared) >= min_shared:
+                    prop_pol = _polarity(prop_cleaned)
+                    # Contradiction stricte de polarité sur le même objet
+                    if {claim_pol, prop_pol} == {"positive", "negative"}:
+                        reason = (
+                            f"Contradiction formelle avec la source canonique validée '{doc_fn}' : "
+                            f"l'assertion affirme '{claim_text.strip()}' en opposition directe avec "
+                            f"'{prop_cleaned}'."
+                        )
+                        return True, reason, doc_fn
+
+        return False, None, None
+
+    @classmethod
     def normalize_text_for_comparison(cls, text: str) -> str:
         """Normalise un texte pour comparaison souple de citation (espaces, ponctuation, casse)."""
         if not text:
@@ -866,6 +959,47 @@ class SimulationActionVerifier:
                     confidence=0.0,
                     limitations=limitations,
                 )
+
+        # CONTRAT DE FAITS NON NÉGOCIABLES DE L'ENTREPRISE (QA-12, Story 012-5, AC5) :
+        # Si un agent incarnant l'entreprise (FOUNDER, TEAM_MEMBER) émet une allégation contraire
+        # à une source canonique validée, marquage immédiat CONTRADICTED (COMPANY_FACT_CONTRADICTION).
+        if canonical_documents and claim.agent_name:
+            agent_role = None
+            if cohort_table:
+                member = cohort_table.get_member(claim.agent_name)
+                if member and hasattr(member, "scenario_role"):
+                    agent_role = member.scenario_role
+            if agent_role is None and resolver:
+                agent_role = resolver.get_role(claim.agent_name)
+
+            from ..models.cohort_coverage import ScenarioRole
+            role_enum = ScenarioRole.from_str(str(agent_role or ""))
+            if role_enum in (ScenarioRole.FOUNDER, ScenarioRole.TEAM_MEMBER):
+                is_contradicted, reason, src_fn = cls.check_company_facts_contradiction(
+                    claim.text, canonical_documents
+                )
+                if is_contradicted:
+                    limitations = list(claim.limitations)
+                    limitations.append(
+                        f"Contrat de faits de l'entreprise (AC5 / QA-12) : Allégation d'un agent incarnant "
+                        f"l'entreprise ({role_enum.value}) en contradiction avec la source validée '{src_fn}'. "
+                        f"{reason}"
+                    )
+                    evidence_refs = list(claim.evidence_refs)
+                    if src_fn and src_fn not in evidence_refs:
+                        evidence_refs.append(src_fn)
+                    return ReportClaim(
+                        claim_id=claim.claim_id,
+                        text=claim.text,
+                        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                        origin=InformationOrigin.SIMULATION,
+                        evidence_refs=evidence_refs,
+                        verification_status=VerificationStatus.CONTRADICTED,
+                        agent_name=claim.agent_name,
+                        round_num=claim.round_num,
+                        confidence=0.0,
+                        limitations=limitations,
+                    )
 
         # RÈGLE DU TEMPS SIMULÉ C8 (Story 011-4) :
         if horizon_hours and horizon_hours > 0:

@@ -58,8 +58,8 @@ L'**Epic 012** résout ces anomalies à la racine pour établir une étanchéit�
 | 012-2 | Rôles de scénario et statuts de décision d'adoption déterministes | `done` | [`story-012-2.md`](story-012-2.md) |
 | 012-3 | Extraction d'assertions assainie et réconciliation déterministe avec l'`EvidencePack` | `done` | [`story-012-3.md`](story-012-3.md) |
 | 012-4 | Barrière de publication « Fail-Closed » et états de certification du rapport | `done` | [`story-012-4.md`](story-012-4.md) |
-| 012-5 | Séparation épistémique des sources, intégrité du brief et détection de contradictions | `backlog` | `story-012-5.md` |
-| 012-6 | Banc de qualification sur cas réel R6, complétude du manifeste et non-régression | `backlog` | `story-012-6.md` |
+| 012-5 | Séparation épistémique des sources, intégrité du brief et détection de contradictions | `done` | [`story-012-5.md`](story-012-5.md) |
+| 012-6 | Banc de qualification sur cas réel R6, complétude du manifeste et non-régression | `backlog` | [`story-012-6.md`](story-012-6.md) |
 
 ---
 
