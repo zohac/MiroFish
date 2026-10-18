@@ -7,6 +7,7 @@ import pytest
 
 from app import create_app
 from app.models.report_quality import (
+    PublicationStatus,
     QualityCategory,
     QualityCheckItem,
     QualityGateResult,
@@ -91,7 +92,7 @@ def test_quality_gate_result_recompute_and_persistence(tmp_path):
     assert result.is_publishable is True
     assert result.final_status == QualityStatus.PASSED
 
-    # 2. Ajout d'un avertissement
+    # 2. Ajout d'un avertissement (en mode Fail-Closed Story 012-4 : publication_status=needs_review, is_publishable=False)
     result.add_check(
         QualityCheckItem(
             category=QualityCategory.LANGUAGE_COMPLIANCE,
@@ -100,8 +101,9 @@ def test_quality_gate_result_recompute_and_persistence(tmp_path):
             message="Attention titre en anglais",
         )
     )
-    assert result.is_publishable is True
+    assert result.is_publishable is False
     assert result.final_status == QualityStatus.WARNING
+    assert result.publication_status.value == "needs_review"
 
     # 3. Ajout d'un échec bloquant
     result.add_check(
@@ -114,6 +116,7 @@ def test_quality_gate_result_recompute_and_persistence(tmp_path):
     )
     assert result.is_publishable is False
     assert result.final_status == QualityStatus.FAILED
+    assert result.publication_status.value == "failed_validation"
 
     # 4. Sauvegarde et relecture
     target_json = str(tmp_path / "quality_checks.json")
@@ -125,6 +128,7 @@ def test_quality_gate_result_recompute_and_persistence(tmp_path):
     assert loaded.report_id == "rep_test_001"
     assert loaded.is_publishable is False
     assert loaded.final_status == QualityStatus.FAILED
+    assert loaded.publication_status.value == "failed_validation"
     assert len(loaded.checks) == 3
 
 
@@ -265,9 +269,21 @@ def test_report_quality_gate_all_passed():
         "## Analyse détaillée\n\nVoici une analyse très détaillée de la simulation avec tous les personas et données observées.\n\n"
         "## Objections non levées, contradictions et limites\n\nVoici les objections observées détaillées de manière tout à fait exhaustive et rigoureuse.\n"
     )
+    reg = ReportClaimRegistry(simulation_id="sim_001")
+    for i in range(5):
+        reg.add_claim(
+            ReportClaim(
+                claim_id=f"clm_{i}",
+                text=f"Agent_{i} a réagi avec succès",
+                claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                origin=InformationOrigin.SIMULATION,
+                verification_status=VerificationStatus.VERIFIED,
+            )
+        )
 
-    result = gate.evaluate_report(outline, report_md)
+    result = gate.evaluate_report(outline, report_md, claims_registry=reg)
     assert result.is_publishable is True
+    assert result.publication_status == PublicationStatus.VERIFIED_PUBLISHABLE
     assert result.final_status == QualityStatus.PASSED
     assert result.failed_checks == 0
 
@@ -502,7 +518,19 @@ def test_report_quality_gate_limitations_heading_case_insensitivity():
         ],
     )
 
-    result = gate.evaluate_report(outline, report_md, cohort_table=table)
+    reg = ReportClaimRegistry(simulation_id="sim_002")
+    for i in range(5):
+        reg.add_claim(
+            ReportClaim(
+                claim_id=f"clm_{i}",
+                text=f"Agent_{i} a effectué une action observée",
+                claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                origin=InformationOrigin.SIMULATION,
+                verification_status=VerificationStatus.VERIFIED,
+            )
+        )
+
+    result = gate.evaluate_report(outline, report_md, cohort_table=table, claims_registry=reg)
     assert result.is_publishable is True
     assert result.final_status == QualityStatus.PASSED
     lim_check = next(c for c in result.checks if c.category == QualityCategory.LIMITATIONS_SECTION)
@@ -577,4 +605,354 @@ def test_simulation_audit_service_source_manifest_with_objects(monkeypatch, tmp_
     manifest_obj = audit_service.build_source_manifest()
     assert manifest_obj["total_documents"] == 1
     assert manifest_obj["documents"][0]["document_id"] == "doc_01"
+
+
+# =====================================================================
+# 6. Tests Fail-Closed & États de Certification (Story 012-4, AC1 à AC6)
+# =====================================================================
+
+def test_publication_status_enum_values():
+    """AC1 : L'énumération PublicationStatus contient les 4 états canoniques."""
+    from app.models.report_quality import PublicationStatus
+    assert PublicationStatus.DRAFT.value == "draft"
+    assert PublicationStatus.NEEDS_REVIEW.value == "needs_review"
+    assert PublicationStatus.VERIFIED_PUBLISHABLE.value == "verified_publishable"
+    assert PublicationStatus.FAILED_VALIDATION.value == "failed_validation"
+
+
+def test_quality_gate_result_from_dict_retrocompatibility():
+    """AC1 & T1 : Désérialisation rétrocompatible sur anciens fichiers sans publication_status."""
+    from app.models.report_quality import QualityGateResult, PublicationStatus
+
+    # Ancien format sans publication_status avec final_status = "failed"
+    legacy_failed = {
+        "simulation_id": "sim_leg_1",
+        "report_id": "rep_leg_1",
+        "is_publishable": False,
+        "final_status": "failed",
+        "summary": "Échec",
+        "checks": [],
+    }
+    res_failed = QualityGateResult.from_dict(legacy_failed)
+    assert res_failed.publication_status == PublicationStatus.FAILED_VALIDATION
+    assert res_failed.is_publishable is False
+
+    # Ancien format avec final_status = "warning" (en mode Fail-Closed : is_publishable est forcé à False)
+    legacy_warning = {
+        "simulation_id": "sim_leg_2",
+        "report_id": "rep_leg_2",
+        "is_publishable": True,
+        "final_status": "warning",
+        "summary": "Attention",
+        "checks": [],
+    }
+    res_warning = QualityGateResult.from_dict(legacy_warning)
+    assert res_warning.publication_status == PublicationStatus.NEEDS_REVIEW
+    assert res_warning.is_publishable is False
+
+    # Ancien format avec final_status = "passed"
+    legacy_passed = {
+        "simulation_id": "sim_leg_3",
+        "report_id": "rep_leg_3",
+        "is_publishable": True,
+        "final_status": "passed",
+        "summary": "Succès",
+        "checks": [],
+    }
+    res_passed = QualityGateResult.from_dict(legacy_passed)
+    assert res_passed.publication_status == PublicationStatus.VERIFIED_PUBLISHABLE
+    assert res_passed.is_publishable is True
+
+
+def test_fail_closed_r6_anomaly_zero_verified_claims_qa08():
+    """AC2 : Reproduction stricte du cas R6 (258 claims, 0 vérifié) -> rejet FAILED_VALIDATION."""
+    gate = ReportQualityGate("sim_r6", "rep_r6", locale="fr")
+    outline = DummyOutline(["Introduction", "Analyse", "Limites"])
+    report_md = "## Introduction\n\nIntroduction complète (> 50 caractères).\n\n## Analyse\n\nAu Round 1, Florence a réagi vivement sur Twitter.\n\n## Limites\n\nObjections et limites substantielles détaillées (> 50 caractères).\n"
+
+    registry = ReportClaimRegistry(simulation_id="sim_r6")
+    # 258 claims : 17 contredits, 241 non prouvés, 0 vérifiés
+    for i in range(17):
+        registry.add_claim(
+            ReportClaim(
+                claim_id=f"clm_c_{i}",
+                text=f"Florence objection {i}",
+                claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                origin=InformationOrigin.SIMULATION,
+                verification_status=VerificationStatus.CONTRADICTED,
+            )
+        )
+    for i in range(241):
+        registry.add_claim(
+            ReportClaim(
+                claim_id=f"clm_u_{i}",
+                text=f"Action observée {i}",
+                claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                origin=InformationOrigin.SIMULATION,
+                verification_status=VerificationStatus.UNSUPPORTED,
+            )
+        )
+
+    assert registry.total_claims == 258
+    assert registry.verified_claims == 0
+    assert registry.verification_ratio == 0.0
+
+    result = gate.evaluate_report(outline, report_md, claims_registry=registry)
+    # Règle Fail-Closed : interdiction de délivrer is_publishable=True
+    assert result.is_publishable is False
+    assert result.final_status == QualityStatus.FAILED
+    assert result.publication_status.value == "failed_validation"
+
+    claim_chk = next(c for c in result.checks if c.category == QualityCategory.CLAIM_VERIFICATION)
+    assert claim_chk.status == QualityStatus.FAILED
+    assert "affirmation(s) d'action(s) simulée(s) contredite(s)" in claim_chk.message or "Absence totale de preuves" in claim_chk.message
+
+
+def test_fail_closed_pure_qa08_zero_verified_actions_no_contradictions():
+    """AC2 / QA-08 : Cas pur isolé sans contradictions : 5 actions simulées alléguées, 0 vérifiée -> FAILED_VALIDATION."""
+    gate = ReportQualityGate("sim_qa08_pure", "rep_qa08_pure", locale="fr")
+    outline = DummyOutline(["Introduction", "Limites"])
+    report_md = "## Introduction\n\nIntroduction substantielle (> 50 caractères).\n\n## Limites\n\nObjections et limites substantielles détaillées (> 50 caractères).\n"
+
+    registry = ReportClaimRegistry(simulation_id="sim_qa08_pure")
+    for i in range(5):
+        registry.add_claim(
+            ReportClaim(
+                claim_id=f"clm_act_{i}",
+                text=f"Action {i} alléguée mais non vérifiée",
+                claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+                origin=InformationOrigin.SIMULATION,
+                verification_status=VerificationStatus.UNSUPPORTED,
+            )
+        )
+
+    result = gate.evaluate_report(outline, report_md, claims_registry=registry)
+    assert result.is_publishable is False
+    assert result.final_status == QualityStatus.FAILED
+    assert result.publication_status.value == "failed_validation"
+
+    claim_chk = next(c for c in result.checks if c.category == QualityCategory.CLAIM_VERIFICATION)
+    assert claim_chk.status == QualityStatus.FAILED
+    assert "Absence totale de preuves authentiques" in claim_chk.message
+    assert claim_chk.details.get("r6_anomaly_detected") is True
+
+
+def test_fail_closed_missing_registry_with_alleged_actions_qa09():
+    """AC3 : Absence de registre avec allégations d'actions simulées -> FAILED_VALIDATION."""
+    gate = ReportQualityGate("sim_qa09_a", "rep_qa09_a", locale="fr")
+    outline = DummyOutline(["Rapport"])
+    report_md = "## Rapport\n\nAu round 3, l'Agent_1 a tweeté une réponse virulente sur l'offre (> 50 car).\n"
+
+    result = gate.evaluate_report(outline, report_md, claims_registry=None)
+    assert result.is_publishable is False
+    assert result.final_status == QualityStatus.FAILED
+    assert result.publication_status.value == "failed_validation"
+
+    claim_chk = next(c for c in result.checks if c.category == QualityCategory.CLAIM_VERIFICATION)
+    assert claim_chk.status == QualityStatus.FAILED
+    assert "Absence de registre de preuves" in claim_chk.message
+
+
+def test_fail_closed_missing_registry_theoretical_report_qa09():
+    """AC3 & QA-09 : Absence de registre sur rapport théorique sans faits simulés -> WARNING / needs_review (jamais de succès silencieux)."""
+    gate = ReportQualityGate("sim_qa09_b", "rep_qa09_b", locale="fr")
+    outline = DummyOutline(["Synthèse conceptuelle", "Limites"])
+    report_md = (
+        "## Synthèse conceptuelle\n\nCette analyse repose sur le cadre théorique de diffusion des innovations sans données de simulation concrète.\n\n"
+        "## Limites\n\nVoici les limites théoriques complètes du modèle étudié sans simulation empirique préalable.\n"
+    )
+
+    result = gate.evaluate_report(outline, report_md, claims_registry=None)
+    # QA-09 : jamais de réussite silencieuse -> WARNING, needs_review, non certifié publiable
+    assert result.final_status == QualityStatus.WARNING
+    assert result.publication_status.value == "needs_review"
+    assert result.is_publishable is False
+
+    claim_chk = next(c for c in result.checks if c.category == QualityCategory.CLAIM_VERIFICATION)
+    assert claim_chk.status == QualityStatus.WARNING
+    assert "rapport théorique sans allégation d'actions simulées" in claim_chk.message
+
+
+def test_fail_closed_verification_thresholds():
+    """AC4 : Seuil >= 80% pour verified_publishable vs 50%-80% pour needs_review vs < 50% pour failed_validation."""
+    gate = ReportQualityGate("sim_thresh", "rep_thresh", locale="fr")
+    outline = DummyOutline(["Introduction", "Limites"])
+    report_md = "## Introduction\n\nTexte d'introduction substantiel et rigoureux (> 50 caractères).\n\n## Limites\n\nObjections et limites substantielles (> 50 caractères).\n"
+
+    # Cas 1 : 85% de vérification (17/20) -> VERIFIED_PUBLISHABLE (is_publishable=True)
+    reg_85 = ReportClaimRegistry(simulation_id="sim_thresh")
+    for i in range(17):
+        reg_85.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.VERIFIED))
+    for i in range(17, 20):
+        reg_85.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.UNSUPPORTED))
+
+    res_85 = gate.evaluate_report(outline, report_md, claims_registry=reg_85)
+    assert res_85.final_status == QualityStatus.PASSED
+    assert res_85.publication_status.value == "verified_publishable"
+    assert res_85.is_publishable is True
+
+    # Cas 2 : 65% de vérification (13/20) -> NEEDS_REVIEW (is_publishable=False)
+    reg_65 = ReportClaimRegistry(simulation_id="sim_thresh")
+    for i in range(13):
+        reg_65.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.VERIFIED))
+    for i in range(13, 20):
+        reg_65.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.UNSUPPORTED))
+
+    res_65 = gate.evaluate_report(outline, report_md, claims_registry=reg_65)
+    assert res_65.final_status == QualityStatus.WARNING
+    assert res_65.publication_status.value == "needs_review"
+    assert res_65.is_publishable is False
+
+    # Cas 3 : 40% de vérification (8/20) -> FAILED_VALIDATION (is_publishable=False)
+    reg_40 = ReportClaimRegistry(simulation_id="sim_thresh")
+    for i in range(8):
+        reg_40.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.VERIFIED))
+    for i in range(8, 20):
+        reg_40.add_claim(ReportClaim(f"clm_{i}", "action", ClaimKind.OBSERVED_SOCIAL_ACTION, InformationOrigin.SIMULATION, verification_status=VerificationStatus.UNSUPPORTED))
+
+    res_40 = gate.evaluate_report(outline, report_md, claims_registry=reg_40)
+    assert res_40.final_status == QualityStatus.FAILED
+    assert res_40.publication_status.value == "failed_validation"
+    assert res_40.is_publishable is False
+
+
+def test_fail_closed_registry_with_zero_action_claims_needs_review():
+    """G1 : Registre sans claims d'actions observées -> bascule en needs_review (WARNING)."""
+    gate = ReportQualityGate("sim_no_actions", "rep_no_actions", locale="fr")
+    outline = DummyOutline(["Introduction", "Limites"])
+    report_md = (
+        "## Introduction\n\nTexte d'introduction substantiel dépassant largement cinquante caractères.\n\n"
+        "## Limites\n\nLimites d'analyse substantielles et détaillées pour ce modèle sans actions simulées.\n"
+    )
+
+    registry = ReportClaimRegistry(simulation_id="sim_no_actions")
+    for i in range(4):
+        registry.add_claim(
+            ReportClaim(
+                claim_id=f"clm_hyp_{i}",
+                text=f"Hypothèse {i}",
+                claim_kind=ClaimKind.SCENARIO_HYPOTHESIS,
+                origin=InformationOrigin.HYPOTHESIS,
+                verification_status=VerificationStatus.VERIFIED,
+            )
+        )
+
+    result = gate.evaluate_report(outline, report_md, claims_registry=registry)
+    assert result.final_status == QualityStatus.WARNING
+    assert result.publication_status.value == "needs_review"
+    assert result.is_publishable is False
+
+
+def test_fail_closed_unverified_commercial_adoption_blocking_ac5():
+    """AC5 : Blocage immédiat en failed_validation si ADOPTED_VERIFIED proclamé sans action probante."""
+    gate = ReportQualityGate("sim_adop", "rep_adop", locale="fr")
+    outline = DummyOutline(["Introduction", "Limites"])
+    report_md = "## Introduction\n\nTexte d'introduction substantiel et rigoureux (> 50 caractères).\n\n## Limites\n\nObjections et limites substantielles (> 50 caractères).\n"
+
+    # Cohorte avec un membre prétendu ADOPTED_VERIFIED
+    table = CohortCoverageTable(
+        simulation_id="sim_adop",
+        members=[
+            CohortMemberStatus(
+                persona_name="Florence",
+                scenario_role=ScenarioRole.PROSPECT,
+                action_count=1,
+                observed_event_ids=["evt_01"],
+                decision_status=DecisionStatus.ADOPTED_VERIFIED,
+            )
+        ],
+    )
+
+    # Registre sans claim d'adoption vérifié
+    reg = ReportClaimRegistry(simulation_id="sim_adop")
+    reg.add_claim(
+        ReportClaim(
+            claim_id="clm_simple",
+            text="Florence a simplement navigué",
+            claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+            origin=InformationOrigin.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+        )
+    )
+
+    result = gate.evaluate_report(outline, report_md, cohort_table=table, claims_registry=reg)
+    assert result.is_publishable is False
+    assert result.final_status == QualityStatus.FAILED
+    assert result.publication_status.value == "failed_validation"
+
+    chk = next(c for c in result.checks if c.category == QualityCategory.CLAIM_VERIFICATION)
+    assert chk.status == QualityStatus.FAILED
+    assert "Affabulation d'adoption détectée" in chk.message
+    assert chk.details.get("unverified_adoptions") is True
+    assert chk.details.get("total_claims") == 1
+
+
+def test_fail_closed_substantiated_commercial_adoption_passes_ac5():
+    """AC5 (Cas nominal) : ADOPTED_VERIFIED corroboré par un claim vérifié d'adoption (FR & EN) -> validation réussie."""
+    gate = ReportQualityGate("sim_adop_ok", "rep_adop_ok", locale="fr")
+    outline = DummyOutline(["Introduction", "Limites"])
+    report_md = "## Introduction\n\nTexte d'introduction substantiel et rigoureux (> 50 caractères).\n\n## Limites\n\nObjections et limites substantielles (> 50 caractères).\n"
+
+    table = CohortCoverageTable(
+        simulation_id="sim_adop_ok",
+        members=[
+            CohortMemberStatus(
+                persona_name="Marc",
+                scenario_role=ScenarioRole.PROSPECT,
+                action_count=2,
+                observed_event_ids=["evt_01", "evt_02"],
+                decision_status=DecisionStatus.ADOPTED_VERIFIED,
+            ),
+            CohortMemberStatus(
+                persona_name="Alice",
+                scenario_role=ScenarioRole.PROSPECT,
+                action_count=1,
+                observed_event_ids=["evt_03"],
+                decision_status=DecisionStatus.ADOPTED_VERIFIED,
+            ),
+        ],
+    )
+
+    reg = ReportClaimRegistry(simulation_id="sim_adop_ok")
+    # Action FR
+    reg.add_claim(
+        ReportClaim(
+            claim_id="clm_sub_fr",
+            text="Marc a souscrit au forfait annuel avec enthousiasme",
+            claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+            origin=InformationOrigin.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+        )
+    )
+    # Action EN
+    reg.add_claim(
+        ReportClaim(
+            claim_id="clm_sub_en",
+            text="Alice subscribed to the business plan",
+            claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+            origin=InformationOrigin.SIMULATION,
+            verification_status=VerificationStatus.VERIFIED,
+        )
+    )
+
+    result = gate.evaluate_report(outline, report_md, cohort_table=table, claims_registry=reg)
+    assert result.final_status == QualityStatus.PASSED
+    assert result.publication_status.value == "verified_publishable"
+    assert result.is_publishable is True
+
+
+def test_fail_closed_recompute_empty_checks_remains_draft_unpublishable():
+    """G2 : QualityGateResult._recompute_status() avec checks=[] conserve DRAFT et is_publishable=False."""
+    res = QualityGateResult(
+        simulation_id="sim_empty",
+        report_id="rep_empty",
+        is_publishable=True,  # tentative d'initialisation optimiste
+        final_status=QualityStatus.PASSED,
+        summary="Test checks vides",
+        checks=[],
+    )
+    res._recompute_status()
+    assert res.is_publishable is False
+    assert res.publication_status == PublicationStatus.DRAFT
+    assert res.final_status == QualityStatus.WARNING
 

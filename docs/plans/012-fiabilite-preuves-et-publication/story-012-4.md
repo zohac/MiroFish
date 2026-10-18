@@ -2,7 +2,7 @@
 id: "012-4"
 epic: "012"
 titre: "Barrière de publication « Fail-Closed » et états de certification du rapport"
-statut: backlog
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -17,7 +17,7 @@ Cette story répond directement à l'exigence fonctionnelle **FR-05** (barrière
 
 ## Définition de prêt
 
-- [ ] **Objectif compris et cadré** :
+- [x] **Objectif compris et cadré** :
   - Mettre fin au comportement permissif (« Fail-Open ») de `ReportQualityGate` qui accordait `is_publishable=True` et `final_status=warning` même en présence de 0 % d'assertions vérifiées ou lors de l'absence de registre d'audit.
   - Définir le modèle formel `PublicationStatus` (`draft`, `needs_review`, `verified_publishable`, `failed_validation`).
   - Conditionner strictement `is_publishable = True` à l'état `verified_publishable` (avec option de consultation sous réserve pour `needs_review`, et interdiction formelle de certification pour `failed_validation`).
@@ -25,7 +25,7 @@ Cette story répond directement à l'exigence fonctionnelle **FR-05** (barrière
   - Rejeter en `failed_validation` tout rapport affirmant des actions sans aucune preuve (`verified_claims == 0`), comportant des conversions commerciales fictives (`ADOPTED_VERIFIED` non sourcé) ou des contradictions critiques d'exécution.
   - Traiter avec nuance les rapports exploratoires/théoriques sans assertions d'actions simulées (bascule en `needs_review` sans échec artificiel).
   - Exposer ces états et diagnostics détaillés dans l'API Flask et l'interface utilisateur Vue 3 (`Step4Report.vue`).
-- [ ] **Documents consultés** :
+- [x] **Documents consultés** :
   - [PRD Epic 012](prd.md) : §2 (C5), §3 (FR-05), §4 (NFR-1, NFR-2, NFR-3).
   - [Architecture Epic 012](architecture.md) : §1 (diagramme de flux), §2.4 (barrière de publication Fail-Closed), §3 (rétrocompatibilité `QualityGateResult`).
   - [Hub Epic 012](epic-012.md) : description globale, FR-05, critère C5.
@@ -36,10 +36,10 @@ Cette story répond directement à l'exigence fonctionnelle **FR-05** (barrière
   - `frontend/src/components/Step4Report.vue` : badges qualité et diagnostics d'audit.
   - `frontend/locales/fr.json` et `frontend/locales/en.json` : libellés d'internationalisation.
   - `AGENTS.md` : §2.1 (Clean Architecture), §2.2 (qualité et herméticité des tests), §2.8 (gestion des plans).
-- [ ] **Dépendances résolues** :
+- [x] **Dépendances résolues** :
   - Stories 012-1 (résolution d'identités sans collision), 012-2 (rôles et décisions déterministes) et 012-3 (réconciliation déterministe claims $\leftrightarrow$ EvidencePack) sont closes avec succès.
   - Filet global actuel : **1 800 tests réussis sur l'hôte**, 9 tests frontend Node passants, 0 échec.
-- [ ] **Décisions d'ingénierie arrêtées avant code** :
+- [x] **Décisions d'ingénierie arrêtées avant code** :
   1. **Modèle `PublicationStatus`** :
      - Énumération string canonique :
        - `draft` : rapport en cours de génération ou non encore soumis aux contrôles qualité.
@@ -62,7 +62,7 @@ Cette story répond directement à l'exigence fonctionnelle **FR-05** (barrière
   5. **Compatibilité IHM et bilinguisme** :
      - Intégration de 4 badges distincts dans `Step4Report.vue` avec styles et infobulles adaptés.
      - Clés i18n dans `fr.json` et `en.json` pour chaque statut de certification et chaque motif de refus.
-- [ ] **Stratégie de tests identifiée** :
+- [x] **Stratégie de tests identifiée** :
   - Test de régression directe sur le cas R6 : 258 claims, 0 vérifié $\rightarrow$ doit retourner `publication_status == 'failed_validation'` et `is_publishable == False`.
   - Test sur un cas nominal prouvé : 10 claims d'actions, 9 vérifiés ($90\ \%$) $\rightarrow$ `verified_publishable` et `is_publishable == True`.
   - Test sur un cas exploratoire sans registre $\rightarrow$ `needs_review` et `is_publishable == False`.
@@ -85,44 +85,44 @@ Cette story répond directement à l'exigence fonctionnelle **FR-05** (barrière
 
 ## Définition de fini
 
-- [ ] Énumération `PublicationStatus` et champ `publication_status` implémentés dans `backend/app/models/report_quality.py`.
-- [ ] Logique d'évaluation Fail-Closed implémentée dans `backend/app/services/report_quality_gate.py`.
-- [ ] Zéro rapport certifié sans preuve (QA-08) et gestion stricte de l'absence de registre (QA-09).
-- [ ] Rétrocompatibilité transparente assurée sur les anciens fichiers `quality_checks.json`.
-- [ ] Endpoint API `GET /api/report/<report_id>/quality` enrichi et validé.
-- [ ] Composant Vue 3 `Step4Report.vue` adapté avec les 4 états de publication et styles associés.
-- [ ] Dictionnaires `locales/fr.json` et `locales/en.json` synchronisés à 100 % de parité.
-- [ ] Suite de tests hermétiques dédiée créée dans `backend/tests/test_report_quality_gate_audit.py` (ou suite équivalente).
-- [ ] 1 800+ tests backend au vert sur l'hôte et 9 tests frontend Node passants.
-- [ ] `validate_plans.py` et `ruff check` validés sans erreur.
-- [ ] Revue contradictoire BMAD à 4 couches réalisée, findings résolus.
-- [ ] Documentation et suivi de sprint mis à jour (`epic-012.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
+- [x] Énumération `PublicationStatus` et champ `publication_status` implémentés dans `backend/app/models/report_quality.py`.
+- [x] Logique d'évaluation Fail-Closed implémentée dans `backend/app/services/report_quality_gate.py`.
+- [x] Zéro rapport certifié sans preuve (QA-08) et gestion stricte de l'absence de registre (QA-09).
+- [x] Rétrocompatibilité transparente assurée sur les anciens fichiers `quality_checks.json`.
+- [x] Endpoint API `GET /api/report/<report_id>/quality` enrichi et validé.
+- [x] Composant Vue 3 `Step4Report.vue` adapté avec les 4 états de publication et styles associés.
+- [x] Dictionnaires `locales/fr.json` et `locales/en.json` synchronisés à 100 % de parité.
+- [x] Suite de tests hermétiques dédiée créée dans `backend/tests/test_report_quality_gate_audit.py` (ou suite équivalente).
+- [x] 1 800+ tests backend au vert sur l'hôte et 9 tests frontend Node passants.
+- [x] `validate_plans.py` et `ruff check` validés sans erreur.
+- [x] Revue contradictoire BMAD à 4 couches réalisée, findings résolus.
+- [x] Documentation et suivi de sprint mis à jour (`epic-012.md`, `sprint-status.yaml`, `STATUS.md`, `AGENTS.md`).
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Modélisation de `PublicationStatus` et enrichissement de `QualityGateResult`** :
+- [x] **T1 — Modélisation de `PublicationStatus` et enrichissement de `QualityGateResult`** :
   - Définir `PublicationStatus` dans `backend/app/models/report_quality.py`.
   - Mettre à jour `QualityGateResult` pour intégrer `publication_status`, les statistiques détaillées et le recalcul fail-closed de `is_publishable`.
   - Assurer la rétrocompatibilité sur `from_dict` pour les anciens exports dépourvus de `publication_status`.
-- [ ] **T2 — Implémentation des règles Fail-Closed dans `ReportQualityGate`** :
+- [x] **T2 — Implémentation des règles Fail-Closed dans `ReportQualityGate`** :
   - Mettre à jour `ReportQualityGate.evaluate_report` pour appliquer les seuils de preuve ($\ge 80\ %$ pour `verified_publishable`, 50–80 % pour `needs_review`, $< 50\ %$ ou 0 vérifié pour `failed_validation`).
   - Gérer l'absence de registre selon la nature du texte (QA-09).
   - Bloquer les conversions commerciales fictives non sourcées.
   - Définir les messages diagnostics explicites pour chaque catégorie de défaillance.
-- [ ] **T3 — Intégration API et sérialisation serveur** :
+- [x] **T3 — Intégration API et sérialisation serveur** :
   - Mettre à jour l'API `backend/app/api/report.py` pour remonter `publication_status` et les nouveaux diagnostics d'intégrité.
   - Vérifier la persistance atomique de `quality_checks.json` dans `reports/<id>/` et `simulations/<id>/`.
-- [ ] **T4 — Interface utilisateur Vue 3 et localisation bilingue** :
+- [x] **T4 — Interface utilisateur Vue 3 et localisation bilingue** :
   - Mettre à jour `frontend/src/components/Step4Report.vue` pour restituer les badges `draft`, `needs_review`, `verified_publishable`, `failed_validation`.
   - Ajouter les clés de traduction nécessaires dans `frontend/locales/fr.json` et `frontend/locales/en.json`.
   - Tester le rendu visuel et la non-régression des tests Node (`pnpm --dir frontend test`).
-- [ ] **T5 — Suite de tests hermétiques dédiée et validation de non-régression** :
+- [x] **T5 — Suite de tests hermétiques dédiée et validation de non-régression** :
   - Rédiger les tests unitaires couvrant les AC1 à AC7 dans `backend/tests/test_report_quality_gate_audit.py`.
   - Valider l'invalidation propre de la fixture d'audit R6.
   - Exécuter la suite complète `pytest` et `validate_plans.py`.
-- [ ] **T6 — Revue contradictoire BMAD à 4 couches et finalisation** :
+- [x] **T6 — Revue contradictoire BMAD à 4 couches et finalisation** :
   - Lancer `/bmad-code-review`, appliquer les correctifs et mettre à jour le statut.
 
 ---
@@ -179,12 +179,53 @@ La Story 012-4 remplace ce comportement par un automate d'états strict :
 
 ## Revue
 
-### Review Findings
+### Review Findings (Revue contradictoire BMAD à 4 couches)
 
-*(À renseigner lors de la revue contradictoire BMAD)*
+- [x] [Review][Patch] G1 : Correction de la conformité AC3 & QA-09 (absence de registre ou 0 action traitée en needs_review / WARNING au lieu de succès silencieux) [backend/app/services/report_quality_gate.py:519,632]
+- [x] [Review][Patch] G2 : Rétablissement strict de l'invariant Fail-Closed sur QualityGateResult (checks=[] vide et désérialisation d'anciens exports avec warning) [backend/app/models/report_quality.py:123,192]
+- [x] [Review][Patch] G3 : Robustesse de la détection d'affabulation commerciale (vocabulaire anglais subscri/purchas/buy, tolérance aux statuts chaîne et enrichissement des details) [backend/app/services/report_quality_gate.py:465,478,491]
+- [x] [Review][Patch] G4 : Sécurisation NoneType sur report_markdown et text des claims [backend/app/services/report_quality_gate.py:477,614]
+- [x] [Review][Patch] G5 : Affichage réactif de l'accordéon/carte de diagnostic pour le statut needs_review et normalisation de casse [frontend/src/components/Step4Report.vue:29,478]
+- [x] [Review][Patch] G6 : Comblement des lacunes de couverture de tests (QA-08 isolé sans contradiction, seuil < 50%, cas nominal corroboré, corroboration anglais, checks vides) [backend/tests/test_report_quality_gate_audit.py:700]
+- [x] [Review][Patch] G7 : Élimination de l'accès à l'attribut privé _value2member_map_ au profit d'un lookup Enum standard [backend/app/models/report_quality.py:97]
+
+#### Synthèse par couche d'inspection
+
+- **Couche 1 (Spécification / PRD / Contrat AC1-AC7)** :
+  - *Constat AC1* : Conforme. Énumération `PublicationStatus` (`draft`, `needs_review`, `verified_publishable`, `failed_validation`) modélisée et exposée dans `QualityGateResult`.
+  - *Constat AC2* : Règle Fail-Closed absolue rétablie. Conditionnement strict de `is_publishable = True` à `verified_publishable` dans tous les flux (y compris désérialisation d'anciens exports).
+  - *Constat AC3* : Correction majeure G1. Alignement strict avec QA-09 : l'absence de registre sur rapport théorique produit un avertissement `needs_review` (`QualityStatus.WARNING`) et non un succès silencieux `verified_publishable`.
+  - *Constat AC4* : Seuils d'exigence appliqués ($\ge 80\ %$ pour `verified_publishable`, $50\text{--}79\ %$ pour `needs_review`, $< 50\ %$ ou 0 vérifié pour `failed_validation`).
+  - *Constat AC5* : Interdiction d'affabulation commerciale renforcée (G3) avec prise en compte du vocabulaire anglophone et robustesse aux statuts textuels.
+  - *Constat AC6* : Visibilité IHM fiabilisée (G5) : le bandeau d'avertissement explicite est affiché par défaut pour `needs_review`.
+  - *Constat AC7* : Suite hermétique enrichie (G6) éliminant tout angle mort de couverture.
+
+- **Couche 2 (Clean Architecture & Invariants SOLID/DRY)** :
+  - *Constat* : Séparation étanche modèle (`report_quality.py`) et moteur de règles (`report_quality_gate.py`).
+  - *Constat* : Élimination de l'accès au membre privé `_value2member_map_` (G7).
+  - *Constat* : Rétrocompatibilité ascendante stricte sans corruption des états terminaux.
+
+- **Couche 3 (Sécurité des données & Robustesse)** :
+  - *Constat* : Invariant Fail-Closed garanti par construction dans `_recompute_status` même sur liste vide `checks=[]` (G2).
+  - *Constat* : Protection contre `AttributeError` sur valeurs `None` dans `report_markdown` et textes de claims (G4).
+  - *Constat* : Préservation intégrale des métriques de claims dans `details` en présence d'anomalies d'adoption (G3).
+
+- **Couche 4 (Qualité des tests & Herméticité)** :
+  - *Constat* : Détection et élimination des faux positifs de tests (test QA-09 théorique réaligné, isolation QA-08 pure sans contradictions parasites).
+  - *Constat* : Extension de la suite de tests hermétiques à l'ensemble des branches limites.
 
 ---
 
 ## Notes de complétion
 
-*(À renseigner lors de la clôture de la story)*
+- **Date de complétion** : 18 octobre 2026.
+- **Statut** : Clos avec succès (`done`) — Revue contradictoire BMAD 4 couches approuvée.
+- **Filet de tests validé** : **1 812 tests réussis sur l'hôte** (1 800 initiaux + 12 nouveaux tests hermétiques dédiés dans `test_report_quality_gate_audit.py`, totalisant 31 tests dans ce module), 0 échec. **9 tests Node frontend** au vert.
+- **Artefacts produits / modifiés** :
+  - `backend/app/models/report_quality.py` : modélisation de `PublicationStatus`, recalibrage Fail-Closed de `_recompute_status`, lookup Enum standard, sérialisation/désérialisation rétrocompatible.
+  - `backend/app/services/report_quality_gate.py` : seuils stricts de vérification d'actions, détection de l'anomalie R6 (QA-08), gestion d'absence de registre (QA-09), barrière anti-affabulation commerciale bilingue FR/EN (AC5), résilience NoneType.
+  - `backend/app/services/report_agent.py` : cohérence du cycle de vie `ReportStatus` distinguant la complétion consultable sous réserve (`needs_review`) de l'échec critique (`failed_validation`).
+  - `backend/tests/test_report_quality_gate_audit.py` : 31 tests unitaires et hermétiques couvrant AC1 à AC7 et l'ensemble des branches limites.
+  - `frontend/src/components/Step4Report.vue` : restitution visuelle des 4 états de certification, affichage par défaut du panneau diagnostic pour `needs_review` et badges qualité.
+  - `locales/fr.json`, `locales/en.json`, `locales/zh.json` : libellés i18n trilingues pour les statuts de publication.
+

@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..config import Config
 from ..models.report_quality import (
+    PublicationStatus,
     QualityCategory,
     QualityCheckItem,
     QualityGateResult,
@@ -456,18 +457,84 @@ class ReportQualityGate:
             )
 
         # -------------------------------------------------------------
-        # Contrôle 5 : Vérification des claims et absence d'affabulation
         # -------------------------------------------------------------
-        if claims_registry:
+        # Contrôle 5 : Vérification des claims, preuves et absence d'affabulation (Story 012-4, FR-05, C5)
+        # -------------------------------------------------------------
+        # 1. Préparation des métriques de claims si disponibles
+        if claims_registry and claims_registry.claims:
             total_claims = claims_registry.total_claims
             contradicted = claims_registry.contradicted_claims
-            # Affabulation critique : affirmations OBSERVED_SOCIAL_ACTION contredites
+            verified = claims_registry.verified_claims
+            ratio = claims_registry.verification_ratio
+
             critical_contradictions = [
                 c for c in claims_registry.claims
                 if c.verification_status == VerificationStatus.CONTRADICTED
                 and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
             ]
 
+            action_claims = [
+                c for c in claims_registry.claims
+                if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+            ]
+            verified_action_claims = [
+                c for c in action_claims
+                if c.verification_status == VerificationStatus.VERIFIED
+            ]
+            action_ratio = (len(verified_action_claims) / len(action_claims)) if action_claims else 1.0
+        else:
+            total_claims = 0
+            contradicted = 0
+            verified = 0
+            ratio = 0.0
+            critical_contradictions = []
+            action_claims = []
+            verified_action_claims = []
+            action_ratio = 1.0
+
+        # 2. Vérification d'affabulation commerciale d'adoption non sourcée (AC5)
+        unverified_adoptions_detected = False
+        adopted_members: List[Any] = []
+        if cohort_table and getattr(cohort_table, "members", None):
+            for m in cohort_table.members:
+                st = getattr(m, "decision_status", None)
+                st_str = st.value if hasattr(st, "value") else str(st or "")
+                if st_str.upper() in ("ADOPTED_VERIFIED", "ADOPTED"):
+                    adopted_members.append(m)
+
+            if adopted_members:
+                # Vérifier si au moins une preuve d'action ou claim vérifié soutient ces adoptions
+                has_substantiating_action = False
+                if claims_registry and claims_registry.claims:
+                    for c in claims_registry.claims:
+                        if c.verification_status == VerificationStatus.VERIFIED and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+                            c_text_lower = (c.text or "").lower()
+                            # Support bilingue FR/EN des termes d'adoption/conversion commerciale
+                            if any(k in c_text_lower for k in ("adopt", "souscri", "subscri", "achet", "purchas", "buy", "abonn", "pay", "sign", "convert", "order")):
+                                has_substantiating_action = True
+                                break
+                if not has_substantiating_action:
+                    unverified_adoptions_detected = True
+
+        if unverified_adoptions_detected:
+            checks.append(
+                QualityCheckItem(
+                    category=QualityCategory.CLAIM_VERIFICATION,
+                    title="Intégrité des affirmations d'actions simulées",
+                    status=QualityStatus.FAILED,
+                    message="Affabulation d'adoption détectée : des conversions (ADOPTED_VERIFIED) sont proclamées sans aucune preuve d'action probante dans le registre.",
+                    details={
+                        "unverified_adoptions": True,
+                        "adopted_count": len(adopted_members),
+                        "total_claims": total_claims,
+                        "action_claims": len(action_claims),
+                        "verified_action_claims": len(verified_action_claims),
+                        "action_verification_ratio": action_ratio,
+                        "verification_ratio": ratio,
+                    },
+                )
+            )
+        elif claims_registry and claims_registry.claims:
             if critical_contradictions:
                 checks.append(
                     QualityCheckItem(
@@ -477,72 +544,165 @@ class ReportQualityGate:
                         message=f"{len(critical_contradictions)} affirmation(s) d'action(s) simulée(s) contredite(s) par les traces d'exécution.",
                         details={
                             "critical_contradictions_count": len(critical_contradictions),
-                            "sample_contradictions": [c.text[:80] for c in critical_contradictions[:3]],
+                            "sample_contradictions": [(c.text or "")[:80] for c in critical_contradictions[:3]],
+                            "total_claims": total_claims,
+                            "contradicted": contradicted,
                         },
                     )
                 )
-            elif contradicted > 0:
+            elif action_claims and len(verified_action_claims) == 0:
+                # Anomalie R6 / QA-08 : des actions simulées sont affirmées mais 0 n'est vérifiée
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.FAILED,
+                        message=f"Absence totale de preuves authentiques : {len(action_claims)} action(s) simulée(s) affirmée(s), 0 vérifiée(s) par les traces d'exécution.",
+                        details={
+                            "total_claims": total_claims,
+                            "action_claims": len(action_claims),
+                            "verified_action_claims": 0,
+                            "verification_ratio": ratio,
+                            "r6_anomaly_detected": True,
+                        },
+                    )
+                )
+            elif action_claims and action_ratio < 0.50:
+                # Taux de vérification d'actions insuffisant (< 50%) -> FAILED
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.FAILED,
+                        message=f"Taux de vérification des actions simulées insuffisant ({action_ratio*100:.1f}% < 50%) : seulement {len(verified_action_claims)}/{len(action_claims)} prouvées.",
+                        details={
+                            "total_claims": total_claims,
+                            "action_claims": len(action_claims),
+                            "verified_action_claims": len(verified_action_claims),
+                            "action_verification_ratio": action_ratio,
+                            "verification_ratio": ratio,
+                        },
+                    )
+                )
+            elif not action_claims:
+                # Rapport avec registre mais 0 assertion d'action observée (conceptuel / théorique) -> WARNING (needs_review)
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,
                         title="Intégrité des affirmations d'actions simulées",
                         status=QualityStatus.WARNING,
-                        message=f"{contradicted} affirmation(s) contredite(s) ou divergente(s) répertoriée(s) dans le registre d'audit.",
+                        message=f"Rapport conceptuel sans allégation d'actions observées : {total_claims} assertion(s) analysée(s), 0 action simulée. À réviser avant publication.",
                         details={
                             "total_claims": total_claims,
+                            "action_claims": 0,
+                            "verified_action_claims": 0,
+                            "action_verification_ratio": 0.0,
+                            "verification_ratio": ratio,
                             "contradicted": contradicted,
-                            "verification_ratio": claims_registry.verification_ratio,
+                        },
+                    )
+                )
+            elif action_ratio < 0.80 or contradicted > 0:
+                # Taux intermédiaire (50% <= action_ratio < 80%) ou contradictions secondaires -> WARNING (NEEDS_REVIEW)
+                warning_reasons = []
+                if action_ratio < 0.80:
+                    warning_reasons.append(f"taux de vérification des actions partiel ({action_ratio*100:.1f}% < 80%)")
+                if contradicted > 0:
+                    warning_reasons.append(f"{contradicted} affirmation(s) contredite(s) ou divergente(s)")
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.WARNING,
+                        message=f"Preuves partielles : {', '.join(warning_reasons)} répertoriée(s) dans le registre d'audit.",
+                        details={
+                            "total_claims": total_claims,
+                            "action_claims": len(action_claims),
+                            "verified_action_claims": len(verified_action_claims),
+                            "action_verification_ratio": action_ratio,
+                            "contradicted": contradicted,
+                            "verification_ratio": ratio,
                         },
                     )
                 )
             else:
+                # >= 80% des actions vérifiées et 0 contradiction -> PASSED
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,
                         title="Intégrité des affirmations d'actions simulées",
                         status=QualityStatus.PASSED,
-                        message=f"0 contradiction critique détectée sur {total_claims} assertions analysées.",
+                        message=f"Validation rigoureuse : {len(verified_action_claims)}/{len(action_claims)} actions vérifiées ({action_ratio*100:.1f}%), 0 contradiction critique sur {total_claims} assertions.",
                         details={
                             "total_claims": total_claims,
-                            "verified_claims": claims_registry.verified_claims,
-                            "verification_ratio": claims_registry.verification_ratio,
+                            "action_claims": len(action_claims),
+                            "verified_action_claims": len(verified_action_claims),
+                            "action_verification_ratio": action_ratio,
+                            "verified_claims": verified,
+                            "verification_ratio": ratio,
                         },
                     )
                 )
         else:
-            checks.append(
-                QualityCheckItem(
-                    category=QualityCategory.CLAIM_VERIFICATION,
-                    title="Intégrité des affirmations d'actions simulées",
-                    status=QualityStatus.PASSED,
-                    message="Contrôle direct des claims omis (registre non fourni ou vide).",
-                    details={"claims_registry_present": False},
-                )
+            # Absence de registre de claims ou registre vide (QA-09)
+            # Détecter si le rapport prétend relater des actions simulées ou des rounds
+            md_lower = (report_markdown or "").lower()
+            mentions_simulated_actions = bool(
+                re.search(r"\bround\s+\d+\b", md_lower)
+                or re.search(r"\b(agent_\d+)\b", md_lower)
+                or re.search(r"\b(a publié|a tweeté|a commenté|a réagi|a répondu|posted|tweeted|commented)\b", md_lower)
             )
 
-        # Calculer le résumé et le verdict global
+            if mentions_simulated_actions:
+                # Des actions simulées sont revendiquées mais le registre d'audit est absent -> FAILED (QA-09)
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.FAILED,
+                        message="Absence de registre de preuves : le rapport relate des actions simulées mais aucun registre d'audit (ReportClaimRegistry) n'est disponible.",
+                        details={"claims_registry_present": False, "simulated_actions_alleged": True},
+                    )
+                )
+            else:
+                # Rapport purement théorique / exploratoire sans mention d'actions -> WARNING / needs_review (QA-09, AC3)
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.WARNING,
+                        message="Contrôle direct des claims omis : rapport théorique sans allégation d'actions simulées (registre non fourni ou vide). À réviser avant publication.",
+                        details={"claims_registry_present": False, "simulated_actions_alleged": False},
+                    )
+                )
+
+        # Calculer le résumé et le verdict global en mode Fail-Closed (Story 012-4)
         failed_count = sum(1 for c in checks if c.status == QualityStatus.FAILED)
         warning_count = sum(1 for c in checks if c.status == QualityStatus.WARNING)
         passed_count = sum(1 for c in checks if c.status == QualityStatus.PASSED)
 
         if failed_count > 0:
             final_status = QualityStatus.FAILED
+            publication_status = PublicationStatus.FAILED_VALIDATION
             is_publishable = False
-            summary = f"Échec de la barrière qualité : {failed_count} contrôle(s) critique(s) en échec."
+            summary = f"Échec de la barrière qualité : {failed_count} contrôle(s) critique(s) en échec. Certification refusée."
         elif warning_count > 0:
             final_status = QualityStatus.WARNING
-            is_publishable = True
-            summary = f"Validé avec réserves : {passed_count} réussis, {warning_count} avertissement(s)."
+            publication_status = PublicationStatus.NEEDS_REVIEW
+            is_publishable = False  # Fail-Closed : needs_review n'est pas certifié publiable directement
+            summary = f"À réviser : {passed_count} réussis, {warning_count} avertissement(s). Publication sous réserve de revue."
         else:
             final_status = QualityStatus.PASSED
+            publication_status = PublicationStatus.VERIFIED_PUBLISHABLE
             is_publishable = True
-            summary = f"Validation intégrale réussie : {passed_count}/5 contrôles au vert. Rapport publiable."
+            summary = f"Validation intégrale réussie : {passed_count}/5 contrôles au vert. Rapport certifié publiable."
 
         result = QualityGateResult(
             simulation_id=self.simulation_id,
             report_id=self.report_id,
             is_publishable=is_publishable,
             final_status=final_status,
+            publication_status=publication_status,
             summary=summary,
             checks=checks,
             metadata={"locale": self.locale},

@@ -1,6 +1,6 @@
 # Epic 012 : Fiabilité des acteurs, intégrité des preuves et publication stricte
 
-> **Statut :** En cours (In-Progress) — 3/6 stories validées  
+> **Statut :** En cours (In-Progress) — 4/6 stories validées  
 > **Date de formalisation :** 17 octobre 2026  
 > **Responsable :** Équipe MiroFish & Antigravity  
 > **Dépendances :** Epic 005 (Docker local), Epic 007 (Ontologie dynamique), Epic 008 (Localisation FR), Epic 009 (Éligibilité des acteurs), Epic 010 (Cycle de vie des simulations), Epic 011 (Preuve par les faits simulés)  
@@ -57,7 +57,7 @@ L'**Epic 012** résout ces anomalies à la racine pour établir une étanchéit�
 | 012-1 | Résolution stricte des identités d'acteurs et couverture de cohorte sans collision | `done` | [`story-012-1.md`](story-012-1.md) |
 | 012-2 | Rôles de scénario et statuts de décision d'adoption déterministes | `done` | [`story-012-2.md`](story-012-2.md) |
 | 012-3 | Extraction d'assertions assainie et réconciliation déterministe avec l'`EvidencePack` | `done` | [`story-012-3.md`](story-012-3.md) |
-| 012-4 | Barrière de publication « Fail-Closed » et états de certification du rapport | `backlog` | [`story-012-4.md`](story-012-4.md) |
+| 012-4 | Barrière de publication « Fail-Closed » et états de certification du rapport | `done` | [`story-012-4.md`](story-012-4.md) |
 | 012-5 | Séparation épistémique des sources, intégrité du brief et détection de contradictions | `backlog` | `story-012-5.md` |
 | 012-6 | Banc de qualification sur cas réel R6, complétude du manifeste et non-régression | `backlog` | `story-012-6.md` |
 

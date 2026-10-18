@@ -301,6 +301,10 @@
     "qualityGatePassed": "Rapport Validé",
     "qualityGateWarning": "Validé avec réserves",
     "qualityGateFailed": "Échec validation qualité",
+    "publicationDraft": "Brouillon en cours",
+    "publicationNeedsReview": "À réviser",
+    "publicationVerifiedPublishable": "Certifié vérifié",
+    "publicationFailedValidation": "Certification refusée",
     "downloadAuditPackage": "Télécharger le dossier d'audit (.zip)",
     "auditExportSuccess": "Dossier d'audit téléchargé avec succès",
     "qualityDetailsTitle": "Diagnostics de la barrière qualité (ReportQualityGate)"

@@ -295,6 +295,10 @@
     "qualityGatePassed": "Report Validated",
     "qualityGateWarning": "Validated with Warnings",
     "qualityGateFailed": "Quality Validation Failed",
+    "publicationDraft": "Draft in Progress",
+    "publicationNeedsReview": "Needs Review",
+    "publicationVerifiedPublishable": "Verified Publishable",
+    "publicationFailedValidation": "Certification Refused",
     "downloadAuditPackage": "Download Audit Package (.zip)",
     "auditExportSuccess": "Audit package downloaded successfully",
     "qualityDetailsTitle": "Quality Gate Diagnostics (ReportQualityGate)"

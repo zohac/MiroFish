@@ -10,11 +10,11 @@
             <div class="report-meta">
               <span class="report-tag">{{ $t('ui.predictionReport') }}</span>
               <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
-              <!-- Quality Gate Badge (Story 011-5, FR-09) -->
+              <!-- Quality Gate & Publication Status Badge (Story 011-5, Story 012-4, FR-05, C5) -->
               <span 
                 v-if="qualityResult" 
                 class="quality-badge" 
-                :class="`quality-badge--${qualityResult.final_status}`"
+                :class="`quality-badge--${qualityBadgeClass}`"
                 @click="showQualityModal = !showQualityModal"
                 :title="$t('step4.qualityDetailsTitle')"
               >
@@ -25,8 +25,8 @@
             <h1 class="main-title">{{ reportOutline.title }}</h1>
             <p class="sub-title">{{ reportOutline.summary }}</p>
 
-            <!-- Quality Diagnostic Accordion/Card if Warnings or Failed -->
-            <div v-if="qualityResult && (showQualityModal || qualityResult.final_status === 'failed')" class="quality-card" :class="`quality-card--${qualityResult.final_status}`">
+            <!-- Quality Diagnostic Accordion/Card if Needs Review or Failed Validation -->
+            <div v-if="qualityResult && (showQualityModal || qualityBadgeClass === 'failed_validation' || qualityBadgeClass === 'needs_review' || qualityResult.final_status === 'failed' || qualityResult.final_status === 'warning')" class="quality-card" :class="`quality-card--${qualityBadgeClass}`">
               <div class="quality-card-header">
                 <span class="quality-card-title">{{ $t('step4.qualityDetailsTitle') }}</span>
                 <span class="quality-summary">{{ qualityResult.summary }}</span>
@@ -476,9 +476,24 @@ const showRawResult = reactive({})
 const qualityResult = ref(null)
 const showQualityModal = ref(false)
 
+const qualityBadgeClass = computed(() => {
+  if (!qualityResult.value) return 'draft'
+  if (qualityResult.value.publication_status) {
+    return String(qualityResult.value.publication_status).toLowerCase()
+  }
+  return String(qualityResult.value.final_status || 'draft').toLowerCase()
+})
+
 const qualityBadgeLabel = computed(() => {
   if (!qualityResult.value) return ''
-  const status = qualityResult.value.final_status
+  const pub = String(qualityResult.value.publication_status || '').toLowerCase()
+  if (pub === 'verified_publishable') return t('step4.publicationVerifiedPublishable')
+  if (pub === 'needs_review') return t('step4.publicationNeedsReview')
+  if (pub === 'failed_validation') return t('step4.publicationFailedValidation')
+  if (pub === 'draft') return t('step4.publicationDraft')
+
+  // Rétrocompatibilité si publication_status n'est pas présent
+  const status = String(qualityResult.value.final_status || '').toLowerCase()
   if (status === 'passed') return t('step4.qualityGatePassed')
   if (status === 'warning') return t('step4.qualityGateWarning')
   return t('step4.qualityGateFailed')
@@ -2303,22 +2318,31 @@ watch(() => props.reportId, (newId) => {
   user-select: none;
 }
 
-.quality-badge--passed {
+.quality-badge--passed,
+.quality-badge--verified_publishable {
   background: #DCFCE7;
   color: #166534;
   border: 1px solid #86EFAC;
 }
 
-.quality-badge--warning {
+.quality-badge--warning,
+.quality-badge--needs_review {
   background: #FEF3C7;
   color: #92400E;
   border: 1px solid #FCD34D;
 }
 
-.quality-badge--failed {
+.quality-badge--failed,
+.quality-badge--failed_validation {
   background: #FEE2E2;
   color: #991B1B;
   border: 1px solid #FCA5A5;
+}
+
+.quality-badge--draft {
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #D1D5DB;
 }
 
 .quality-dot {
@@ -2337,14 +2361,21 @@ watch(() => props.reportId, (newId) => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.quality-card--failed {
+.quality-card--failed,
+.quality-card--failed_validation {
   border-color: #F87171;
   background: #FEF2F2;
 }
 
-.quality-card--warning {
+.quality-card--warning,
+.quality-card--needs_review {
   border-color: #FBBF24;
   background: #FFFBEB;
+}
+
+.quality-card--verified_publishable {
+  border-color: #86EFAC;
+  background: #F0FDF4;
 }
 
 .quality-card-header {

@@ -2349,7 +2349,8 @@ class ReportAgent:
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
-            # Barrière de publication ReportQualityGate (Story 011-5, FR-09, C9)
+            # Barrière de publication ReportQualityGate (Story 011-5, FR-09, C9 ; Story 012-4, Fail-Closed)
+            from ..models.report_quality import PublicationStatus, QualityStatus
             from .report_quality_gate import ReportQualityGate
             quality_gate = ReportQualityGate(
                 simulation_id=self.simulation_id,
@@ -2379,15 +2380,15 @@ class ReportAgent:
             except Exception as save_q_err:
                 logger.warning(f"Avertissement lors de la sauvegarde de quality_checks.json: {save_q_err}")
 
-            if quality_result.is_publishable:
-                report.status = ReportStatus.COMPLETED
-            else:
+            if quality_result.publication_status == PublicationStatus.FAILED_VALIDATION or quality_result.final_status == QualityStatus.FAILED:
                 logger.warning(
                     f"La barrière ReportQualityGate a refusé la publication automatique du rapport {report_id} : "
                     f"{quality_result.summary}"
                 )
                 report.status = ReportStatus.FAILED_VALIDATION
                 report.error = quality_result.summary
+            else:
+                report.status = ReportStatus.COMPLETED
 
             report.completed_at = datetime.now().isoformat()
             

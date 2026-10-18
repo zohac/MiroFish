@@ -295,6 +295,10 @@
     "qualityGatePassed": "报告已验证通过",
     "qualityGateWarning": "报告带预警通过",
     "qualityGateFailed": "质量验证未通过",
+    "publicationDraft": "草稿进行中",
+    "publicationNeedsReview": "待人工复核",
+    "publicationVerifiedPublishable": "认证已验证可发布",
+    "publicationFailedValidation": "拒绝认证发布",
     "downloadAuditPackage": "下载审计数据包 (.zip)",
     "auditExportSuccess": "审计数据包下载成功",
     "qualityDetailsTitle": "报告质量门禁诊断 (ReportQualityGate)"
