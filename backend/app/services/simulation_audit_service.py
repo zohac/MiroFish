@@ -193,7 +193,28 @@ class SimulationAuditService:
 
         # 1. run_manifest.json
         run_manifest = self.build_run_manifest()
-        files["run_manifest.json"] = json.dumps(run_manifest, ensure_ascii=False, indent=2).encode("utf-8")
+        run_manifest_bytes = json.dumps(run_manifest, ensure_ascii=False, indent=2).encode("utf-8")
+        files["run_manifest.json"] = run_manifest_bytes
+        if rep_dir:
+            try:
+                import uuid
+                os.makedirs(rep_dir, exist_ok=True)
+                manifest_path = os.path.join(rep_dir, "run_manifest.json")
+                tmp_mf = f"{manifest_path}.tmp.{os.getpid()}_{uuid.uuid4().hex[:8]}"
+                try:
+                    with open(tmp_mf, "wb") as mf:
+                        mf.write(run_manifest_bytes)
+                        mf.flush()
+                        os.fsync(mf.fileno())
+                    os.replace(tmp_mf, manifest_path)
+                finally:
+                    if os.path.exists(tmp_mf):
+                        try:
+                            os.remove(tmp_mf)
+                        except OSError:
+                            pass
+            except Exception as mf_err:
+                logger.warning(f"Impossible de sauvegarder run_manifest.json dans {rep_dir}: {mf_err}")
 
         # 2. simulation_brief.json
         brief_path = os.path.join(sim_dir, "simulation_brief.json")
@@ -231,25 +252,31 @@ class SimulationAuditService:
         events_jsonl_lines = [json.dumps(ev.to_dict(), ensure_ascii=False) for ev in events]
         files["observed_events.jsonl"] = "\n".join(events_jsonl_lines).encode("utf-8")
 
-        # 6. cohort_coverage.json
-        cohort_path = os.path.join(sim_dir, "cohort_coverage.json")
+        # 6. cohort_coverage.json (priorité rep_dir)
+        cohort_path = ""
+        if rep_dir:
+            cohort_path = os.path.join(rep_dir, "cohort_coverage.json")
+        if not cohort_path or not os.path.exists(cohort_path):
+            cohort_path = os.path.join(sim_dir, "cohort_coverage.json")
         if os.path.exists(cohort_path):
             with open(cohort_path, "rb") as f:
                 files["cohort_coverage.json"] = f.read()
         else:
             files["cohort_coverage.json"] = json.dumps({"simulation_id": self.simulation_id, "members": []}, indent=2).encode("utf-8")
 
-        # 7. report_claims.json
-        claims_path = os.path.join(sim_dir, "report_claims.json")
-        if not os.path.exists(claims_path) and rep_dir:
+        # 7. report_claims.json (priorité rep_dir)
+        claims_path = ""
+        if rep_dir:
             claims_path = os.path.join(rep_dir, "report_claims.json")
+        if not claims_path or not os.path.exists(claims_path):
+            claims_path = os.path.join(sim_dir, "report_claims.json")
         if os.path.exists(claims_path):
             with open(claims_path, "rb") as f:
                 files["report_claims.json"] = f.read()
         else:
             files["report_claims.json"] = json.dumps({"simulation_id": self.simulation_id, "claims": []}, indent=2).encode("utf-8")
 
-        # 8. quality_checks.json
+        # 8. quality_checks.json (priorité rep_dir)
         quality_path = ""
         if rep_dir:
             quality_path = os.path.join(rep_dir, "quality_checks.json")
@@ -261,7 +288,7 @@ class SimulationAuditService:
         else:
             files["quality_checks.json"] = json.dumps({"simulation_id": self.simulation_id, "checks": []}, indent=2).encode("utf-8")
 
-        # 9. report.md
+        # 9. report.md (priorité rep_dir full_report.md)
         report_md_path = ""
         if rep_dir:
             report_md_path = os.path.join(rep_dir, "full_report.md")
@@ -289,7 +316,7 @@ class SimulationAuditService:
         return files
 
     def build_audit_package(self) -> bytes:
-        """Génère et compresse en mémoire l'archive ZIP d'audit complète."""
+        """Génère et compresse en mémoire l'archive ZIP d'audit complète (Story 013-3)."""
         files = self.gather_audit_files()
 
         buf = io.BytesIO()
@@ -299,12 +326,23 @@ class SimulationAuditService:
 
         zip_bytes = buf.getvalue()
 
-        # Sauvegarder également sur le disque pour accès rapide ou reprise
+        # 1. Sauvegarde canonique sous reports/<report_id>/simulation_audit_<report_id>.zip (si report_id)
+        if self.report_id:
+            rep_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id)
+            os.makedirs(rep_dir, exist_ok=True)
+            rep_zip_path = os.path.join(rep_dir, f"simulation_audit_{self.report_id}.zip")
+            try:
+                with open(rep_zip_path, "wb") as f:
+                    f.write(zip_bytes)
+            except Exception as rep_err:
+                logger.warning(f"Impossible de cacher le zip d'audit per-report dans {rep_dir}: {rep_err}")
+
+        # 2. Sauvegarde miroir pour compatibilité sous simulations/<sim_id>/simulation_audit_<sim_id>.zip
         sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
         os.makedirs(sim_dir, exist_ok=True)
-        zip_path = os.path.join(sim_dir, f"simulation_audit_{self.simulation_id}.zip")
+        sim_zip_path = os.path.join(sim_dir, f"simulation_audit_{self.simulation_id}.zip")
         try:
-            with open(zip_path, "wb") as f:
+            with open(sim_zip_path, "wb") as f:
                 f.write(zip_bytes)
         except Exception as err:
             logger.warning(f"Impossible de cacher le zip d'audit sur disque : {err}")
@@ -312,9 +350,27 @@ class SimulationAuditService:
         return zip_bytes
 
     def get_audit_package_path(self, force_rebuild: bool = False) -> str:
-        """Retourne le chemin disque du zip s'il existe ou le génère."""
-        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
-        zip_path = os.path.join(sim_dir, f"simulation_audit_{self.simulation_id}.zip")
-        if force_rebuild or not os.path.exists(zip_path):
+        """Retourne le chemin disque du zip s'il existe ou le génère (Story 013-3)."""
+        # 1. Si un report_id est spécifié, vérifier ou générer en priorité sous reports/<report_id>/
+        if self.report_id:
+            rep_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id)
+            rep_zip_path = os.path.join(rep_dir, f"simulation_audit_{self.report_id}.zip")
+            if not force_rebuild and os.path.exists(rep_zip_path):
+                return rep_zip_path
+            # S'il n'existe pas ou si rebuild forcé, construire et retourner le zip per-report
             self.build_audit_package()
-        return zip_path
+            if os.path.exists(rep_zip_path):
+                return rep_zip_path
+
+        # 2. Vérifier sous simulations/<sim_id>/
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+        sim_zip_path = os.path.join(sim_dir, f"simulation_audit_{self.simulation_id}.zip")
+        if force_rebuild or not os.path.exists(sim_zip_path):
+            self.build_audit_package()
+            # Si on a report_id, le chemin per-report est privilégié
+            if self.report_id:
+                rep_zip_path = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id, f"simulation_audit_{self.report_id}.zip")
+                if os.path.exists(rep_zip_path):
+                    return rep_zip_path
+
+        return sim_zip_path

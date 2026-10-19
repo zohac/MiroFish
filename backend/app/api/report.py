@@ -1256,6 +1256,8 @@ def download_report_audit(report_id: str):
         audit_service = SimulationAuditService(simulation_id=simulation_id, report_id=report_id)
         zip_path = audit_service.get_audit_package_path()
         
+        # Conserver simulation_audit_<sim_id>.zip comme nom de téléchargement canonique pour le client
+        # tout en servant le binaire du zip isolé per-report résolu par audit_service
         download_name = f"simulation_audit_{simulation_id}.zip"
         return send_file(
             zip_path,
@@ -1325,4 +1327,186 @@ def download_simulation_audit(simulation_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Endpoints Multi-rapports et Historique (Story 013-3, FR-06) ==============
+
+@report_bp.route('/simulation/<simulation_id>/history', methods=['GET'])
+def get_simulation_report_history(simulation_id: str):
+    """
+    Retourne l'historique chronologique complet des rapports générés pour une simulation (Story 013-3, FR-06, AC4).
+    
+    Retour :
+        {
+            "success": true,
+            "data": {
+                "simulation_id": "sim_xxxx",
+                "latest_report_id": "report_yyyy",
+                "reports": [
+                    {
+                        "report_id": "report_1",
+                        "created_at": "...",
+                        "completed_at": "...",
+                        "status": "completed",
+                        "profile_id": "flash-medium",
+                        "replay_mode": "replay_frozen",
+                        "evidence_snapshot_id": "snap_...",
+                        "publication_status": "verified_publishable",
+                        "is_publishable": true,
+                        "total_claims": 24,
+                        "supported_claims": 22,
+                        "unsupported_claims": 2,
+                        "adoption_rate": 0.35
+                    },
+                    ...
+                ],
+                "count": 2
+            }
+        }
+    """
+    try:
+        from ..services.simulation_manager import SimulationManager
+        sim_manager = SimulationManager()
+        sim_state = sim_manager.get_simulation(simulation_id)
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", simulation_id)
+        if not sim_state and not os.path.exists(sim_dir):
+            return jsonify({
+                "success": False,
+                "error": f"Simulation {simulation_id} introuvable",
+            }), 404
+
+        history_list = ReportManager.list_reports_by_simulation(simulation_id)
+        history_raw = ReportManager._load_history(simulation_id)
+        latest_report_id = history_raw.get("latest_report_id")
+
+        if not latest_report_id and history_list:
+            latest_report_id = history_list[-1].get("report_id")
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "latest_report_id": latest_report_id,
+                "reports": history_list,
+                "count": len(history_list),
+            }
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de l'historique des rapports ({simulation_id}): {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
+@report_bp.route('/<report_id>/claims', methods=['GET'])
+def get_report_claims(report_id: str):
+    """
+    Retourne le registre des assertions et vérifications propre au rapport spécifié (Story 013-3, FR-06, AC4).
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} introuvable",
+            }), 404
+
+        rep_claims_path = ReportManager._get_report_claims_path(report_id)
+        claims_data = None
+        if os.path.exists(rep_claims_path):
+            with open(rep_claims_path, "r", encoding="utf-8") as f:
+                claims_data = json.load(f)
+        else:
+            # Repli sur simulation si copie miroir disponible UNIQUEMENT pour simulation legacy
+            # ou si ce rapport est le seul / le plus récent (évite d'attribuer les claims du run N au run N-1)
+            history_raw = ReportManager._load_history(report.simulation_id)
+            reports_in_hist = history_raw.get("reports", [])
+            latest_id = history_raw.get("latest_report_id")
+            is_eligible_for_fallback = (
+                not reports_in_hist
+                or len(reports_in_hist) <= 1
+                or latest_id == report_id
+            )
+            if is_eligible_for_fallback:
+                sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", report.simulation_id)
+                sim_claims_path = os.path.join(sim_dir, "report_claims.json")
+                if os.path.exists(sim_claims_path):
+                    with open(sim_claims_path, "r", encoding="utf-8") as f:
+                        claims_data = json.load(f)
+
+        if claims_data is None:
+            return jsonify({
+                "success": False,
+                "error": f"Registre de claims introuvable pour le rapport {report_id}",
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": claims_data,
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des claims du rapport {report_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
+@report_bp.route('/<report_id>/cohort', methods=['GET'])
+def get_report_cohort(report_id: str):
+    """
+    Retourne le tableau de couverture de cohorte propre au rapport spécifié (Story 013-3, FR-06, AC4).
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} introuvable",
+            }), 404
+
+        rep_cohort_path = ReportManager._get_cohort_coverage_path(report_id)
+        cohort_data = None
+        if os.path.exists(rep_cohort_path):
+            with open(rep_cohort_path, "r", encoding="utf-8") as f:
+                cohort_data = json.load(f)
+        else:
+            # Repli sur simulation si copie miroir disponible UNIQUEMENT pour simulation legacy
+            # ou si ce rapport est le seul / le plus récent (évite d'attribuer la cohorte du run N au run N-1)
+            history_raw = ReportManager._load_history(report.simulation_id)
+            reports_in_hist = history_raw.get("reports", [])
+            latest_id = history_raw.get("latest_report_id")
+            is_eligible_for_fallback = (
+                not reports_in_hist
+                or len(reports_in_hist) <= 1
+                or latest_id == report_id
+            )
+            if is_eligible_for_fallback:
+                sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", report.simulation_id)
+                sim_cohort_path = os.path.join(sim_dir, "cohort_coverage.json")
+                if os.path.exists(sim_cohort_path):
+                    with open(sim_cohort_path, "r", encoding="utf-8") as f:
+                        cohort_data = json.load(f)
+
+        if cohort_data is None:
+            return jsonify({
+                "success": False,
+                "error": f"Tableau de couverture de cohorte introuvable pour le rapport {report_id}",
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": cohort_data,
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de la cohorte du rapport {report_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
 

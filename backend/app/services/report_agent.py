@@ -13,6 +13,7 @@ import os
 import json
 import time
 import re
+import threading
 from typing import Dict, Any, List, Optional, Callable, Set, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -2376,10 +2377,13 @@ class ReportAgent:
                 with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(report.markdown_content)
 
-            # Tableau de couverture de cohorte et intégrité des silencieux (Story 011-4, FR-07, C7)
+            # Définir l'identifiant actif pour l'instance
+            self._current_report_id = report_id
+
+            # Tableau de couverture de cohorte et intégrité des silencieux (Story 011-4, FR-07, C7 ; Story 013-3)
             cohort_table = None
             try:
-                cohort_table = self.generate_and_save_cohort_coverage(report.markdown_content)
+                cohort_table = self.generate_and_save_cohort_coverage(report.markdown_content, report_id=report_id)
                 if cohort_table and cohort_table.members:
                     # Si le tableau n'est pas encore présent dans le rapport
                     if "Statut Couverture" not in report.markdown_content and "Coverage Status" not in report.markdown_content and "Couverture de la cohorte" not in report.markdown_content:
@@ -2392,10 +2396,10 @@ class ReportAgent:
             except Exception as cohort_err:
                 logger.warning(f"Avertissement lors de la génération du tableau de cohorte : {cohort_err}")
 
-            # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4)
+            # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4 ; Story 013-3)
             claims_registry = None
             try:
-                claims_registry = self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table)
+                claims_registry = self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table, report_id=report_id)
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
@@ -2442,6 +2446,42 @@ class ReportAgent:
 
             report.completed_at = datetime.now().isoformat()
             
+            # Génération et sauvegarde de run_manifest.json et du zip d'audit per-report (Story 013-3, AC1, AC5)
+            try:
+                from .simulation_audit_service import SimulationAuditService
+                audit_svc = SimulationAuditService(simulation_id=self.simulation_id, report_id=report_id)
+                audit_svc.build_audit_package()
+            except Exception as audit_pkg_err:
+                logger.warning(f"Avertissement lors de la génération de l'audit package pour {report_id}: {audit_pkg_err}")
+
+            # Calcul du taux d'adoption depuis le cohort_table
+            adoption_rate = None
+            if cohort_table and hasattr(cohort_table, "adoption_rate"):
+                adoption_rate = cohort_table.adoption_rate
+
+            # Enregistrement dans l'index d'historique report_history.json (Story 013-3, AC2)
+            try:
+                hist_entry = {
+                    "report_id": report_id,
+                    "simulation_id": self.simulation_id,
+                    "created_at": report.created_at,
+                    "completed_at": report.completed_at,
+                    "status": report.status.value if hasattr(report.status, "value") else str(report.status),
+                    "profile_id": report.profile_id,
+                    "replay_mode": report.replay_mode,
+                    "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "publication_status": quality_result.publication_status.value if hasattr(quality_result.publication_status, "value") else str(quality_result.publication_status),
+                    "is_publishable": quality_result.is_publishable,
+                    "total_claims": claims_registry.total_claims if claims_registry else 0,
+                    "supported_claims": (claims_registry.verified_claims if claims_registry else 0),
+                    "unsupported_claims": (claims_registry.unsupported_claims if claims_registry else 0),
+                    "contradicted_claims": (claims_registry.contradicted_claims if claims_registry else 0),
+                    "adoption_rate": adoption_rate,
+                }
+                ReportManager._append_to_history(self.simulation_id, hist_entry)
+            except Exception as hist_err:
+                logger.warning(f"Avertissement lors de la mise à jour de report_history.json ({report_id}): {hist_err}")
+
             # 计算总耗时
             total_time_seconds = (datetime.now() - start_time).total_seconds()
             
@@ -2477,11 +2517,31 @@ class ReportAgent:
             logger.error(t('report.reportGenFailed', error=str(e)))
             report.status = ReportStatus.FAILED
             report.error = str(e)
+            report.completed_at = datetime.now().isoformat()
             
             # 记录错误日志
             if self.report_logger:
                 self.report_logger.log_error(str(e), "failed")
             
+            # Enregistrer l'échec dans l'historique (Story 013-3, AC2)
+            try:
+                hist_entry = {
+                    "report_id": report_id,
+                    "simulation_id": self.simulation_id,
+                    "created_at": report.created_at,
+                    "completed_at": report.completed_at,
+                    "status": "failed",
+                    "error": str(e),
+                    "profile_id": report.profile_id,
+                    "replay_mode": report.replay_mode,
+                    "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "is_publishable": False,
+                    "publication_status": "failed_validation",
+                }
+                ReportManager._append_to_history(self.simulation_id, hist_entry)
+            except Exception:
+                pass
+
             # 保存失败状态
             try:
                 ReportManager.save_report(report)
@@ -2921,12 +2981,15 @@ class ReportAgent:
         self,
         markdown_content: Optional[str] = None,
         evidence_pack: Optional[EvidencePack] = None,
+        report_id: Optional[str] = None,
     ) -> Any:
-        """Construit, persiste et retourne le tableau de couverture de cohorte (Story 011-4, FR-07, C7)."""
+        """Construit, persiste et retourne le tableau de couverture de cohorte (Story 011-4, FR-07, C7 ; Story 013-3, FR-05, C4)."""
         from ..models.cohort_coverage import CohortCoverageTable
         from .oasis_log_reader import OasisLogReaderService
         from .simulation_manager import SimulationManager
         from .time_horizon_guard import TimeHorizonGuard
+
+        rep_id = report_id or getattr(self, "_current_report_id", None)
 
         sim_mgr = SimulationManager()
         act_sel = sim_mgr.get_actor_selection(self.simulation_id)
@@ -2947,7 +3010,16 @@ class ReportAgent:
             brief=brief,
         )
 
-        # Sauvegarder dans simulations/<sim_id>/cohort_coverage.json
+        # 1. Sauvegarde prioritaire dans reports/<report_id>/cohort_coverage.json (Story 013-3)
+        if rep_id:
+            try:
+                ReportManager._ensure_report_folder(rep_id)
+                rep_cohort_path = ReportManager._get_cohort_coverage_path(rep_id)
+                table.save_to_file(rep_cohort_path)
+            except Exception as rep_err:
+                logger.warning(f"Erreur lors de la sauvegarde de cohort_coverage.json dans {rep_id}: {rep_err}")
+
+        # 2. Sauvegarde miroir dans simulations/<sim_id>/cohort_coverage.json
         sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
         cohort_path = os.path.join(sim_dir, "cohort_coverage.json")
         try:
@@ -2966,8 +3038,10 @@ class ReportAgent:
         markdown_content: str,
         evidence_pack: Optional[EvidencePack] = None,
         cohort_table: Optional[Any] = None,
+        report_id: Optional[str] = None,
     ) -> ReportClaimRegistry:
-        """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, Story 011-4)."""
+        """Audite et vérifie les claims du rapport, puis persiste report_claims.json (Story 011-3, Story 011-4 ; Story 013-3, FR-05, C4)."""
+        rep_id = report_id or getattr(self, "_current_report_id", None)
         registry = ReportClaimRegistry(simulation_id=self.simulation_id)
         # Si evidence_pack n'a pas été injecté, tenter de le charger via OasisLogReaderService
         if evidence_pack is None:
@@ -2984,6 +3058,7 @@ class ReportAgent:
                 cohort_table = self.generate_and_save_cohort_coverage(
                     markdown_content=markdown_content,
                     evidence_pack=evidence_pack,
+                    report_id=rep_id,
                 )
             except Exception as e:
                 logger.debug(f"CohortCoverageTable non disponible pour audit des claims : {e}")
@@ -3078,7 +3153,16 @@ class ReportAgent:
             )
             registry.add_claim(verified)
 
-        # Sauvegarder dans simulations/<sim_id>/report_claims.json
+        # 1. Sauvegarde prioritaire dans reports/<report_id>/report_claims.json (Story 013-3)
+        if rep_id:
+            try:
+                ReportManager._ensure_report_folder(rep_id)
+                rep_claims_path = ReportManager._get_report_claims_path(rep_id)
+                registry.save_to_file(rep_claims_path)
+            except Exception as rep_err:
+                logger.warning(f"Erreur lors de la sauvegarde de report_claims.json dans {rep_id}: {rep_err}")
+
+        # 2. Sauvegarde miroir dans simulations/<sim_id>/report_claims.json
         sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
         report_claims_path = os.path.join(sim_dir, "report_claims.json")
         try:
@@ -3251,6 +3335,7 @@ class ReportManager:
         ...
         full_report.md     - 完整报告
     """
+    _history_lock = threading.Lock()
     
     @classmethod
     def _get_reports_dir(cls) -> str:
@@ -3313,6 +3398,137 @@ class ReportManager:
     def _get_quality_path(cls, report_id: str) -> str:
         """获取质量检测结果路径 (Story 011-5)"""
         return os.path.join(cls._get_report_folder(report_id), "quality_checks.json")
+
+    @classmethod
+    def _get_report_claims_path(cls, report_id: str) -> str:
+        """Obtient le chemin du fichier report_claims.json per-report (Story 013-3)."""
+        return os.path.join(cls._get_report_folder(report_id), "report_claims.json")
+
+    @classmethod
+    def _get_cohort_coverage_path(cls, report_id: str) -> str:
+        """Obtient le chemin du fichier cohort_coverage.json per-report (Story 013-3)."""
+        return os.path.join(cls._get_report_folder(report_id), "cohort_coverage.json")
+
+    @classmethod
+    def _get_run_manifest_path(cls, report_id: str) -> str:
+        """Obtient le chemin du fichier run_manifest.json per-report (Story 013-3)."""
+        return os.path.join(cls._get_report_folder(report_id), "run_manifest.json")
+
+    @classmethod
+    def _get_audit_package_path(cls, report_id: str) -> str:
+        """Obtient le chemin de l'archive ZIP d'audit per-report (Story 013-3)."""
+        return os.path.join(cls._get_report_folder(report_id), f"simulation_audit_{report_id}.zip")
+
+    @classmethod
+    def _get_history_path(cls, simulation_id: str) -> str:
+        """Obtient le chemin du fichier report_history.json pour une simulation (Story 013-3)."""
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", simulation_id)
+        return os.path.join(sim_dir, "report_history.json")
+
+    @classmethod
+    def _get_latest_report_id_path(cls, simulation_id: str) -> str:
+        """Obtient le chemin du fichier pointeur latest_report_id (Story 013-3)."""
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", simulation_id)
+        return os.path.join(sim_dir, "latest_report_id")
+
+    @classmethod
+    def _load_history(cls, simulation_id: str) -> Dict[str, Any]:
+        """Charge l'index d'historique des rapports pour une simulation donnée."""
+        hist_path = cls._get_history_path(simulation_id)
+        if not os.path.exists(hist_path):
+            return {
+                "simulation_id": simulation_id,
+                "latest_report_id": None,
+                "reports": [],
+            }
+        try:
+            with open(hist_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    if "reports" not in data or not isinstance(data["reports"], list):
+                        data["reports"] = []
+                    return data
+        except Exception as err:
+            logger.warning(f"Impossible de lire report_history.json ({simulation_id}): {err}")
+        return {
+            "simulation_id": simulation_id,
+            "latest_report_id": None,
+            "reports": [],
+        }
+
+    @classmethod
+    def _save_history_atomic(cls, simulation_id: str, history_data: Dict[str, Any]) -> None:
+        """Sauvegarde de façon atomique l'index report_history.json et latest_report_id (Story 013-3)."""
+        import uuid
+        hist_path = cls._get_history_path(simulation_id)
+        sim_dir = os.path.dirname(hist_path)
+        os.makedirs(sim_dir, exist_ok=True)
+        tmp_path = f"{hist_path}.tmp.{os.getpid()}_{uuid.uuid4().hex[:8]}"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(history_data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, hist_path)
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+
+        # Mettre à jour le fichier latest_report_id
+        latest_id = history_data.get("latest_report_id")
+        if latest_id:
+            latest_path = cls._get_latest_report_id_path(simulation_id)
+            tmp_latest = f"{latest_path}.tmp.{os.getpid()}_{uuid.uuid4().hex[:8]}"
+            try:
+                with open(tmp_latest, "w", encoding="utf-8") as f:
+                    f.write(str(latest_id).strip())
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_latest, latest_path)
+            finally:
+                if os.path.exists(tmp_latest):
+                    try:
+                        os.remove(tmp_latest)
+                    except OSError:
+                        pass
+
+    @classmethod
+    def _append_to_history(cls, simulation_id: str, report_entry: Dict[str, Any]) -> None:
+        """Ajoute ou met à jour de façon idempotente une entrée dans report_history.json (Story 013-3)."""
+        if not simulation_id or not report_entry or not report_entry.get("report_id"):
+            return
+        with cls._history_lock:
+            report_id = str(report_entry["report_id"])
+            history = cls._load_history(simulation_id)
+            reports_list = history.get("reports", [])
+
+            # Remplacement si existant ou insertion
+            found_idx = -1
+            for idx, entry in enumerate(reports_list):
+                if str(entry.get("report_id")) == report_id:
+                    found_idx = idx
+                    break
+
+            if found_idx >= 0:
+                reports_list[found_idx].update(report_entry)
+            else:
+                reports_list.append(report_entry)
+
+            # Trier chronologiquement par created_at croissant (l'historique est une timeline)
+            def _parse_created_key(e: Dict[str, Any]) -> str:
+                return str(e.get("created_at") or "")
+
+            reports_list.sort(key=_parse_created_key)
+
+            history["reports"] = reports_list
+            # Toujours pointer sur le rapport le plus récent dans la timeline chronologique (Story 013-3, Patch 1 BMAD)
+            latest_id = reports_list[-1].get("report_id") if reports_list else report_id
+            history["latest_report_id"] = latest_id
+            cls._save_history_atomic(simulation_id, history)
+
     
     @classmethod
     def get_console_log(cls, report_id: str, from_line: int = 0) -> Dict[str, Any]:
@@ -3862,25 +4078,134 @@ class ReportManager:
     
     @classmethod
     def get_report_by_simulation(cls, simulation_id: str) -> Optional[Report]:
-        """根据模拟ID获取报告"""
+        """Résout de manière déterministe le rapport actif/le plus récent d'une simulation (Story 013-3)."""
         cls._ensure_reports_dir()
-        
-        for item in os.listdir(cls._get_reports_dir()):
-            item_path = os.path.join(cls._get_reports_dir(), item)
-            # 新格式：文件夹
-            if os.path.isdir(item_path):
-                report = cls.get_report(item)
-                if report and report.simulation_id == simulation_id:
-                    return report
-            # 兼容旧格式：JSON文件
-            elif item.endswith('.json'):
-                report_id = item[:-5]
-                report = cls.get_report(report_id)
-                if report and report.simulation_id == simulation_id:
-                    return report
-        
+
+        # 1. Priorité au pointeur latest_report_id
+        latest_path = cls._get_latest_report_id_path(simulation_id)
+        if os.path.exists(latest_path):
+            try:
+                with open(latest_path, "r", encoding="utf-8") as lf:
+                    latest_id = lf.read().strip()
+                if latest_id:
+                    rep = cls.get_report(latest_id)
+                    if rep and rep.simulation_id == simulation_id:
+                        return rep
+            except Exception as err:
+                logger.debug(f"Erreur de lecture de latest_report_id ({simulation_id}): {err}")
+
+        # 2. Priorité à l'historique ordonné report_history.json (dernier rapport complété ou récent)
+        history = cls._load_history(simulation_id)
+        reports_entries = history.get("reports", [])
+        if reports_entries:
+            # Chercher en priorité le dernier rapport terminé/complété en partant de la fin (COMPLETED puis FAILED_VALIDATION)
+            finished_statuses = (
+                ReportStatus.COMPLETED.value,
+                "completed",
+                ReportStatus.FAILED_VALIDATION.value,
+                "failed_validation",
+            )
+            for entry in reversed(reports_entries):
+                rid = entry.get("report_id")
+                if rid and entry.get("status") in finished_statuses:
+                    rep = cls.get_report(rid)
+                    if rep and rep.simulation_id == simulation_id:
+                        return rep
+            # Sinon le tout dernier rapport listé
+            for entry in reversed(reports_entries):
+                rid = entry.get("report_id")
+                if rid:
+                    rep = cls.get_report(rid)
+                    if rep and rep.simulation_id == simulation_id:
+                        return rep
+
+        # 3. Repli : parcourir le disque et trier déterministement par created_at décroissant
+        matching_reports = []
+        reports_dir = cls._get_reports_dir()
+        if os.path.exists(reports_dir):
+            for item in os.listdir(reports_dir):
+                item_path = os.path.join(reports_dir, item)
+                if os.path.isdir(item_path):
+                    rep = cls.get_report(item)
+                    if rep and rep.simulation_id == simulation_id:
+                        matching_reports.append(rep)
+                elif item.endswith('.json'):
+                    report_id = item[:-5]
+                    rep = cls.get_report(report_id)
+                    if rep and rep.simulation_id == simulation_id:
+                        matching_reports.append(rep)
+
+        if matching_reports:
+            # Privilégier les rapports COMPLETED puis FAILED_VALIDATION, puis trier par date décroissante
+            def _status_weight(status: Any) -> int:
+                val = status.value if hasattr(status, "value") else str(status)
+                if val == ReportStatus.COMPLETED.value:
+                    return 2
+                if val == ReportStatus.FAILED_VALIDATION.value:
+                    return 1
+                return 0
+
+            matching_reports.sort(
+                key=lambda r: (
+                    _status_weight(r.status),
+                    r.completed_at or "",
+                    r.created_at or "",
+                ),
+                reverse=True,
+            )
+            return matching_reports[0]
+
         return None
-    
+
+    @classmethod
+    def list_reports_by_simulation(cls, simulation_id: str) -> List[Dict[str, Any]]:
+        """Renvoie la liste ordonnée et complète de l'historique des rapports pour une simulation (Story 013-3)."""
+        history = cls._load_history(simulation_id)
+
+        # Rassembler tous les rapports présents sur le disque pour cette simulation
+        reports_on_disk = cls.list_reports(simulation_id=simulation_id, limit=200)
+
+        results = []
+        seen_ids = set()
+
+        # D'abord les entrées de l'historique
+        for entry in history.get("reports", []):
+            rid = entry.get("report_id")
+            if not rid or rid in seen_ids:
+                continue
+            seen_ids.add(rid)
+            item = dict(entry)
+            # Compléter éventuellement avec les métadonnées sur disque si champs manquants
+            rep = cls.get_report(rid)
+            if rep:
+                item.setdefault("created_at", rep.created_at)
+                item.setdefault("completed_at", rep.completed_at)
+                item.setdefault("status", rep.status.value if hasattr(rep.status, "value") else str(rep.status))
+                item.setdefault("profile_id", rep.profile_id)
+                item.setdefault("replay_mode", rep.replay_mode)
+            results.append(item)
+
+        # Ajouter les rapports sur disque non présents dans l'historique (rétrocompatibilité)
+        for rep in reports_on_disk:
+            if rep.report_id not in seen_ids:
+                seen_ids.add(rep.report_id)
+                results.append({
+                    "report_id": rep.report_id,
+                    "simulation_id": rep.simulation_id,
+                    "created_at": rep.created_at,
+                    "completed_at": rep.completed_at,
+                    "status": rep.status.value if hasattr(rep.status, "value") else str(rep.status),
+                    "profile_id": rep.profile_id,
+                    "replay_mode": rep.replay_mode,
+                    "evidence_snapshot_id": (rep.evidence_snapshot or {}).get("snapshot_id") if isinstance(rep.evidence_snapshot, dict) else None,
+                    "is_publishable": None,
+                    "publication_status": None,
+                })
+
+        # Trier par created_at croissant (chronologique)
+        results.sort(key=lambda x: str(x.get("created_at") or ""))
+        return results
+
     @classmethod
     def list_reports(cls, simulation_id: Optional[str] = None, limit: int = 50) -> List[Report]:
         """列出报告"""
