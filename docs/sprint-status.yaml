@@ -886,6 +886,7 @@ epics:
       - "C7 : Campagne de benchmark contrôlée comparant gemini-3.8-flash medium vs high sur R7 avec rapport formel et analyse aveugle"
       - "C8 : Préservation de l'intégralité du filet de tests (>= 1 842 tests hôte + 9 tests Node frontend au vert)"
     # Story 013-1 (DONE) : configuration LLM dédiée au ReportAgent et support effectif de l'effort (modèle ReportLLMProfile immuable et masquage de secrets, découplage de reasoning_effort dans create_chat_completion sans mutation d'os.environ, transmission dans LLMClient, adaptation d'antigravity_proxy.py pour mapper l'effort en thinkingConfig Gemini effectif avec preuve empirique de gradation tokens, injection dans ReportAgent, et suite hermétique dédiée test_report_llm_profile.py). Filet global porté à 1 852 tests passants sur l'hôte (+ 9 tests Node frontend). Epic 013 in-progress (1/7 stories done).
+    # Story 013-2 (IN-PROGRESS) : mode replay isolé et vérifiable (replay_frozen) avec empreinte SHA-256 (modèle EvidenceSnapshot, EvidenceSnapshotService scellant les preuves figées par empreinte cryptographique déterministe, ReportAgent hermétique sans appels live OASIS, et transmission API).
 
 
 

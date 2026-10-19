@@ -45,7 +45,7 @@ reproductible.**
 > **L'epic 013 (« Benchmark LLM du ReportAgent et régénération non destructive sur simulation existante ») est en cours de développement.**
 > Dossier de plan : [`docs/plans/013-benchmark-llm-report-replay/`](docs/plans/013-benchmark-llm-report-replay/prd.md) (`prd.md`, `architecture.md`, `epic-013.md`, `story-013-1.md`).
 > Objectif : permettre la régénération de rapports en mode replay à preuves figées (`replay_frozen`), injecter une configuration LLM dédiée par job (`ReportLLMProfile`), isoler chaque génération sous `reports/<report_id>/` sans écrasement destructif, et mener un benchmark A/B rigoureux (notamment `gemini-3.8-flash` en `medium` vs `high` sur le serveur local Antigravity, puis sur OpenCode GO).
-> La story **013-1** (« Configuration LLM dédiée au ReportAgent et support effectif de l'effort ») est validée (`done`, revue BMAD 4 couches, 1 852 tests verts sur l'hôte + 9 tests frontend Node). La story **013-2** (« Mode replay à preuves figées et capture de l'empreinte ») est la prochaine étape.
+> La story **013-1** (« Configuration LLM dédiée au ReportAgent et support effectif de l'effort ») est validée (`done`, revue BMAD 4 couches, 1 852 tests verts sur l'hôte + 9 tests frontend Node). La story **013-2** (« Mode replay à preuves figées et capture de l'empreinte ») est en cours de développement.
 >
 > **L'epic 001 (« Épreuve Graphiti local ») est intégralement clos avec un VERDICT GO validé.**
 > Les 6 stories ont été menées à bien, testées et revues.
