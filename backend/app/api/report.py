@@ -72,6 +72,22 @@ def generate_report():
                 "error": "force_regenerate must be a JSON boolean",
             }), 400
         
+        # Résolution du profil LLM optionnel (Story 013-1)
+        profile_id = data.get('profile_id') or data.get('report_profile_id')
+        profile_data = data.get('llm_profile')
+        profile = None
+        if profile_data and isinstance(profile_data, dict):
+            from ..models.report_llm_profile import ReportLLMProfile
+            try:
+                profile = ReportLLMProfile.from_dict(profile_data)
+            except Exception as e:
+                return jsonify({"success": False, "error": f"Invalid llm_profile: {e}"}), 400
+        elif profile_id:
+            from ..models.report_llm_profile import ReportLLMProfile
+            profile = ReportLLMProfile.get_standard_profile(str(profile_id))
+            if not profile:
+                profile = ReportLLMProfile(profile_id=str(profile_id), model=Config.LLM_MODEL_NAME or "gemini-3.8-flash")
+
         # 获取模拟信息
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
@@ -261,6 +277,7 @@ def generate_report():
                         simulation_id=simulation_id,
                         simulation_requirement=simulation_requirement,
                         locale=current_locale,
+                        profile=profile,
                     )
 
                     def progress_callback(stage, progress, message):
@@ -314,6 +331,7 @@ def generate_report():
                 "simulation_id": simulation_id,
                 "report_id": report_id,
                 "task_id": task_id,
+                "profile_id": getattr(profile, "profile_id", None),
                 "status": "generating",
                 "message": t('api.reportGenerateStarted'),
                 "already_generated": False

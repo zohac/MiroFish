@@ -91,16 +91,34 @@ def _contains_additional_json_container(content: str) -> bool:
 
 class LLMClient:
     """LLM客户端"""
+    profile: Optional[Any] = None
+    reasoning_effort: Optional[str] = None
+    last_response: Any = None
+    last_usage: Any = None
     
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        profile: Optional[Any] = None,
     ):
-        self.api_key = api_key or os.environ.get("LLM_API_KEY") or Config.LLM_API_KEY
-        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or Config.LLM_BASE_URL
-        self.model = model or os.environ.get("LLM_MODEL_NAME") or Config.LLM_MODEL_NAME
+        self.profile = profile
+        if profile is not None:
+            self.api_key = api_key or getattr(profile, "api_key", None) or os.environ.get("LLM_API_KEY") or Config.LLM_API_KEY
+            self.base_url = base_url or getattr(profile, "base_url", None) or os.environ.get("LLM_BASE_URL") or Config.LLM_BASE_URL
+            self.model = model or getattr(profile, "model", None) or os.environ.get("LLM_MODEL_NAME") or Config.LLM_MODEL_NAME
+            self.reasoning_effort = (
+                reasoning_effort
+                if reasoning_effort is not None
+                else getattr(profile, "reasoning_effort", None)
+            )
+        else:
+            self.api_key = api_key or os.environ.get("LLM_API_KEY") or Config.LLM_API_KEY
+            self.base_url = base_url or os.environ.get("LLM_BASE_URL") or Config.LLM_BASE_URL
+            self.model = model or os.environ.get("LLM_MODEL_NAME") or Config.LLM_MODEL_NAME
+            self.reasoning_effort = reasoning_effort
         
         if not self.api_key:
             raise ValueError("LLM_API_KEY 未配置")
@@ -110,6 +128,8 @@ class LLMClient:
             base_url=self.base_url,
             default_headers=llm_request_headers(self.base_url)
         )
+        self.last_response: Any = None
+        self.last_usage: Any = None
 
     def _create_completion(
         self,
@@ -118,24 +138,30 @@ class LLMClient:
         temperature: Optional[float],
         max_tokens: Optional[int],
         response_format: Optional[Dict[str, Any]],
+        reasoning_effort: Optional[str] = None,
     ) -> Any:
         """Send one raw Chat Completions request through the compatibility layer."""
-
-        return create_chat_completion(
+        effort = reasoning_effort if reasoning_effort is not None else getattr(self, "reasoning_effort", None)
+        resp = create_chat_completion(
             self.client,
             model=self.model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format=response_format,
+            reasoning_effort=effort,
         )
+        self.last_response = resp
+        self.last_usage = getattr(resp, "usage", None)
+        return resp
     
     def chat(
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: Optional[int] = 4096,
-        response_format: Optional[Dict] = None
+        response_format: Optional[Dict] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> str:
         """
         发送聊天请求
@@ -145,15 +171,24 @@ class LLMClient:
             temperature: 温度参数
             max_tokens: 最大token数
             response_format: 响应格式（如JSON模式）
+            reasoning_effort: niveau d'effort explicite optionnel (low, medium, high)
             
         Returns:
             模型响应文本
         """
+        profile = getattr(self, "profile", None)
+        if profile is not None:
+            if getattr(profile, "temperature", None) is not None and temperature == 0.7:
+                temperature = profile.temperature
+            if getattr(profile, "max_tokens", None) is not None and max_tokens == 4096:
+                max_tokens = profile.max_tokens
+
         response = self._create_completion(
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format=response_format,
+            reasoning_effort=reasoning_effort,
         )
         content = extract_chat_completion_text(response)
         return _clean_chat_text(content)
@@ -164,6 +199,7 @@ class LLMClient:
         temperature: float = 0.3,
         max_tokens: Optional[int] = 4096,
         max_attempts: int = 1,
+        reasoning_effort: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         发送聊天请求并返回JSON
@@ -180,6 +216,13 @@ class LLMClient:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
 
+        profile = getattr(self, "profile", None)
+        if profile is not None:
+            if getattr(profile, "temperature", None) is not None and temperature == 0.3:
+                temperature = profile.temperature
+            if getattr(profile, "max_tokens", None) is not None and max_tokens == 4096:
+                max_tokens = profile.max_tokens
+
         response_format: Optional[Dict[str, str]] = {"type": "json_object"}
         request_max_tokens = max_tokens
         last_error: Optional[LLMResponseError] = None
@@ -195,6 +238,7 @@ class LLMClient:
                         temperature=temperature,
                         max_tokens=request_max_tokens,
                         response_format=response_format,
+                        reasoning_effort=reasoning_effort,
                     )
                 except Exception as error:
                     if (

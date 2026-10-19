@@ -30,7 +30,8 @@ reproductible.**
 | Ontologie dynamique (v2) | ✅ fait — Epic 007 clos (1550 tests verts, Verdict GO, NO-GO empirique C3 consigné) |
 | Support complet de la langue française (Localisation FR) | ✅ fait — Epic 008 clos (1649 tests verts hôte + 9 frontend, Verdict GO) |
 | Preuve par les faits simulés, traçabilité et intégrité (OASIS post-simulation, ToolShield, ReportClaim) | ✅ fait — Epic 011 clos (1751 tests verts hôte + 9 frontend, Verdict GO) |
-| Fiabilité des acteurs, intégrité des preuves et publication stricte (Fail-Closed, Résolution sans collision) | ✅ fait — Epic 012 clos (1839 tests verts hôte + 9 frontend, Verdict GO) |
+| Fiabilité des acteurs, intégrité des preuves et publication stricte (Fail-Closed, Résolution sans collision) | ✅ fait — Epic 012 clos (1842 tests verts hôte + 9 frontend, Verdict GO) |
+| Benchmark LLM du ReportAgent et régénération non destructive (Replay frozen, profils LLM) | 🏗️ en cours — Epic 013 (Story 013-1 validée, 1 852 tests verts) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -39,6 +40,13 @@ reproductible.**
 
 ### La tâche du moment
 
+> **L'epic 012 (« Fiabilité des acteurs, intégrité des preuves et publication stricte ») est intégralement clos avec succès (6/6 stories validées — 1 842 tests verts sur l'hôte + 9 tests Node frontend, VERDICT GO).**
+>
+> **L'epic 013 (« Benchmark LLM du ReportAgent et régénération non destructive sur simulation existante ») est en cours de développement.**
+> Dossier de plan : [`docs/plans/013-benchmark-llm-report-replay/`](docs/plans/013-benchmark-llm-report-replay/prd.md) (`prd.md`, `architecture.md`, `epic-013.md`, `story-013-1.md`).
+> Objectif : permettre la régénération de rapports en mode replay à preuves figées (`replay_frozen`), injecter une configuration LLM dédiée par job (`ReportLLMProfile`), isoler chaque génération sous `reports/<report_id>/` sans écrasement destructif, et mener un benchmark A/B rigoureux (notamment `gemini-3.8-flash` en `medium` vs `high` sur le serveur local Antigravity, puis sur OpenCode GO).
+> La story **013-1** (« Configuration LLM dédiée au ReportAgent et support effectif de l'effort ») est validée (`done`, revue BMAD 4 couches, 1 852 tests verts sur l'hôte + 9 tests frontend Node). La story **013-2** (« Mode replay à preuves figées et capture de l'empreinte ») est la prochaine étape.
+>
 > **L'epic 001 (« Épreuve Graphiti local ») est intégralement clos avec un VERDICT GO validé.**
 > Les 6 stories ont été menées à bien, testées et revues.
 >

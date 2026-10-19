@@ -909,8 +909,17 @@ def _build_gemini_request(body: dict, backend_model: str, thinking_level: str = 
     if backend_model == "claude-opus-4-6-thinking":
         thinking_cfg = gen_config.get("thinkingConfig", {})
         thinking_cfg.setdefault("includeThoughts", False)
-        gen_config["thinkingConfig"] = thinking_cfg
-    # Inject thinking level for Gemini 3 Pro models.
+    # Inject thinking level for Gemini models or Claude thinking variant.
+    effort = body.get("reasoning_effort")
+    if effort and not thinking_level:
+        effort_map = {
+            "minimal": "LOW",
+            "low": "LOW",
+            "medium": "MEDIUM",
+            "high": "HIGH",
+        }
+        thinking_level = effort_map.get(str(effort).strip().lower())
+
     if thinking_level:
         thinking_cfg = gen_config.get("thinkingConfig", {})
         thinking_cfg.setdefault("thinkingLevel", thinking_level)

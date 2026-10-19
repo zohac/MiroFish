@@ -467,6 +467,8 @@ class Report:
     created_at: str = ""
     completed_at: str = ""
     error: Optional[str] = None
+    profile_id: Optional[str] = None
+    llm_profile: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -479,7 +481,9 @@ class Report:
             "markdown_content": self.markdown_content,
             "created_at": self.created_at,
             "completed_at": self.completed_at,
-            "error": self.error
+            "error": self.error,
+            "profile_id": self.profile_id,
+            "llm_profile": self.llm_profile,
         }
 
 
@@ -1087,6 +1091,7 @@ class ReportAgent:
         zep_tools: Optional[ZepToolsService] = None,
         action_verifier: Optional[SimulationActionVerifier] = None,
         locale: Optional[str] = None,
+        profile: Optional[Any] = None,
     ):
         """
         Initialise le Report Agent.
@@ -1099,13 +1104,23 @@ class ReportAgent:
             zep_tools: service d'outils Zep (optionnel)
             action_verifier: vérificateur d'actions simulées (optionnel)
             locale: code de langue de la simulation (optionnel, hérite du contexte si omis)
+            profile: configuration de profil LLM (ReportLLMProfile optionnel)
         """
         self.graph_id = graph_id
         self.simulation_id = simulation_id
         self.simulation_requirement = simulation_requirement
         self.locale = normalize_locale(locale) if locale else get_locale()
+        self.profile = profile
         
-        self.llm = llm_client or LLMClient()
+        if llm_client is not None:
+            self.llm = llm_client
+            if profile is not None and getattr(self.llm, "profile", None) is None:
+                self.llm.profile = profile
+        elif profile is not None:
+            self.llm = LLMClient(profile=profile)
+        else:
+            self.llm = LLMClient()
+
         self.zep_tools = zep_tools or ZepToolsService()
         self.action_verifier = action_verifier or SimulationActionVerifier(simulation_id=self.simulation_id)
         
@@ -2157,14 +2172,19 @@ class ReportAgent:
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
         start_time = datetime.now()
-        
+        profile_obj = self.profile or getattr(self.llm, "profile", None)
+        profile_id = getattr(profile_obj, "profile_id", None)
+        llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") else None
+
         report = Report(
             report_id=report_id,
             simulation_id=self.simulation_id,
             graph_id=self.graph_id,
             simulation_requirement=self.simulation_requirement,
             status=ReportStatus.PENDING,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
+            profile_id=profile_id,
+            llm_profile=llm_profile_dict,
         )
         
         # 已完成的章节标题列表（用于进度追踪）
@@ -3801,7 +3821,9 @@ class ReportManager:
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
-            error=data.get('error')
+            error=data.get('error'),
+            profile_id=data.get('profile_id'),
+            llm_profile=data.get('llm_profile'),
         )
     
     @classmethod

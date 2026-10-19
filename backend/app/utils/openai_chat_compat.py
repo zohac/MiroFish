@@ -27,6 +27,7 @@ def create_chat_completion(
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     response_format: Optional[Dict[str, Any]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Any:
     """
     Create a chat completion with model-specific request parameters.
@@ -36,6 +37,7 @@ def create_chat_completion(
     - For token limit, use `max_completion_tokens` on GPT-5, `max_tokens` otherwise.
     - Preserve the legacy request shape for every non-GPT-5 model/provider.
     - Propagate provider errors unchanged instead of guessing from message text.
+    - Forward explicit `reasoning_effort` if provided, falling back to LLM_REASONING_EFFORT.
     """
     kwargs: Dict[str, Any] = {
         "model": model,
@@ -56,8 +58,8 @@ def create_chat_completion(
         else:
             kwargs["max_tokens"] = max_tokens
 
-    # Optional reasoning effort, forwarded only when LLM_REASONING_EFFORT is set.
-    kwargs.update(llm_completion_kwargs())
+    # Optional reasoning effort, forwarded explicitly or resolved from env.
+    kwargs.update(llm_completion_kwargs(effort=reasoning_effort))
 
     return client.chat.completions.create(**kwargs)
 
