@@ -469,6 +469,8 @@ class Report:
     error: Optional[str] = None
     profile_id: Optional[str] = None
     llm_profile: Optional[Dict[str, Any]] = None
+    replay_mode: str = "live"
+    evidence_snapshot: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -484,6 +486,12 @@ class Report:
             "error": self.error,
             "profile_id": self.profile_id,
             "llm_profile": self.llm_profile,
+            "replay_mode": self.replay_mode,
+            "evidence_snapshot": (
+                self.evidence_snapshot.to_dict()
+                if hasattr(self.evidence_snapshot, "to_dict") and callable(self.evidence_snapshot.to_dict)
+                else self.evidence_snapshot
+            ),
         }
 
 
@@ -1092,6 +1100,7 @@ class ReportAgent:
         action_verifier: Optional[SimulationActionVerifier] = None,
         locale: Optional[str] = None,
         profile: Optional[Any] = None,
+        replay_mode: str = "live",
     ):
         """
         Initialise le Report Agent.
@@ -1105,12 +1114,17 @@ class ReportAgent:
             action_verifier: vérificateur d'actions simulées (optionnel)
             locale: code de langue de la simulation (optionnel, hérite du contexte si omis)
             profile: configuration de profil LLM (ReportLLMProfile optionnel)
+            replay_mode: mode de génération ("live" ou "replay_frozen")
         """
         self.graph_id = graph_id
         self.simulation_id = simulation_id
         self.simulation_requirement = simulation_requirement
         self.locale = normalize_locale(locale) if locale else get_locale()
         self.profile = profile
+        clean_replay_mode = str(replay_mode or "live").strip().lower()
+        if clean_replay_mode not in ("live", "replay_frozen"):
+            raise ValueError(f"Invalid replay_mode: {replay_mode}. Must be 'live' or 'replay_frozen'")
+        self.replay_mode = clean_replay_mode
         
         if llm_client is not None:
             self.llm = llm_client
@@ -1371,7 +1385,8 @@ class ReportAgent:
                     simulation_id=self.simulation_id,
                     interview_requirement=interview_topic,
                     simulation_requirement=self.simulation_requirement,
-                    max_agents=max_agents
+                    max_agents=max_agents,
+                    replay_mode=self.replay_mode,
                 )
                 return result.to_text()
             
@@ -2173,8 +2188,21 @@ class ReportAgent:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
         start_time = datetime.now()
         profile_obj = self.profile or getattr(self.llm, "profile", None)
-        profile_id = getattr(profile_obj, "profile_id", None)
-        llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") else None
+        profile_id = str(profile_obj.profile_id) if hasattr(profile_obj, "profile_id") and isinstance(getattr(profile_obj, "profile_id"), (str, int)) else None
+        llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") and callable(profile_obj.to_dict) and isinstance(profile_obj.to_dict(), dict) else None
+        # Capture et empreinte cryptographique des preuves (Story 013-2, FR-04, FR-05)
+        evidence_snapshot_dict = None
+        try:
+            from .evidence_snapshot_service import EvidenceSnapshotService
+            snapshot_service = EvidenceSnapshotService(simulation_id=self.simulation_id)
+            # En mode replay_frozen, la validation de la complétude des preuves est stricte
+            strict_capture = (self.replay_mode == "replay_frozen")
+            snapshot = snapshot_service.capture_snapshot(strict=strict_capture)
+            evidence_snapshot_dict = snapshot.to_dict()
+        except Exception as snap_err:
+            if self.replay_mode == "replay_frozen":
+                raise
+            logger.warning(f"Avertissement lors de la capture d'EvidenceSnapshot ({self.simulation_id}): {snap_err}")
 
         report = Report(
             report_id=report_id,
@@ -2185,6 +2213,8 @@ class ReportAgent:
             created_at=datetime.now().isoformat(),
             profile_id=profile_id,
             llm_profile=llm_profile_dict,
+            replay_mode=self.replay_mode,
+            evidence_snapshot=evidence_snapshot_dict,
         )
         
         # 已完成的章节标题列表（用于进度追踪）
@@ -2470,13 +2500,15 @@ class ReportAgent:
             return report
         finally:
             # Clôture différée ordonnée de l'environnement OASIS post-rapport (Story 011-1, AC3)
-            try:
-                from .simulation_runner import SimulationRunner
-                SimulationRunner.close_simulation_environment(self.simulation_id)
-            except Exception as close_err:
-                logger.warning(
-                    f"Avertissement lors de la clôture différée de l'environnement OASIS ({self.simulation_id}): {close_err}"
-                )
+            # En mode replay_frozen, aucun environnement physique live n'est manipulé (Story 013-2, AC3)
+            if self.replay_mode != "replay_frozen":
+                try:
+                    from .simulation_runner import SimulationRunner
+                    SimulationRunner.close_simulation_environment(self.simulation_id)
+                except Exception as close_err:
+                    logger.warning(
+                        f"Avertissement lors de la clôture différée de l'environnement OASIS ({self.simulation_id}): {close_err}"
+                    )
 
 
     def build_sources_provenance_section(self) -> str:
@@ -3824,6 +3856,8 @@ class ReportManager:
             error=data.get('error'),
             profile_id=data.get('profile_id'),
             llm_profile=data.get('llm_profile'),
+            replay_mode=data.get('replay_mode', 'live'),
+            evidence_snapshot=data.get('evidence_snapshot'),
         )
     
     @classmethod

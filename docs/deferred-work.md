@@ -433,3 +433,9 @@ Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `ver
 
 - **`backend/app/models/cohort_coverage.py:471-477` — Arbitrage de préséance entre ADOPTED_VERIFIED et objections antérieures en cas de conversion tardive.** Si un persona exprime une objection au Round 1 mais souscrit formellement au Round 5, la condition `elif any("refus"...):` priorise actuellement le statut de refus ou d'hésitation sur l'adoption. Maintenu en l'état pour préserver le principe anti-affabulation conservateur (fail-safe contre le sur-optimisme) de l'Epic 012.
 
+## Deferred from: code review of story-013-2.md (2026-10-19)
+
+Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) du mode replay isolé et vérifiable (`replay_frozen`) avec empreinte SHA-256.
+
+- **`backend/app/services/report_agent.py:1131` — Propagation de l'instance LLM/profil de ReportAgent vers ZepToolsService.** `self.zep_tools = zep_tools or ZepToolsService()` ne transmet pas le client LLM dédié ou le profil configuré (`llm_client=self.llm`). `ZepToolsService` initialise donc son propre `LLMClient()` par défaut pour `_synthesize_offline_interviews`. *Différé : préexistant à l'Epic 013, à harmoniser lors des travaux de calibrage et consommation des profils LLM (Story 013-5).*
+

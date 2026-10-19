@@ -71,6 +71,13 @@ def generate_report():
                 "success": False,
                 "error": "force_regenerate must be a JSON boolean",
             }), 400
+
+        replay_mode = str(data.get('replay_mode', 'live')).strip().lower()
+        if replay_mode not in ('live', 'replay_frozen'):
+            return jsonify({
+                "success": False,
+                "error": "replay_mode must be either 'live' or 'replay_frozen'",
+            }), 400
         
         # Résolution du profil LLM optionnel (Story 013-1)
         profile_id = data.get('profile_id') or data.get('report_profile_id')
@@ -278,6 +285,7 @@ def generate_report():
                         simulation_requirement=simulation_requirement,
                         locale=current_locale,
                         profile=profile,
+                        replay_mode=replay_mode,
                     )
 
                     def progress_callback(stage, progress, message):
@@ -299,7 +307,8 @@ def generate_report():
                             result={
                                 "report_id": report.report_id,
                                 "simulation_id": simulation_id,
-                                "status": "completed"
+                                "status": "completed",
+                                "replay_mode": replay_mode,
                             }
                         )
                     else:
@@ -312,11 +321,12 @@ def generate_report():
                     task_manager.fail_task(task_id, str(e))
                 finally:
                     unregister_graph_reader(graph_id, report_id)
-                    try:
-                        from ..services.simulation_runner import SimulationRunner
-                        SimulationRunner.close_simulation_environment(simulation_id)
-                    except Exception as env_err:
-                        logger.warning(f"Clôture environnement différée dans report.py ({simulation_id}): {env_err}")
+                    if replay_mode != "replay_frozen":
+                        try:
+                            from ..services.simulation_runner import SimulationRunner
+                            SimulationRunner.close_simulation_environment(simulation_id)
+                        except Exception as env_err:
+                            logger.warning(f"Clôture environnement différée dans report.py ({simulation_id}): {env_err}")
 
             try:
                 thread = threading.Thread(target=run_generate, daemon=True)
@@ -332,6 +342,7 @@ def generate_report():
                 "report_id": report_id,
                 "task_id": task_id,
                 "profile_id": getattr(profile, "profile_id", None),
+                "replay_mode": replay_mode,
                 "status": "generating",
                 "message": t('api.reportGenerateStarted'),
                 "already_generated": False

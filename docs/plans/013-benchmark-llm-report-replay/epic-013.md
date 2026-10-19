@@ -56,8 +56,8 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 | Story | Titre | Statut | Fichier |
 |---|---|---|---|
 | 013-1 | Configuration LLM dédiée au ReportAgent et support effectif de l'effort | `done` | [`story-013-1.md`](story-013-1.md) |
-| 013-2 | Mode replay isolé et vérifiable (`replay_frozen`) avec empreinte SHA-256 | `in-progress` | [`story-013-2.md`](story-013-2.md) |
-| 013-3 | Isolation multi-rapports sous `reports/<report_id>/` et API d'historique | `backlog` | `story-013-3.md` |
+| 013-2 | Mode replay isolé et vérifiable (`replay_frozen`) avec empreinte SHA-256 | `done` | [`story-013-2.md`](story-013-2.md) |
+| 013-3 | Isolation multi-rapports sous `reports/<report_id>/` et API d'historique | `in-progress` | [`story-013-3.md`](story-013-3.md) |
 | 013-4 | Télémétrie d'usage, mesure des temps et plafonds budgétaires | `backlog` | `story-013-4.md` |
 | 013-5 | Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison | `backlog` | `story-013-5.md` |
 | 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `backlog` | `story-013-6.md` |

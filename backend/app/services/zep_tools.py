@@ -1486,7 +1486,8 @@ class ZepToolsService:
         interview_requirement: str,
         simulation_requirement: str = "",
         max_agents: int = 5,
-        custom_questions: List[str] = None
+        custom_questions: List[str] = None,
+        replay_mode: str = "live",
     ) -> InterviewResult:
         """
         【InterviewAgents - 深度采访】
@@ -1511,6 +1512,7 @@ class ZepToolsService:
             simulation_requirement: 模拟需求背景（可选）
             max_agents: 最多采访的Agent数量
             custom_questions: 自定义采访问题（可选，若不提供则自动生成）
+            replay_mode: mode de rejeu ("live" pour appels OASIS ou "replay_frozen" pour interviews hors-ligne)
             
         Returns:
             InterviewResult: 采访结果
@@ -1573,108 +1575,9 @@ class ZepToolsService:
         )
         optimized_prompt = f"{INTERVIEW_PROMPT_PREFIX}{combined_prompt}"
         
-        # Step 4: 调用真实的采访API（不指定platform，默认双平台同时采访）
-        try:
-            # 构建批量采访列表（不指定platform，双平台采访）
-            interviews_request = []
-            for agent_idx in selected_indices:
-                interviews_request.append({
-                    "agent_id": agent_idx,
-                    "prompt": optimized_prompt  # 使用优化后的prompt
-                    # 不指定platform，API会在twitter和reddit两个平台都采访
-                })
-            
-            logger.info(t("console.callingBatchInterviewApi", count=len(interviews_request)))
-            
-            # 调用 SimulationRunner 的批量采访方法（不传platform，双平台采访）
-            api_result = SimulationRunner.interview_agents_batch(
-                simulation_id=simulation_id,
-                interviews=interviews_request,
-                platform=None,  # 不指定platform，双平台采访
-                timeout=180.0   # 双平台需要更长超时
-            )
-            
-            logger.info(t("console.interviewApiReturned", count=api_result.get('interviews_count', 0), success=api_result.get('success')))
-            
-            # 检查API调用是否成功
-            if not api_result.get("success", False):
-                error_msg = api_result.get("error", "未知错误")
-                logger.warning(t("console.interviewApiReturnedFailure", error=error_msg))
-                result.summary = f"采访API调用失败：{error_msg}。请检查OASIS模拟环境状态。"
-                return result
-            
-            # Step 5: 解析API返回结果，构建AgentInterview对象
-            # 双平台模式返回格式: {"twitter_0": {...}, "reddit_0": {...}, "twitter_1": {...}, ...}
-            api_data = api_result.get("result", {})
-            results_dict = api_data.get("results", {}) if isinstance(api_data, dict) else {}
-            
-            for i, agent_idx in enumerate(selected_indices):
-                agent = selected_agents[i]
-                agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
-                agent_role = agent.get("profession", "未知")
-                agent_bio = agent.get("bio", "")
-                
-                # 获取该Agent在两个平台的采访结果
-                twitter_result = results_dict.get(f"twitter_{agent_idx}", {})
-                reddit_result = results_dict.get(f"reddit_{agent_idx}", {})
-                
-                twitter_response = twitter_result.get("response", "")
-                reddit_response = reddit_result.get("response", "")
-
-                # 清理可能的工具调用 JSON 包裹
-                twitter_response = self._clean_tool_call_response(twitter_response)
-                reddit_response = self._clean_tool_call_response(reddit_response)
-
-                # 始终输出双平台标记
-                twitter_text = twitter_response if twitter_response else "（该平台未获得回复）"
-                reddit_text = reddit_response if reddit_response else "（该平台未获得回复）"
-                response_text = f"【Twitter平台回答】\n{twitter_text}\n\n【Reddit平台回答】\n{reddit_text}"
-
-                # 提取关键引言（从两个平台的回答中）
-                import re
-                combined_responses = f"{twitter_response} {reddit_response}"
-
-                # 清理响应文本：去掉标记、编号、Markdown 等干扰
-                clean_text = re.sub(r'#{1,6}\s+', '', combined_responses)
-                clean_text = re.sub(r'\{[^}]*tool_name[^}]*\}', '', clean_text)
-                clean_text = re.sub(r'[*_`|>~\-]{2,}', '', clean_text)
-                clean_text = re.sub(r'问题\d+[：:]\s*', '', clean_text)
-                clean_text = re.sub(r'【[^】]+】', '', clean_text)
-
-                # 策略1（主）: 提取完整的有实质内容的句子
-                sentences = re.split(r'[。！？]', clean_text)
-                meaningful = [
-                    s.strip() for s in sentences
-                    if 20 <= len(s.strip()) <= 150
-                    and not re.match(r'^[\s\W，,；;：:、]+', s.strip())
-                    and not s.strip().startswith(('{', '问题'))
-                ]
-                meaningful.sort(key=len, reverse=True)
-                key_quotes = [s + "。" for s in meaningful[:3]]
-
-                # 策略2（补充）: 正确配对的中文引号「」内长文本
-                if not key_quotes:
-                    paired = re.findall(r'\u201c([^\u201c\u201d]{15,100})\u201d', clean_text)
-                    paired += re.findall(r'\u300c([^\u300c\u300d]{15,100})\u300d', clean_text)
-                    key_quotes = [q for q in paired if not re.match(r'^[，,；;：:、]', q)][:3]
-                
-                interview = AgentInterview(
-                    agent_name=agent_name,
-                    agent_role=agent_role,
-                    agent_bio=agent_bio[:1000],  # 扩大bio长度限制
-                    question=combined_prompt,
-                    response=response_text,
-                    key_quotes=key_quotes[:5]
-                )
-                result.interviews.append(interview)
-            
-            result.interviewed_count = len(result.interviews)
-            
-        except ValueError as e:
-            # Environnement non disponible ou arrêté (Story 011-1, AC4) : repli gracieux hors-ligne
-            logger.info(
-                f"Environnement OASIS non actif ({e}) : bascule vers le repli d'interview hors-ligne contextuel (Story 011-1, AC4)"
-            )
+        # Step 4: Mode replay ou appel de la vraie API d'interview OASIS
+        if replay_mode == "replay_frozen":
+            logger.info("Mode replay_frozen actif : utilisation exclusive de la synthèse d'interviews hors-ligne sans appel OASIS")
             self._synthesize_offline_interviews(
                 simulation_id=simulation_id,
                 selected_agents=selected_agents,
@@ -1682,12 +1585,121 @@ class ZepToolsService:
                 combined_prompt=combined_prompt,
                 result=result,
             )
-        except Exception as e:
-            logger.error(t("console.interviewApiCallException", error=e))
-            import traceback
-            logger.error(traceback.format_exc())
-            result.summary = f"采访过程发生错误：{str(e)}"
-            return result
+        else:
+            try:
+                # 构建批量采访列表（不指定platform，双平台采访）
+                interviews_request = []
+                for agent_idx in selected_indices:
+                    interviews_request.append({
+                        "agent_id": agent_idx,
+                        "prompt": optimized_prompt  # 使用优化后的prompt
+                        # 不指定platform，API会在twitter和reddit两个平台都采访
+                    })
+                
+                logger.info(t("console.callingBatchInterviewApi", count=len(interviews_request)))
+                
+                # 调用 SimulationRunner 的批量采访方法（不传platform，双平台采访）
+                api_result = SimulationRunner.interview_agents_batch(
+                    simulation_id=simulation_id,
+                    interviews=interviews_request,
+                    platform=None,  # 不指定platform，双平台采访
+                    timeout=180.0   # 双平台需要更长超时
+                )
+                
+                logger.info(t("console.interviewApiReturned", count=api_result.get('interviews_count', 0), success=api_result.get('success')))
+                
+                # 检查API调用是否成功
+                if not api_result.get("success", False):
+                    error_msg = api_result.get("error", "未知错误")
+                    logger.warning(t("console.interviewApiReturnedFailure", error=error_msg))
+                    result.summary = f"采访API调用失败：{error_msg}。请检查OASIS模拟环境状态。"
+                    return result
+                
+                # Step 5: 解析API返回结果，构建AgentInterview对象
+                # 双平台模式返回格式: {"twitter_0": {...}, "reddit_0": {...}, "twitter_1": {...}, ...}
+                api_data = api_result.get("result", {})
+                results_dict = api_data.get("results", {}) if isinstance(api_data, dict) else {}
+                
+                for i, agent_idx in enumerate(selected_indices):
+                    agent = selected_agents[i]
+                    agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
+                    agent_role = agent.get("profession", "未知")
+                    agent_bio = agent.get("bio", "")
+                    
+                    # 获取该Agent在两个平台的采访结果
+                    twitter_result = results_dict.get(f"twitter_{agent_idx}", {})
+                    reddit_result = results_dict.get(f"reddit_{agent_idx}", {})
+                    
+                    twitter_response = twitter_result.get("response", "")
+                    reddit_response = reddit_result.get("response", "")
+    
+                    # 清理可能的工具调用 JSON 包裹
+                    twitter_response = self._clean_tool_call_response(twitter_response)
+                    reddit_response = self._clean_tool_call_response(reddit_response)
+    
+                    # 始终输出双平台标记
+                    twitter_text = twitter_response if twitter_response else "（该平台未获得回复）"
+                    reddit_text = reddit_response if reddit_response else "（该平台未获得回复）"
+                    response_text = f"【Twitter平台回答】\n{twitter_text}\n\n【Reddit平台回答】\n{reddit_text}"
+    
+                    # 提取关键引言（从两个平台的回答中）
+                    import re
+                    combined_responses = f"{twitter_response} {reddit_response}"
+    
+                    # 清理响应文本：去掉标记、编号、Markdown 等干扰
+                    clean_text = re.sub(r'#{1,6}\s+', '', combined_responses)
+                    clean_text = re.sub(r'\{[^}]*tool_name[^}]*\}', '', clean_text)
+                    clean_text = re.sub(r'[*_`|>~\-]{2,}', '', clean_text)
+                    clean_text = re.sub(r'问题\d+[：:]\s*', '', clean_text)
+                    clean_text = re.sub(r'【[^】]+】', '', clean_text)
+    
+                    # 策略1（主）: 提取完整的有实质内容的句子
+                    sentences = re.split(r'[。！？]', clean_text)
+                    meaningful = [
+                        s.strip() for s in sentences
+                        if 20 <= len(s.strip()) <= 150
+                        and not re.match(r'^[\s\W，,；;：:、]+', s.strip())
+                        and not s.strip().startswith(('{', '问题'))
+                    ]
+                    meaningful.sort(key=len, reverse=True)
+                    key_quotes = [s + "。" for s in meaningful[:3]]
+    
+                    # 策略2（补充）: 正确配对的中文引号「」内长文本
+                    if not key_quotes:
+                        paired = re.findall(r'\u201c([^\u201c\u201d]{15,100})\u201d', clean_text)
+                        paired += re.findall(r'\u300c([^\u300c\u300d]{15,100})\u300d', clean_text)
+                        key_quotes = [q for q in paired if not re.match(r'^[，,；;：:、]', q)][:3]
+                    
+                    interview = AgentInterview(
+                        agent_name=agent_name,
+                        agent_role=agent_role,
+                        agent_bio=agent_bio[:1000],  # 扩大bio长度限制
+                        question=combined_prompt,
+                        response=response_text,
+                        key_quotes=key_quotes[:5]
+                    )
+                    result.interviews.append(interview)
+                
+                result.interviewed_count = len(result.interviews)
+                
+            except ValueError as e:
+                # Environnement non disponible ou arrêté (Story 011-1, AC4) : repli gracieux hors-ligne
+                logger.info(
+                    f"Environnement OASIS non actif ({e}) : bascule vers le repli d'interview hors-ligne contextuel (Story 011-1, AC4)"
+                )
+                self._synthesize_offline_interviews(
+                    simulation_id=simulation_id,
+                    selected_agents=selected_agents,
+                    selected_indices=selected_indices,
+                    combined_prompt=combined_prompt,
+                    result=result,
+                )
+            except Exception as e:
+                logger.error(t("console.interviewApiCallException", error=e))
+                import traceback
+                logger.error(traceback.format_exc())
+                result.summary = f"采访过程发生错误：{str(e)}"
+                return result
 
         
         # Step 6: 生成采访摘要
