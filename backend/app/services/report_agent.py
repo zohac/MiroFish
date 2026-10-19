@@ -44,7 +44,15 @@ from ..models.report_claim import (
     ReportClaimRegistry,
     VerificationStatus,
 )
+from ..models.report_llm_profile import ReportLLMProfile
+from ..models.report_usage import ReportUsageMetrics
 from ..models.source_document import InformationOrigin
+from .report_usage_tracker import (
+    BudgetGuard,
+    ReportBudgetExceededError,
+    ReportTimeoutError,
+    ReportUsageTracker,
+)
 
 logger = get_logger('mirofish.report_agent')
 
@@ -472,6 +480,7 @@ class Report:
     llm_profile: Optional[Dict[str, Any]] = None
     replay_mode: str = "live"
     evidence_snapshot: Optional[Dict[str, Any]] = None
+    usage_metrics: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -493,6 +502,7 @@ class Report:
                 if hasattr(self.evidence_snapshot, "to_dict") and callable(self.evidence_snapshot.to_dict)
                 else self.evidence_snapshot
             ),
+            "usage_metrics": self.usage_metrics,
         }
 
 
@@ -1136,8 +1146,37 @@ class ReportAgent:
         else:
             self.llm = LLMClient()
 
-        self.zep_tools = zep_tools or ZepToolsService()
+        self.zep_tools = zep_tools or ZepToolsService(llm_client=self.llm)
         self.action_verifier = action_verifier or SimulationActionVerifier(simulation_id=self.simulation_id)
+
+        # Télémétrie d'usage et garde-fous (Story 013-4, FR-08, C5)
+        effective_profile = self._resolve_effective_profile(profile)
+        self.usage_tracker = ReportUsageTracker(
+            simulation_id=self.simulation_id,
+            profile=effective_profile,
+            model=getattr(self.llm, "model", None),
+            provider_id=getattr(effective_profile, "provider_id", None)
+            if effective_profile is not None
+            else None,
+            base_url=getattr(self.llm, "base_url", None),
+        )
+        self.usage_tracker.attach_to(self.llm)
+        # Les outils (insight_forge, interviews, synthèse hors-ligne) peuvent
+        # appeler un LLM : le même client profilé et le même traqueur doivent
+        # couvrir ces appels (AC2, phases `interviews`).
+        try:
+            tool_llm = getattr(self.zep_tools, "llm", None)
+            if tool_llm is not None and tool_llm is not self.llm:
+                self.usage_tracker.attach_to(tool_llm)
+        except Exception as tool_llm_err:
+            logger.debug(
+                f"Client LLM des outils non instrumenté ({self.simulation_id}): {tool_llm_err}"
+            )
+        self.budget_guard = BudgetGuard.from_profile(
+            self.usage_tracker, effective_profile
+        )
+        self._attach_pre_request_guard()
+        self._usage_persisted = False
         
         # 工具定义
         self.tools = self._define_tools()
@@ -1232,6 +1271,120 @@ class ReportAgent:
             }
         }
 
+    def _resolve_effective_profile(self, profile: Optional[Any]) -> Optional[Any]:
+        """Résout un profil exploitable, avec repli sur l'environnement.
+
+        Un ``MagicMock`` ou un objet partiel ne doit jamais fournir de valeurs
+        de plafond ou de modèle : seuls les profils portant un ``profile_id`` et
+        un ``model`` réels sont acceptés (sinon repli ``env-default``).
+        """
+        candidate = profile or getattr(self.llm, "profile", None)
+        if not (
+            isinstance(getattr(candidate, "profile_id", None), str)
+            and isinstance(getattr(candidate, "model", None), str)
+        ):
+            try:
+                candidate = ReportLLMProfile.default_from_env()
+            except Exception as profile_err:
+                logger.debug(f"Profil LLM par défaut indisponible : {profile_err}")
+                candidate = None
+        return candidate
+
+    def _reasoning_effort_confirmation(self) -> None:
+        """Marque l'effort comme effectif uniquement là où il est prouvé.
+
+        La passerelle Antigravity locale traduit l'effort en ``thinkingConfig``
+        (mesuré en story 013-1). Pour les autres fournisseurs, l'effort reste
+        ``unknown`` tant qu'aucune confirmation explicite n'est disponible.
+        """
+        tracker = getattr(self, "usage_tracker", None)
+        if tracker is None:
+            return
+        profile = getattr(tracker, "profile", None)
+        requested = getattr(profile, "reasoning_effort", None)
+        provider = getattr(tracker, "provider_id", None)
+        if (
+            isinstance(requested, str)
+            and requested
+            and provider == "antigravity-local"
+        ):
+            tracker.mark_reasoning_effort_effective(requested)
+
+    def _attach_pre_request_guard(self) -> None:
+        """Branche un contrôle avant chaque tentative HTTP du client LLM.
+
+        Couvre les relances internes de ``chat_json`` et les reprises de
+        ``SectionCompletionGuard`` : aucune requête ne part après le plafond
+        (Story 013-4, AC4). Le callback est optionnel et neutre pour les autres
+        clients.
+        """
+        llm = getattr(self, "llm", None)
+        if llm is None:
+            return
+
+        def _pre_request(**_kwargs: Any) -> None:
+            guard = getattr(self, "budget_guard", None)
+            if guard is None:
+                return
+            guard.check(phase=self.usage_tracker.current_phase)
+            remaining = guard.remaining_wall_seconds
+            if remaining is not None:
+                try:
+                    llm.request_timeout = remaining
+                except Exception:
+                    pass
+
+        try:
+            llm.pre_request_callback = _pre_request
+            self._pre_request_callback_ref = _pre_request
+        except Exception as guard_err:
+            logger.debug(
+                f"Garde-fou pré-requête non branché ({self.simulation_id}): {guard_err}"
+            )
+
+    def _check_budget(self, phase: Optional[str] = None) -> None:
+        """Vérifie les plafonds budgétaire et temporel avant toute requête LLM.
+
+        Le garde-fou lève ``ReportBudgetExceededError`` ou ``ReportTimeoutError``
+        et ne change jamais de modèle (Story 013-4, AC4, AT-11).
+        """
+        guard = getattr(self, "budget_guard", None)
+        if guard is not None:
+            guard.check(phase=phase)
+
+    def _persist_usage_metrics(
+        self, report_id: str, report: Optional["Report"] = None
+    ) -> ReportUsageMetrics:
+        """Persiste atomiquement ``reports/<report_id>/usage.json``.
+
+        Retourne les métriques agrégées et les attache au rapport pour que
+        ``meta.json`` expose le même état. Les métriques ne contiennent jamais
+        de prompt, message ou clé d'API (NFR-4). Une fois scellées avant
+        l'archive d'audit, elles ne sont pas réécrites : le ZIP et le fichier
+        disque doivent rester identiques.
+        """
+        tracker = getattr(self, "usage_tracker", None)
+        if tracker is None:
+            return ReportUsageMetrics(report_id=report_id)
+        if getattr(self, "_usage_persisted", False):
+            persisted = ReportManager.load_usage_metrics(report_id)
+            if persisted is not None:
+                if report is not None:
+                    report.usage_metrics = persisted.to_dict()
+                return persisted
+        metrics = tracker.build_metrics()
+        try:
+            path = ReportManager._get_usage_path(report_id)
+            metrics.save_to_file(path)
+            self._usage_persisted = True
+        except Exception as usage_err:
+            logger.warning(
+                f"Impossible de persister usage.json pour {report_id}: {usage_err}"
+            )
+        if report is not None:
+            report.usage_metrics = metrics.to_dict()
+        return metrics
+
     def _resolve_project(self):
         """Résout le `Project` courant à partir du `graph_id` ou `simulation_id`.
 
@@ -1309,6 +1462,11 @@ class ReportAgent:
         parameters = safe_parameters
 
         logger.info(t('report.executingTool', toolName=tool_name, params=parameters))
+
+        # Aucun outil ne doit déclencher d'appel LLM après le plafond (AC4).
+        tracker = getattr(self, "usage_tracker", None)
+        if tracker is not None:
+            self._check_budget(tracker.current_phase)
         
         try:
             if tool_name == "query_simulation_events":
@@ -1382,13 +1540,23 @@ class ReportAgent:
                 if isinstance(max_agents, str):
                     max_agents = int(max_agents)
                 max_agents = min(max_agents, 10)
-                result = self.zep_tools.interview_agents(
-                    simulation_id=self.simulation_id,
-                    interview_requirement=interview_topic,
-                    simulation_requirement=self.simulation_requirement,
-                    max_agents=max_agents,
-                    replay_mode=self.replay_mode,
+                previous_phase = (
+                    tracker.current_phase if tracker is not None else None
                 )
+                if tracker is not None:
+                    tracker.set_phase("interviews")
+                try:
+                    self._check_budget("interviews")
+                    result = self.zep_tools.interview_agents(
+                        simulation_id=self.simulation_id,
+                        interview_requirement=interview_topic,
+                        simulation_requirement=self.simulation_requirement,
+                        max_agents=max_agents,
+                        replay_mode=self.replay_mode,
+                    )
+                finally:
+                    if tracker is not None and previous_phase is not None:
+                        tracker.set_phase(previous_phase)
                 return result.to_text()
             
             elif tool_name == "get_edge_provenance":
@@ -1886,6 +2054,8 @@ class ReportAgent:
             report_context = f"章节标题: {section.title}\n模拟需求: {self.simulation_requirement}"
             
             for iteration in range(max_iterations):
+                # Aucune requête LLM supplémentaire au-delà des plafonds (Story 013-4, AC4).
+                self._check_budget("sections")
                 if progress_callback:
                     progress_callback(
                         "generating", 
@@ -2119,6 +2289,7 @@ class ReportAgent:
             logger.warning(t('report.sectionMaxIter', title=section.title))
             messages.append({"role": "user", "content": _get_react_force_final_msg()})
         
+        self._check_budget("sections")
         response = self.llm.chat(
             messages=messages,
             temperature=0.5,
@@ -2188,7 +2359,7 @@ class ReportAgent:
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
         start_time = datetime.now()
-        profile_obj = self.profile or getattr(self.llm, "profile", None)
+        profile_obj = self._resolve_effective_profile(self.profile)
         profile_id = str(profile_obj.profile_id) if hasattr(profile_obj, "profile_id") and isinstance(getattr(profile_obj, "profile_id"), (str, int)) else None
         llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") and callable(profile_obj.to_dict) and isinstance(profile_obj.to_dict(), dict) else None
         # Capture et empreinte cryptographique des preuves (Story 013-2, FR-04, FR-05)
@@ -2217,6 +2388,9 @@ class ReportAgent:
             replay_mode=self.replay_mode,
             evidence_snapshot=evidence_snapshot_dict,
         )
+
+        # Démarrage de la télémétrie d'usage par job (Story 013-4, FR-08)
+        self._usage_persisted = False
         
         # 已完成的章节标题列表（用于进度追踪）
         completed_section_titles = []
@@ -2224,6 +2398,14 @@ class ReportAgent:
         try:
             # 初始化：创建报告文件夹并保存初始状态
             ReportManager._ensure_report_folder(report_id)
+
+            # Le premier contrôle budgétaire vit dans le try : un plafond nul
+            # doit produire un arrêt contrôlé et persisté, jamais une exception
+            # qui s'échappe de generate_report (Story 013-4, AC4).
+            self.usage_tracker.begin(report_id, self.simulation_id)
+            self.usage_tracker.set_phase("planning")
+            self._reasoning_effort_confirmation()
+            self._check_budget("planning")
             
             # 初始化日志记录器（结构化日志 agent_log.jsonl）
             self.report_logger = ReportLogger(report_id)
@@ -2281,6 +2463,9 @@ class ReportAgent:
             generated_sections = []  # 保存内容用于上下文
             
             for i, section in enumerate(outline.sections):
+                # Garde-fou avant d'engager une nouvelle section (Story 013-4, AC4).
+                self.usage_tracker.set_phase("sections")
+                self._check_budget("sections")
                 section_num = i + 1
                 base_progress = 20 + int((i / total_sections) * 70)
                 
@@ -2315,6 +2500,7 @@ class ReportAgent:
 
                 # Contrôle anti-troncature et prolongation ciblée (Story 011-5, FR-09, C9)
                 from .report_quality_gate import SectionCompletionGuard
+                self._check_budget("sections")
                 try:
                     completed_content, retries_cnt, is_complete_sec = SectionCompletionGuard.complete_section(
                         llm_client=self.llm,
@@ -2398,6 +2584,8 @@ class ReportAgent:
 
             # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4 ; Story 013-3)
             claims_registry = None
+            self.usage_tracker.set_phase("claims_reconciliation")
+            self._check_budget("claims_reconciliation")
             try:
                 claims_registry = self.audit_and_save_report_claims(report.markdown_content, cohort_table=cohort_table, report_id=report_id)
             except Exception as claim_err:
@@ -2445,6 +2633,10 @@ class ReportAgent:
                 report.status = ReportStatus.COMPLETED
 
             report.completed_at = datetime.now().isoformat()
+
+            # Persistance de la télémétrie avant le dossier d'audit (Story 013-4, AC5)
+            usage_metrics = self._persist_usage_metrics(report_id, report)
+            usage_summary = usage_metrics.summary()
             
             # Génération et sauvegarde de run_manifest.json et du zip d'audit per-report (Story 013-3, AC1, AC5)
             try:
@@ -2477,6 +2669,7 @@ class ReportAgent:
                     "unsupported_claims": (claims_registry.unsupported_claims if claims_registry else 0),
                     "contradicted_claims": (claims_registry.contradicted_claims if claims_registry else 0),
                     "adoption_rate": adoption_rate,
+                    "usage_summary": usage_summary,
                 }
                 ReportManager._append_to_history(self.simulation_id, hist_entry)
             except Exception as hist_err:
@@ -2512,7 +2705,64 @@ class ReportAgent:
                 self.console_logger = None
             
             return report
-            
+
+        except (ReportBudgetExceededError, ReportTimeoutError) as limit_error:
+            # Arrêt contrôlé sur plafond budgétaire ou temporel (Story 013-4, AC4).
+            logger.error(
+                f"Arrêt contrôlé de la génération du rapport {report_id}: {limit_error}"
+            )
+            report.status = ReportStatus.FAILED
+            report.error = str(limit_error)
+            report.completed_at = datetime.now().isoformat()
+
+            if self.report_logger:
+                self.report_logger.log_error(str(limit_error), "failed")
+
+            limit_metrics = self._persist_usage_metrics(report_id, report)
+            limit_summary = limit_metrics.summary()
+
+            try:
+                hist_entry = {
+                    "report_id": report_id,
+                    "simulation_id": self.simulation_id,
+                    "created_at": report.created_at,
+                    "completed_at": report.completed_at,
+                    "status": "failed",
+                    "error": str(limit_error),
+                    "profile_id": report.profile_id,
+                    "replay_mode": report.replay_mode,
+                    "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "is_publishable": False,
+                    "publication_status": "failed_validation",
+                    "usage_summary": limit_summary,
+                }
+                ReportManager._append_to_history(self.simulation_id, hist_entry)
+            except Exception:
+                pass
+
+            try:
+                ReportManager.save_report(report)
+                status_label = (
+                    "budget_exceeded"
+                    if isinstance(limit_error, ReportBudgetExceededError)
+                    else "timeout"
+                )
+                ReportManager.update_progress(
+                    report_id,
+                    status_label,
+                    -1,
+                    str(limit_error),
+                    completed_sections=completed_section_titles,
+                )
+            except Exception:
+                pass
+
+            if self.console_logger:
+                self.console_logger.close()
+                self.console_logger = None
+
+            return report
+
         except Exception as e:
             logger.error(t('report.reportGenFailed', error=str(e)))
             report.status = ReportStatus.FAILED
@@ -2522,6 +2772,9 @@ class ReportAgent:
             # 记录错误日志
             if self.report_logger:
                 self.report_logger.log_error(str(e), "failed")
+
+            failure_metrics = self._persist_usage_metrics(report_id, report)
+            failure_summary = failure_metrics.summary()
             
             # Enregistrer l'échec dans l'historique (Story 013-3, AC2)
             try:
@@ -2537,6 +2790,7 @@ class ReportAgent:
                     "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
                     "is_publishable": False,
                     "publication_status": "failed_validation",
+                    "usage_summary": failure_summary,
                 }
                 ReportManager._append_to_history(self.simulation_id, hist_entry)
             except Exception:
@@ -2559,6 +2813,32 @@ class ReportAgent:
             
             return report
         finally:
+            # Filet de sécurité : persister la télémétrie même sur erreur inattendue.
+            if (
+                not getattr(self, "_usage_persisted", False)
+                and getattr(self, "usage_tracker", None) is not None
+                and getattr(self.usage_tracker, "calls_count", 0) > 0
+            ):
+                try:
+                    self._persist_usage_metrics(report_id)
+                except Exception as usage_fallback_err:
+                    logger.warning(
+                        f"Échec du filet de persistance usage.json ({report_id}): {usage_fallback_err}"
+                    )
+
+            # Détachement des callbacks de télémétrie/garde-fou (client partagé)
+            try:
+                self.usage_tracker.detach(self.llm)
+            except Exception:
+                pass
+            try:
+                if getattr(self.llm, "pre_request_callback", None) is getattr(
+                    self, "_pre_request_callback_ref", None
+                ):
+                    self.llm.pre_request_callback = None
+            except Exception:
+                pass
+
             # Clôture différée ordonnée de l'environnement OASIS post-rapport (Story 011-1, AC3)
             # En mode replay_frozen, aucun environnement physique live n'est manipulé (Story 013-2, AC3)
             if self.replay_mode != "replay_frozen":
@@ -3400,6 +3680,16 @@ class ReportManager:
         return os.path.join(cls._get_report_folder(report_id), "quality_checks.json")
 
     @classmethod
+    def _get_usage_path(cls, report_id: str) -> str:
+        """Chemin du fichier de télémétrie d'usage per-report (Story 013-4)."""
+        return os.path.join(cls._get_report_folder(report_id), "usage.json")
+
+    @classmethod
+    def load_usage_metrics(cls, report_id: str) -> Optional[ReportUsageMetrics]:
+        """Charge les métriques d'usage persistées d'un rapport, si présentes."""
+        return ReportUsageMetrics.load_from_file(cls._get_usage_path(report_id))
+
+    @classmethod
     def _get_report_claims_path(cls, report_id: str) -> str:
         """Obtient le chemin du fichier report_claims.json per-report (Story 013-3)."""
         return os.path.join(cls._get_report_folder(report_id), "report_claims.json")
@@ -4059,7 +4349,7 @@ class ReportManager:
                 with open(full_report_path, 'r', encoding='utf-8') as f:
                     markdown_content = f.read()
         
-        return Report(
+        report = Report(
             report_id=data['report_id'],
             simulation_id=data['simulation_id'],
             graph_id=data.get('graph_id', ''),
@@ -4074,7 +4364,13 @@ class ReportManager:
             llm_profile=data.get('llm_profile'),
             replay_mode=data.get('replay_mode', 'live'),
             evidence_snapshot=data.get('evidence_snapshot'),
+            usage_metrics=data.get('usage_metrics'),
         )
+        if report.usage_metrics is None:
+            persisted_usage = cls.load_usage_metrics(report_id)
+            if persisted_usage is not None:
+                report.usage_metrics = persisted_usage.to_dict()
+        return report
     
     @classmethod
     def get_report_by_simulation(cls, simulation_id: str) -> Optional[Report]:
@@ -4183,12 +4479,31 @@ class ReportManager:
                 item.setdefault("status", rep.status.value if hasattr(rep.status, "value") else str(rep.status))
                 item.setdefault("profile_id", rep.profile_id)
                 item.setdefault("replay_mode", rep.replay_mode)
+                if item.get("usage_summary") is None:
+                    usage_metrics = None
+                    if isinstance(rep.usage_metrics, dict):
+                        try:
+                            usage_metrics = ReportUsageMetrics.from_dict(rep.usage_metrics)
+                        except (TypeError, ValueError):
+                            usage_metrics = None
+                    if usage_metrics is None:
+                        usage_metrics = cls.load_usage_metrics(rid)
+                    if usage_metrics is not None:
+                        item["usage_summary"] = usage_metrics.summary()
             results.append(item)
 
         # Ajouter les rapports sur disque non présents dans l'historique (rétrocompatibilité)
         for rep in reports_on_disk:
             if rep.report_id not in seen_ids:
                 seen_ids.add(rep.report_id)
+                usage_summary = None
+                if isinstance(rep.usage_metrics, dict):
+                    try:
+                        usage_summary = ReportUsageMetrics.from_dict(
+                            rep.usage_metrics
+                        ).summary()
+                    except (TypeError, ValueError):
+                        usage_summary = None
                 results.append({
                     "report_id": rep.report_id,
                     "simulation_id": rep.simulation_id,
@@ -4200,6 +4515,7 @@ class ReportManager:
                     "evidence_snapshot_id": (rep.evidence_snapshot or {}).get("snapshot_id") if isinstance(rep.evidence_snapshot, dict) else None,
                     "is_publishable": None,
                     "publication_status": None,
+                    "usage_summary": usage_summary,
                 })
 
         # Trier par created_at croissant (chronologique)

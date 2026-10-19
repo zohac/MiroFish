@@ -80,6 +80,7 @@ class ReportLLMProfile:
     api_key: Optional[str] = None        # Résolu côté serveur, secret
     max_total_cost_usd: float = 2.0      # Plafond de coût estimé
     max_wall_seconds: int = 900          # Timeout global de génération
+    billing_mode: str = "auto"           # "auto" | "free" | "metered" (Story 013-4)
 
     def to_dict(self, expose_secrets: bool = False) -> Dict[str, Any]:
         data = asdict(self)
@@ -123,9 +124,15 @@ class ReportUsageMetrics:
     thinking_tokens: int = 0
     total_tokens: int = 0
     estimated_cost_usd: Optional[float] = None
-    duration_seconds: float = 0.0
+    duration_seconds: float = 0.0       # somme des temps d'inférence
+    wall_seconds: float = 0.0           # temps mural du job
     calls_count: int = 0
     usage_available: bool = True
+    phase_totals: Dict[str, Dict[str, int]]
+    calls: List[CallUsageRecord]
+    budget_exceeded: bool = False
+    timeout_exceeded: bool = False
+    stop_reason: Optional[str] = None
 ```
 
 ---
@@ -172,6 +179,7 @@ Actuellement :
    - `reports/<report_id>/cohort_coverage.json`
    - `reports/<report_id>/quality_checks.json`
    - `reports/<report_id>/run_manifest.json`
+   - `reports/<report_id>/usage.json`
    - `reports/<report_id>/simulation_audit_<report_id>.zip`
 2. Pour la rétrocompatibilité des lectures historiques, un lien ou une copie miroir met à jour le pointeur « dernier rapport actif » de la simulation.
 3. Un index `simulations/<sim_id>/report_history.json` répertorie l'ensemble des `report_id` générés avec leur `profile_id`, date, statut de publication et métriques.

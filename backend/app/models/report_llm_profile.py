@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional
 
 VALID_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
+VALID_BILLING_MODES = {"auto", "free", "metered"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,7 @@ class ReportLLMProfile:
     api_key: Optional[str] = None
     max_total_cost_usd: float = 2.0
     max_wall_seconds: int = 900
+    billing_mode: str = "auto"
 
     def __post_init__(self) -> None:
         if not self.profile_id or not str(self.profile_id).strip():
@@ -41,6 +43,13 @@ class ReportLLMProfile:
                     f"Valeurs acceptées : {sorted(VALID_REASONING_EFFORTS)}"
                 )
             object.__setattr__(self, "reasoning_effort", normalized or None)
+        normalized_billing = str(self.billing_mode or "auto").strip().lower()
+        if normalized_billing not in VALID_BILLING_MODES:
+            raise ValueError(
+                f"billing_mode invalide '{self.billing_mode}'. "
+                f"Valeurs acceptées : {sorted(VALID_BILLING_MODES)}"
+            )
+        object.__setattr__(self, "billing_mode", normalized_billing)
 
     def to_dict(self, expose_secrets: bool = False) -> Dict[str, Any]:
         """Sérialise le profil en dictionnaire. Masque les clés API par défaut."""
@@ -70,6 +79,7 @@ class ReportLLMProfile:
             api_key=data_copy.get("api_key"),
             max_total_cost_usd=float(data_copy.get("max_total_cost_usd", 2.0)),
             max_wall_seconds=int(data_copy.get("max_wall_seconds", 900)),
+            billing_mode=str(data_copy.get("billing_mode", "auto")),
         )
 
     @classmethod
@@ -78,13 +88,16 @@ class ReportLLMProfile:
         from ..config import Config
 
         effort = (Config.LLM_REASONING_EFFORT or "").strip().lower() or None
+        model_name = Config.LLM_MODEL_NAME or "gemini-3.8-flash"
+        is_free_model = "free" in str(model_name).lower()
         return cls(
             profile_id=profile_id,
-            model=Config.LLM_MODEL_NAME or "gemini-3.8-flash",
+            model=model_name,
             provider_id="env",
             reasoning_effort=effort,
             base_url=Config.LLM_BASE_URL,
             api_key=Config.LLM_API_KEY,
+            billing_mode="free" if is_free_model else "auto",
         )
 
     @classmethod
@@ -103,6 +116,7 @@ class ReportLLMProfile:
                 reasoning_effort="medium",
                 base_url=base_url,
                 api_key=api_key,
+                billing_mode="auto",
             ),
             "flash-high": cls(
                 profile_id="flash-high",
@@ -111,6 +125,7 @@ class ReportLLMProfile:
                 reasoning_effort="high",
                 base_url=base_url,
                 api_key=api_key,
+                billing_mode="auto",
             ),
             "deepseek-v4-pro": cls(
                 profile_id="deepseek-v4-pro",
@@ -119,6 +134,7 @@ class ReportLLMProfile:
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,
+                billing_mode="metered",
             ),
             "qwen3.8-max": cls(
                 profile_id="qwen3.8-max",
@@ -127,6 +143,7 @@ class ReportLLMProfile:
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,
+                billing_mode="metered",
             ),
             "gpt-6.1-sol": cls(
                 profile_id="gpt-6.1-sol",
@@ -135,6 +152,7 @@ class ReportLLMProfile:
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,
+                billing_mode="metered",
             ),
         }
         return catalog.get(profile_id)

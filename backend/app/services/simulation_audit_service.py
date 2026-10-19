@@ -11,8 +11,9 @@ scellés par un condensat cryptographique SHA-256 (`checksums.sha256`) :
   6. `cohort_coverage.json` : tableau de couverture de cohorte et statuts décisionnels.
   7. `report_claims.json` : registre des affirmations du rapport, preuves et statuts.
   8. `quality_checks.json` : journal d'inspection de la barrière ReportQualityGate.
-  9. `report.md` : texte final intégral du rapport publié.
-  10. `checksums.sha256` : hachages SHA-256 scellant l'intégrité de tous les fichiers ci-dessus.
+  9. `usage.json` : télémétrie d'usage LLM du rapport (tokens, durée, coût estimé).
+  10. `report.md` : texte final intégral du rapport publié.
+  11. `checksums.sha256` : hachages SHA-256 scellant l'intégrité de tous les fichiers ci-dessus.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from ..config import Config
 from ..models.report_claim import ReportClaimRegistry
 from ..models.cohort_coverage import CohortCoverageTable
 from ..models.project import ProjectManager
+from ..models.report_usage import ReportUsageMetrics, sanitize_usage_payload
 from ..models.source_document import SourceDocument, EpistemicSourceKind
 from ..services.simulation_manager import SimulationManager
 from ..services.oasis_log_reader import OasisLogReaderService
@@ -136,17 +138,33 @@ class SimulationAuditService:
         if agent_count == 0 and sim_state:
             agent_count = getattr(sim_state, "actors_count", 0) or getattr(sim_state, "profiles_count", 0)
 
+        # Télémétrie d'usage par rapport (Story 013-4, FR-08, C5)
+        usage_summary = self._load_usage_summary()
+
+        # Bloc LLM : le profil du job prime sur la configuration globale, et
+        # l'URL privée n'est jamais exposée dans un manifeste scellé (NFR-4).
+        llm_block: Dict[str, Any] = {
+            "model_name": Config.LLM_MODEL_NAME,
+            "provider": "local-openai-compatible",
+            "base_url_configured": bool(Config.LLM_BASE_URL),
+        }
+        if usage_summary:
+            llm_block["model_name"] = usage_summary.get("model") or llm_block["model_name"]
+            llm_block["provider"] = usage_summary.get("provider_id") or llm_block["provider"]
+            llm_block["reasoning_effort_requested"] = usage_summary.get(
+                "reasoning_effort_requested"
+            )
+            llm_block["reasoning_effort_effective"] = usage_summary.get(
+                "reasoning_effort_effective"
+            )
+
         manifest = {
             "version": "1.0.0",
             "simulation_id": self.simulation_id,
             "report_id": self.report_id,
             "git_commit": self._get_git_commit(),
             "generated_at": datetime.utcnow().isoformat() + "Z",
-            "llm": {
-                "base_url": Config.LLM_BASE_URL,
-                "model_name": Config.LLM_MODEL_NAME,
-                "provider": "local-openai-compatible",
-            },
+            "llm": llm_block,
             "locale": getattr(sim_state, "locale", "fr") if sim_state else "fr",
             "simulation": {
                 "status": sim_state.status.value if sim_state and hasattr(sim_state.status, "value") else str(getattr(sim_state, "status", "unknown")),
@@ -157,7 +175,24 @@ class SimulationAuditService:
                 "agent_count": agent_count,
             },
         }
+
+        # Télémétrie d'usage par rapport (Story 013-4, FR-08, C5)
+        if usage_summary is not None:
+            manifest["usage"] = usage_summary
         return manifest
+
+    def _load_usage_summary(self) -> Optional[Dict[str, Any]]:
+        """Charge le résumé de télémétrie du rapport, sans jamais exposer de secret."""
+        if not self.report_id:
+            return None
+        # Réutilise le chemin canonique de ReportManager (DRY, layout 013-3).
+        from .report_agent import ReportManager
+
+        usage_path = ReportManager._get_usage_path(self.report_id)
+        metrics = ReportUsageMetrics.load_from_file(usage_path)
+        if metrics is None:
+            return None
+        return sanitize_usage_payload(metrics.summary())
 
     def build_source_manifest(self) -> Dict[str, Any]:
         """Génère l'inventaire des documents sources du projet avec typage épistémique."""
@@ -287,6 +322,18 @@ class SimulationAuditService:
                 files["quality_checks.json"] = f.read()
         else:
             files["quality_checks.json"] = json.dumps({"simulation_id": self.simulation_id, "checks": []}, indent=2).encode("utf-8")
+
+        # 8 bis. usage.json (télémétrie d'usage per-report, Story 013-4)
+        if rep_dir:
+            usage_metrics = ReportUsageMetrics.load_from_file(
+                os.path.join(rep_dir, "usage.json")
+            )
+            if usage_metrics is not None:
+                files["usage.json"] = json.dumps(
+                    sanitize_usage_payload(usage_metrics.to_dict()),
+                    ensure_ascii=False,
+                    indent=2,
+                ).encode("utf-8")
 
         # 9. report.md (priorité rep_dir full_report.md)
         report_md_path = ""

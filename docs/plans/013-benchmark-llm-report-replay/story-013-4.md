@@ -2,7 +2,7 @@
 id: "013-4"
 epic: "013"
 titre: "Télémétrie d'usage, mesure des temps et plafonds budgétaires"
-statut: backlog
+statut: review
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -84,27 +84,27 @@ Cette story répond à l'exigence fonctionnelle **FR-08** (télémétrie d'usage
 
 ## Définition de fini
 
-- [ ] Modèle `backend/app/models/report_usage.py` créé avec `ReportUsageMetrics`, `CallUsageRecord` et `PricingTable`.
-- [ ] Service de suivi `ReportUsageTracker` implémenté et intégré dans `ReportAgent` pour enregistrer l'usage à chaque appel LLM.
-- [ ] Garde-fous budgétaires et temporels (`max_total_cost_usd`, `max_wall_seconds`) actifs dans `ReportAgent` avec interruption contrôlée.
-- [ ] Persistance atomique de `reports/<report_id>/usage.json` et enrichissement de `run_manifest.json` et `report_history.json`.
-- [ ] Endpoint REST `GET /api/report/<report_id>/usage` implémenté dans `backend/app/api/report.py`.
-- [ ] Suite de tests unitaires et d'intégration hermétiques dédiée dans `backend/tests/test_report_usage_telemetry.py`.
-- [ ] Filet global de tests maintenu au vert ($\ge 1 881$ tests hôte + 9 tests Node frontend).
+- [x] Modèle `backend/app/models/report_usage.py` créé avec `ReportUsageMetrics`, `CallUsageRecord` et `PricingTable`.
+- [x] Service de suivi `ReportUsageTracker` implémenté et intégré dans `ReportAgent` pour enregistrer l'usage à chaque appel LLM.
+- [x] Garde-fous budgétaires et temporels (`max_total_cost_usd`, `max_wall_seconds`) actifs dans `ReportAgent` avec interruption contrôlée.
+- [x] Persistance atomique de `reports/<report_id>/usage.json` et enrichissement de `run_manifest.json` et `report_history.json`.
+- [x] Endpoint REST `GET /api/report/<report_id>/usage` implémenté dans `backend/app/api/report.py`.
+- [x] Suite de tests unitaires et d'intégration hermétiques dédiée dans `backend/tests/test_report_usage_telemetry.py`.
+- [x] Filet global de tests maintenu au vert ($\ge 1 881$ tests hôte + 9 tests Node frontend).
 
 ---
 
 ## Tâches
 
-- [ ] 1. Définir le modèle de métriques `ReportUsageMetrics`, `CallUsageRecord` et la table tarifaire `PricingTable` dans `backend/app/models/report_usage.py`.
-- [ ] 2. Implémenter le traqueur d'usage `ReportUsageTracker` (`backend/app/services/report_usage_tracker.py`) capturant les métriques à chaque appel `LLMClient`.
-- [ ] 3. Intégrer les garde-fous budgétaires (`max_total_cost_usd`) et temporels (`max_wall_seconds`) avec arrêts contrôlés `ReportBudgetExceededError` et `ReportTimeoutError`.
-- [ ] 4. Intégrer `ReportUsageTracker` dans `ReportAgent._generate_report_internal` et persister `reports/<report_id>/usage.json`.
-- [ ] 5. Mettre à jour `SimulationAuditService.gather_audit_files` et `ReportManager._append_to_history` pour inclure la télémétrie.
-- [ ] 6. Exposer l'endpoint REST `GET /api/report/<report_id>/usage` dans `backend/app/api/report.py`.
-- [ ] 7. Écrire la suite de tests unitaires et d'intégration hermétiques dans `backend/tests/test_report_usage_telemetry.py`.
-- [ ] 8. Vérifier la non-régression complète (`uv run pytest tests/` et `validate_plans.py`).
-- [ ] 9. Exécuter la revue de code contradictoire BMAD 4 couches et consigner les conclusions.
+- [x] 1. Définir le modèle de métriques `ReportUsageMetrics`, `CallUsageRecord` et la table tarifaire `PricingTable` dans `backend/app/models/report_usage.py`.
+- [x] 2. Implémenter le traqueur d'usage `ReportUsageTracker` (`backend/app/services/report_usage_tracker.py`) capturant les métriques à chaque appel `LLMClient`.
+- [x] 3. Intégrer les garde-fous budgétaires (`max_total_cost_usd`) et temporels (`max_wall_seconds`) avec arrêts contrôlés `ReportBudgetExceededError` et `ReportTimeoutError`.
+- [x] 4. Intégrer `ReportUsageTracker` dans `ReportAgent._generate_report_internal` et persister `reports/<report_id>/usage.json`.
+- [x] 5. Mettre à jour `SimulationAuditService.gather_audit_files` et `ReportManager._append_to_history` pour inclure la télémétrie.
+- [x] 6. Exposer l'endpoint REST `GET /api/report/<report_id>/usage` dans `backend/app/api/report.py`.
+- [x] 7. Écrire la suite de tests unitaires et d'intégration hermétiques dans `backend/tests/test_report_usage_telemetry.py`.
+- [x] 8. Vérifier la non-régression complète (`uv run pytest tests/` et `validate_plans.py`).
+- [x] 9. Exécuter la revue de code contradictoire BMAD 4 couches et consigner les conclusions.
 
 ---
 
@@ -139,14 +139,64 @@ Cette story répond à l'exigence fonctionnelle **FR-08** (télémétrie d'usage
 3. **Protection anti-escalade** :
    Le garde-fou budgétaire ne doit jamais tenter de basculer automatiquement vers un autre modèle en cas de dépassement. Le job s'arrête proprement et expose le motif du refus.
 
+### Notes d'implémentation (19 octobre 2026)
+
+- **Politique de gratuité explicite** : `PricingTable` distingue les passerelles locales (`antigravity-local`, `codex-local`, `local`, `ollama`), les modèles explicitement gratuits (`-free`, `:free`) et un champ `billing_mode` (`auto`, `free`, `metered`) ajouté à `ReportLLMProfile`. Un modèle gratuit reste à `0.00 $` même hors grille tarifaire, tout en conservant un `theoretical_cost_usd` informatif.
+- **Table tarifaire datée** : `PRICING_TABLE_VERSION = "2026-10-19"` ; les tarifs sont indicatifs et jamais présentés comme une facture. `estimated_cost_usd` vaut `None` dès qu'un appel n'a pas d'`usage` exploitable.
+- **Tokens de réflexion** : extraction défensive depuis `completion_tokens_details.reasoning_tokens`, puis `reasoning_tokens` et `output_tokens_details`. Ils sont considérés comme un sous-ensemble de `completion_tokens` ; un tarif séparé n'est appliqué que si `thinking_billed_separately` est vrai.
+- **Durées** : `duration_seconds` est la somme des temps d'inférence mesurés par appel ; `wall_seconds` conserve le temps mural du job (outils, E/S, audits compris).
+- **Couverture des outils** : `ReportAgent` injecte son client LLM profilé dans `ZepToolsService` (`llm_client=self.llm`) et bascule en phase `interviews` autour de l'outil d'interview. Les appels d'outils sont donc mesurés et soumis au même garde-fou.
+- **Garde-fou à deux niveaux** : contrôle aux frontières (planification, sections, outils, audit) et `pre_request_callback` dans `LLMClient`, qui bloque chaque tentative HTTP, y compris les relances JSON et les reprises anti-troncature. Le temps restant est transmis comme `timeout` de la requête OpenAI-compatible.
+- **Fail-Closed tarifaire** : un modèle facturable absent de la grille déclenche `ReportBudgetExceededError` plutôt que de traiter « inconnu » comme gratuit. Une erreur `usage` manquante, elle, reste marquée inconnue sans fabriquer de coût (AT-12).
+- **Persistance** : `usage.json` est écrit atomiquement avant le scellement du ZIP d'audit ; il est ensuite inclus dans `checksums.sha256`. Une fois scellé, il n'est plus réécrit (le ZIP et le fichier disque restent identiques). Le résumé est repris dans `meta.json`, `run_manifest.json` et `report_history.json` (avec rétro-remplissage des entrées historiques).
+- **API** : `GET /api/report/<report_id>/usage` reconstruit la réponse depuis `ReportUsageMetrics` (liste blanche de champs) ; un fichier absent renvoie 404, un fichier corrompu 500 sans traceback serveur.
+- **Secrets** : `sanitize_usage_payload` filtre récursivement les clés sensibles en normalisant casse, tirets et underscores (`api_key`, `baseUrl`, `access-token`, `prompt_messages`, etc.). `run_manifest.json` n'expose plus `LLM_BASE_URL`, seulement `base_url_configured`.
+
 ---
 
 ## Revue
 
-*En attente de réalisation du ticket.*
+**Revue contradictoire BMAD 4 couches — 19 octobre 2026.**
+
+Quatre relectures indépendantes (correction fonctionnelle, preuve par les tests, sécurité/robustesse, intégration/non-régression) ont examiné le diff, puis les correctifs ont été réappliqués et revérifiés.
+
+### Findings retenus et corrigés
+
+1. **Gratuité inversée / coûts fictifs** — `opencode-go` et les modèles locaux hors grille pouvaient produire un coût non nul, et un modèle local inconnu retournait `None`. Correctifs : `billing_mode` explicite sur `ReportLLMProfile`, court-circuit de gratuité avant résolution tarifaire, marqueurs `-free`/`:free`, coût théorique conservé.
+2. **Appels LLM des outils non mesurés** — `ZepToolsService` créait son propre client, échappant au traqueur et au budget. Correctif : injection de `llm_client=self.llm`, phase `interviews` autour des entretiens et contrôle budgétaire avant chaque outil.
+3. **Premier contrôle budgétaire hors du `try`** — un budget nul levait hors de `generate_report`, sans `usage.json` ni historique. Correctif : `begin()` et le contrôle `planning` déplacés dans le bloc protégé ; un arrêt contrôlé produit désormais un rapport `FAILED` persisté.
+4. **Garde-fou inerte sans profil** — le parcours API sans `profile_id` n'avait aucun plafond. Correctif : repli sur `ReportLLMProfile.default_from_env()` (2,0 $ / 900 s), tout en conservant le modèle du client.
+5. **Durée murale au lieu du temps d'inférence** — `duration_seconds` incluait les outils et les E/S. Correctif : `duration_seconds` = somme des temps d'appel, `wall_seconds` = temps mural.
+6. **Requêtes possibles après le plafond** — les relances internes de `chat_json` et les reprises anti-troncature échappaient au contrôle. Correctif : `pre_request_callback` dans `LLMClient` et `timeout` par requête égal au temps restant.
+7. **Projection budgétaire trop agressive** — la moyenne globale pouvait couper avant la moindre section. Correctif : projection sur le coût du dernier appel.
+8. **Modèle facturable non tarifé** — le plafond devenait silencieusement inerte. Correctif : Fail-Closed tarifaire (`pricing_unavailable`) plutôt que « inconnu = gratuit ».
+9. **Fuite potentielle de `LLM_BASE_URL`** dans `run_manifest.json`. Correctif : `base_url_configured` booléen ; bloc `llm` aligné sur le profil du job (`model`, `provider`, effort).
+10. **Endpoint `/usage` trop permissif** — lecture brute et traceback serveur. Correctif : reconstruction via `ReportUsageMetrics` (liste blanche), 404 si absent, 500 explicite sans traceback si corrompu.
+11. **`usage.json` copié brut dans l'archive d'audit** — risque de secrets hérités. Correctif : re-sérialisation sanitizée, fichier omis si absent plutôt que faux négatif.
+12. **Callbacks écrasés sur client partagé** — chaînage du callback précédent et détachement en `finally`.
+13. **`usage=object()` considéré disponible** — détection stricte de champs numériques réels ; coût `None` sinon.
+14. **Historique legacy sans `usage_summary`** — rétro-remplissage depuis `usage.json`/`meta.json`.
+15. **Divers robustesse** : `OverflowError` sur JSON corrompu, `UnicodeDecodeError`, noms de champs sensibles normalisés (`baseUrl`, `access-token`), idempotence de la persistance après scellement.
+
+### Points confirmés conformes
+
+- Extraction défensive des tokens et absence de double comptage par défaut.
+- Écriture atomique (`tmp` + `fsync` + `os.replace`) et inclusion dans `checksums.sha256`.
+- Aucun prompt, message ou clé d'API dans `usage.json` ni dans la réponse REST.
+- Isolation par `report_id` et compatibilité des appels LLM existants (Graphiti, OASIS, autres services) préservée.
+
+### Verdict
+
+**Conforme aux AC1–AC6 après correctifs.** Filet complet : **1 920 tests hôte verts** (dont 40 tests hermétiques dédiés à la story) + 9 tests Node frontend. `ruff check` et `validate_plans.py` au vert.
 
 ---
 
 ## Notes de complétion
 
-*En attente de réalisation du ticket.*
+- **Divergences assumées par rapport au plan initial** :
+  - Le champ `billing_mode` a été ajouté à `ReportLLMProfile` pour rendre la gratuité explicite plutôt que déduite du seul `provider_id`. Cela évite de facturer à tort un run gratuit et de déclarer gratuit un modèle payant.
+  - `duration_seconds` désigne désormais le temps d'inférence cumulé ; le temps mural est conservé dans `wall_seconds`. Le critère AC1 reste satisfait et AC2 devient mesurable sans biais.
+  - `usage.json` n'est pas réécrit après le scellement de l'archive d'audit : l'idempotence prime sur l'actualisation tardive d'une durée.
+  - Un modèle facturable absent de la grille tarifaire provoque un arrêt Fail-Closed (`pricing_unavailable`) au lieu d'un plafond silencieusement inopérant.
+- **Limite connue** : le plafond temporel est vérifié avant chaque tentative HTTP et borné par le `timeout` transmis au SDK ; il ne peut pas interrompre de force une requête déjà bloquée côté fournisseur au-delà de ce timeout.
+- **Validation** : `uv run pytest tests/ -q` → **1 920 passed** ; `uv run ruff check .` → propre ; `uv run python scripts/validate_plans.py` → structure valide. Les nouveaux tests couvrent les coûts, la gratuité locale, l'usage manquant, les cumuls par phase, les arrêts budget/timeout, l'API, les secrets et l'archive d'audit.

@@ -7,7 +7,8 @@ import json
 import logging
 import os
 import re
-from typing import Optional, Dict, Any, List
+import time
+from typing import Optional, Dict, Any, List, Callable
 from openai import OpenAI
 
 from ..config import Config
@@ -95,6 +96,9 @@ class LLMClient:
     reasoning_effort: Optional[str] = None
     last_response: Any = None
     last_usage: Any = None
+    usage_callback: Optional[Callable[..., Any]] = None
+    pre_request_callback: Optional[Callable[..., Any]] = None
+    request_timeout: Optional[float] = None
     
     def __init__(
         self,
@@ -103,6 +107,9 @@ class LLMClient:
         model: Optional[str] = None,
         reasoning_effort: Optional[str] = None,
         profile: Optional[Any] = None,
+        usage_callback: Optional[Callable[..., Any]] = None,
+        pre_request_callback: Optional[Callable[..., Any]] = None,
+        request_timeout: Optional[float] = None,
     ):
         self.profile = profile
         if profile is not None:
@@ -130,6 +137,14 @@ class LLMClient:
         )
         self.last_response: Any = None
         self.last_usage: Any = None
+        self.usage_callback = usage_callback
+        self.pre_request_callback = pre_request_callback
+        self.request_timeout = request_timeout
+        if request_timeout is not None:
+            try:
+                self.client.timeout = float(request_timeout)
+            except Exception:
+                pass
 
     def _create_completion(
         self,
@@ -142,6 +157,12 @@ class LLMClient:
     ) -> Any:
         """Send one raw Chat Completions request through the compatibility layer."""
         effort = reasoning_effort if reasoning_effort is not None else getattr(self, "reasoning_effort", None)
+        # Garde-fou pré-requête (plafonds budget/temps). Cette exception doit
+        # remonter : elle empêche la requête de partir (Story 013-4, AC4).
+        pre_request = getattr(self, "pre_request_callback", None)
+        if pre_request is not None:
+            pre_request(model=self.model, reasoning_effort=effort)
+        started = time.monotonic()
         resp = create_chat_completion(
             self.client,
             model=self.model,
@@ -150,9 +171,28 @@ class LLMClient:
             max_tokens=max_tokens,
             response_format=response_format,
             reasoning_effort=effort,
+            timeout=getattr(self, "request_timeout", None),
         )
+        duration_seconds = max(0.0, time.monotonic() - started)
         self.last_response = resp
         self.last_usage = getattr(resp, "usage", None)
+
+        # Télémétrie d'usage (Story 013-4). Le callback ne doit jamais casser la
+        # requête LLM : une défaillance de mesure est journalisée et ignorée.
+        callback = getattr(self, "usage_callback", None)
+        if callback is not None:
+            try:
+                callback(
+                    usage=self.last_usage,
+                    model=self.model,
+                    duration_seconds=duration_seconds,
+                    reasoning_effort=effort,
+                )
+            except Exception as telemetry_error:  # pragma: no cover - défensif
+                logger.warning(
+                    "Échec non bloquant du callback de télémétrie LLM : %s",
+                    telemetry_error,
+                )
         return resp
     
     def chat(

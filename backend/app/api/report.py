@@ -1510,3 +1510,54 @@ def get_report_cohort(report_id: str):
         }), 500
 
 
+@report_bp.route('/<report_id>/usage', methods=['GET'])
+def get_report_usage(report_id: str):
+    """Retourne la télémétrie d'usage LLM propre au rapport (Story 013-4, FR-08, C5).
+
+    Expose les tokens (prompt, complétion, réflexion), la durée, le nombre
+    d'appels et le coût estimé. Le payload est reconstruit depuis le modèle
+    (liste blanche de champs) : aucune clé d'API, URL privée, prompt ou message
+    brut ne peut être restitué (NFR-4).
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"Rapport {report_id} introuvable",
+            }), 404
+
+        usage_path = ReportManager._get_usage_path(report_id)
+        usage_exists = os.path.exists(usage_path)
+        metrics = ReportManager.load_usage_metrics(report_id)
+        if metrics is not None:
+            usage_data = metrics.to_dict()
+        elif usage_exists:
+            return jsonify({
+                "success": False,
+                "error": (
+                    f"Métriques d'usage illisibles ou corrompues pour le rapport "
+                    f"{report_id}"
+                ),
+            }), 500
+        elif isinstance(report.usage_metrics, dict):
+            usage_data = report.usage_metrics
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Métriques d'usage introuvables pour le rapport {report_id}",
+            }), 404
+
+        from ..models.report_usage import sanitize_usage_payload
+        return jsonify({
+            "success": True,
+            "data": sanitize_usage_payload(usage_data),
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de l'usage du rapport {report_id}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"Impossible de restituer la télémétrie d'usage du rapport {report_id}",
+        }), 500
+
+

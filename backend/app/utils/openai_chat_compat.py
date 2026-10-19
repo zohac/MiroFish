@@ -28,6 +28,7 @@ def create_chat_completion(
     max_tokens: Optional[int] = None,
     response_format: Optional[Dict[str, Any]] = None,
     reasoning_effort: Optional[str] = None,
+    timeout: Optional[float] = None,
 ) -> Any:
     """
     Create a chat completion with model-specific request parameters.
@@ -60,6 +61,10 @@ def create_chat_completion(
 
     # Optional reasoning effort, forwarded explicitly or resolved from env.
     kwargs.update(llm_completion_kwargs(effort=reasoning_effort))
+
+    # Optional per-request timeout (Story 013-4, plafond temporel effectif).
+    if timeout is not None:
+        kwargs["timeout"] = timeout
 
     return client.chat.completions.create(**kwargs)
 
