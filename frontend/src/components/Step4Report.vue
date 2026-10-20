@@ -106,7 +106,87 @@
       </div>
 
       <!-- RIGHT PANEL: Workflow Timeline -->
-      <div class="right-panel" ref="rightPanel">
+      <div class="right-panel">
+        <!-- Sélecteur de version, régénération et comparaison (Story 013-5, FR-08, C6) -->
+        <div class="version-bar">
+          <ReportHistorySelector
+            :reports="historyReports"
+            :current-report-id="props.reportId || ''"
+            :loading="historyLoading"
+            :error="historyError"
+            @select="selectReport"
+            @refresh="loadHistory"
+          />
+          <div class="version-actions">
+            <select
+              v-model="comparisonTargetId"
+              class="compare-select"
+              :aria-label="$t('step4.compareWithLabel')"
+              :disabled="comparisonCandidates.length === 0"
+            >
+              <option value="">{{ $t('step4.compareWithPlaceholder') }}</option>
+              <option v-for="entry in comparisonCandidates" :key="entry.report_id" :value="entry.report_id">
+                {{ shortId(entry.report_id) }} — {{ entry.profile_id || '—' }}
+              </option>
+            </select>
+            <button
+              type="button"
+              class="version-action"
+              :disabled="!comparisonTargetId || comparisonLoading"
+              @click="openComparison"
+            >
+              {{ $t('step4.compareAction') }}
+            </button>
+            <button
+              ref="regenerateTrigger"
+              type="button"
+              class="version-action version-action--primary"
+              :disabled="!props.reportId || regenerateBusy"
+              @click="openRegenerateDialog"
+            >
+              {{ $t('step4.regenerateAction') }}
+            </button>
+          </div>
+          <!-- Télémétrie de la version courante (Story 013-5, AC1, AC4) -->
+          <dl class="telemetry-strip">
+            <div class="telemetry-item">
+              <dt>{{ $t('step4.metricTokens') }}</dt>
+              <dd class="mono">{{ currentTokens }}</dd>
+            </div>
+            <div class="telemetry-item">
+              <dt>{{ $t('step4.metricInferenceDuration') }}</dt>
+              <dd class="mono">{{ currentInferenceDuration }}</dd>
+            </div>
+            <div class="telemetry-item">
+              <dt>{{ $t('step4.metricWallDuration') }}</dt>
+              <dd class="mono">{{ currentWallDuration }}</dd>
+            </div>
+            <div class="telemetry-item">
+              <dt>{{ $t('step4.metricEstimatedCost') }}</dt>
+              <dd class="mono">{{ currentCost }}</dd>
+            </div>
+            <div class="telemetry-item">
+              <dt>{{ $t('step4.metricClaims') }}</dt>
+              <dd class="mono">{{ currentClaimsLabel }}</dd>
+            </div>
+            <div v-if="currentStopReason" class="telemetry-item telemetry-item--stop">
+              <dt>{{ $t('step4.metricStopReason') }}</dt>
+              <dd>{{ $t(currentStopReason.i18nKey) }}</dd>
+            </div>
+          </dl>
+          <ReportComparisonPanel
+            v-if="comparisonOpen"
+            :left="comparisonLeft"
+            :right="comparisonRight"
+            :verdict="comparisonVerdict"
+            :loading="comparisonLoading"
+            :error="comparisonError"
+            @close="closeComparison"
+          />
+        </div>
+
+        <!-- Zone défilante : le sélecteur de version reste hors du flux qui suit les journaux (Story 013-5) -->
+        <div class="right-scroll" ref="rightPanel">
         <div class="panel-header" :class="`panel-header--${activeStep.status}`" v-if="!isComplete">
           <span class="header-dot" v-if="activeStep.status === 'active'"></span>
           <span class="header-index mono">{{ activeStep.noLabel }}</span>
@@ -410,6 +490,7 @@
             <span>{{ $t('ui.waitingAgentActivity') }}</span>
           </div>
         </div>
+        </div>
       </div>
     </div>
 
@@ -425,6 +506,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialogue de régénération (Story 013-5, FR-08, AC2) -->
+    <ReportRegenerateDialog
+      :open="regenerateOpen"
+      :profiles="profileCatalog"
+      :has-snapshot="currentHasSnapshot"
+      :busy="regenerateBusy"
+      :error="regenerateError"
+      @close="closeRegenerateDialog"
+      @submit="submitRegenerate"
+    />
   </div>
 </template>
 
@@ -433,7 +525,17 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } f
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
-import { getAgentLog, getConsoleLog, getReportQuality, getReportAuditDownloadUrl, getSimulationAuditDownloadUrl } from '../api/report'
+import {
+  getAgentLog, getConsoleLog, getReportQuality, getReportAuditDownloadUrl,
+  getSimulationAuditDownloadUrl, getReportHistory, getReportUsage, getReportClaims,
+  getReportProfiles, getReport, generateReport
+} from '../api/report'
+import ReportHistorySelector from './ReportHistorySelector.vue'
+import ReportRegenerateDialog from './ReportRegenerateDialog.vue'
+import ReportComparisonPanel from './ReportComparisonPanel.vue'
+import {
+  buildComparisonVersion, describeStopReason, evaluateComparability, shortReportId, summarizeUsage
+} from '../utils/reportComparison.js'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -475,6 +577,275 @@ const showRawResult = reactive({})
 // Quality Gate & Audit (Story 011-5, FR-09, FR-10)
 const qualityResult = ref(null)
 const showQualityModal = ref(false)
+
+// Sélecteur de version, régénération et comparaison (Story 013-5, FR-08, C6)
+const serverHistory = ref([])
+const provisionalReports = ref([])
+const historyLoading = ref(false)
+const historyError = ref('')
+const profileCatalog = ref([])
+const comparisonTargetId = ref('')
+const comparisonOpen = ref(false)
+const comparisonLoading = ref(false)
+const comparisonError = ref('')
+const comparisonLeft = ref(null)
+const comparisonRight = ref(null)
+const comparisonVerdict = ref({ comparable: false, reasons: [] })
+const regenerateOpen = ref(false)
+const regenerateBusy = ref(false)
+const regenerateError = ref('')
+const regenerateTrigger = ref(null)
+
+// Télémétrie et registre de la version courante (Story 013-5, AC1).
+const currentUsage = ref(null)
+const currentClaims = ref(null)
+
+const shortId = (reportId) => shortReportId(reportId)
+
+const comparisonCandidates = computed(() =>
+  historyReports.value.filter(entry => entry && entry.report_id && entry.report_id !== props.reportId)
+)
+
+const currentHasSnapshot = computed(() => {
+  const entry = historyReports.value.find(item => item && item.report_id === props.reportId)
+  if (!entry) return false
+  return Boolean(entry.evidence_snapshot_id || entry.evidence_snapshot_sha256)
+})
+
+// Bandeau de télémétrie de la version courante (AC1) : des faits affichés,
+// jamais une valeur inventée.
+const telemetryUnavailable = computed(() => t('step4.metricUnavailable'))
+
+const currentTokens = computed(() => {
+  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
+  const tokens = currentUsage.value.totalTokens
+  return tokens === null ? telemetryUnavailable.value : formatNumber(tokens)
+})
+
+const currentInferenceDuration = computed(() => {
+  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
+  const seconds = currentUsage.value.durationSeconds
+  if (seconds === null) return telemetryUnavailable.value
+  return `${formatNumber(seconds, { maximumFractionDigits: 1 })} s`
+})
+
+const currentWallDuration = computed(() => {
+  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
+  const seconds = currentUsage.value.wallSeconds
+  if (seconds === null) return telemetryUnavailable.value
+  return `${formatNumber(seconds, { maximumFractionDigits: 1 })} s`
+})
+
+const currentCost = computed(() => {
+  if (!currentUsage.value || !currentUsage.value.costAvailable) return telemetryUnavailable.value
+  const amount = formatNumber(currentUsage.value.estimatedCostUsd, {
+    style: 'currency',
+    currency: currentUsage.value.currency || 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })
+  return `${amount} · ${t('step4.costIsEstimate')}`
+})
+
+const currentStopReason = computed(() => {
+  if (!currentUsage.value) return null
+  return describeStopReason(currentUsage.value.stopReason)
+})
+
+const currentClaimsLabel = computed(() => {
+  if (!currentClaims.value) return telemetryUnavailable.value
+  const total = currentClaims.value.total_claims
+  const verified = currentClaims.value.verified_claims
+  if (total === null || total === undefined || verified === null || verified === undefined) {
+    return telemetryUnavailable.value
+  }
+  return `${formatNumber(verified)} / ${formatNumber(total)}`
+})
+
+// L'historique serveur est la seule source de vérité : la liste n'est jamais
+// reconstruite depuis un état local (Story 013-5, décision 1). Seules les
+// versions en cours de génération y sont ajoutées, en attendant que le serveur
+// les inscrive à leur terme.
+const historyReports = computed(() => {
+  const known = new Set(serverHistory.value.map(entry => entry && entry.report_id))
+  const pending = provisionalReports.value.filter(entry => entry && !known.has(entry.report_id))
+  return [...serverHistory.value, ...pending]
+})
+
+const loadHistory = async () => {
+  if (!props.simulationId) return
+  historyLoading.value = true
+  historyError.value = ''
+  try {
+    const res = await getReportHistory(props.simulationId)
+    if (res && res.success && res.data) {
+      serverHistory.value = Array.isArray(res.data.reports) ? res.data.reports : []
+      // Les versions provisoires que le serveur vient d'inscrire disparaissent.
+      const knownIds = new Set(serverHistory.value.map(entry => entry && entry.report_id))
+      provisionalReports.value = provisionalReports.value.filter(
+        entry => entry && !knownIds.has(entry.report_id)
+      )
+      syncComparisonTarget()
+    }
+  } catch (err) {
+    historyError.value = err?.message || t('common.unknownError')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+// La version à comparer est pré-positionnée sur la version la plus récente
+// autre que la version courante : la comparaison A/B est alors immédiatement
+// accessible, et reste modifiable.
+const syncComparisonTarget = () => {
+  const candidates = comparisonCandidates.value
+  if (candidates.length === 0) {
+    comparisonTargetId.value = ''
+    return
+  }
+  if (candidates.some(entry => entry.report_id === comparisonTargetId.value)) return
+  comparisonTargetId.value = candidates[candidates.length - 1].report_id
+}
+
+const loadProfileCatalog = async () => {
+  try {
+    const res = await getReportProfiles()
+    if (res && res.success && res.data) {
+      profileCatalog.value = Array.isArray(res.data.profiles) ? res.data.profiles : []
+    }
+  } catch (err) {
+    profileCatalog.value = []
+  }
+}
+
+// Télémétrie et registre de la version courante. Chaque pièce est optionnelle :
+// son absence affiche « indisponible », jamais « 0 $ » (AC1, AC4, AC6).
+const loadCurrentTelemetry = async (reportId) => {
+  if (!reportId) {
+    currentUsage.value = null
+    currentClaims.value = null
+    return
+  }
+  const [usageRes, claimsRes] = await Promise.all([
+    getReportUsage(reportId).catch(() => null),
+    getReportClaims(reportId).catch(() => null),
+  ])
+  currentUsage.value = usageRes && usageRes.success ? summarizeUsage(usageRes.data) : null
+  currentClaims.value = claimsRes && claimsRes.success ? claimsRes.data : null
+}
+
+// La sélection vit dans l'URL : le lien profond, le rechargement et
+// l'historique du navigateur fonctionnent (Story 013-5, décision 8).
+const selectReport = (reportId) => {
+  if (!reportId) return
+  router.push({ name: 'Report', params: { reportId } })
+}
+
+const openRegenerateDialog = () => {
+  regenerateError.value = ''
+  regenerateOpen.value = true
+}
+
+const closeRegenerateDialog = () => {
+  if (regenerateBusy.value) return
+  regenerateOpen.value = false
+  // Le focus revient au déclencheur (accessibilité de la boîte de dialogue).
+  nextTick(() => {
+    regenerateTrigger.value?.focus()
+  })
+}
+
+const submitRegenerate = async ({ profile_id, replay_mode }) => {
+  if (!props.simulationId || !profile_id) return
+  regenerateBusy.value = true
+  regenerateError.value = ''
+  try {
+    const res = await generateReport({
+      simulation_id: props.simulationId,
+      profile_id,
+      replay_mode,
+      force_regenerate: true
+    })
+    if (res && res.success && res.data && res.data.report_id) {
+      regenerateOpen.value = false
+      // La nouvelle version apparaît immédiatement dans la liste, marquée « en
+      // cours » : le serveur ne l'inscrira à l'historique qu'à son terme.
+      provisionalReports.value = [
+        ...provisionalReports.value,
+        {
+          report_id: res.data.report_id,
+          simulation_id: props.simulationId,
+          created_at: new Date().toISOString(),
+          completed_at: null,
+          status: 'generating',
+          profile_id,
+          replay_mode,
+          publication_status: null,
+          is_publishable: null,
+        },
+      ]
+      syncComparisonTarget()
+      selectReport(res.data.report_id)
+    } else {
+      regenerateError.value = t('step4.regenerateFailed')
+    }
+  } catch (err) {
+    const status = err?.response?.status
+    if (status === 409) {
+      regenerateError.value = t('step4.regenerateConflict')
+    } else if (status === 400) {
+      regenerateError.value = t('step4.regenerateInvalid')
+    } else {
+      regenerateError.value = err?.message || t('step4.regenerateFailed')
+    }
+  } finally {
+    regenerateBusy.value = false
+  }
+}
+
+// Charge l'ensemble des pièces d'une version de rapport. Chaque appel est
+// protégé : une pièce absente (usage.json, claims, quality) ne doit jamais
+// interrompre l'affichage (AC6).
+const loadReportVersion = async (reportId) => {
+  const entry = historyReports.value.find(item => item && item.report_id === reportId) || null
+  const [reportRes, usageRes, qualityRes, claimsRes] = await Promise.all([
+    getReport(reportId).catch(() => null),
+    getReportUsage(reportId).catch(() => null),
+    getReportQuality(reportId).catch(() => null),
+    getReportClaims(reportId).catch(() => null),
+  ])
+  return buildComparisonVersion({
+    report: reportRes && reportRes.success ? reportRes.data : null,
+    usage: usageRes && usageRes.success ? usageRes.data : null,
+    quality: qualityRes && qualityRes.success ? qualityRes.data : null,
+    claims: claimsRes && claimsRes.success ? claimsRes.data : null,
+    historyEntry: entry
+  })
+}
+
+const openComparison = async () => {
+  if (!props.reportId || !comparisonTargetId.value) return
+  comparisonOpen.value = true
+  comparisonLoading.value = true
+  comparisonError.value = ''
+  try {
+    const [left, right] = await Promise.all([
+      loadReportVersion(props.reportId),
+      loadReportVersion(comparisonTargetId.value)
+    ])
+    comparisonLeft.value = left
+    comparisonRight.value = right
+    comparisonVerdict.value = evaluateComparability(left, right)
+  } catch (err) {
+    comparisonError.value = err?.message || t('common.unknownError')
+  } finally {
+    comparisonLoading.value = false
+  }
+}
+
+const closeComparison = () => {
+  comparisonOpen.value = false
+}
 
 const qualityBadgeClass = computed(() => {
   if (!qualityResult.value) return 'draft'
@@ -2141,6 +2512,9 @@ const fetchAgentLog = async () => {
             emit('update-status', 'completed')
             stopPolling()
             fetchQualityResult()
+            loadCurrentTelemetry(props.reportId)
+            // L'historique doit refléter l'état terminal de la version courante.
+            loadHistory()
             // 滚动逻辑统一在循环结束后的 nextTick 中处理
           }
           
@@ -2261,6 +2635,7 @@ const stopPolling = () => {
 
 // Lifecycle
 onMounted(() => {
+  loadProfileCatalog()
   if (props.reportId) {
     addLog(`Report Agent initialized: ${props.reportId}`)
     startPolling()
@@ -2272,6 +2647,13 @@ onUnmounted(() => {
   stopPolling()
 })
 
+watch(() => props.simulationId, (simulationId) => {
+  // L'historique n'existe qu'à partir du moment où la simulation est connue.
+  if (simulationId) {
+    loadHistory()
+  }
+}, { immediate: true })
+
 watch(() => props.reportId, (newId) => {
   if (newId) {
     agentLogs.value = []
@@ -2280,6 +2662,7 @@ watch(() => props.reportId, (newId) => {
     consoleLogLine.value = 0
     qualityResult.value = null
     fetchQualityResult()
+    loadCurrentTelemetry(newId)
     reportOutline.value = null
     currentSectionIndex.value = null
     generatedSections.value = {}
@@ -2288,6 +2671,17 @@ watch(() => props.reportId, (newId) => {
     collapsedSections.value = new Set()
     isComplete.value = false
     startTime.value = null
+    // Le changement de version referme la comparaison : elle porte sur deux
+    // versions nommées, pas sur « la version courante » au sens vague.
+    comparisonOpen.value = false
+    comparisonLeft.value = null
+    comparisonRight.value = null
+    comparisonError.value = ''
+    comparisonVerdict.value = { comparable: false, reasons: [] }
+    if (comparisonTargetId.value === newId) {
+      comparisonTargetId.value = ''
+    }
+    syncComparisonTarget()
     
     startPolling()
   }
@@ -2302,6 +2696,115 @@ watch(() => props.reportId, (newId) => {
   background: #F8F9FA;
   font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
   overflow: hidden;
+}
+
+/* Sélecteur de version, régénération et comparaison (Story 013-5, FR-08) */
+.version-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E5E7EB;
+  flex-shrink: 0;
+}
+
+/* Zone défilante du panneau droit : le sélecteur de version reste visible,
+   le flux de journaux continue de suivre la dernière ligne (Story 013-5). */
+.right-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-select {
+  flex: 1 1 160px;
+  min-width: 140px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #374151;
+  background: #FFFFFF;
+}
+
+.compare-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.version-action {
+  border: 1px solid #E5E7EB;
+  background: #FFFFFF;
+  color: #374151;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.version-action:hover:not(:disabled) {
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.version-action--primary {
+  background: #111827;
+  border-color: #111827;
+  color: #FFFFFF;
+}
+
+.version-action--primary:hover:not(:disabled) {
+  background: #1F2937;
+  color: #FFFFFF;
+}
+
+.version-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Télémétrie de la version courante (Story 013-5, AC1) */
+.telemetry-strip {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-top: 2px;
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 10px;
+}
+
+.telemetry-item dt {
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.telemetry-item dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+}
+
+.telemetry-item--stop dd {
+  color: #92400E;
 }
 
 /* Quality Gate Badge & Diagnostics (Story 011-5, FR-09) */
@@ -2905,9 +3408,10 @@ watch(() => props.reportId, (newId) => {
 .right-panel {
   flex: 1;
   background: #FFFFFF;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 
   /* Functional palette (low saturation, status-based) */
   --wf-border: #E5E7EB;

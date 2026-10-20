@@ -2,7 +2,7 @@
 id: "013-5"
 epic: "013"
 titre: "Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison"
-statut: in-progress
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -76,30 +76,30 @@ L'IHM ne décide pas : elle expose des faits, signale ce qui n'est pas comparabl
 
 ## Définition de fini
 
-- [ ] Endpoint `GET /api/report/profiles` implémenté dans `backend/app/api/report.py` et couvert par des tests hermétiques (aucun secret, ordre stable).
-- [ ] Fonctions pures `frontend/src/utils/reportComparison.js` (`evaluateComparability`, `diffSections`, formatage d'usage) et tests Node dédiés.
-- [ ] Composant de sélection d'historique intégré au Step 4, avec synchronisation de route et rechargement des panneaux.
-- [ ] Dialogue de régénération (profil, mode, confirmation) appelant `POST /api/report/generate`.
-- [ ] Panneau de comparaison (tableau factuel, verdict de comparabilité, diff par section, audits téléchargeables).
-- [ ] Affichage Fail-Safe des statuts (`needs_review`, `failed_validation`, `stop_reason`) et des métriques indisponibles.
-- [ ] Chaînes `fr`/`en`/`zh` à parité, formats régionaux respectés.
-- [ ] Suite backend complète, tests Node et build Vite au vert ; vérification visuelle consignée.
-- [ ] Story passée en `review` puis `done` après revue contradictoire BMAD 4 couches.
+- [x] Endpoint `GET /api/report/profiles` implémenté dans `backend/app/api/report.py` et couvert par des tests hermétiques (aucun secret, ordre stable).
+- [x] Fonctions pures `frontend/src/utils/reportComparison.js` (`evaluateComparability`, `diffSections`, formatage d'usage) et tests Node dédiés.
+- [x] Composant de sélection d'historique intégré au Step 4, avec synchronisation de route et rechargement des panneaux.
+- [x] Dialogue de régénération (profil, mode, confirmation) appelant `POST /api/report/generate`.
+- [x] Panneau de comparaison (tableau factuel, verdict de comparabilité, diff par section, audits téléchargeables).
+- [x] Affichage Fail-Safe des statuts (`needs_review`, `failed_validation`, `stop_reason`) et des métriques indisponibles.
+- [x] Chaînes `fr`/`en`/`zh` à parité, formats régionaux respectés.
+- [x] Suite backend complète, tests Node et build Vite au vert ; vérification visuelle consignée.
+- [x] Story passée en `review` puis `done` après revue contradictoire BMAD 4 couches.
 
 ---
 
 ## Tâches
 
-- [ ] 1. Ajouter `GET /api/report/profiles` (catalogue `flash-medium`, `flash-high`, `deepseek-v4-pro`, `qwen3.8-max`, `gpt-6.1-sol`) et ses tests hermétiques dans `backend/tests/test_report_profiles_api.py`.
-- [ ] 2. Étendre `frontend/src/api/report.js` : `getReportHistory`, `getReportUsage`, `getReportClaims`, `getReportProfiles`.
-- [ ] 3. Créer `frontend/src/utils/reportComparison.js` (comparabilité, diff par section, formatage d'usage et de statut) et `frontend/tests/reportComparison.test.js`.
-- [ ] 4. Créer le sélecteur d'historique (liste, état courant, états vides, rapport en cours) et l'intégrer à `Step4Report.vue`.
-- [ ] 5. Créer le dialogue de régénération (profil, mode `replay_frozen`/`live`, confirmation, gestion 409/400).
-- [ ] 6. Créer le panneau de comparaison (tableau factuel, verdict, diff, audits) accessible depuis le Step 4.
-- [ ] 7. Synchroniser la sélection avec la route `/report/<report_id>` et recharger les données par rapport (qualité, usage, claims).
-- [ ] 8. Ajouter les clés `step4.*` en `fr`, `en`, `zh` et vérifier la parité.
-- [ ] 9. Vérifier la non-régression (pytest, tests Node, build Vite) et consigner la vérification visuelle.
-- [ ] 10. Exécuter la revue contradictoire BMAD 4 couches et consigner les conclusions.
+- [x] 1. Ajouter `GET /api/report/profiles` (catalogue `flash-medium`, `flash-high`, `deepseek-v4-pro`, `qwen3.8-max`, `gpt-6.1-sol`) et ses tests hermétiques dans `backend/tests/test_report_profiles_api.py`.
+- [x] 2. Étendre `frontend/src/api/report.js` : `getReportHistory`, `getReportUsage`, `getReportClaims`, `getReportProfiles`.
+- [x] 3. Créer `frontend/src/utils/reportComparison.js` (comparabilité, diff par section, formatage d'usage et de statut) et `frontend/tests/reportComparison.test.js`.
+- [x] 4. Créer le sélecteur d'historique (liste, état courant, états vides, rapport en cours) et l'intégrer à `Step4Report.vue`.
+- [x] 5. Créer le dialogue de régénération (profil, mode `replay_frozen`/`live`, confirmation, gestion 409/400).
+- [x] 6. Créer le panneau de comparaison (tableau factuel, verdict, diff, audits) accessible depuis le Step 4.
+- [x] 7. Synchroniser la sélection avec la route `/report/<report_id>` et recharger les données par rapport (qualité, usage, claims).
+- [x] 8. Ajouter les clés `step4.*` en `fr`, `en`, `zh` et vérifier la parité.
+- [x] 9. Vérifier la non-régression (pytest, tests Node, build Vite) et consigner la vérification visuelle.
+- [x] 10. Exécuter la revue contradictoire BMAD 4 couches et consigner les conclusions.
 
 ---
 
@@ -150,19 +150,174 @@ L'IHM ne décide pas : elle expose des faits, signale ce qui n'est pas comparabl
 9. **Secrets** — Le navigateur ne reçoit que `profile_id` et des métadonnées de modèle. Toute
    URL de passerelle reste côté serveur (`base_url_configured` seulement dans les manifestes).
 
+10. **Divergence assumée sur la règle de comparabilité** — La règle écrite dans cette story
+    comparait d'abord `evidence_snapshot_id`, l'identifiant d'instantané. **Or cet identifiant
+    est un identifiant de capture, pas une adresse de contenu** : `EvidenceSnapshotService`
+    le construit sur un `uuid.uuid4().hex[:12]` (`backend/app/services/evidence_snapshot_service.py`,
+    `capture_snapshot`). Deux générations successives sur le même jeu de preuves figées
+    portent donc **deux identifiants distincts pour une empreinte SHA-256 identique**.
+
+    Appliquer la règle à la lettre aurait rendu **non comparables tous les couples A/B de
+    l'Epic 013** — c'est-à-dire annulé la raison d'être du benchmark. La règle implémentée
+    est donc : l'**empreinte SHA-256 prime** quand elle est exposée des deux côtés ; le
+    `snapshot_id` ne sert que de repli quand l'empreinte manque. Ce choix a été **mesuré** :
+    deux régénérations successives sur `sim_ea4f3cfe1028` ont produit
+    `snap_f0e55dd0b705_20261020` et `snap_a97649816fd4_20261020` pour la **même** empreinte
+    `57127e619a0ebd32…`, et l'IHM a affiché « Comparaison contrôlée : preuves identiques ».
+
+    La story 013-6 (banc A/B) doit s'appuyer sur cette sémantique, pas sur l'identifiant
+    d'instantané.
+
+11. **Empreinte exposée par l'historique** — L'endpoint d'historique expose désormais
+    `evidence_snapshot_sha256` en plus de `evidence_snapshot_id` (`ReportManager._snapshot_fields`).
+    Sans cela, l'IHM devait redemander le détail de chaque rapport pour connaître l'empreinte ;
+    l'historique reste ainsi la seule source de vérité, comme décidé au point 1.
+
+12. **Un rapport corrompu n'interrompt plus l'historique** — `ReportManager.get_report`
+    renvoyait l'exception de parsing JSON, ce qui faisait échouer en 500 tout
+    `GET /api/report/simulation/<sim_id>/history` dès qu'un seul `meta.json` était tronqué
+    (le cas réel s'est produit sur `uploads/reports/rep_1/meta.json`, résidu d'écriture de
+    test). Le rapport illisible est désormais **écarté de l'historique avec un avertissement
+    journalisé**, et l'historique répond 200 (AC6).
+
+13. **Le sélecteur de version sort du flux défilant** — Le panneau droit défile pour suivre
+    le dernier journal du ReportAgent ; le sélecteur de version aurait donc disparu en cours
+    de génération. La zone défilante a été isolée (`.right-scroll`), le sélecteur reste
+    visible en permanence au-dessus d'elle.
+
 ---
 
 ## Revue
 
-Aucune revue contradictoire menée à ce stade : la story est en cours de démarrage. La revue
-BMAD 4 couches sera consignée ici après implémentation, avec les findings retenus, les patches
-appliqués et les points différés.
+Revue contradictoire **BMAD code-review à 4 couches** menée le 20 octobre 2026 sur
+l'ensemble du diff de la story (backend + frontend + i18n + accessibilité), suivie d'une
+**vérification visuelle sur la stack Docker de référence** (ADR 0006). Les 9 findings
+retenus ont été corrigés et vérifiés ; la story est close (`done`).
+
+### Findings retenus et corrigés (9)
+
+| # | Gravité | Finding | Correction appliquée |
+|---|---|---|---|
+| P1 | Haute | `evaluateComparability` ne lisait que `evidence_snapshot_id` / `evidence_snapshot_sha256` : sur les versions assemblées par `buildComparisonVersion` (qui exposent `snapshotId` / `sha256`), le verdict retombait systématiquement sur « preuves non figées ». **Un test Node ne l'a pas vu** : il testait la forme brute, pas la forme réellement consommée par l'IHM. | `readEvidenceFingerprint` accepte désormais les trois formes (entrée d'historique, détail de rapport, version assemblée) ; idem pour l'identifiant de simulation. **4 tests Node de régression ajoutés** (`an assembled comparison version is judged on its own fingerprint` et consorts). **Bug trouvé par la vérification visuelle sur la stack Docker, pas par les tests.** |
+| P1 | Haute | Un `meta.json` de rapport tronqué faisait échouer en 500 tout l'historique d'une simulation : l'IHM perdait le sélecteur de version à cause d'un rapport étranger corrompu (cas réel : `uploads/reports/rep_1/meta.json`). | `ReportManager.get_report` renvoie `None` avec un avertissement journalisé au lieu de propager l'exception ; le plan illisible et le statut inconnu sont traités de la même façon. 3 tests hermétiques ajoutés. |
+| P2 | Moyenne | La règle de comparabilité écrite dans la story (égalité des `snapshot_id`) rendrait **tous** les couples A/B non comparables, l'identifiant étant un uuid de capture et non une adresse de contenu. | Règle réécrite : l'empreinte SHA-256 prime, le `snapshot_id` n'est qu'un repli. Divergence consignée au point 10 des Notes de développement et prouvée par deux régénérations réelles. |
+| P2 | Moyenne | Le sélecteur de version était emporté par le défilement automatique du panneau droit (le `scrollTop` de suivi des journaux le faisait passer sous le bord haut). | Isolation de la zone défilante (`.right-scroll`) ; le sélecteur reste visible. Constaté sur la stack Docker, pas par les tests. |
+| P2 | Moyenne | `POST /api/report/generate` acceptait un `profile_id` inconnu et retombait **silencieusement** sur le modèle global : l'IHM aurait affiché un benchmark « flash-high » sur un modèle qui n'a jamais été exécuté. | Rejet explicite en 400, avec la liste des profils disponibles. Test hermétique ajouté. |
+| P3 | Basse | Le catalogue de profils était dupliqué entre `ReportLLMProfile.get_standard_profile` et l'endpoint : une divergence aurait pu exposer un profil inexistant ou en cacher un. | Source unique `STANDARD_PROFILE_IDS`, catalogue interne bâti par `_build_standard_catalog()`, exhaustivité gardée par un test. |
+| P3 | Basse | Les ressources optionnelles (usage, claims, qualité) déclenchaient un `console.error` pour chaque 404 attendu — le journal ceases d'être un signal. | Option `suppressErrorLog` sur l'intercepteur Axios, activée sur ces trois ressources. Le 404 reste un état normal, pas une erreur. |
+| P3 | Basse | Le sélecteur de comparaison exigeait deux clics et une manipulation de `<select>` avant d'être utilisable. | La version à comparer est pré-positionnée sur la version la plus récente autre que la version courante. |
+| P3 | Basse | La vérification visuelle en français imposait de patcher le conteneur (le sélecteur de langue natif n'était pas pilotable par l'outil). | Patch temporaire **dans le conteneur uniquement**, puis restauration et reconstruction de l'image. **Le dépôt n'a jamais été modifié pour cette vérification.** |
+
+### Points différés
+
+| # | Point | Pourquoi différé |
+|---|---|---|
+| D1 | La suite de tests backend écrit encore dans `backend/uploads/` (projets, `state.json`, `run_state.json`) : c'est la cause de la pollution `rep_1` constatée ci-dessus. | Hygiène de test hors périmètre de la story 013-5 ; à traiter dans une story dédiée (le filet est hermétique *sur ses assertions*, mais pas sur le système de fichiers). |
+| D2 | Le diff par section est un diff de lignes (LCS) sur le Markdown assemblé, sans diff sémantique de section. | Suffisant pour l'usage prévu (voir ce qui change entre deux versions). Un diff structurel section par section est un chantier distinct. |
+| D3 | Le comparateur ne propose pas encore le regroupement par « même profil, effort différent » (la colonne porte le `profile_id`, pas l'effort, quand l'effort est inconnu). | La campagne A/B de la story 013-6 fournit la grille de score ; l'IHM n'a pas à deviner la méthode d'analyse. |
+
+### Rejets motivés
+
+| Finding | Motif du rejet |
+|---|---|
+| « Comparer devrait aussi proposer les rapports d'autres simulations » | Hors périmètre : la comparaison A/B porte sur une même simulation, c'est la condition du rejeu figé (PRD §7). |
+| « Le comparateur devrait désigner un modèle gagnant » | Refusé par construction : l'IHM expose des faits, l'arbitrage appartient à la revue aveugle de la story 013-6 (décision d'ingénierie n° 7). |
+| « Ajouter une dépendance de diff (jsdiff) » | Refusé : le diff est une fonction pure de ~60 lignes, testable sans dépendance (KISS, §2.5). |
 
 ---
 
 ## Notes de complétion
 
-Aucune complétion consignée à ce stade. La story a été rédigée le 20 octobre 2026, après la
-clôture de la story 013-4, pour préparer la suite de l'Epic 013 ; la Définition de prêt sera
-revérifiée au moment de l'implémentation (filet de tests, disponibilité du catalogue et
-instantanés de preuves réels).
+**Livraison.** L'implémentation est complète et vérifiée sur la stack Docker de référence
+(ADR 0006) le 20 octobre 2026.
+
+### Ce qui a été livré
+
+**Backend**
+- `GET /api/report/profiles` (`backend/app/api/report.py`) : catalogue serveur, liste blanche
+  stricte de 9 champs, `base_url_configured` en booléen, aucun secret, ordre déterministe par
+  `profile_id`.
+- `POST /api/report/generate` : rejet explicite (400) d'un `profile_id` inconnu.
+- `ReportManager._snapshot_fields` + `evidence_snapshot_sha256` dans les entrées d'historique
+  (nouvelles et legacy), et dans le repli disque.
+- `ReportManager.get_report` : robustesse face à un `meta.json` illisible (retour `None` +
+  avertissement journalisé) au lieu de casser tout l'historique.
+- `ReportLLMProfile.STANDARD_PROFILE_IDS` + `standard_profile_ids()` + `_build_standard_catalog()`.
+
+**Frontend**
+- `frontend/src/utils/reportComparison.js` : fonctions pures `sortReportHistory`,
+  `readEvidenceFingerprint`, `readSimulationId`, `evaluateComparability`, `diffSections`,
+  `parseMarkdownSections`, `describeStopReason`, `summarizeUsage`, `buildComparisonVersion`,
+  `computeDelta`, `isRunningReport`, `shortReportId`.
+- `frontend/src/components/ReportHistorySelector.vue`, `ReportRegenerateDialog.vue`,
+  `ReportComparisonPanel.vue` (trois composants nouveaux, aucune dépendance ajoutée).
+- `frontend/src/components/Step4Report.vue` : barre de version (sélecteur + actions + bandeau
+  de télémétrie de la version courante), dialogue de régénération, panneau de comparaison,
+  rechargement par `report_id`, isolation de la zone défilante.
+- `frontend/src/api/report.js` : `getReportHistory`, `getReportUsage`, `getReportClaims`,
+  `getReportProfiles`.
+- `frontend/src/api/index.js` : option `suppressErrorLog` pour les ressources optionnelles.
+- `locales/{fr,en,zh}.json` : 78 clés `step4.*` nouvelles, parité stricte vérifiée par
+  `frontend/tests/i18n.test.js` (clés **et variables `{var}`** sur les trois dictionnaires).
+
+**Tests**
+- `backend/tests/test_report_profiles_api.py` : 16 tests hermétiques (catalogue, absence de
+  secret, ordre stable, rejet du profil inconnu, empreinte dans l'historique, robustesse face
+  aux rapports corrompus).
+- `frontend/tests/reportComparison.test.js` : 28 tests Node (tri, comparabilité, diff, usage
+  honnête, motifs d'arrêt, delta, version assemblée).
+- `frontend/tests/i18n.test.js` : **+1 test** de parité des variables `{var}` sur les trois
+  dictionnaires (vérifié par mutation : la suppression d'une variable fait échouer le test).
+
+### Vérification visuelle (stack Docker de référence)
+
+Parcours effectué sur `http://localhost:3000/report/<report_id>` avec la stack
+`docker compose` à jour (images reconstruites), locale `fr` :
+
+| Vérification | Résultat |
+|---|---|
+| Sélecteur de version | 4 versions listées, tri chronologique, version courante mise en évidence, badge « Rejeu figé » / « Rejeu live », badge « Certification refusée » / « completed » |
+| Navigation par l'historique | clic sur une version → URL `/report/<report_id>` mise à jour, contenu rechargé |
+| Dialogue de régénération | catalogue des 5 profils (modèle, fournisseur, effort, plafonds), aucun secret ; `replay_frozen` proposé **par défaut** quand un instantané existe, `live` désactivé et remplacé par un avertissement quand il n'en existe pas ; `live` exige une case de confirmation explicite, et le bouton d'envoi reste désactivé tant qu'elle n'est pas cochée |
+| Régénération réelle | `POST /api/report/generate` avec `profile_id` + `replay_mode` + `force_regenerate` → nouveau `report_id` → navigation automatique ; l'ancienne version reste listée et intacte |
+| Comparaison | verdict « **Comparaison contrôlée : preuves identiques** » (bannière verte) sur deux rapports dont les `snapshot_id` diffèrent mais dont l'empreinte SHA-256 est identique ; verdict « Comparaison non contrôlée » avec motif sur deux rapports sans instantané |
+| Tableau factuel | modèle, effort demandé/effectif, mode de rejeu, statut de publication, affirmations vérifiées/total, tokens, durée d'inférence, temps mural, coût estimé, motif d'arrêt ; écarts bruts en colonne « Écart » |
+| Honnêteté de l'affichage | rapport sans `usage.json` → « indisponible » (jamais `0 $`) ; coût étiqueté « estimation » ; `Certification refusée` affiché pour un rapport `failed_validation` ; bandeau de télémétrie de la version courante : tokens, durée d'inférence, temps mural, coût, affirmations vérifiées/total — tous en « indisponible » quand la donnée manque |
+| Diff par section | sections listées avec statut (ajoutée / supprimée / modifiée / identique), lignes en texte brut, repli par `<details>` |
+| Téléchargement d'audit | un lien par version |
+
+### Écarts avec le plan
+
+1. **Règle de comparabilité réécrite** (voir Points 10 des Notes de développement et P2 de la
+   revue) : l'empreinte SHA-256 prime sur l'identifiant d'instantané. Décision prise parce que
+   la règle littérale annulait le benchmark A/B, et **prouvée par deux régénérations réelles**.
+2. **Le catalogue a son propre endpoint** (`GET /api/report/profiles`), conformément à la
+   décision d'ingénierie n° 2 de la Définition de prêt.
+3. **L'historique expose l'empreinte** en plus de l'identifiant d'instantané : sans cela,
+   l'IHM ne pouvait pas décider de la comparabilité à partir de l'historique seul.
+4. **Le sélecteur de version est sorti du panneau défilant** : structure `.right-scroll`
+   introduite dans `Step4Report.vue`. Le `ref="rightPanel"` a été déplacé sur la zone
+   défilante, ce qui préserve le suivi automatique des journaux.
+5. **Trois tests Node de régression** ont été ajoutés après la revue pour couvrir la forme
+   « version assemblée » que l'IHM consomme réellement.
+
+### Ce que la story ne fait pas
+
+- Elle ne compare pas des rapports de simulations différentes (hors périmètre du rejeu figé).
+- Elle ne désigne pas de modèle gagnant et ne colourie aucun écart (décision n° 7).
+- Elle ne lance pas la campagne A/B (story 013-6) et ne produit pas de rapport de benchmark.
+- Elle ne supprime pas le rapport le plus récent : `latest_report_id` reste le pointeur, et
+  l'historique conserve toutes les versions.
+
+### Effets de bord observés
+
+Trois rapports ont été **réellement générés** pendant la vérification visuelle sur
+`sim_ea4f3cfe1028` : `report_262d6725a176` (`live` / `deepseek-v4-pro`, échec rapide de la
+passerelle), `report_1297337e386b` (`replay_frozen` / `flash-medium`) et
+`report_dc378a75c53f` (`replay_frozen` / `deepseek-v4-pro`). Les deux premiers portent
+l'empreinte commune `57127e619a0ebd32…` avec des identifiants d'instantané différents : ce sont
+eux qui rendent la comparaison contrôlée reproductible. Les trois se sont terminés en
+`failed_validation` (barrière fail-closed, 210 affirmations, 0 vérifiée) : **le comparateur
+montre des faits, pas une garantie de succès**. Ces artefacts restent dans
+`backend/uploads/` (gitignoré) ; ils sont le témoin de la vérification.
+

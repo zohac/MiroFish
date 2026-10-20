@@ -59,7 +59,7 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 | 013-2 | Mode replay isolé et vérifiable (`replay_frozen`) avec empreinte SHA-256 | `done` | [`story-013-2.md`](story-013-2.md) |
 | 013-3 | Isolation multi-rapports sous `reports/<report_id>/` et API d'historique | `done` | [`story-013-3.md`](story-013-3.md) |
 | 013-4 | Télémétrie d'usage, mesure des temps et plafonds budgétaires | `done` | [`story-013-4.md`](story-013-4.md) |
-| 013-5 | Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison | `in-progress` | [`story-013-5.md`](story-013-5.md) |
+| 013-5 | Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison | `done` | [`story-013-5.md`](story-013-5.md) |
 | 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `backlog` | `story-013-6.md` |
 
 ---

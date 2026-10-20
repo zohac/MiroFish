@@ -24,6 +24,35 @@ test('French dictionary is present once among discovered locale files', async ()
   assert.deepEqual(flatten(locales[1]).sort(), flatten(locales[2]).sort())
 })
 
+test('every placeholder variable is identical across the three dictionaries', async () => {
+  const pattern = /\{([a-zA-Z0-9_]+)\}/g
+  const collect = (object, prefix = '', accumulator = {}) => {
+    for (const [key, value] of Object.entries(object)) {
+      const path = prefix ? `${prefix}.${key}` : key
+      if (typeof value === 'object' && value !== null) collect(value, path, accumulator)
+      else {
+        const names = [...String(value).matchAll(pattern)].map(match => match[1]).sort()
+        accumulator[path] = names
+      }
+    }
+    return accumulator
+  }
+
+  const dictionaries = []
+  for (const locale of supported) {
+    const contents = await readFile(new URL(`../../locales/${locale}.json`, import.meta.url), 'utf8')
+    dictionaries.push(collect(JSON.parse(contents)))
+  }
+
+  const reference = dictionaries[0]
+  for (const dictionary of dictionaries.slice(1)) {
+    const mismatches = Object.keys(reference)
+      .filter(key => JSON.stringify(reference[key]) !== JSON.stringify(dictionary[key]))
+      .map(key => `${key}: ${reference[key]} vs ${dictionary[key]}`)
+    assert.deepEqual(mismatches, [])
+  }
+})
+
 test('unknown and corrupted preferences fall back to zh', () => {
   for (const candidate of [null, '', 'fr-BE', 'INVALID', 5, '__proto__']) {
     assert.equal(resolveLocale(candidate, supported), 'zh')

@@ -2695,6 +2695,7 @@ class ReportAgent:
                     "profile_id": report.profile_id,
                     "replay_mode": report.replay_mode,
                     "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "evidence_snapshot_sha256": (report.evidence_snapshot or {}).get("sha256_hash") if isinstance(report.evidence_snapshot, dict) else None,
                     "publication_status": quality_result.publication_status.value if hasattr(quality_result.publication_status, "value") else str(quality_result.publication_status),
                     "is_publishable": quality_result.is_publishable,
                     "total_claims": claims_registry.total_claims if claims_registry else 0,
@@ -2778,6 +2779,7 @@ class ReportAgent:
                     "profile_id": report.profile_id,
                     "replay_mode": report.replay_mode,
                     "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "evidence_snapshot_sha256": (report.evidence_snapshot or {}).get("sha256_hash") if isinstance(report.evidence_snapshot, dict) else None,
                     "is_publishable": False,
                     "publication_status": "failed_validation",
                     "usage_summary": limit_summary,
@@ -2841,6 +2843,7 @@ class ReportAgent:
                     "profile_id": report.profile_id,
                     "replay_mode": report.replay_mode,
                     "evidence_snapshot_id": (report.evidence_snapshot or {}).get("snapshot_id") if isinstance(report.evidence_snapshot, dict) else None,
+                    "evidence_snapshot_sha256": (report.evidence_snapshot or {}).get("sha256_hash") if isinstance(report.evidence_snapshot, dict) else None,
                     "is_publishable": False,
                     "publication_status": "failed_validation",
                     "usage_summary": failure_summary,
@@ -4364,7 +4367,12 @@ class ReportManager:
     
     @classmethod
     def get_report(cls, report_id: str) -> Optional[Report]:
-        """获取报告"""
+        """获取报告
+
+        Un fichier de métadonnées illisible ou tronqué ne doit pas faire
+        échouer une liste entière : un rapport corrompu est simplement absent
+        de l'historique (Story 013-5, AC6 — la vue ne s'interrompt pas).
+        """
         path = cls._get_report_path(report_id)
         
         if not os.path.exists(path):
@@ -4374,51 +4382,83 @@ class ReportManager:
                 path = old_path
             else:
                 return None
-        
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (OSError, ValueError, TypeError) as read_err:
+            logger.warning(
+                f"Métadonnées de rapport illisibles pour {report_id} "
+                f"({path}) : le rapport est écarté de l'historique ({read_err})"
+            )
+            return None
+        if not isinstance(data, dict):
+            logger.warning(
+                f"Métadonnées de rapport invalides pour {report_id} ({path}) : "
+                f"le rapport est écarté de l'historique"
+            )
+            return None
         
         # 重建Report对象
         outline = None
-        if data.get('outline'):
-            outline_data = data['outline']
-            sections = []
-            for s in outline_data.get('sections', []):
-                sections.append(ReportSection(
-                    title=s['title'],
-                    content=s.get('content', '')
-                ))
-            outline = ReportOutline(
-                title=outline_data['title'],
-                summary=outline_data['summary'],
-                sections=sections
+        try:
+            if data.get('outline'):
+                outline_data = data['outline']
+                sections = []
+                for s in outline_data.get('sections', []):
+                    sections.append(ReportSection(
+                        title=s['title'],
+                        content=s.get('content', '')
+                    ))
+                outline = ReportOutline(
+                    title=outline_data['title'],
+                    summary=outline_data['summary'],
+                    sections=sections
+                )
+        except (AttributeError, KeyError, TypeError) as outline_err:
+            logger.warning(
+                f"Plan de rapport illisible pour {report_id} : le rapport est "
+                f"écarté de l'historique ({outline_err})"
             )
-        
+            return None
+
         # 如果markdown_content为空，尝试从full_report.md读取
         markdown_content = data.get('markdown_content', '')
         if not markdown_content:
             full_report_path = cls._get_report_markdown_path(report_id)
             if os.path.exists(full_report_path):
-                with open(full_report_path, 'r', encoding='utf-8') as f:
-                    markdown_content = f.read()
-        
-        report = Report(
-            report_id=data['report_id'],
-            simulation_id=data['simulation_id'],
-            graph_id=data.get('graph_id', ''),
-            simulation_requirement=data.get('simulation_requirement', ''),
-            status=ReportStatus(data.get('status', 'completed')),
-            outline=outline,
-            markdown_content=markdown_content,
-            created_at=data.get('created_at', ''),
-            completed_at=data.get('completed_at', ''),
-            error=data.get('error'),
-            profile_id=data.get('profile_id'),
-            llm_profile=data.get('llm_profile'),
-            replay_mode=data.get('replay_mode', 'live'),
-            evidence_snapshot=data.get('evidence_snapshot'),
-            usage_metrics=data.get('usage_metrics'),
-        )
+                try:
+                    with open(full_report_path, 'r', encoding='utf-8') as f:
+                        markdown_content = f.read()
+                except OSError as md_err:
+                    logger.warning(
+                        f"Markdown de rapport illisible pour {report_id} : {md_err}"
+                    )
+
+        try:
+            report = Report(
+                report_id=data.get('report_id', report_id),
+                simulation_id=data.get('simulation_id', ''),
+                graph_id=data.get('graph_id', ''),
+                simulation_requirement=data.get('simulation_requirement', ''),
+                status=ReportStatus(data.get('status', 'completed')),
+                outline=outline,
+                markdown_content=markdown_content,
+                created_at=data.get('created_at', ''),
+                completed_at=data.get('completed_at', ''),
+                error=data.get('error'),
+                profile_id=data.get('profile_id'),
+                llm_profile=data.get('llm_profile'),
+                replay_mode=data.get('replay_mode', 'live'),
+                evidence_snapshot=data.get('evidence_snapshot'),
+                usage_metrics=data.get('usage_metrics'),
+            )
+        except (TypeError, ValueError) as build_err:
+            logger.warning(
+                f"Métadonnées de rapport incohérentes pour {report_id} : le "
+                f"rapport est écarté de l'historique ({build_err})"
+            )
+            return None
         if report.usage_metrics is None:
             persisted_usage = cls.load_usage_metrics(report_id)
             if persisted_usage is not None:
@@ -4506,6 +4546,25 @@ class ReportManager:
 
         return None
 
+    @staticmethod
+    def _snapshot_fields(snapshot: Any) -> Dict[str, Any]:
+        """Extrait l'identifiant de capture et l'empreinte SHA-256 des preuves.
+
+        L'identifiant d'instantané est un identifiant de *capture* (uuid), pas
+        une adresse de contenu : deux générations successives sur les mêmes
+        preuves figées portent deux identifiants distincts mais la même
+        empreinte. C'est l'empreinte qui prouve l'identité du jeu de preuves
+        (Story 013-5, AC3).
+        """
+        if not isinstance(snapshot, dict):
+            return {"evidence_snapshot_id": None, "evidence_snapshot_sha256": None}
+        snapshot_id = snapshot.get("snapshot_id")
+        sha256_hash = snapshot.get("sha256_hash")
+        return {
+            "evidence_snapshot_id": str(snapshot_id) if snapshot_id else None,
+            "evidence_snapshot_sha256": str(sha256_hash) if sha256_hash else None,
+        }
+
     @classmethod
     def list_reports_by_simulation(cls, simulation_id: str) -> List[Dict[str, Any]]:
         """Renvoie la liste ordonnée et complète de l'historique des rapports pour une simulation (Story 013-3)."""
@@ -4532,6 +4591,12 @@ class ReportManager:
                 item.setdefault("status", rep.status.value if hasattr(rep.status, "value") else str(rep.status))
                 item.setdefault("profile_id", rep.profile_id)
                 item.setdefault("replay_mode", rep.replay_mode)
+                snapshot_fields = cls._snapshot_fields(rep.evidence_snapshot)
+                item.setdefault("evidence_snapshot_id", snapshot_fields["evidence_snapshot_id"])
+                item.setdefault(
+                    "evidence_snapshot_sha256",
+                    snapshot_fields["evidence_snapshot_sha256"],
+                )
                 if item.get("usage_summary") is None:
                     usage_metrics = None
                     if isinstance(rep.usage_metrics, dict):
@@ -4566,6 +4631,7 @@ class ReportManager:
                     "profile_id": rep.profile_id,
                     "replay_mode": rep.replay_mode,
                     "evidence_snapshot_id": (rep.evidence_snapshot or {}).get("snapshot_id") if isinstance(rep.evidence_snapshot, dict) else None,
+                    "evidence_snapshot_sha256": (rep.evidence_snapshot or {}).get("sha256_hash") if isinstance(rep.evidence_snapshot, dict) else None,
                     "is_publishable": None,
                     "publication_status": None,
                     "usage_summary": usage_summary,

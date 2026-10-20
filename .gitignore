@@ -63,3 +63,5 @@ backend/uploads/
 
 # Docker 数据
 data/
+# Captures de verification outil (OpenChamber)
+.openchamber/

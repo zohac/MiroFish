@@ -31,7 +31,7 @@ reproductible.**
 | Support complet de la langue française (Localisation FR) | ✅ fait — Epic 008 clos (1649 tests verts hôte + 9 frontend, Verdict GO) |
 | Preuve par les faits simulés, traçabilité et intégrité (OASIS post-simulation, ToolShield, ReportClaim) | ✅ fait — Epic 011 clos (1751 tests verts hôte + 9 frontend, Verdict GO) |
 | Fiabilité des acteurs, intégrité des preuves et publication stricte (Fail-Closed, Résolution sans collision) | ✅ fait — Epic 012 clos (1842 tests verts hôte + 9 frontend, Verdict GO) |
-| Benchmark LLM du ReportAgent et régénération non destructive (Replay frozen, profils LLM) | 🏗️ en cours — Epic 013 (Stories 013-1 à 013-4 validées, 013-5 en cours, 1 939 tests verts) |
+| Benchmark LLM du ReportAgent et régénération non destructive (Replay frozen, profils LLM) | 🏗️ en cours — Epic 013 (Stories 013-1 à 013-5 validées, 1 955 tests verts) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -45,7 +45,7 @@ reproductible.**
 > **L'epic 013 (« Benchmark LLM du ReportAgent et régénération non destructive sur simulation existante ») est en cours de développement.**
 > Dossier de plan : [`docs/plans/013-benchmark-llm-report-replay/`](docs/plans/013-benchmark-llm-report-replay/prd.md) (`prd.md`, `architecture.md`, `epic-013.md`, `story-013-1.md` à `story-013-5.md`).
 > Objectif : permettre la régénération de rapports en mode replay à preuves figées (`replay_frozen`), injecter une configuration LLM dédiée par job (`ReportLLMProfile`), isoler chaque génération sous `reports/<report_id>/` sans écrasement destructif, et mener un benchmark A/B rigoureux (notamment `gemini-3.8-flash` en `medium` vs `high` sur le serveur local Antigravity, puis sur OpenCode GO).
-> La story **013-1** (« Configuration LLM dédiée au ReportAgent et support effectif de l'effort ») est validée (`done`, revue BMAD 4 couches, 1 852 tests verts). La story **013-2** (« Mode replay à preuves figées et capture de l'empreinte SHA-256 ») est validée (`done`, revue BMAD 4 couches, 1 869 tests verts sur l'hôte + 9 tests frontend Node). La story **013-3** (« Isolation multi-rapports sous reports/<report_id>/ et API d'historique ») est validée (`done`, revue BMAD 4 couches, 1 881 tests verts sur l'hôte + 9 tests frontend Node). La story **013-4** (« Télémétrie d'usage, mesure des temps et plafonds budgétaires ») est validée (`done`, deux passes de revue BMAD 4 couches, 14 patches appliqués, 1 939 tests verts sur l'hôte + 9 tests frontend Node). La story **013-5** (« Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison ») est rédigée et en cours (`in-progress`) : sélecteur d'historique, dialogue de régénération par `profile_id`, panneau de comparaison avec verdict de comparabilité fondé sur l'empreinte des preuves. Prochaine étape : implémentation de **013-5**, puis benchmark **013-6**.
+> La story **013-1** (« Configuration LLM dédiée au ReportAgent et support effectif de l'effort ») est validée (`done`, revue BMAD 4 couches, 1 852 tests verts). La story **013-2** (« Mode replay à preuves figées et capture de l'empreinte SHA-256 ») est validée (`done`, revue BMAD 4 couches, 1 869 tests verts sur l'hôte + 9 tests frontend Node). La story **013-3** (« Isolation multi-rapports sous reports/<report_id>/ et API d'historique ») est validée (`done`, revue BMAD 4 couches, 1 881 tests verts sur l'hôte + 9 tests frontend Node). La story **013-4** (« Télémétrie d'usage, mesure des temps et plafonds budgétaires ») est validée (`done`, deux passes de revue BMAD 4 couches, 14 patches appliqués, 1 939 tests verts sur l'hôte + 9 tests frontend Node). La story **013-5** (« Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison ») est validée (`done`) : sélecteur d'historique synchronisé à la route `/report/<report_id>`, dialogue de régénération par `profile_id` via un nouveau `GET /api/report/profiles`, panneau de comparaison avec verdict de comparabilité fondé sur l'empreinte SHA-256 des preuves, diff par section, audit téléchargeable par version, bandeau de télémétrie, affichage Fail-Safe des `stop_reason` et des métriques indisponibles. Revue BMAD 4 couches : 9 findings corrigés, dont 2 que **seule la vérification visuelle sur la stack Docker a révélés** (le verdict de comparabilité ne lisait pas la forme de donnée réellement consommée par l'IHM ; le sélecteur de version était emporté par le défilement automatique des journaux). **Divergence assumée et mesurée** : l'empreinte SHA-256 prime sur l'identifiant d'instantané — ce dernier étant un uuid de capture et non une adresse de contenu, la règle littérale de la story aurait déclaré non comparables tous les couples A/B de l'Epic 013 ; la story 013-6 doit s'appuyer sur cette sémantique. Prochaine étape : benchmark **013-6**.
 >
 > **L'epic 001 (« Épreuve Graphiti local ») est intégralement clos avec un VERDICT GO validé.**
 > Les 6 stories ont été menées à bien, testées et revues.
@@ -178,7 +178,7 @@ api/  →  services/  →  utils/
 ### 2.2 Tout code produit est testé
 
 Une fonctionnalité sans test **n'est pas terminée**. Le filet courant du
-16 octobre 2026 compte **1739 tests collectés et réussis sur l'hôte (+ 9 tests frontend Node) ; 1736 réussis + 3 ignorés sous
+20 octobre 2026 compte **1955 tests collectés et réussis sur l'hôte (+ 38 tests frontend Node) ; 1952 réussis + 3 ignorés sous
 Docker** — il doit grossir, jamais rétrécir. Référence post-009-1 : 924 hôte /
 921 + 3 Docker ; post-009-2 : 1112 hôte / 1109 + 3 Docker ; post-009-3 : 1130
 hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
@@ -198,7 +198,12 @@ hôte ; post-009-4 : 1157 hôte (1145 initiaux + 12 tests BMAD) ; post-007-1 :
 **1663** (1649 + 14 tests hermétiques nets, dont maintien en vie interactif OASIS post-rounds, rétablissement interview_agents, clôture différée et 4 patches BMAD) ; post-011-2 :
 **1679** (1663 + 16 tests hermétiques nets, dont registre OasisLogReaderService, EvidencePack, ToolShield, déterminisme nominatif Round 0 et 8 patches BMAD) ; post-011-3 :
 **1696** (1679 + 17 tests hermétiques nets, dont contrat ReportClaim, typage épistémique EpistemicSourceKind, barrière hermétique C5, règle anti-affabulation C4, vérification verbatim et 8 patches BMAD) ; post-011-4 :
-**1719** (1696 + 23 tests hermétiques nets, dont couverture de cohorte, garde-fou d'horizon temporel, neutralisation de métriques fantômes, section limites/objections, règle C7 prioritaire et 5 patches BMAD).
+**1719** (1696 + 23 tests hermétiques nets, dont couverture de cohorte, garde-fou d'horizon temporel, neutralisation de métriques fantômes, section limites/objections, règle C7 prioritaire et 5 patches BMAD) ; post-013-1 :
+**1852** (1719 + 133 tests hermétiques nets, dont profil LLM dédié et effort effectif) ; post-013-2 :
+**1869** (+ 17 tests, instantané de preuves et empreinte SHA-256) ; post-013-3 :
+**1881** (+ 12 tests, isolation multi-rapports et API d'historique) ; post-013-4 :
+**1939** (+ 58 tests, télémétrie d'usage et plafonds budgétaires) ; post-013-5 :
+**1955** (1939 + 16 tests hermétiques, catalogue de profils, empreinte dans l'historique et robustesse face aux rapports corrompus), avec **38 tests Node frontend** (9 i18n + 28 comparaison de rapports + 1 parité des variables `{var}`).
 
 Les 3 tests ignorés sous Docker cherchent le binaire `docker` — absent de
 l'image `backend`, qui n'embarque pas le CLI Docker. Ils sont hermétiques mais
@@ -550,10 +555,12 @@ Variables d'environnement utiles :
 | Store de graphe | `backend/app/utils/graph_store/` | interface `GraphStore`, `GraphitiGraphStore`, `ZepGraphStore`, factory `get_graph_store` |
 | Modèles | `backend/app/models/` | `project.py`, `task.py` |
 | Config | `backend/app/config.py` + `.env` | variables d'env |
-| Tests | `backend/tests/` | pytest — 1431 tests collectés au 12 octobre 2026 (Epic 009 clos, stories 007-1/007-2 `done`) |
+| Tests | `backend/tests/` | pytest — 1955 tests collectés au 20 octobre 2026 (Epic 013 en cours, stories 013-1 à 013-4 `done`, 013-5 `review`) |
 | Simulations | `backend/scripts/` | `run_{parallel,twitter,reddit}_simulation.py` |
 | Outillage | `backend/scripts/validate_plans.py` | validation de la structure de planification |
 | Frontend | `frontend/` | Vue + Vite, proxy `/api` vers 5001 |
+| IHM de rapport (Epic 013) | `frontend/src/components/ReportHistorySelector.vue`, `ReportRegenerateDialog.vue`, `ReportComparisonPanel.vue` | sélecteur de versions, régénération par profil, comparaison factuelle (Step 4) |
+| Fonctions pures de comparaison | `frontend/src/utils/reportComparison.js` | comparabilité, diff par section, honnêteté de l'usage — testable hors navigateur |
 | Locks | `pnpm-lock.yaml`, `frontend/pnpm-lock.yaml`, `backend/uv.lock` | versions figées — ne jamais en réécrire un à la main |
 | Planification | `docs/plans/`, `docs/sprint-status.yaml` | PRD, architecture, epic, stories, suivi |
 | Données d'entrée | `backend/uploads/documents/` | rapport AN n° 2506 — **gitignoré** |
@@ -727,6 +734,8 @@ du gaspillage ; les refaire sans leurs conditions, c'est reproduire leurs bugs.
 | **Un LLM peut renvoyer le fragment de schéma JSON d'un champ au lieu de sa valeur**, et ce fragment est un dictionnaire qui traverse la validation Pydantic (qui ignore l'inconnu) puis devient une propriété. `MiroFishLLMClient._filtrer_champs_valides` l'écarte : sans ce filet, une seule valeur inventée fait échouer tout un épisode | story 007-1 · `tests/test_llm_response_sanitizer.py` |
 | **Les noms réservés par le moteur de graphe doivent être refusés dans une ontologie** : un type nommé `Episodic`, `Community`, `Node` ou `Entity` poserait sur chaque nœud un label indistinguable d'un nœud interne, et la relecture ascendrait des entités comme des épisodes | `RESERVED_ONTOLOGY_TYPE_NAMES` · story 007-1 |
 | `EntityNode.model_fields` est la source de vérité des noms réservés | `attributes`, `created_at`, `group_id`, `labels`, `name`, `name_embedding`, `summary`, `uuid` — mesuré, et un test échoue si la liste `RESERVED_ONTOLOGY_ATTRIBUTE_NAMES` s'en écarte |
+| **L'identifiant d'instantané n'est pas une adresse de contenu** | `snapshot_id = f"snap_{uuid.uuid4().hex[:12]}_{date_suffix}"` — un uuid de *capture*. Deux générations sur les mêmes preuves figées portent **deux identifiants distincts pour la même empreinte SHA-256**. C'est l'empreinte qui prouve l'identité des preuves ; comparer sur l'identifiant rendrait non comparables tous les couples A/B de l'Epic 013 | story 013-2 (`evidence_snapshot_service.py`), story 013-5 § Notes de développement point 10 — mesuré sur deux régénérations réelles (`snap_f0e55dd0b705…` / `snap_a97649816fd4…`, empreinte commune `57127e619a0ebd32…`) |
+| **Un `meta.json` de rapport tronqué faisait échouer tout l'historique** | `ReportManager.get_report` propageait l'exception de parsing JSON, et `list_reports` parcourt *tous* les rapports du disque : un seul fichier corrompu faisait répondre 500 à `GET /api/report/simulation/<sim_id>/history` | story 013-5 — `get_report` renvoie désormais `None` avec un avertissement journalisé |
 
 ---
 

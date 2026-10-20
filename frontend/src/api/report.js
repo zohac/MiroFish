@@ -52,10 +52,12 @@ export const chatWithReport = (data) => {
 
 /**
  * 获取报告质量检测结果 (Story 011-5, FR-09)
+ * Ressource optionnelle : le fichier qualité n'existe qu'une fois la barrière
+ * évaluée, son absence pendant la génération est normale (AC6).
  * @param {string} reportId
  */
 export const getReportQuality = (reportId) => {
-  return service.get(`/api/report/${reportId}/quality`)
+  return service.get(`/api/report/${reportId}/quality`, { suppressErrorLog: true })
 }
 
 /**
@@ -72,4 +74,39 @@ export const getReportAuditDownloadUrl = (reportId) => {
  */
 export const getSimulationAuditDownloadUrl = (simulationId) => {
   return `/api/report/simulation/${simulationId}/audit/download`
+}
+
+/**
+ * Obtenir l'historique complet des rapports d'une simulation (Story 013-3, FR-06)
+ * @param {string} simulationId
+ */
+export const getReportHistory = (simulationId) => {
+  return service.get(`/api/report/simulation/${simulationId}/history`)
+}
+
+/**
+ * Obtenir la télémétrie d'usage d'un rapport (Story 013-4, FR-08)
+ * Ressource optionnelle : un rapport antérieur à la story 013-4 n'a pas
+ * d'usage.json, et son absence est un état normal, pas une erreur (AC6).
+ * @param {string} reportId
+ */
+export const getReportUsage = (reportId) => {
+  return service.get(`/api/report/${reportId}/usage`, { suppressErrorLog: true })
+}
+
+/**
+ * Obtenir le registre des affirmations d'un rapport (Story 013-3, FR-06)
+ * Ressource optionnelle : l'absence de registre est un état normal (AC6).
+ * @param {string} reportId
+ */
+export const getReportClaims = (reportId) => {
+  return service.get(`/api/report/${reportId}/claims`, { suppressErrorLog: true })
+}
+
+/**
+ * Obtenir le catalogue serveur des profils LLM de rapport (Story 013-5, FR-08)
+ * Aucun secret n'est exposé : ce sont des métadonnées de modèle.
+ */
+export const getReportProfiles = () => {
+  return service.get('/api/report/profiles')
 }

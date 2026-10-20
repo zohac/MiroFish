@@ -9,12 +9,24 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from .report_usage import PricingTable
 
 VALID_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
 VALID_BILLING_MODES = {"auto", "free", "metered"}
+
+# Catalogue fermé et explicite des profils LLM de rapport (Story 013-5, FR-08).
+# La liste est figée dans le code : aucune découverte dynamique, afin que le
+# navigateur ne puisse jamais élargir la surface d'exécution par lui-même.
+# L'exhaustivité de ce catalogue est gardée par un test (test_report_profiles_api.py).
+STANDARD_PROFILE_IDS: Tuple[str, ...] = (
+    "flash-medium",
+    "flash-high",
+    "deepseek-v4-pro",
+    "qwen3.8-max",
+    "gpt-6.1-sol",
+)
 
 
 @dataclass(frozen=True)
@@ -133,8 +145,22 @@ class ReportLLMProfile:
         )
 
     @classmethod
-    def get_standard_profile(cls, profile_id: str) -> Optional[ReportLLMProfile]:
-        """Retourne un profil standard par son identifiant."""
+    def standard_profile_ids(cls) -> Tuple[str, ...]:
+        """Retourne les identifiants du catalogue standard, dans un ordre stable.
+
+        Source de vérité unique pour l'endpoint ``GET /api/report/profiles`` et
+        pour le rejet d'un ``profile_id`` inconnu (Story 013-5, AC2).
+        """
+        return STANDARD_PROFILE_IDS
+
+    @classmethod
+    def _build_standard_catalog(cls) -> Dict[str, "ReportLLMProfile"]:
+        """Construit le catalogue standard à la demande.
+
+        La configuration est lue au moment de l'appel (et non figée à
+        l'import) : un test ou un environnement peut ajuster ``LLM_BASE_URL``
+        ou ``LLM_API_KEY`` avant de résoudre un profil.
+        """
         from ..config import Config
 
         base_url = Config.LLM_BASE_URL
@@ -190,4 +216,9 @@ class ReportLLMProfile:
                 billing_mode="metered",
             ),
         }
-        return catalog.get(profile_id)
+        return catalog
+
+    @classmethod
+    def get_standard_profile(cls, profile_id: str) -> Optional[ReportLLMProfile]:
+        """Retourne un profil standard par son identifiant."""
+        return cls._build_standard_catalog().get(profile_id)

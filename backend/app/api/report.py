@@ -93,7 +93,17 @@ def generate_report():
             from ..models.report_llm_profile import ReportLLMProfile
             profile = ReportLLMProfile.get_standard_profile(str(profile_id))
             if not profile:
-                profile = ReportLLMProfile(profile_id=str(profile_id), model=Config.LLM_MODEL_NAME or "gemini-3.8-flash")
+                # Rejet explicite : un repli silencieux sur le modèle global
+                # ferait croire à un benchmark sur un modèle qui n'a jamais
+                # été exécuté (Story 013-5, AC2).
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        f"Unknown report profile '{profile_id}'. "
+                        f"Available profiles: "
+                        f"{', '.join(ReportLLMProfile.standard_profile_ids())}"
+                    ),
+                }), 400
 
         # 获取模拟信息
         manager = SimulationManager()
@@ -1330,6 +1340,82 @@ def download_simulation_audit(simulation_id: str):
 
 
 # ============== Endpoints Multi-rapports et Historique (Story 013-3, FR-06) ==============
+
+@report_bp.route('/profiles', methods=['GET'])
+def list_report_profiles():
+    """Expose le catalogue des profils LLM de rapport (Story 013-5, FR-08, AC2).
+
+    Le catalogue est une liste fermée et ordonnée côté serveur : le navigateur
+    ne reçoit que des métadonnées de modèle (identifiant, modèle, fournisseur,
+    effort, mode de facturation, plafonds). Aucune URL de passerelle, aucune
+    clé d'API, aucun secret ne quitte le serveur (NFR-4).
+
+    Retour :
+        {
+            "success": true,
+            "data": {
+                "profiles": [
+                    {
+                        "profile_id": "flash-high",
+                        "model": "gemini-3.8-flash",
+                        "provider_id": "antigravity-local",
+                        "reasoning_effort": "high",
+                        "billing_mode": "metered",
+                        "max_total_cost_usd": 2.0,
+                        "max_wall_seconds": 900,
+                        "base_url_configured": true
+                    },
+                    ...
+                ],
+                "count": 5
+            }
+        }
+    """
+    try:
+        from ..models.report_llm_profile import ReportLLMProfile
+
+        # Liste blanche stricte : même si la structure du profil évoluait, un
+        # champ non listé ici ne pourrait pas être exposé au navigateur.
+        public_fields = (
+            "profile_id",
+            "model",
+            "provider_id",
+            "reasoning_effort",
+            "temperature",
+            "max_tokens",
+            "max_total_cost_usd",
+            "max_wall_seconds",
+            "billing_mode",
+        )
+
+        profiles = []
+        for profile_id in ReportLLMProfile.standard_profile_ids():
+            profile = ReportLLMProfile.get_standard_profile(profile_id)
+            if profile is None:
+                continue
+            raw = profile.to_dict()
+            entry = {field: raw.get(field) for field in public_fields}
+            entry["base_url_configured"] = bool(raw.get("base_url_configured"))
+            profiles.append(entry)
+
+        # Ordre déterministe par identifiant : deux appels rendent la même
+        # liste, dans le même ordre, quelle que soit la configuration.
+        profiles.sort(key=lambda item: str(item.get("profile_id") or ""))
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "profiles": profiles,
+                "count": len(profiles),
+            },
+        })
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du catalogue de profils LLM: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": "Impossible de restituer le catalogue de profils LLM",
+        }), 500
+
 
 @report_bp.route('/simulation/<simulation_id>/history', methods=['GET'])
 def get_simulation_report_history(simulation_id: str):

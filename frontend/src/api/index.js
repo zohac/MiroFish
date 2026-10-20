@@ -29,15 +29,23 @@ service.interceptors.response.use(
     
     // 如果返回的状态码不是success，则抛出错误
     if (!res.success && res.success !== undefined) {
-      console.error('API Error:', res.error || res.message || 'Unknown error')
+      // Une ressource optionnelle (404 = « absent », pas « cassé ») peut
+      // demander le silence : le journal doit rester un signal, pas du bruit
+      // (Story 013-5, AC6).
+      if (!response.config?.suppressErrorLog) {
+        console.error('API Error:', res.error || res.message || 'Unknown error')
+      }
       return Promise.reject(new Error(res.error || res.message || 'Error'))
     }
     
     return res
   },
   error => {
-    console.error('Response error:', error)
     const apiError = error.response?.data?.error || error.response?.data?.message
+
+    if (!error.config?.suppressErrorLog) {
+      console.error('Response error:', error)
+    }
     
     // 处理超时
     if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
