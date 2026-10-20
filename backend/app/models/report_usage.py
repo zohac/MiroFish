@@ -324,10 +324,19 @@ class CallUsageRecord:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     thinking_tokens: int = 0
+    # Tokens servis depuis le cache du fournisseur, comptés à part du prompt
+    # (Story 013-6, tâche 1). 0 signifie « aucun cache déclaré » : c'est une
+    # mesure, pas une absence de donnée, et l'usage reste marqué indisponible
+    # si le fournisseur n'a rien renvoyé du tout.
+    cached_tokens: int = 0
     total_tokens: int = 0
     duration_seconds: float = 0.0
     estimated_cost_usd: Optional[float] = None
     usage_available: bool = True
+    # Motif de fin d'appel tel que l'a déclaré le fournisseur (``stop``,
+    # ``length``, ``content_filter``...). ``None`` quand le fournisseur ne le
+    # fournit pas : la valeur est alors « indisponible », jamais devinée.
+    finish_reason: Optional[str] = None
     recorded_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -341,10 +350,12 @@ class CallUsageRecord:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "thinking_tokens": self.thinking_tokens,
+            "cached_tokens": self.cached_tokens,
             "total_tokens": self.total_tokens,
             "duration_seconds": round(float(self.duration_seconds or 0.0), 4),
             "estimated_cost_usd": self.estimated_cost_usd,
             "usage_available": bool(self.usage_available),
+            "finish_reason": self.finish_reason,
             "recorded_at": self.recorded_at,
         }
 
@@ -364,10 +375,16 @@ class CallUsageRecord:
             prompt_tokens=_as_non_negative_int(data.get("prompt_tokens")),
             completion_tokens=_as_non_negative_int(data.get("completion_tokens")),
             thinking_tokens=_as_non_negative_int(data.get("thinking_tokens")),
+            cached_tokens=_as_non_negative_int(data.get("cached_tokens")),
             total_tokens=_as_non_negative_int(data.get("total_tokens")),
             duration_seconds=_as_float_or_none(data.get("duration_seconds")) or 0.0,
             estimated_cost_usd=_as_float_or_none(data.get("estimated_cost_usd")),
             usage_available=bool(data.get("usage_available", True)),
+            finish_reason=(
+                str(data.get("finish_reason"))
+                if data.get("finish_reason") is not None
+                else None
+            ),
             recorded_at=str(
                 data.get("recorded_at") or datetime.utcnow().isoformat() + "Z"
             ),
@@ -388,6 +405,7 @@ class ReportUsageMetrics:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     thinking_tokens: int = 0
+    cached_tokens: int = 0
     total_tokens: int = 0
     duration_seconds: float = 0.0
     wall_seconds: float = 0.0
@@ -423,6 +441,7 @@ class ReportUsageMetrics:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "thinking_tokens": self.thinking_tokens,
+            "cached_tokens": self.cached_tokens,
             "total_tokens": self.total_tokens,
             "duration_seconds": round(float(self.duration_seconds or 0.0), 4),
             "wall_seconds": round(float(self.wall_seconds or 0.0), 4),
@@ -473,6 +492,7 @@ class ReportUsageMetrics:
                     "thinking_tokens": _as_non_negative_int(
                         totals.get("thinking_tokens")
                     ),
+                    "cached_tokens": _as_non_negative_int(totals.get("cached_tokens")),
                     "total_tokens": _as_non_negative_int(totals.get("total_tokens")),
                     "calls_count": _as_non_negative_int(totals.get("calls_count")),
                 }
@@ -489,6 +509,7 @@ class ReportUsageMetrics:
             prompt_tokens=_as_non_negative_int(data.get("prompt_tokens")),
             completion_tokens=_as_non_negative_int(data.get("completion_tokens")),
             thinking_tokens=_as_non_negative_int(data.get("thinking_tokens")),
+            cached_tokens=_as_non_negative_int(data.get("cached_tokens")),
             total_tokens=_as_non_negative_int(data.get("total_tokens")),
             duration_seconds=_as_float_or_none(data.get("duration_seconds")) or 0.0,
             wall_seconds=_as_float_or_none(data.get("wall_seconds")) or 0.0,
@@ -524,6 +545,7 @@ class ReportUsageMetrics:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "thinking_tokens": self.thinking_tokens,
+            "cached_tokens": self.cached_tokens,
             "total_tokens": self.total_tokens,
             "duration_seconds": round(float(self.duration_seconds or 0.0), 4),
             "wall_seconds": round(float(self.wall_seconds or 0.0), 4),

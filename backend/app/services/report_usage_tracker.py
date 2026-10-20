@@ -83,6 +83,23 @@ def _safe_str(value: Any) -> Optional[str]:
     return None
 
 
+def normalize_finish_reason(value: Any) -> Optional[str]:
+    """Normalise un motif de fin d'appel fourni par le fournisseur.
+
+    Le SDK OpenAI expose ``finish_reason`` comme une énumération de chaînes
+    (``"stop"``, ``"length"``, ``"content_filter"``...). On en garde la valeur
+    textuelle ; une valeur absente ou vide devient ``None``, c'est-à-dire
+    « indisponible » — jamais une valeur devinée (Story 013-6, AC8).
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    raw = getattr(value, "value", value)
+    if not isinstance(raw, str):
+        raw = str(raw)
+    cleaned = raw.strip()
+    return cleaned or None
+
+
 def _safe_float(value: Any) -> Optional[float]:
     """Retourne un nombre réel fini, sinon ``None``."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -129,8 +146,9 @@ def extract_usage_counts(usage: Any) -> Dict[str, Any]:
     """Extrait défensivement tokens et disponibilité d'un objet ``usage``.
 
     Retourne un dictionnaire avec ``usage_available``, ``prompt_tokens``,
-    ``completion_tokens``, ``thinking_tokens`` et ``total_tokens``. Aucune
-    exception n'est levée pour un objet partiel ou absent (AT-12).
+    ``completion_tokens``, ``thinking_tokens``, ``cached_tokens`` et
+    ``total_tokens``. Aucune exception n'est levée pour un objet partiel ou
+    absent (AT-12).
     """
     if usage is None:
         return {
@@ -138,6 +156,7 @@ def extract_usage_counts(usage: Any) -> Dict[str, Any]:
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "thinking_tokens": 0,
+            "cached_tokens": 0,
             "total_tokens": 0,
         }
 
@@ -162,6 +181,7 @@ def extract_usage_counts(usage: Any) -> Dict[str, Any]:
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "thinking_tokens": 0,
+            "cached_tokens": 0,
             "total_tokens": 0,
         }
 
@@ -180,6 +200,22 @@ def extract_usage_counts(usage: Any) -> Dict[str, Any]:
         if details is not None:
             thinking = _to_int(_usage_field(details, "reasoning_tokens"))
 
+    # Tokens servis depuis le cache du fournisseur. L'API OpenAI-compatible
+    # les expose dans ``prompt_tokens_details.cached_tokens`` ; certaines
+    # passerelles les remontent à plat, ou sous le nom ``cache_read_tokens``.
+    cached = 0
+    for holder, field_name in (
+        (_usage_field(usage, "prompt_tokens_details"), "cached_tokens"),
+        (_usage_field(usage, "input_tokens_details"), "cached_tokens"),
+        (usage, "cached_tokens"),
+        (usage, "cache_read_input_tokens"),
+    ):
+        if holder is None:
+            continue
+        cached = _to_int(_usage_field(holder, field_name))
+        if cached:
+            break
+
     if total == 0:
         total = prompt + completion
 
@@ -188,6 +224,7 @@ def extract_usage_counts(usage: Any) -> Dict[str, Any]:
         "prompt_tokens": prompt,
         "completion_tokens": completion,
         "thinking_tokens": thinking,
+        "cached_tokens": cached,
         "total_tokens": total,
     }
 
@@ -313,9 +350,11 @@ class ReportUsageTracker:
         phase: Optional[str] = None,
         reasoning_effort_requested: Optional[str] = None,
         reasoning_effort_effective: Optional[str] = None,
+        finish_reason: Optional[str] = None,
     ) -> CallUsageRecord:
         """Enregistre un appel LLM et met à jour les cumuls du job."""
         counts = extract_usage_counts(usage)
+        clean_finish_reason = normalize_finish_reason(finish_reason)
         resolved_model = str(model or self.model or "")
         resolved_provider = provider_id or self.provider_id
         requested_effort = (
@@ -375,10 +414,12 @@ class ReportUsageTracker:
             prompt_tokens=counts["prompt_tokens"],
             completion_tokens=counts["completion_tokens"],
             thinking_tokens=counts["thinking_tokens"],
+            cached_tokens=counts["cached_tokens"],
             total_tokens=counts["total_tokens"],
             duration_seconds=max(0.0, float(duration_seconds or 0.0)),
             estimated_cost_usd=cost,
             usage_available=bool(counts["usage_available"]),
+            finish_reason=clean_finish_reason,
         )
         self._calls.append(record)
 
@@ -389,6 +430,7 @@ class ReportUsageTracker:
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
                 "thinking_tokens": 0,
+                "cached_tokens": 0,
                 "total_tokens": 0,
                 "calls_count": 0,
             },
@@ -396,6 +438,7 @@ class ReportUsageTracker:
         totals["prompt_tokens"] += record.prompt_tokens
         totals["completion_tokens"] += record.completion_tokens
         totals["thinking_tokens"] += record.thinking_tokens
+        totals["cached_tokens"] += record.cached_tokens
         totals["total_tokens"] += record.total_tokens
         totals["calls_count"] += 1
 
@@ -413,6 +456,7 @@ class ReportUsageTracker:
         model: Optional[str] = None,
         duration_seconds: float = 0.0,
         reasoning_effort: Optional[str] = None,
+        finish_reason: Optional[str] = None,
         **kwargs: Any,
     ) -> Optional[CallUsageRecord]:
         """Callback branché sur ``LLMClient.usage_callback``.
@@ -428,6 +472,7 @@ class ReportUsageTracker:
                 model=model,
                 duration_seconds=duration_seconds,
                 reasoning_effort_requested=reasoning_effort,
+                finish_reason=finish_reason,
             )
         except Exception as error:  # pragma: no cover - barrière défensive
             logger.warning("Échec non bloquant de la télémétrie d'usage : %s", error)
@@ -438,6 +483,7 @@ class ReportUsageTracker:
                     model=model,
                     duration_seconds=duration_seconds,
                     reasoning_effort=reasoning_effort,
+                    finish_reason=finish_reason,
                     **kwargs,
                 )
             except Exception as error:  # pragma: no cover - callback tiers
@@ -493,6 +539,20 @@ class ReportUsageTracker:
     @property
     def thinking_tokens(self) -> int:
         return sum(call.thinking_tokens for call in self._calls)
+
+    @property
+    def cached_tokens(self) -> int:
+        return sum(call.cached_tokens for call in self._calls)
+
+    @property
+    def finish_reasons(self) -> List[str]:
+        """Motifs de fin d'appel distincts, dans l'ordre d'apparition."""
+        seen: List[str] = []
+        for call in self._calls:
+            reason = call.finish_reason
+            if reason and reason not in seen:
+                seen.append(reason)
+        return seen
 
     @property
     def known_cost_usd(self) -> float:
@@ -588,6 +648,7 @@ class ReportUsageTracker:
             prompt_tokens=self.prompt_tokens,
             completion_tokens=self.completion_tokens,
             thinking_tokens=self.thinking_tokens,
+            cached_tokens=self.cached_tokens,
             total_tokens=self.total_tokens,
             duration_seconds=round(
                 sum(max(0.0, call.duration_seconds) for call in self._calls), 4

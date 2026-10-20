@@ -870,7 +870,9 @@ class TestReportAgentUsageIntegration:
         assert agent.usage_tracker.profile is not None
         assert agent.usage_tracker.profile.profile_id == "env-default"
         assert agent.budget_guard.max_total_cost_usd == pytest.approx(2.0)
-        assert agent.budget_guard.max_wall_seconds == pytest.approx(900)
+        # Plafond mural relevé de 900 à 5 400 s le 20 octobre 2026 : mesuré sur
+        # R7, la variante `high` demande ~4 500 s (story 013-6).
+        assert agent.budget_guard.max_wall_seconds == pytest.approx(5400)
 
     def test_tools_receive_the_profiled_llm_client(self, tmp_path, monkeypatch):
         monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
@@ -1349,3 +1351,181 @@ def test_sanitizer_is_recursive_and_key_aware():
         "usage": {"total_tokens": 10, "nested": [{}, {"safe": 1}]},
         "label": "ok",
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Story 013-6 — extension de la télémétrie : cache et motif de fin d'appel
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestTelemetryCacheAndFinishReason:
+    """Le cache et le motif de fin d'appel sont comptabilisés par appel."""
+
+    def test_call_usage_record_expose_le_cache_et_le_motif_de_fin(self):
+        record = CallUsageRecord(
+            call_index=1,
+            phase="sections",
+            model="gemini-3.8-flash",
+            prompt_tokens=100,
+            completion_tokens=50,
+            thinking_tokens=20,
+            cached_tokens=30,
+            total_tokens=150,
+            finish_reason="stop",
+        )
+        payload = record.to_dict()
+        assert payload["cached_tokens"] == 30
+        assert payload["finish_reason"] == "stop"
+        relu = CallUsageRecord.from_dict(payload)
+        assert relu.cached_tokens == 30
+        assert relu.finish_reason == "stop"
+
+    def test_ancien_enregistrement_sans_nouveaux_champs_reste_lisible(self):
+        """Un ``usage.json`` antérieur à l'extension reste désérialisable."""
+        relu = CallUsageRecord.from_dict(
+            {
+                "call_index": 1,
+                "phase": "sections",
+                "model": "gemini-3.8-flash",
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+            }
+        )
+        assert relu.cached_tokens == 0
+        assert relu.finish_reason is None
+
+    def test_tokens_de_cache_extraits_du_detail_prompt(self):
+        usage = SimpleNamespace(
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            prompt_tokens_details=SimpleNamespace(cached_tokens=40),
+        )
+        counts = extract_usage_counts(usage)
+        assert counts["cached_tokens"] == 40
+        assert counts["usage_available"] is True
+
+    def test_tokens_de_cache_remontes_a_plat_sont_examines(self):
+        usage = SimpleNamespace(
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            cached_tokens=12,
+        )
+        assert extract_usage_counts(usage)["cached_tokens"] == 12
+
+    def test_tokens_de_cache_absents_vautent_zero(self):
+        """Aucune information de cache : la mesure vaut 0, pas « inconnue »."""
+        assert extract_usage_counts(_usage())["cached_tokens"] == 0
+
+    def test_usage_absente_ne_declenche_aucune_erreur(self):
+        counts = extract_usage_counts(None)
+        assert counts["usage_available"] is False
+        assert counts["cached_tokens"] == 0
+
+    def test_motif_de_fin_absent_reste_inconnu(self):
+        tracker = ReportUsageTracker(report_id="report_test")
+        tracker.begin("report_test")
+        record = tracker.record_call(usage=_usage(), model="gemini-3.8-flash")
+        assert record.finish_reason is None
+
+    def test_motif_de_fin_normalise(self):
+        tracker = ReportUsageTracker(report_id="report_test")
+        tracker.begin("report_test")
+        record = tracker.record_call(
+            usage=_usage(),
+            model="gemini-3.8-flash",
+            finish_reason="  length  ",
+        )
+        assert record.finish_reason == "length"
+
+    def test_agregat_compte_les_tokens_de_cache(self):
+        tracker = ReportUsageTracker(report_id="report_test")
+        tracker.begin("report_test")
+        tracker.record_call(
+            usage=SimpleNamespace(
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+                prompt_tokens_details=SimpleNamespace(cached_tokens=40),
+            ),
+            model="gemini-3.8-flash",
+        )
+        tracker.record_call(
+            usage=SimpleNamespace(
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+                prompt_tokens_details=SimpleNamespace(cached_tokens=10),
+            ),
+            model="gemini-3.8-flash",
+        )
+        metrics = tracker.build_metrics()
+        assert metrics.cached_tokens == 50
+        assert metrics.summary()["cached_tokens"] == 50
+
+    def test_motifs_de_fin_distincts_sont_listes(self):
+        tracker = ReportUsageTracker(report_id="report_test")
+        tracker.begin("report_test")
+        tracker.record_call(usage=_usage(), finish_reason="stop")
+        tracker.record_call(usage=_usage(), finish_reason="length")
+        tracker.record_call(usage=_usage(), finish_reason="stop")
+        assert tracker.finish_reasons == ["stop", "length"]
+
+    def test_client_llm_transmet_le_motif_de_fin(self):
+        """Le client LLM joint le motif de fin d'appel au callback de télémétrie."""
+        seen = []
+
+        fake_response = SimpleNamespace(
+            usage=_usage(),
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content="ok"), finish_reason="length"
+                )
+            ],
+        )
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion",
+            return_value=fake_response,
+        ):
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+                usage_callback=lambda **kwargs: seen.append(kwargs),
+            )
+            client._create_completion(
+                messages=[{"role": "user", "content": "ping"}],
+                temperature=0.0,
+                max_tokens=16,
+                response_format=None,
+            )
+
+        assert len(seen) == 1
+        assert seen[0]["finish_reason"] == "length"
+
+    def test_client_llm_sans_choix_ne_transmet_aucun_motif(self):
+        """Une réponse sans choix ne produit pas de motif deviné."""
+        seen = []
+        fake_response = SimpleNamespace(usage=None, choices=[])
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion",
+            return_value=fake_response,
+        ):
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+                usage_callback=lambda **kwargs: seen.append(kwargs),
+            )
+            client._create_completion(
+                messages=[],
+                temperature=0.0,
+                max_tokens=8,
+                response_format=None,
+            )
+
+        assert len(seen) == 1
+        assert seen[0]["finish_reason"] is None
+

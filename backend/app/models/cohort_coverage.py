@@ -486,6 +486,12 @@ class CohortCoverageTable:
             "silent_members": self.silent_members,
             "status_summary": self.status_summary,
             "adoption_rate": self.adoption_rate,
+            # Dénominateur du taux d'adoption, publié explicitement :
+            # `adoption_rate` vaut 0.0 quand aucun prospect n'est éligible, ce
+            # qui est un « non applicable » sérialisé en zéro. Sans le
+            # dénominateur, un taux de 0 % et un taux indéfini sont
+            # indiscernables pour le lecteur (story 013-6, revue BMAD).
+            "adoption_denominator": len(self.prospect_members),
             "members": [m.to_dict() for m in self.members],
         }
 

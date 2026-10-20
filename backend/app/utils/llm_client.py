@@ -177,6 +177,11 @@ class LLMClient:
         self.last_response = resp
         self.last_usage = getattr(resp, "usage", None)
 
+        # Motif de fin d'appel tel que l'a déclaré le fournisseur : il renseigne
+        # sur une troncature (« length ») ou un filtrage (« content_filter »),
+        # que le seul volume de tokens ne révèle pas (Story 013-6, tâche 1).
+        finish_reason = self._extract_finish_reason(resp)
+
         # Télémétrie d'usage (Story 013-4). Le callback ne doit jamais casser la
         # requête LLM : une défaillance de mesure est journalisée et ignorée.
         callback = getattr(self, "usage_callback", None)
@@ -187,6 +192,7 @@ class LLMClient:
                     model=self.model,
                     duration_seconds=duration_seconds,
                     reasoning_effort=effort,
+                    finish_reason=finish_reason,
                 )
             except Exception as telemetry_error:  # pragma: no cover - défensif
                 logger.warning(
@@ -194,6 +200,24 @@ class LLMClient:
                     telemetry_error,
                 )
         return resp
+
+    @staticmethod
+    def _extract_finish_reason(response: Any) -> Optional[str]:
+        """Extrait le motif de fin du premier choix, sans jamais lever."""
+        try:
+            choices = getattr(response, "choices", None) or []
+            if not choices:
+                return None
+            raw = getattr(choices[0], "finish_reason", None)
+            if raw is None and isinstance(choices[0], dict):
+                raw = choices[0].get("finish_reason")
+            if raw is None:
+                return None
+            value = getattr(raw, "value", raw)
+            text = str(value).strip()
+            return text or None
+        except Exception:  # pragma: no cover - réponse exotique
+            return None
     
     def chat(
         self,

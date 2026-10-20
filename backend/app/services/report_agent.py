@@ -3689,6 +3689,17 @@ class ReportManager:
         return os.path.join(cls._get_reports_dir(), report_id)
     
     @classmethod
+    def get_report_folder(cls, report_id: str) -> str:
+        """Chemin du dossier d'un rapport — accesseur public.
+
+        L'emplacement du dossier d'un rapport fait partie du contrat de
+        stockage (isolation multi-rapports de la story 013-3) : il ne doit pas
+        obliger les appelants à passer par un membre privé (story 013-6,
+        revue BMAD).
+        """
+        return cls._get_report_folder(report_id)
+    
+    @classmethod
     def _ensure_report_folder(cls, report_id: str) -> str:
         """确保报告文件夹存在并返回路径"""
         folder = cls._get_report_folder(report_id)

@@ -42,7 +42,15 @@ class ReportLLMProfile:
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     max_total_cost_usd: float = 2.0
-    max_wall_seconds: int = 900
+    # Plafond mural par défaut. Mesuré le 20 octobre 2026 sur la simulation R7
+    # (`sim_80a54d7bbd7b`, 5 sections, boucle ReACT, passerelle Antigravity
+    # locale) : la variante `medium` demande ~1 270 s, la variante `high` (plus
+    # de tokens de raisonnement) ~3,5 fois plus, soit ~4 500 s. Un plafond de
+    # 900 s tronquait la variante `high` dès la deuxième section, et un
+    # plafond de 1 800 s la tronquait encore en section 3 sur 5. 5 400 s
+    # laisse la marge nécessaire tout en bornant effectivement la génération
+    # (story 013-6, campagne de qualification).
+    max_wall_seconds: int = 5400
     billing_mode: str = "auto"
 
     def __post_init__(self) -> None:
