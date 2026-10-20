@@ -383,7 +383,24 @@
     "stopReasonTimeout": "Délai maximal dépassé",
     "stopReasonPricingUnavailable": "Tarif indisponible : coût non comparable",
     "stopReasonStopped": "Arrêt contrôlé",
-    "stopReasonUnknown": "Motif d'arrêt inconnu"
+    "stopReasonUnknown": "Motif d'arrêt inconnu",
+    "publishableYes": "Publiable",
+    "publishableNo": "Non publiable",
+    "metricPublishable": "Publiabilité",
+    "metricUnsupportedClaims": "Affirmations non vérifiées",
+    "metricContradictedClaims": "Affirmations contradictoires",
+    "metricVerificationRatio": "Taux de vérification",
+    "comparisonAuditUnavailable": "Archive d'audit indisponible pour cette version.",
+    "statusCompleted": "Terminé",
+    "statusFailed": "Échec",
+    "statusFailedValidation": "Validation refusée",
+    "statusPending": "En attente",
+    "statusPlanning": "Planification",
+    "statusGenerating": "Génération en cours",
+    "statusStopped": "Arrêté",
+    "statusInProgress": "En cours",
+    "statusUnknown": "Statut inconnu"
+
   },
   "step5": {
     "interactiveTools": "Outils interactifs",

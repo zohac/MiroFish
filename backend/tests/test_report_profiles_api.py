@@ -200,6 +200,155 @@ class TestGenerateProfileValidation:
         assert "Unknown report profile" not in res.get_json()["error"]
 
 
+class TestInlineProfileIsAlignedOnTheCatalogue:
+    """Le chemin client ne peut ni désigner la destination, ni désarmer les garde-fous."""
+
+    def test_inline_profile_cannot_set_a_base_url(self, client):
+        """NFR-4 : le navigateur ne désigne pas la passerelle qui reçoit les preuves."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "llm_profile": {
+                    "model": "gemini-3.8-flash",
+                    "base_url": "https://attaquant.invalid/v1",
+                },
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "base_url" in res.get_json()["error"]
+
+    def test_inline_profile_cannot_set_an_api_key(self, client):
+        """NFR-4 : le navigateur n'injecte pas de clé d'API."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "llm_profile": {
+                    "model": "gemini-3.8-flash",
+                    "api_key": "sk-injectee-par-le-navigateur",
+                },
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "api_key" in res.get_json()["error"]
+
+    def test_inline_profile_cannot_downgrade_the_billing_mode(self, client):
+        """Story 013-4 : `free` désarmerait le Fail-Closed tarifaire."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "llm_profile": {
+                    "model": "gemini-3.8-flash",
+                    "billing_mode": "free",
+                },
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "billing_mode" in res.get_json()["error"]
+
+    def test_inline_profile_cannot_use_a_model_outside_the_catalogue(self, client):
+        """Le catalogue est fermé : un modèle inconnu n'est pas exécutable."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "llm_profile": {"model": "modele-hors-catalogue"},
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "catalogue" in res.get_json()["error"]
+
+    def test_inline_profile_cannot_raise_the_budget_caps(self, client):
+        """Le plafond du catalogue n'est pas relevable par le navigateur."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "llm_profile": {
+                    "model": "gemini-3.8-flash",
+                    "max_total_cost_usd": 500.0,
+                    "max_wall_seconds": 99999,
+                },
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        error = res.get_json()["error"]
+        assert "max_total_cost_usd" in error or "max_wall_seconds" in error
+
+    def test_inline_profile_derives_its_identifier_from_model_and_effort(self, client):
+        """Le libellé du profil ne peut pas mentir sur l'effort retenu."""
+        profile = ReportLLMProfile.from_client({
+            "profile_id": "flash-high",
+            "model": "gemini-3.8-flash",
+            "reasoning_effort": "medium",
+        })
+        assert profile.profile_id == "flash-medium"
+        assert profile.reasoning_effort == "medium"
+
+    def test_inline_profile_keeps_the_catalogue_billing_mode(self, client):
+        """Un profil client valide conserve le Fail-Closed tarifaire."""
+        profile = ReportLLMProfile.from_client({
+            "model": "gemini-3.8-flash",
+            "reasoning_effort": "high",
+        })
+        assert profile.billing_mode == "metered"
+        assert profile.base_url is None
+        assert profile.api_key is None
+
+    def test_unknown_profile_is_rejected_even_with_an_inline_profile(self, client):
+        """Le garde-fou du profile_id ne s'efface pas devant un corps inline."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "profile_id": "profil-inexistant",
+                "llm_profile": {"model": "gemini-3.8-flash"},
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "profil-inexistant" in res.get_json()["error"]
+
+    def test_profile_id_and_inline_profile_are_mutually_exclusive(self, client):
+        """Deux voies de sélection concurrentes sont refusées, pas arbitrées en silence."""
+        res = client.post(
+            "/api/report/generate",
+            json={
+                "simulation_id": "sim_inconnue",
+                "profile_id": "flash-high",
+                "llm_profile": {"model": "gemini-3.8-flash"},
+                "force_regenerate": True,
+            },
+        )
+        assert res.status_code == 400
+        assert "pas les deux" in res.get_json()["error"]
+
+
+class TestGatewayAlias:
+    """`provider_id` désigne la passerelle qui a servi, pas l'éditeur du modèle."""
+
+    def test_alias_follows_the_configured_gateway(self):
+        """Tous les profils standard partagent la même passerelle."""
+        assert ReportLLMProfile.gateway_alias("http://127.0.0.1:18081/v1") == "antigravity-local"
+        assert ReportLLMProfile.gateway_alias("http://127.0.0.1:18080/v1") == "codex-local"
+        assert ReportLLMProfile.gateway_alias("https://opencode.ai/v1") == "opencode-go"
+        assert ReportLLMProfile.gateway_alias("https://autre.invalid/v1") == "custom"
+        assert ReportLLMProfile.gateway_alias(None) == "custom"
+
+    def test_every_profile_reports_the_same_gateway(self, app, monkeypatch):
+        """Un modèle servi par Antigravity ne s'annonce pas « opencode-go »."""
+        monkeypatch.setattr(Config, "LLM_BASE_URL", "http://127.0.0.1:18081/v1")
+        catalog = ReportLLMProfile._build_standard_catalog()
+        assert {profile.provider_id for profile in catalog.values()} == {"antigravity-local"}
+
+
 class TestHistoryExposesEvidenceFingerprint:
     """L'historique porte l'empreinte des preuves figées (AC3)."""
 
@@ -329,6 +478,103 @@ class TestRobustnessAgainstCorruptReports:
             handle.write("{ truncated")
 
         assert ReportManager.get_report("report_casse") is None
+
+    def test_indexed_corrupt_report_is_excluded_from_the_history(
+        self, client, tmp_path, monkeypatch
+    ):
+        """Un rapport corrompu **indexé** ne doit pas rester dans l'historique.
+
+        Le cas réel du diff : un `meta.json` tronqué laissé dans l'index de
+        `report_history.json`. Conserver l'entrée exposait une version que
+        l'IHM ne pouvait pas ouvrir (404) et dont l'empreinte périmée pouvait
+        fonder un verdict de « comparaison contrôlée » contre un rapport sans
+        contenu.
+        """
+        monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+        sim_id = "sim_index_corrompu"
+        _ensure_simulation_dir(sim_id)
+
+        corrupt_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", "report_casse")
+        os.makedirs(corrupt_dir, exist_ok=True)
+        with open(os.path.join(corrupt_dir, "meta.json"), "w", encoding="utf-8") as handle:
+            handle.write('{"report_id": "report_casse", "profile_id": ')
+
+        ReportManager._append_to_history(sim_id, {
+            "report_id": "report_casse",
+            "simulation_id": sim_id,
+            "created_at": "2026-10-19T07:00:00",
+            "status": "completed",
+            "evidence_snapshot_id": "snap_x",
+            "evidence_snapshot_sha256": "a" * 64,
+        })
+
+        res = client.get(f"/api/report/simulation/{sim_id}/history")
+        assert res.status_code == 200
+        entries = res.get_json()["data"]["reports"]
+        assert "report_casse" not in [entry["report_id"] for entry in entries]
+
+    def test_report_with_a_broken_outline_stays_readable(self, tmp_path, monkeypatch):
+        """Un plan illisible ne doit pas faire perdre le rapport.
+
+        Le Markdown est intact sur disque et sert la comparaison : perdre le
+        rapport sur un plan dégradé revenait à retirer une version de
+        l'historique.
+        """
+        monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+        report_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", "report_plan")
+        os.makedirs(report_dir, exist_ok=True)
+        with open(os.path.join(report_dir, "meta.json"), "w", encoding="utf-8") as handle:
+            json.dump({
+                "report_id": "report_plan",
+                "simulation_id": "sim_x",
+                "status": "completed",
+                "outline": {"title": "Plan", "sections": []},  # pas de `summary`
+                "markdown_content": "# Rapport\n\nContenu intact\n",
+            }, handle)
+
+        report = ReportManager.get_report("report_plan")
+        assert report is not None
+        assert "Contenu intact" in report.markdown_content
+        assert report.outline is not None
+        assert report.outline.summary == ""
+
+    def test_history_entry_reports_audit_availability(self, client, tmp_path, monkeypatch):
+        """L'IHM ne doit pas proposer un lien d'audit qui mène à un 404."""
+        monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+        sim_id = "sim_audit"
+        snapshot = {
+            "snapshot_id": "snap_audit",
+            "simulation_id": sim_id,
+            "sha256_hash": "c" * 64,
+            "file_hashes": {},
+            "total_events": 1,
+            "total_actors": 1,
+            "has_archived_interviews": False,
+            "created_at": "2026-10-19T07:00:00Z",
+        }
+        report = _create_report("report_sans_audit", sim_id, snapshot, "2026-10-19T07:00:00Z")
+        ReportManager.save_report(report)
+        _ensure_simulation_dir(sim_id)
+
+        res = client.get(f"/api/report/simulation/{sim_id}/history")
+        assert res.status_code == 200
+        entries = res.get_json()["data"]["reports"]
+        entry = next(item for item in entries if item["report_id"] == "report_sans_audit")
+        assert entry["audit_available"] is False
+
+        archive = os.path.join(
+            Config.UPLOAD_FOLDER,
+            "reports",
+            "report_sans_audit",
+            "simulation_audit_report_sans_audit.zip",
+        )
+        with open(archive, "wb") as handle:
+            handle.write(b"PK\x03\x04")
+
+        res = client.get(f"/api/report/simulation/{sim_id}/history")
+        entries = res.get_json()["data"]["reports"]
+        entry = next(item for item in entries if item["report_id"] == "report_sans_audit")
+        assert entry["audit_available"] is True
 
     def test_report_with_invalid_status_is_skipped(self, tmp_path, monkeypatch):
         """AC6 : un statut inconnu n'interrompt pas la lecture."""

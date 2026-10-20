@@ -26,8 +26,13 @@
 
     <p v-else-if="sortedReports.length === 0" class="history-hint">{{ $t('step4.historyEmpty') }}</p>
 
-    <ul v-else class="history-list">
-      <li v-for="entry in sortedReports" :key="entry.report_id" class="history-item">
+    <ul v-else ref="listElement" class="history-list">
+      <li
+        v-for="entry in sortedReports"
+        :key="entry.report_id"
+        class="history-item"
+        :class="{ 'is-current': entry.report_id === currentReportId }"
+      >
         <button
           type="button"
           class="history-entry"
@@ -56,8 +61,11 @@
             >
               {{ publicationLabel(entry.publication_status) }}
             </span>
-            <span v-else-if="entry.status" class="entry-badge entry-badge--plain">
-              {{ entry.status }}
+            <span
+              v-else-if="entry.status"
+              class="entry-badge entry-badge--plain"
+            >
+              {{ statusLabel(entry.status) }}
             </span>
           </span>
         </button>
@@ -67,7 +75,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
 import { isRunningReport, shortReportId, sortReportHistory } from '../utils/reportComparison.js'
@@ -83,6 +91,8 @@ const emit = defineEmits(['select', 'refresh'])
 
 const { t } = useI18n()
 const { formatDateTime } = useRegionalFormat()
+
+const listElement = ref(null)
 
 const sortedReports = computed(() => sortReportHistory(props.reports))
 
@@ -111,6 +121,42 @@ const publicationLabel = (status) => {
   if (normalized === 'draft') return t('step4.publicationDraft')
   return normalized
 }
+
+// Le statut brut est un identifiant technique (« completed », « failed ») :
+// l'afficher tel quel laisserait un résidu anglais dans une interface
+// trilingue (Story 013-5, AC5).
+const STATUS_I18N_KEYS = {
+  completed: 'step4.statusCompleted',
+  failed: 'step4.statusFailed',
+  failed_validation: 'step4.statusFailedValidation',
+  pending: 'step4.statusPending',
+  planning: 'step4.statusPlanning',
+  generating: 'step4.statusGenerating',
+  stopped: 'step4.statusStopped',
+  in_progress: 'step4.statusInProgress',
+}
+
+const statusLabel = (status) => {
+  const normalized = String(status || '').trim().toLowerCase()
+  const key = STATUS_I18N_KEYS[normalized]
+  return key ? t(key) : (normalized || t('step4.statusUnknown'))
+}
+
+// La liste est triée du plus ancien au plus récent et défile : la version
+// courante peut être hors écran. On la ramène dans le champ de vision à
+// chaque changement (Story 013-5, revue BMAD du 20 octobre 2026).
+watch(
+  () => props.currentReportId,
+  () => {
+    nextTick(() => {
+      const current = listElement.value?.querySelector('.history-item.is-current')
+      if (current && typeof current.scrollIntoView === 'function') {
+        current.scrollIntoView({ block: 'nearest' })
+      }
+    })
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

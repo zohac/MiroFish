@@ -377,7 +377,24 @@
     "stopReasonTimeout": "Maximum duration exceeded",
     "stopReasonPricingUnavailable": "Pricing unavailable: cost not comparable",
     "stopReasonStopped": "Controlled stop",
-    "stopReasonUnknown": "Unknown stop reason"
+    "stopReasonUnknown": "Unknown stop reason",
+    "publishableYes": "Publishable",
+    "publishableNo": "Not publishable",
+    "metricPublishable": "Publishability",
+    "metricUnsupportedClaims": "Unverified claims",
+    "metricContradictedClaims": "Contradicted claims",
+    "metricVerificationRatio": "Verification rate",
+    "comparisonAuditUnavailable": "Audit archive unavailable for this version.",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "statusFailedValidation": "Validation failed",
+    "statusPending": "Pending",
+    "statusPlanning": "Planning",
+    "statusGenerating": "Generating",
+    "statusStopped": "Stopped",
+    "statusInProgress": "In progress",
+    "statusUnknown": "Unknown status"
+
   },
   "step5": {
     "interactiveTools": "Interactive Tools",

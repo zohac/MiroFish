@@ -96,13 +96,21 @@ export function readSimulationId(source) {
 /**
  * Trie l'historique des rapports du plus ancien au plus récent.
  *
- * Le tri est fait côté client sur `created_at` (ISO 8601), avec repli stable
- * sur `report_id` en cas d'égalité ou d'absence. La liste d'entrée n'est jamais
- * mutée.
+ * Le tri se fait sur l'instant, pas sur la chaîne : le serveur écrit une
+ * horodatage local naïf (`2026-10-20T09:32:00.123456`) et le navigateur
+ * produit un horodatage UTC (`2026-10-20T07:32:00.000Z`). Une comparaison
+ * lexicale des deux formats rangeait l'entrée UTC avant l'entrée locale pour
+ * tout décalage négatif (Story 013-5, revue BMAD du 20 octobre 2026). Le
+ * repli stable sur `report_id` est conservé en cas d'égalité ou d'absence.
  */
 export function sortReportHistory(reports) {
   if (!Array.isArray(reports)) return []
   return [...reports].sort((left, right) => {
+    const leftStamp = parseTimestamp(left && left.created_at)
+    const rightStamp = parseTimestamp(right && right.created_at)
+    if (leftStamp !== null && rightStamp !== null && leftStamp !== rightStamp) {
+      return leftStamp < rightStamp ? -1 : 1
+    }
     const leftKey = String((left && left.created_at) || '')
     const rightKey = String((right && right.created_at) || '')
     if (leftKey !== rightKey) return leftKey < rightKey ? -1 : 1
@@ -111,6 +119,19 @@ export function sortReportHistory(reports) {
     if (leftId === rightId) return 0
     return leftId < rightId ? -1 : 1
   })
+}
+
+/**
+ * Convertit un horodatage en millisecondes, ou `null` s'il est illisible.
+ *
+ * `Date.parse` interprets un horodatage sans décalage comme l'heure locale et
+ * un horodatage suffixé `Z` comme l'UTC : les deux écritures du dépôt sont
+ * donc comparables sans conversion manuelle.
+ */
+function parseTimestamp(value) {
+  if (value === null || value === undefined || value === '') return null
+  const stamp = Date.parse(String(value))
+  return Number.isNaN(stamp) ? null : stamp
 }
 
 /**
@@ -193,15 +214,26 @@ export function evaluateComparability(left, right) {
  *
  * Le contenu placé avant le premier titre constitue une section de préambule
  * (titre vide). Chaque section conserve ses lignes brutes, normalisées.
+ *
+ * Les blocs de code délimités par des accents graves sont respectés : une
+ * ligne `#` qui y figure est du code, pas un titre. Sans cette garde, le diff
+ * par section découperait le rapport au mauvais endroit, sans aucun indice
+ * visuel pour l'utilisateur (Story 013-5, revue BMAD du 20 octobre 2026).
  */
 export function parseMarkdownSections(markdown) {
   const text = typeof markdown === 'string' ? markdown : ''
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   const sections = []
   let current = { title: '', lines: [] }
+  let inCodeFence = false
   for (const rawLine of lines) {
     const line = rawLine.replace(/\s+$/, '')
-    const heading = line.match(/^(#{1,6})\s+(.*)$/)
+    if (/^\s*```/.test(line)) {
+      inCodeFence = !inCodeFence
+      current.lines.push(line)
+      continue
+    }
+    const heading = inCodeFence ? null : line.match(/^(#{1,6})\s+(.*)$/)
     if (heading) {
       if (current.lines.length > 0 || current.title !== '') sections.push(current)
       current = { title: heading[2].trim(), lines: [] }
@@ -412,6 +444,7 @@ export function summarizeUsage(usage) {
     estimatedCostUsd: costAvailable ? estimatedCostUsd : null,
     theoreticalCostUsd: usageAvailable && pricingAvailable ? theoreticalCostUsd : null,
     stopReason: asTrimmedString(source.stop_reason),
+    stopMessage: asTrimmedString(source.stop_message),
     budgetExceeded: source.budget_exceeded === true,
     timeoutExceeded: source.timeout_exceeded === true,
   }
@@ -456,7 +489,14 @@ export function buildComparisonVersion({
     sha256: detailFingerprint.sha256 || entryFingerprint.sha256,
   }
 
-  const usageSummary = summarizeUsage(usage)
+  // Repli sur le résumé d'usage porté par l'entrée d'historique : un rapport
+  // dont le fichier `usage.json` est absent (antérieur à la story 013-4, ou
+  // effacé) reste ainsi lisible, au lieu d'afficher « indisponible » partout
+  // (Story 013-5, note 5 des Notes de développement).
+  const usageSource = usage && typeof usage === 'object' && Object.keys(usage).length > 0
+    ? usage
+    : (entry.usage_summary && typeof entry.usage_summary === 'object' ? entry.usage_summary : null)
+  const usageSummary = summarizeUsage(usageSource)
   const reportId = asTrimmedString(details.report_id) || asTrimmedString(entry.report_id)
 
   const totalClaims = asFiniteNumber(claimsData.total_claims)
@@ -493,6 +533,8 @@ export function buildComparisonVersion({
     adoptionRate: asFiniteNumber(entry.adoption_rate),
     usage: usageSummary,
     stopReason: describeStopReason(usageSummary.stopReason),
+    stopMessage: usageSummary.stopMessage,
+    auditAvailable: entry.audit_available === true,
     snapshotId: fingerprint.snapshotId,
     sha256: fingerprint.sha256,
     markdown: typeof details.markdown_content === 'string' ? details.markdown_content : '',

@@ -22,28 +22,32 @@ service.interceptors.request.use(
   }
 )
 
+// Une ressource optionnelle (404 = « absent », pas « cassé ») peut demander
+// le silence : le journal doit rester un signal, pas du bruit (Story 013-5,
+// AC6). Le silence ne vaut **que** pour le 404 : une panne serveur reste
+// journalisée, sinon un fichier corrompu serait indiscernable d'un fichier
+// absent (revue BMAD du 20 octobre 2026).
+const suppressLog = (config, status) => Boolean(config?.suppressErrorLog) && status === 404
+
 // 响应拦截器（容错重试机制）
 service.interceptors.response.use(
   response => {
     const res = response.data
-    
+
     // 如果返回的状态码不是success，则抛出错误
     if (!res.success && res.success !== undefined) {
-      // Une ressource optionnelle (404 = « absent », pas « cassé ») peut
-      // demander le silence : le journal doit rester un signal, pas du bruit
-      // (Story 013-5, AC6).
-      if (!response.config?.suppressErrorLog) {
+      if (!suppressLog(response.config, response.status)) {
         console.error('API Error:', res.error || res.message || 'Unknown error')
       }
       return Promise.reject(new Error(res.error || res.message || 'Error'))
     }
-    
+
     return res
   },
   error => {
     const apiError = error.response?.data?.error || error.response?.data?.message
 
-    if (!error.config?.suppressErrorLog) {
+    if (!suppressLog(error.config, error.response?.status)) {
       console.error('Response error:', error)
     }
     

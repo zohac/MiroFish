@@ -227,6 +227,7 @@ class ReportUsageTracker:
         self._budget_exceeded = False
         self._timeout_exceeded = False
         self._stop_reason: Optional[str] = None
+        self._stop_message: Optional[str] = None
         self._unpriced_model_calls = 0
         self._previous_callback: Optional[Callable[..., Any]] = None
         # Référence stable : un *bound method* est recréé à chaque accès, donc
@@ -251,6 +252,7 @@ class ReportUsageTracker:
         self._budget_exceeded = False
         self._timeout_exceeded = False
         self._stop_reason = None
+        self._stop_message = None
         self._unpriced_model_calls = 0
         self._reasoning_effort_effective = "unknown"
 
@@ -283,9 +285,17 @@ class ReportUsageTracker:
         *,
         budget_exceeded: bool = False,
         timeout_exceeded: bool = False,
+        message: Optional[str] = None,
     ) -> None:
-        """Consigne le motif d'arrêt contrôlé du job."""
+        """Consigne le motif d'arrêt contrôlé du job.
+
+        ``message`` porte le motif réel du run : le code (``timeout``,
+        ``budget_exceeded``, ``pricing_unavailable``) dit *quoi*, le message
+        dit *pourquoi* — l'IHM doit pouvoir l'afficher (Story 013-5, AC4).
+        """
         self._stop_reason = str(reason or "stopped")
+        if message:
+            self._stop_message = str(message)
         self._budget_exceeded = self._budget_exceeded or budget_exceeded
         self._timeout_exceeded = self._timeout_exceeded or timeout_exceeded
 
@@ -603,6 +613,7 @@ class ReportUsageTracker:
             budget_exceeded=self._budget_exceeded,
             timeout_exceeded=self._timeout_exceeded,
             stop_reason=self._stop_reason,
+            stop_message=self._stop_message,
             phase_totals={phase: dict(totals) for phase, totals in self._phase_totals.items()},
             calls=list(self._calls),
             started_at=self._started_at,
@@ -671,13 +682,14 @@ class BudgetGuard:
         """Vérifie les plafonds avant toute requête LLM additionnelle."""
         elapsed = self.tracker.elapsed_seconds
         if self.max_wall_seconds is not None and elapsed >= self.max_wall_seconds:
-            self.tracker.mark_stop("timeout", timeout_exceeded=True)
+            message = (
+                f"Durée maximale de génération dépassée ({elapsed:.1f} s "
+                f">= {self.max_wall_seconds:.1f} s) ; arrêt contrôlé sans "
+                "requête LLM supplémentaire."
+            )
+            self.tracker.mark_stop("timeout", timeout_exceeded=True, message=message)
             raise ReportTimeoutError(
-                (
-                    f"Durée maximale de génération dépassée ({elapsed:.1f} s "
-                    f">= {self.max_wall_seconds:.1f} s) ; arrêt contrôlé sans "
-                    "requête LLM supplémentaire."
-                ),
+                message,
                 elapsed_seconds=elapsed,
                 max_wall_seconds=self.max_wall_seconds,
                 phase=phase,
@@ -690,13 +702,16 @@ class BudgetGuard:
         # peut pas être borné. On refuse de continuer plutôt que de considérer
         # « inconnu » comme gratuit.
         if self.fail_closed_unpriced and self.tracker.unpriced_model_calls > 0:
-            self.tracker.mark_stop("pricing_unavailable", budget_exceeded=True)
+            message = (
+                "Plafond budgétaire non vérifiable : au moins un modèle "
+                "facturable est absent de la grille tarifaire. Arrêt "
+                "contrôlé sans requête LLM supplémentaire."
+            )
+            self.tracker.mark_stop(
+                "pricing_unavailable", budget_exceeded=True, message=message
+            )
             raise ReportBudgetExceededError(
-                (
-                    "Plafond budgétaire non vérifiable : au moins un modèle "
-                    "facturable est absent de la grille tarifaire. Arrêt "
-                    "contrôlé sans requête LLM supplémentaire."
-                ),
+                message,
                 estimated_cost_usd=self.tracker.known_cost_usd,
                 max_total_cost_usd=self.max_total_cost_usd,
                 phase=phase,
@@ -713,14 +728,17 @@ class BudgetGuard:
         projected = round(projected, 8)
 
         if projected >= self.max_total_cost_usd:
-            self.tracker.mark_stop("budget_exceeded", budget_exceeded=True)
+            message = (
+                f"Plafond budgétaire atteint (coût estimé projeté "
+                f"{projected:.6f} USD >= plafond "
+                f"{self.max_total_cost_usd:.6f} USD) ; arrêt contrôlé avant "
+                "toute requête LLM supplémentaire, sans escalade de modèle."
+            )
+            self.tracker.mark_stop(
+                "budget_exceeded", budget_exceeded=True, message=message
+            )
             raise ReportBudgetExceededError(
-                (
-                    f"Plafond budgétaire atteint (coût estimé projeté "
-                    f"{projected:.6f} USD >= plafond "
-                    f"{self.max_total_cost_usd:.6f} USD) ; arrêt contrôlé avant "
-                    "toute requête LLM supplémentaire, sans escalade de modèle."
-                ),
+                message,
                 estimated_cost_usd=current_cost,
                 max_total_cost_usd=self.max_total_cost_usd,
                 phase=phase,

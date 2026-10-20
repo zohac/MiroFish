@@ -377,7 +377,24 @@
     "stopReasonTimeout": "已超过最大时长",
     "stopReasonPricingUnavailable": "缺少价格信息：成本不可比较",
     "stopReasonStopped": "受控停止",
-    "stopReasonUnknown": "未知的停止原因"
+    "stopReasonUnknown": "未知的停止原因",
+    "publishableYes": "可发布",
+    "publishableNo": "不可发布",
+    "metricPublishable": "可发布性",
+    "metricUnsupportedClaims": "未经验证的主张",
+    "metricContradictedClaims": "相互矛盾的主张",
+    "metricVerificationRatio": "验证率",
+    "comparisonAuditUnavailable": "此版本没有审计归档。",
+    "statusCompleted": "已完成",
+    "statusFailed": "失败",
+    "statusFailedValidation": "校验未通过",
+    "statusPending": "待处理",
+    "statusPlanning": "规划中",
+    "statusGenerating": "生成中",
+    "statusStopped": "已停止",
+    "statusInProgress": "进行中",
+    "statusUnknown": "未知状态"
+
   },
   "step5": {
     "interactiveTools": "Interactive Tools",

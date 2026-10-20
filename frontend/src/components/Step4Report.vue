@@ -172,6 +172,7 @@
             <div v-if="currentStopReason" class="telemetry-item telemetry-item--stop">
               <dt>{{ $t('step4.metricStopReason') }}</dt>
               <dd>{{ $t(currentStopReason.i18nKey) }}</dd>
+              <p v-if="currentStopMessage" class="telemetry-stop-message">{{ currentStopMessage }}</p>
             </div>
           </dl>
           <ReportComparisonPanel
@@ -511,6 +512,8 @@
     <ReportRegenerateDialog
       :open="regenerateOpen"
       :profiles="profileCatalog"
+      :catalog-error="profileCatalogError"
+      :current-profile-id="currentProfileId"
       :has-snapshot="currentHasSnapshot"
       :busy="regenerateBusy"
       :error="regenerateError"
@@ -534,7 +537,8 @@ import ReportHistorySelector from './ReportHistorySelector.vue'
 import ReportRegenerateDialog from './ReportRegenerateDialog.vue'
 import ReportComparisonPanel from './ReportComparisonPanel.vue'
 import {
-  buildComparisonVersion, describeStopReason, evaluateComparability, shortReportId, summarizeUsage
+  buildComparisonVersion, describeStopReason, evaluateComparability, isRunningReport,
+  shortReportId, sortReportHistory, summarizeUsage
 } from '../utils/reportComparison.js'
 
 const router = useRouter()
@@ -584,6 +588,7 @@ const provisionalReports = ref([])
 const historyLoading = ref(false)
 const historyError = ref('')
 const profileCatalog = ref([])
+const profileCatalogError = ref('')
 const comparisonTargetId = ref('')
 const comparisonOpen = ref(false)
 const comparisonLoading = ref(false)
@@ -602,14 +607,40 @@ const currentClaims = ref(null)
 
 const shortId = (reportId) => shortReportId(reportId)
 
+// Les candidats à la comparaison excluent les versions **en cours** : une
+// telle version n'a pas de contenu, et la comparer produirait un diff vide
+// qui ferait passer une génération en cours pour une variante du rapport.
+// L'ordre est celui de l'historique (du plus ancien au plus récent), donc le
+// dernier candidat est le plus récent (Story 013-5, revue BMAD du
+// 20 octobre 2026).
 const comparisonCandidates = computed(() =>
-  historyReports.value.filter(entry => entry && entry.report_id && entry.report_id !== props.reportId)
+  sortReportHistory(
+    historyReports.value.filter(
+      entry => entry && entry.report_id
+        && entry.report_id !== props.reportId
+        && !isRunningReport(entry)
+    )
+  )
 )
 
-const currentHasSnapshot = computed(() => {
+// La disponibilité du rejeu figé est une propriété de la **simulation**, pas
+// de la version courante : après une régénération, la version courante est
+// l'entrée provisoire, qui ne porte aucun champ d'instantané. Juger sur la
+// seule entrée courante désactivait `replay_frozen` dès la deuxième
+// génération et poussait vers `live` — c'est-à-dire vers des rapports non
+// comparables (Story 013-5, revue BMAD du 20 octobre 2026).
+const currentHasSnapshot = computed(() =>
+  historyReports.value.some(
+    entry => entry && Boolean(entry.evidence_snapshot_id || entry.evidence_snapshot_sha256),
+  )
+)
+
+// Le profil de la version courante : c'est celui que le dialogue doit
+// présélectionner, pas le premier du catalogue alphabétique (Story 013-5,
+// revue BMAD du 20 octobre 2026).
+const currentProfileId = computed(() => {
   const entry = historyReports.value.find(item => item && item.report_id === props.reportId)
-  if (!entry) return false
-  return Boolean(entry.evidence_snapshot_id || entry.evidence_snapshot_sha256)
+  return (entry && entry.profile_id) || ''
 })
 
 // Bandeau de télémétrie de la version courante (AC1) : des faits affichés,
@@ -650,6 +681,14 @@ const currentCost = computed(() => {
 const currentStopReason = computed(() => {
   if (!currentUsage.value) return null
   return describeStopReason(currentUsage.value.stopReason)
+})
+
+// Le message réel de l'arrêt contrôlé : le code (`budget_exceeded`,
+// `timeout`, `pricing_unavailable`) dit *quoi*, le message dit *pourquoi*
+// (AC4 : « affiche ... avec son message »).
+const currentStopMessage = computed(() => {
+  if (!currentUsage.value) return ''
+  return currentUsage.value.stopMessage || ''
 })
 
 const currentClaimsLabel = computed(() => {
@@ -708,28 +747,40 @@ const syncComparisonTarget = () => {
 }
 
 const loadProfileCatalog = async () => {
+  profileCatalogError.value = ''
   try {
     const res = await getReportProfiles()
     if (res && res.success && res.data) {
       profileCatalog.value = Array.isArray(res.data.profiles) ? res.data.profiles : []
     }
   } catch (err) {
+    // Un échec de chargement n'est pas un catalogue vide : l'afficher comme
+    // « aucun profil disponible » porterait un faux sur l'état du serveur,
+    // et la cause serait définitivement perdue (Story 013-5, revue BMAD du
+    // 20 octobre 2026).
     profileCatalog.value = []
+    profileCatalogError.value = err?.message || t('common.unknownError')
   }
 }
 
 // Télémétrie et registre de la version courante. Chaque pièce est optionnelle :
 // son absence affiche « indisponible », jamais « 0 $ » (AC1, AC4, AC6).
+//
+// La réponse est rattachée à la version demandée : si l'utilisateur change de
+// version pendant l'appel, la réponse périmée est abandonnée — sans quoi le
+// bandeau afficherait les tokens et le coût d'une autre version.
 const loadCurrentTelemetry = async (reportId) => {
   if (!reportId) {
     currentUsage.value = null
     currentClaims.value = null
     return
   }
+  const requested = reportId
   const [usageRes, claimsRes] = await Promise.all([
-    getReportUsage(reportId).catch(() => null),
-    getReportClaims(reportId).catch(() => null),
+    getReportUsage(requested).catch(() => null),
+    getReportClaims(requested).catch(() => null),
   ])
+  if (requested !== props.reportId) return
   currentUsage.value = usageRes && usageRes.success ? summarizeUsage(usageRes.data) : null
   currentClaims.value = claimsRes && claimsRes.success ? claimsRes.data : null
 }
@@ -2804,6 +2855,16 @@ watch(() => props.reportId, (newId) => {
 }
 
 .telemetry-item--stop dd {
+  color: #92400E;
+}
+
+/* Message réel de l'arrêt contrôlé : il doit rester lisible sans être
+   confondu avec une étiquette (AC4). */
+.telemetry-stop-message {
+  margin: 2px 0 0;
+  flex-basis: 100%;
+  font-size: 10px;
+  line-height: 1.4;
   color: #92400E;
 }
 

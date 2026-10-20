@@ -11,6 +11,7 @@
       aria-modal="true"
       :aria-labelledby="dialogTitleId"
       @keydown.esc.stop="$emit('close')"
+      @keydown="trapFocus"
     >
       <header class="dialog-header">
         <h2 :id="dialogTitleId" class="dialog-title">{{ $t('step4.regenerateTitle') }}</h2>
@@ -32,7 +33,8 @@
 
         <fieldset class="dialog-fieldset">
           <legend class="dialog-legend">{{ $t('step4.regenerateProfileLabel') }}</legend>
-          <p v-if="profiles.length === 0" class="dialog-hint">{{ $t('step4.regenerateNoProfiles') }}</p>
+          <p v-if="catalogError" class="dialog-error" role="alert">{{ catalogError }}</p>
+          <p v-else-if="profiles.length === 0" class="dialog-hint">{{ $t('step4.regenerateNoProfiles') }}</p>
           <ul v-else class="profile-list">
             <li v-for="profile in profiles" :key="profile.profile_id">
               <label class="profile-option" :class="{ 'is-selected': profile.profile_id === selectedProfileId }">
@@ -127,6 +129,8 @@ import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
 const props = defineProps({
   open: { type: Boolean, default: false },
   profiles: { type: Array, default: () => [] },
+  catalogError: { type: String, default: '' },
+  currentProfileId: { type: String, default: '' },
   hasSnapshot: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },
   error: { type: String, default: '' },
@@ -159,8 +163,17 @@ watch(
     }
     replayMode.value = props.hasSnapshot ? 'replay_frozen' : 'live'
     liveConfirmed.value = false
-    const first = props.profiles[0]
-    selectedProfileId.value = first ? first.profile_id : ''
+    // Le profil de la version courante est présélectionné : c'est le geste
+    // attendu (« régénérer ce rapport avec un autre modèle »), pas le premier
+    // du catalogue — qui est alphabétique et ne correspond à aucun des deux
+    // variants que le benchmark doit comparer (Story 013-5, revue BMAD du
+    // 20 octobre 2026).
+    const preferred = props.profiles.find(
+      profile => profile.profile_id === props.currentProfileId
+    )
+    const fallback = props.profiles[0]
+    selectedProfileId.value = preferred ? preferred.profile_id
+      : (fallback ? fallback.profile_id : '')
     // Le focus entre dans la boîte de dialogue : la touche Échap doit
     // l'atteindre, et la navigation au clavier doit y rester (AC — accessibilité).
     nextTick(() => {
@@ -181,7 +194,8 @@ watch(
       return
     }
     if (!list.some(profile => profile.profile_id === selectedProfileId.value)) {
-      selectedProfileId.value = list[0].profile_id
+      const preferred = list.find(profile => profile.profile_id === props.currentProfileId)
+      selectedProfileId.value = preferred ? preferred.profile_id : list[0].profile_id
     }
   },
 )
@@ -192,6 +206,39 @@ const submit = () => {
     profile_id: selectedProfileId.value,
     replay_mode: replayMode.value,
   })
+}
+
+// Piège de focus : le dialogue annonce `aria-modal="true"`, donc la
+// navigation au clavier doit y rester. Sans ce renvoi cyclique, Tab sortait
+// du dialogue vers la page située derrière (Story 013-5, revue BMAD du
+// 20 octobre 2026).
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
+const trapFocus = (event) => {
+  if (event.key !== 'Tab') return
+  const container = dialogElement.value
+  if (!container) return
+  const focusable = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR))
+  if (focusable.length === 0) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  const active = document.activeElement
+  if (event.shiftKey) {
+    if (active === first || !container.contains(active)) {
+      event.preventDefault()
+      last.focus()
+    }
+  } else if (active === last || !container.contains(active)) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 </script>
 

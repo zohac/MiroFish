@@ -3741,6 +3741,22 @@ class ReportManager:
         return os.path.join(cls._get_report_folder(report_id), "usage.json")
 
     @classmethod
+    def _audit_archive_exists(cls, report_id: str) -> bool:
+        """Indique si l'archive d'audit du rapport est présente sur disque.
+
+        L'IHM ne doit pas proposer un lien de téléchargement qui mènerait à
+        un 404 : l'absence d'archive est un état normal pour un rapport
+        antérieur à la story 011-5 (Story 013-5, revue BMAD du 20 octobre 2026).
+        """
+        if not report_id:
+            return False
+        archive = os.path.join(
+            cls._get_report_folder(report_id),
+            f"simulation_audit_{report_id}.zip",
+        )
+        return os.path.exists(archive)
+
+    @classmethod
     def load_usage_metrics(cls, report_id: str) -> Optional[ReportUsageMetrics]:
         """Charge les métriques d'usage persistées d'un rapport, si présentes."""
         return ReportUsageMetrics.load_from_file(cls._get_usage_path(report_id))
@@ -4416,11 +4432,22 @@ class ReportManager:
                     sections=sections
                 )
         except (AttributeError, KeyError, TypeError) as outline_err:
+            # Un plan illisible ne doit pas faire perdre le rapport : son
+            # Markdown est intact sur disque et sert la comparaison. On
+            # reconstruit un plan dégradé plutôt que d'écarter le rapport
+            # (Story 013-5, revue BMAD du 20 octobre 2026).
             logger.warning(
-                f"Plan de rapport illisible pour {report_id} : le rapport est "
-                f"écarté de l'historique ({outline_err})"
+                f"Plan de rapport illisible pour {report_id} : plan dégradé "
+                f"retenu, le rapport reste consultable ({outline_err})"
             )
-            return None
+            try:
+                outline = ReportOutline(
+                    title=str((outline_data or {}).get('title') or ''),
+                    summary=str((outline_data or {}).get('summary') or ''),
+                    sections=[],
+                )
+            except (AttributeError, TypeError):
+                outline = None
 
         # 如果markdown_content为空，尝试从full_report.md读取
         markdown_content = data.get('markdown_content', '')
@@ -4585,29 +4612,41 @@ class ReportManager:
             item = dict(entry)
             # Compléter éventuellement avec les métadonnées sur disque si champs manquants
             rep = cls.get_report(rid)
-            if rep:
-                item.setdefault("created_at", rep.created_at)
-                item.setdefault("completed_at", rep.completed_at)
-                item.setdefault("status", rep.status.value if hasattr(rep.status, "value") else str(rep.status))
-                item.setdefault("profile_id", rep.profile_id)
-                item.setdefault("replay_mode", rep.replay_mode)
-                snapshot_fields = cls._snapshot_fields(rep.evidence_snapshot)
-                item.setdefault("evidence_snapshot_id", snapshot_fields["evidence_snapshot_id"])
-                item.setdefault(
-                    "evidence_snapshot_sha256",
-                    snapshot_fields["evidence_snapshot_sha256"],
+            if rep is None:
+                # Le rapport indexé est illisible : il est écarté de
+                # l'historique. Le conserver laisserait l'IHM proposer une
+                # version qui répond 404, et son empreinte périmée pourrait
+                # fonder un verdict de « comparaison contrôlée » contre un
+                # rapport sans contenu (Story 013-5, revue BMAD du
+                # 20 octobre 2026).
+                logger.warning(
+                    f"Entrée d'historique '{rid}' écartée : les métadonnées du "
+                    f"rapport sont illisibles"
                 )
-                if item.get("usage_summary") is None:
-                    usage_metrics = None
-                    if isinstance(rep.usage_metrics, dict):
-                        try:
-                            usage_metrics = ReportUsageMetrics.from_dict(rep.usage_metrics)
-                        except (TypeError, ValueError):
-                            usage_metrics = None
-                    if usage_metrics is None:
-                        usage_metrics = cls.load_usage_metrics(rid)
-                    if usage_metrics is not None:
-                        item["usage_summary"] = usage_metrics.summary()
+                continue
+            item.setdefault("created_at", rep.created_at)
+            item.setdefault("completed_at", rep.completed_at)
+            item.setdefault("status", rep.status.value if hasattr(rep.status, "value") else str(rep.status))
+            item.setdefault("profile_id", rep.profile_id)
+            item.setdefault("replay_mode", rep.replay_mode)
+            snapshot_fields = cls._snapshot_fields(rep.evidence_snapshot)
+            item.setdefault("evidence_snapshot_id", snapshot_fields["evidence_snapshot_id"])
+            item.setdefault(
+                "evidence_snapshot_sha256",
+                snapshot_fields["evidence_snapshot_sha256"],
+            )
+            item["audit_available"] = bool(item.get("audit_available")) or cls._audit_archive_exists(rid)
+            if item.get("usage_summary") is None:
+                usage_metrics = None
+                if isinstance(rep.usage_metrics, dict):
+                    try:
+                        usage_metrics = ReportUsageMetrics.from_dict(rep.usage_metrics)
+                    except (TypeError, ValueError):
+                        usage_metrics = None
+                if usage_metrics is None:
+                    usage_metrics = cls.load_usage_metrics(rid)
+                if usage_metrics is not None:
+                    item["usage_summary"] = usage_metrics.summary()
             results.append(item)
 
         # Ajouter les rapports sur disque non présents dans l'historique (rétrocompatibilité)
@@ -4622,6 +4661,7 @@ class ReportManager:
                         ).summary()
                     except (TypeError, ValueError):
                         usage_summary = None
+                snapshot_fields = cls._snapshot_fields(rep.evidence_snapshot)
                 results.append({
                     "report_id": rep.report_id,
                     "simulation_id": rep.simulation_id,
@@ -4630,10 +4670,11 @@ class ReportManager:
                     "status": rep.status.value if hasattr(rep.status, "value") else str(rep.status),
                     "profile_id": rep.profile_id,
                     "replay_mode": rep.replay_mode,
-                    "evidence_snapshot_id": (rep.evidence_snapshot or {}).get("snapshot_id") if isinstance(rep.evidence_snapshot, dict) else None,
-                    "evidence_snapshot_sha256": (rep.evidence_snapshot or {}).get("sha256_hash") if isinstance(rep.evidence_snapshot, dict) else None,
+                    "evidence_snapshot_id": snapshot_fields["evidence_snapshot_id"],
+                    "evidence_snapshot_sha256": snapshot_fields["evidence_snapshot_sha256"],
                     "is_publishable": None,
                     "publication_status": None,
+                    "audit_available": cls._audit_archive_exists(rep.report_id),
                     "usage_summary": usage_summary,
                 })
 

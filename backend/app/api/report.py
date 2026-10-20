@@ -83,19 +83,14 @@ def generate_report():
         profile_id = data.get('profile_id') or data.get('report_profile_id')
         profile_data = data.get('llm_profile')
         profile = None
-        if profile_data and isinstance(profile_data, dict):
-            from ..models.report_llm_profile import ReportLLMProfile
-            try:
-                profile = ReportLLMProfile.from_dict(profile_data)
-            except Exception as e:
-                return jsonify({"success": False, "error": f"Invalid llm_profile: {e}"}), 400
-        elif profile_id:
+        if profile_id:
             from ..models.report_llm_profile import ReportLLMProfile
             profile = ReportLLMProfile.get_standard_profile(str(profile_id))
             if not profile:
                 # Rejet explicite : un repli silencieux sur le modèle global
                 # ferait croire à un benchmark sur un modèle qui n'a jamais
-                # été exécuté (Story 013-5, AC2).
+                # été exécuté (Story 013-5, AC2). Le garde-fou ne s'efface
+                # pas devant un corps `llm_profile` concurrent.
                 return jsonify({
                     "success": False,
                     "error": (
@@ -104,6 +99,25 @@ def generate_report():
                         f"{', '.join(ReportLLMProfile.standard_profile_ids())}"
                     ),
                 }), 400
+            if profile_data:
+                # Les deux voies sont exclusives : le choix doit être univoque,
+                # sinon le client ne sait plus quel profil il a demandé.
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        "Fournir soit 'profile_id', soit 'llm_profile' — "
+                        "pas les deux à la fois."
+                    ),
+                }), 400
+        elif profile_data and isinstance(profile_data, dict):
+            from ..models.report_llm_profile import ReportLLMProfile
+            try:
+                # Profil client aligné sur le catalogue : le navigateur choisit
+                # le modèle et l'effort, jamais la destination ni la clé
+                # (Story 013-5, décision du 20 octobre 2026).
+                profile = ReportLLMProfile.from_client(profile_data)
+            except Exception as e:
+                return jsonify({"success": False, "error": f"Invalid llm_profile: {e}"}), 400
 
         # 获取模拟信息
         manager = SimulationManager()
@@ -1346,9 +1360,13 @@ def list_report_profiles():
     """Expose le catalogue des profils LLM de rapport (Story 013-5, FR-08, AC2).
 
     Le catalogue est une liste fermée et ordonnée côté serveur : le navigateur
-    ne reçoit que des métadonnées de modèle (identifiant, modèle, fournisseur,
+    ne reçoit que des métadonnées de modèle (identifiant, modèle, passerelle,
     effort, mode de facturation, plafonds). Aucune URL de passerelle, aucune
     clé d'API, aucun secret ne quitte le serveur (NFR-4).
+
+    ``provider_id`` désigne la **passerelle qui a servi** (alias dérivé du
+    ``base_url`` configuré), pas l'éditeur du modèle : les cinq profils
+    partagent la même passerelle.
 
     Retour :
         {
@@ -1360,6 +1378,8 @@ def list_report_profiles():
                         "model": "gemini-3.8-flash",
                         "provider_id": "antigravity-local",
                         "reasoning_effort": "high",
+                        "temperature": null,
+                        "max_tokens": null,
                         "billing_mode": "metered",
                         "max_total_cost_usd": 2.0,
                         "max_wall_seconds": 900,

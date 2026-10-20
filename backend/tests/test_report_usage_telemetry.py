@@ -515,6 +515,41 @@ class TestBudgetGuard:
         assert metrics.timeout_exceeded is True
         assert metrics.stop_reason == "timeout"
 
+    def test_controlled_stop_carries_its_message(self):
+        """AC4 : l'arrêt contrôlé affiche son code *et* son message.
+
+        Le code (`budget_exceeded`) dit *quoi* ; le message dit *pourquoi* le
+        job s'est arrêté. Sans lui, l'IHM ne pouvait afficher qu'une étiquette
+        générique.
+        """
+        clock = FakeClock()
+        tracker = ReportUsageTracker(model="gemini-3.8-flash", clock=clock)
+        tracker.begin("report_budget_message")
+        _record(tracker, phase="sections", prompt=1000, completion=500)
+
+        guard = BudgetGuard(tracker, max_total_cost_usd=0.0001)
+        with pytest.raises(ReportBudgetExceededError):
+            guard.check(phase="sections")
+
+        metrics = tracker.build_metrics()
+        assert metrics.stop_reason == "budget_exceeded"
+        assert metrics.stop_message
+        assert "Plafond budgétaire" in metrics.stop_message
+
+    def test_stop_message_survives_persistence(self, tmp_path):
+        """Le message d'arrêt traverse l'écriture atomique et la relecture."""
+        tracker = ReportUsageTracker(model="gemini-3.8-flash")
+        tracker.begin("report_persist")
+        tracker.mark_stop("timeout", timeout_exceeded=True, message="Durée dépassée")
+
+        target = tmp_path / "usage.json"
+        tracker.build_metrics().save_to_file(str(target))
+        reloaded = ReportUsageMetrics.load_from_file(str(target))
+        assert reloaded is not None
+        assert reloaded.stop_reason == "timeout"
+        assert reloaded.stop_message == "Durée dépassée"
+        assert reloaded.summary()["stop_message"] == "Durée dépassée"
+
     def test_zero_budget_stops_immediately(self):
         tracker = ReportUsageTracker(model="gemini-3.8-flash")
         tracker.begin("report_zero")

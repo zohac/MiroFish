@@ -257,17 +257,20 @@ retenus ont été corrigés et vérifiés ; la story est close (`done`).
 - `frontend/src/api/report.js` : `getReportHistory`, `getReportUsage`, `getReportClaims`,
   `getReportProfiles`.
 - `frontend/src/api/index.js` : option `suppressErrorLog` pour les ressources optionnelles.
-- `locales/{fr,en,zh}.json` : 78 clés `step4.*` nouvelles, parité stricte vérifiée par
+- `locales/{fr,en,zh}.json` : 90 clés `step4.*` nouvelles, parité stricte vérifiée par
   `frontend/tests/i18n.test.js` (clés **et variables `{var}`** sur les trois dictionnaires).
+  *(Le décompte initial annonçait 78 : c'était le nombre de lignes ajoutées au JSON,
+  pas le nombre de clés — 90 clés feuilles, mesuré. Corrigé en 2e revue BMAD.)*
 
 **Tests**
-- `backend/tests/test_report_profiles_api.py` : 16 tests hermétiques (catalogue, absence de
+- `backend/tests/test_report_profiles_api.py` : 27 tests hermétiques (catalogue, absence de
   secret, ordre stable, rejet du profil inconnu, empreinte dans l'historique, robustesse face
-  aux rapports corrompus).
-- `frontend/tests/reportComparison.test.js` : 28 tests Node (tri, comparabilité, diff, usage
+  aux rapports corrompus, alignement du profil client sur le catalogue, alias de passerelle).
+- `frontend/tests/reportComparison.test.js` : 33 tests Node (tri, comparabilité, diff, usage
   honnête, motifs d'arrêt, delta, version assemblée).
-- `frontend/tests/i18n.test.js` : **+1 test** de parité des variables `{var}` sur les trois
-  dictionnaires (vérifié par mutation : la suppression d'une variable fait échouer le test).
+- `frontend/tests/i18n.test.js` : 10 tests, dont **+1** de parité des variables `{var}` sur les
+  trois dictionnaires (vérifié par mutation : la suppression d'une variable fait échouer le
+  test).
 
 ### Vérification visuelle (stack Docker de référence)
 
@@ -298,7 +301,7 @@ Parcours effectué sur `http://localhost:3000/report/<report_id>` avec la stack
 4. **Le sélecteur de version est sorti du panneau défilant** : structure `.right-scroll`
    introduite dans `Step4Report.vue`. Le `ref="rightPanel"` a été déplacé sur la zone
    défilante, ce qui préserve le suivi automatique des journaux.
-5. **Trois tests Node de régression** ont été ajoutés après la revue pour couvrir la forme
+5. **Quatre tests Node de régression** ont été ajoutés après la revue pour couvrir la forme
    « version assemblée » que l'IHM consomme réellement.
 
 ### Ce que la story ne fait pas
@@ -320,4 +323,111 @@ eux qui rendent la comparaison contrôlée reproductible. Les trois se sont term
 `failed_validation` (barrière fail-closed, 210 affirmations, 0 vérifiée) : **le comparateur
 montre des faits, pas une garantie de succès**. Ces artefacts restent dans
 `backend/uploads/` (gitignoré) ; ils sont le témoin de la vérification.
+
+### 2e revue BMAD contradictoire (20 octobre 2026) — 23 correctifs appliqués
+
+Une seconde revue à quatre couches a été menée sur le diff `11e2fc8..f3cd648`
+(4 267 lignes, 22 fichiers). **23 correctifs appliqués**, 2 décisions
+arbitrées par l'utilisateur, 3 points différés, 8 constats rejetés (dont 4
+`false`, réfutés par lecture du code). Les deux défauts les plus lourds
+étaient **invisibles aux tests** :
+
+1. **Le dialogue de régénération interdisait le rejeu figé dès la deuxième
+   génération.** `currentHasSnapshot` ne regardait que l'entrée de la version
+   courante ; or, juste après une régénération, la version courante est
+   l'entrée *provisoire*, qui ne porte aucun champ d'instantané. Résultat :
+   `replay_frozen` désactivé et `live` présélectionné — c'est-à-dire des
+   rapports **non comparables**, ce qui annulait le parcours A/B de l'Epic 013
+   dès la seconde génération. La règle est désormais portée par la
+   *simulation* (au moins une version de l'historique porte un instantané).
+2. **Un rapport corrompu inscrit dans `report_history.json` restait listé.**
+   `results.append(item)` était sorti du `if rep:` de
+   `list_reports_by_simulation` : l'entrée servait, empreinte périmée
+   comprise, alors que `GET /api/report/<id>` répond 404 pour elle. Le
+   sélecteur proposait donc une version qui ne s'ouvrait pas, et le verdict de
+   comparabilité pouvait fonder une « comparaison contrôlée » sur un rapport
+   sans contenu. La revendication « le rapport illisible est écarté de
+   l'historique » n'était vraie que pour la branche « parcours du disque ».
+   Le test qui supposedly la prouvait n'inscrivait jamais le rapport à l'index.
+
+**Ce que la revue a refusé de casser.** Trois constats portaient sur la règle
+de comparabilité : `evaluateComparability` déclare comparable deux rapports
+dont le `snapshot_id` est identique, sans empreinte commune. C'est **correct** :
+`snapshot_id` est un uuid **par capture** (`evidence_snapshot_service.py:235`),
+donc l'égalité de cet identifiant implique l'égalité de la capture, donc du
+jeu de preuves. La règle « l'empreinte prime » ne s'applique qu'à l'autre
+sens — deux captures distinctes du même jeu de preuves — que le code traite
+bien. Aucun correctif n'a donc été appliqué sur ce point, et le test Node qui
+verrouille ce comportement a été conservé tel quel.
+
+**Deux décisions de l'utilisateur, devenues des correctifs.** (a) Le chemin
+`llm_profile` en ligne est **aligné sur le catalogue** : `base_url` et
+`api_key` y sont refusés, le mode de facturation ne peut pas être déclassé,
+les plafonds ne peuvent pas être relevés, et le `profile_id` est **dérivé** du
+couple (modèle, effort) — un client ne peut plus étiqueter un job
+« flash-high » quand l'effort retenu est « medium ». (b) `provider_id`
+désigne désormais **la passerelle qui a servi** (alias dérivé du `base_url`),
+et non l'éditeur du modèle : sur la stack de référence, `deepseek-v4-pro`
+servi par Antigravity ne s'annonce plus « opencode-go ».
+
+**Filet global.** 1 971 tests backend au vert (+16) et 43 tests Node frontend
+au vert (+5), `ruff` propre, `validate_plans.py` propre, build Vite réussi.
+
+---
+
+## Revue BMAD contradictoire — 2e passe (20 octobre 2026)
+
+Diff revu : `11e2fc8..f3cd648` (4 267 lignes, 22 fichiers). Quatre couches
+indépendantes (Blind Hunter, Edge Case Hunter, Verification Gap Reviewer,
+Acceptance Auditor), tous les constats vérifiés à la source avant verdict.
+
+### Review Findings
+
+**Décisions à trancher (2) — tranchées le 20 octobre 2026, devenues des correctifs**
+
+- [x] [Review][Decision] Le chemin `llm_profile` en ligne laisse le navigateur fixer `base_url` et `api_key` — **tranché : aligner sur le catalogue.** `ReportLLMProfile.from_dict()` accepte `base_url` et `api_key` venus du client (`backend/app/models/report_llm_profile.py:118-119`), et `POST /api/report/generate` accepte ce corps (`backend/app/api/report.py:83-90`). Le commentaire posé par ce diff sur le catalogue « fermé » (« afin que le navigateur ne puisse jamais élargir la surface d'exécution par lui-même ») est donc contredit par le code : un client peut désigner n'importe quelle passerelle OpenAI-compatible et y faire transiter le paquet de preuves entier (documents, personas, événements observés). La décision d'ingénierie n° 3 de la Définition de prêt garde pourtant ce chemin « pour les appels avancés ». **Arbitrage : le chemin inline est conservé, mais aligné sur le catalogue** — `base_url` et `api_key` y sont refusés ; seuls `model`, `reasoning_effort`, `billing_mode` et les plafonds restent acceptables, et ils sont validés contre le catalogue.
+- [x] [Review][Decision] `provider_id` est affiché comme un fait alors qu'il est codé en dur — **tranché : `provider_id` désigne la passerelle qui a servi.** Les trois profils non-flash portent `provider_id="opencode-go"` en dur, tandis que les profils flash déduisent `"antigravity-local"` d'un test de sous-chaîne sur `base_url` (`backend/app/models/report_llm_profile.py:169-216`). Or les cinq profils partagent le **même** `base_url`. Sur la stack de référence (passerelle Antigravity), `deepseek-v4-pro` est donc étiqueté « opencode-go » alors qu'il est servi par Antigravity — et l'IHM affiche « modèle · fournisseur » comme une vérité (`frontend/src/components/ReportRegenerateDialog.vue:59`). **Arbitrage : `provider_id` devient l'alias de la passerelle réellement configurée**, dérivé du `base_url` — la même notion que l'alias déjà porté par le manifeste de la 013-4 — de sorte que l'IHM affiche un fait vrai : « qui a produit ce rapport ».
+
+**Correctifs (23)**
+
+- [x] [Review][Patch] Le chemin `llm_profile` en ligne est aligné sur le catalogue : `base_url` et `api_key` venus du client sont refusés [backend/app/models/report_llm_profile.py:118-119]
+- [x] [Review][Patch] `provider_id` devient l'alias de la passerelle réellement configurée, dérivé du `base_url` [backend/app/models/report_llm_profile.py:169-216]
+- [x] [Review][Patch] Le dialogue de régénération interdit le rejeu figé dès la deuxième génération [frontend/src/components/Step4Report.vue:609-613]
+- [x] [Review][Patch] Un rapport corrompu inscrit dans `report_history.json` reste listé, avec son empreinte périmée [backend/app/services/report_agent.py:4585-4611]
+- [x] [Review][Patch] Le garde-fou 400 du `profile_id` inconnu ne s'applique que si aucun `llm_profile` n'accompagne la requête [backend/app/api/report.py:83-106]
+- [x] [Review][Patch] `suppressErrorLog` éteint aussi les 500, alors que le motif retenu était « le 404 est un état normal » [frontend/src/api/index.js:31-46]
+- [x] [Review][Patch] L'échec de chargement du catalogue de profils est avalé et affiché comme un état faux [frontend/src/components/Step4Report.vue:710-719]
+- [x] [Review][Patch] La version à comparer peut être pré-positionnée sur un rapport en cours de génération [frontend/src/components/Step4Report.vue:605-707]
+- [x] [Review][Patch] `is_publishable`, `unsupported_claims`, `contradicted_claims` et `verification_ratio` sont calculés puis jamais affichés [frontend/src/utils/reportComparison.js:485-492]
+- [x] [Review][Patch] Le panneau de comparaison n'a pas de hauteur bornée et écrase la zone des journaux [frontend/src/components/ReportComparisonPanel.vue:239-247]
+- [x] [Review][Patch] Le statut brut non localisé s'affiche dans le sélecteur de versions [frontend/src/components/ReportHistorySelector.vue:65-67]
+- [x] [Review][Patch] `parseMarkdownSections` n'est pas conscient des blocs de code délimités par des accents graves [frontend/src/utils/reportComparison.js:197-217]
+- [x] [Review][Patch] Le dialogue présélectionne le profil par ordre alphabétique, pas celui de la version courante [frontend/src/components/ReportRegenerateDialog.vue:161-162]
+- [x] [Review][Patch] Le message d'un arrêt contrôlé n'existe pas dans le contrat de télémétrie [backend/app/models/report_usage.py:411-437]
+- [x] [Review][Patch] La télémétrie affichée peut appartenir à une autre version [frontend/src/components/Step4Report.vue:723-735]
+- [x] [Review][Patch] La liste des versions est triée du plus ancien au plus récent : la version courante peut être hors écran [frontend/src/utils/reportComparison.js:103-114]
+- [x] [Review][Patch] Le tri de l'historique compare des chaînes de dates de formats hétérogènes [backend/app/services/report_agent.py:2402]
+- [x] [Review][Patch] Le repli sur `usage_summary` annoncé par la note 5 des Notes de développement n'existe pas [frontend/src/utils/reportComparison.js:459]
+- [x] [Review][Patch] Le coût peut faire tomber le panneau de comparaison sur une devise invalide [frontend/src/components/ReportComparisonPanel.vue:159-168]
+- [x] [Review][Patch] L'URL d'audit est dupliquée et rendue même quand aucune archive n'existe [frontend/src/components/ReportComparisonPanel.vue:137-140]
+- [x] [Review][Patch] Clés Vue dupliquées possibles dans la liste des sections de diff [frontend/src/components/ReportComparisonPanel.vue:73]
+- [x] [Review][Patch] Le dialogue déclare `aria-modal="true"` sans piège de focus [frontend/src/components/ReportRegenerateDialog.vue:11]
+- [x] [Review][Patch] Un `meta.json` dont le plan est illisible fait disparaître un rapport dont le Markdown est intact [backend/app/services/report_agent.py:4404-4423]
+
+**Différés (3)**
+
+- [x] [Review][Defer] Le décompte i18n est faux : 74 clés `step4.*` nouvelles, pas 78 [docs/STATUS.md] — deferred: mesuré (50 → 124 clés feuilles sous `step4` dans `locales/{fr,en,zh}.json`) ; le « 78 » compte les lignes ajoutées au JSON, pas les clés. Le correctif touche des fichiers de contexte d'agent et des documents de référence.
+- [x] [Review][Defer] `AGENTS.md` se contredit sur le statut de la story 013-5 [AGENTS.md:558] — deferred: la ligne 558 dit encore « stories 013-1 à 013-4 `done`, 013-5 `review` » alors que les lignes 34 et 48 la donnent `done`. Correction dans un fichier de contexte d'agent.
+- [x] [Review][Defer] La story a sauté l'état `review` [docs/plans/013-benchmark-llm-report-replay/story-013-5.md] — deferred: le diff bascule `statut: in-progress` → `statut: done` en un seul commit, et `AGENTS.md` §2.8 interdit le saut. Le geste est un fait d'historique, non rattrapable par un correctif de code ; l'état `review` n'existe dans aucun fichier.
+
+### Rejected
+
+- **« `evaluateComparability` déclare comparable sur le seul identifiant d'instantané, contrary to AC3 »** — `false`. `snapshot_id` vaut `f"snap_{uuid.uuid4().hex[:12]}_{date_suffix}"` (`backend/app/services/evidence_snapshot_service.py:235`) : un uuid **par capture**. Deux captures distinctes ne partagent jamais cet identifiant, donc l'égalité de `snapshot_id` implique l'égalité de la capture, donc du jeu de preuves. La branche `HASH_UNAVAILABLE` est correcte, et le panneau affiche de surcroît la réserve (« Empreinte SHA-256 non exposée des deux côtés : l'identité repose sur le seul identifiant d'instantané »).
+- **« L'empreinte SHA-256 ne prime pas, car le contrôle d'instantané précède la comparaison des empreintes »** — `false`. `EvidenceSnapshot.to_dict()` est un `asdict()` : `snapshot_id` et `sha256_hash` sont toujours présents ensemble ; les entrées d'historique aussi (`ReportManager._snapshot_fields` les pose ensemble). La branche `SNAPSHOT_ABSENT` n'est donc pas atteignable avec une empreinte disponible d'un seul côté.
+- **« L'AC3 et la note 4 décrivent encore l'ancienne règle de comparabilité (égalité du `snapshot_id` d'abord) »** — rejeté : le correctif est l'édition de la spec sous revue. Le fond est vrai et sera traité dans la story 013-6, qui doit s'appuyer sur la sémantique d'empreinte.
+- **« La story passe de `in-progress` à `done` sans passer par `review` »** — rejeté : le correctif est l'édition de la spec sous revue. Le fait est consigné en différé ci-dessus.
+- **« La distinction `replay_frozen` / `best_effort` du PRD source n'est pas implémentée »** — `false`. Le PRD source (V1, §10) l'énonce comme option ; le serveur n'a jamais implémenté que `('live', 'replay_frozen')` (story 013-2) et rejette proprement tout autre mode en 400. L'écart est un choix de périmètre assumé, pas un oubli.
+- **« La colonne « Écart » est signée sans indiquer le sens de la soustraction »** — `low`, rejeté : le module `computeDelta` documente « droite − gauche », le tableau n'indique ni couleur ni gagnant, et ajouter une mention de sens est un ajout de surface i18n sans gain de lecture.
+- **« Un rapport en échec laisse une entrée provisoire « En cours » fantôme dans le sélecteur »** — `low`, rejeté : le serveur inscrit l'entrée `failed` à l'index d'historique et la purge fusionne les doublons dès le rechargement suivant. La fenêtre d'affichage est transitoire et le serveur reste la seule source de vérité.
+- **« `ReportManager.get_report` efface le rapport quand seul `outline` est illisible »** — retenu sous forme réduite : le rapport disparaît en effet, mais la cause est plus étroite que « l'outline illisible » (il faut un `summary` absent ou un `sections` non conforme) ; c'est traité dans les correctifs.
 

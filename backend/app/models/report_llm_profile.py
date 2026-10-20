@@ -103,11 +103,35 @@ class ReportLLMProfile:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ReportLLMProfile:
-        """Désérialise un dictionnaire en ReportLLMProfile."""
+    def from_dict(
+        cls,
+        data: Dict[str, Any],
+        *,
+        allow_endpoint: bool = False,
+    ) -> ReportLLMProfile:
+        """Désérialise un dictionnaire en ReportLLMProfile.
+
+        ``allow_endpoint=False`` (défaut) est le régime d'un profil **reçu
+        d'un client** : la destination et la clé en sont refusées. Un client
+        qui désignerait une passerelle OpenAI-compatible arbitraire y ferait
+        transiter le paquet de preuves entier (documents, personas, événements
+        observés) : le catalogue est fermé, donc le chemin inline l'est aussi
+        (Story 013-5, décision du 20 octobre 2026).
+
+        ``allow_endpoint=True`` est réservé à un usage serveur interne qui
+        doit effectivement fixer la destination (aucun appelant actuel).
+        """
         data_copy = dict(data)
         # Éliminer les champs informatifs non constructeurs
         data_copy.pop("base_url_configured", None)
+        if not allow_endpoint:
+            for forbidden in ("base_url", "api_key"):
+                if data_copy.get(forbidden):
+                    raise ValueError(
+                        f"'{forbidden}' ne peut pas être fourni par un client : "
+                        "la destination et la clé restent côté serveur "
+                        "(catalogue fermé des profils LLM de rapport)."
+                    )
         return cls(
             profile_id=str(data_copy.get("profile_id", "default")),
             model=str(data_copy.get("model", "")),
@@ -115,8 +139,8 @@ class ReportLLMProfile:
             reasoning_effort=data_copy.get("reasoning_effort"),
             temperature=float(data_copy["temperature"]) if data_copy.get("temperature") is not None else None,
             max_tokens=int(data_copy["max_tokens"]) if data_copy.get("max_tokens") is not None else None,
-            base_url=data_copy.get("base_url"),
-            api_key=data_copy.get("api_key"),
+            base_url=data_copy.get("base_url") if allow_endpoint else None,
+            api_key=data_copy.get("api_key") if allow_endpoint else None,
             max_total_cost_usd=float(data_copy.get("max_total_cost_usd", 2.0)),
             max_wall_seconds=int(data_copy.get("max_wall_seconds", 900)),
             billing_mode=(
@@ -125,6 +149,102 @@ class ReportLLMProfile:
                 else "auto"
             ),
         )
+
+    @staticmethod
+    def gateway_alias(base_url: Optional[str]) -> str:
+        """Retourne l'alias de la passerelle configurée.
+
+        ``provider_id`` désigne la **passerelle qui a servi**, pas l'éditeur
+        du modèle : les cinq profils standard partagent le même ``base_url``,
+        donc un éditeur codé en dur annoncerait « opencode-go » pour un
+        rapport que la passerelle Antigravity a produit (Story 013-5,
+        décision du 20 octobre 2026).
+
+        L'alias reprend la convention déjà employée par le manifeste de run
+        de la story 013-4.
+        """
+        url = str(base_url or "").strip().lower()
+        if not url:
+            return "custom"
+        if "18081" in url or "antigravity" in url:
+            return "antigravity-local"
+        if "18080" in url or "codex" in url:
+            return "codex-local"
+        if "opencode" in url:
+            return "opencode-go"
+        return "custom"
+
+    @classmethod
+    def from_client(cls, data: Dict[str, Any]) -> ReportLLMProfile:
+        """Construit un profil depuis un corps client, aligné sur le catalogue.
+
+        Le navigateur peut choisir le **modèle** et l'**effort** — c'est la
+        raison d'être des « appels avancés » — mais jamais la destination ni
+        la clé, ni un mode de facturation ou des plafonds plus permissifs que
+        ceux du catalogue (Story 013-5, décision du 20 octobre 2026).
+
+        L'``profile_id`` est **dérivé** du couple (modèle, effort) : un client
+        ne peut pas étiqueter un job « flash-high » alors que l'effort retenu
+        est « medium », sans quoi l'historique porterait un mensonge.
+        """
+        data_copy = dict(data or {})
+        data_copy.pop("base_url_configured", None)
+
+        model = str(data_copy.get("model") or "").strip()
+        if not model:
+            raise ValueError("model est obligatoire pour un profil client")
+
+        catalog = cls._build_standard_catalog()
+        matches = [profile for profile in catalog.values() if profile.model == model]
+        if not matches:
+            raise ValueError(
+                f"model '{model}' absent du catalogue des profils LLM de rapport "
+                f"(modèles : {', '.join(sorted({p.model for p in catalog.values()}))})"
+            )
+        reference = matches[0]
+
+        # Le mode de facturation ne peut pas être plus permissif que celui du
+        # catalogue : `free` désarmerait le Fail-Closed tarifaire de la 013-4.
+        requested_billing = str(
+            data_copy.get("billing_mode") or reference.billing_mode
+        ).strip().lower()
+        if requested_billing != reference.billing_mode:
+            raise ValueError(
+                f"billing_mode '{requested_billing}' refusé : le catalogue impose "
+                f"'{reference.billing_mode}' pour le modèle '{model}'"
+            )
+
+        # Les plafonds ne peuvent pas être plus permissifs que ceux du catalogue.
+        requested_cost = float(
+            data_copy.get("max_total_cost_usd", reference.max_total_cost_usd)
+        )
+        if requested_cost > reference.max_total_cost_usd:
+            raise ValueError(
+                f"max_total_cost_usd {requested_cost} supérieur au plafond du "
+                f"catalogue ({reference.max_total_cost_usd}) pour le modèle '{model}'"
+            )
+        requested_wall = int(
+            data_copy.get("max_wall_seconds", reference.max_wall_seconds)
+        )
+        if requested_wall > reference.max_wall_seconds:
+            raise ValueError(
+                f"max_wall_seconds {requested_wall} supérieur au plafond du "
+                f"catalogue ({reference.max_wall_seconds}) pour le modèle '{model}'"
+            )
+
+        effort = str(data_copy.get("reasoning_effort") or "").strip().lower() or None
+        exact = [p for p in matches if (p.reasoning_effort or None) == effort]
+
+        data_copy["profile_id"] = (
+            exact[0].profile_id if len(exact) == 1 else f"custom-{model}"
+        )
+        data_copy["billing_mode"] = reference.billing_mode
+        data_copy["max_total_cost_usd"] = requested_cost
+        data_copy["max_wall_seconds"] = requested_wall
+        data_copy.setdefault("provider_id", reference.provider_id)
+        # ``from_dict`` refuse ``base_url`` et ``api_key`` : c'est le garde
+        # qui empêche un client de désigner une passerelle arbitraire.
+        return cls.from_dict(data_copy)
 
     @classmethod
     def default_from_env(cls, profile_id: str = "env-default") -> ReportLLMProfile:
@@ -165,12 +285,15 @@ class ReportLLMProfile:
 
         base_url = Config.LLM_BASE_URL
         api_key = Config.LLM_API_KEY
+        # ``provider_id`` = la passerelle réellement configurée, pas l'éditeur
+        # du modèle : les cinq profils partagent le même ``base_url``.
+        provider_id = cls.gateway_alias(base_url)
 
         catalog = {
             "flash-medium": cls(
                 profile_id="flash-medium",
                 model="gemini-3.8-flash",
-                provider_id="antigravity-local" if "18081" in (base_url or "") else "custom",
+                provider_id=provider_id,
                 reasoning_effort="medium",
                 base_url=base_url,
                 api_key=api_key,
@@ -182,7 +305,7 @@ class ReportLLMProfile:
             "flash-high": cls(
                 profile_id="flash-high",
                 model="gemini-3.8-flash",
-                provider_id="antigravity-local" if "18081" in (base_url or "") else "custom",
+                provider_id=provider_id,
                 reasoning_effort="high",
                 base_url=base_url,
                 api_key=api_key,
@@ -191,7 +314,7 @@ class ReportLLMProfile:
             "deepseek-v4-pro": cls(
                 profile_id="deepseek-v4-pro",
                 model="deepseek-v4-pro",
-                provider_id="opencode-go",
+                provider_id=provider_id,
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,
@@ -200,7 +323,7 @@ class ReportLLMProfile:
             "qwen3.8-max": cls(
                 profile_id="qwen3.8-max",
                 model="qwen3.8-max",
-                provider_id="opencode-go",
+                provider_id=provider_id,
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,
@@ -209,7 +332,7 @@ class ReportLLMProfile:
             "gpt-6.1-sol": cls(
                 profile_id="gpt-6.1-sol",
                 model="gpt-6.1-sol",
-                provider_id="opencode-go",
+                provider_id=provider_id,
                 reasoning_effort=None,
                 base_url=base_url,
                 api_key=api_key,

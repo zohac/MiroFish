@@ -56,12 +56,13 @@
 
       <!-- Téléchargement des audits -->
       <div class="audit-links">
-        <a class="audit-link" :href="auditUrl(left)" target="_blank" rel="noopener">
+        <a v-if="left && left.auditAvailable" class="audit-link" :href="auditUrl(left)" target="_blank" rel="noopener">
           {{ $t('step4.comparisonAuditLeft', { id: left.shortId || left.reportId }) }}
         </a>
-        <a class="audit-link" :href="auditUrl(right)" target="_blank" rel="noopener">
+        <a v-if="right && right.auditAvailable" class="audit-link" :href="auditUrl(right)" target="_blank" rel="noopener">
           {{ $t('step4.comparisonAuditRight', { id: right.shortId || right.reportId }) }}
         </a>
+        <p v-if="!auditAvailable" class="panel-hint">{{ $t('step4.comparisonAuditUnavailable') }}</p>
       </div>
 
       <!-- Diff par section -->
@@ -69,8 +70,8 @@
         <h3 class="diff-title">{{ $t('step4.comparisonDiffTitle') }}</h3>
         <p v-if="diffSections.length === 0" class="panel-hint">{{ $t('step4.comparisonDiffEmpty') }}</p>
         <details
-          v-for="section in diffSections"
-          :key="`${section.title}-${section.status}`"
+          v-for="(section, index) in diffSections"
+          :key="`${section.title}-${section.status}-${index}`"
           class="diff-item"
           :class="`diff-item--${section.status}`"
         >
@@ -97,6 +98,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRegionalFormat } from '../i18n/useRegionalFormat.js'
+import { getReportAuditDownloadUrl } from '../api/report.js'
 import { computeDelta, diffSections as computeDiffSections } from '../utils/reportComparison.js'
 
 const props = defineProps({
@@ -136,8 +138,15 @@ const diffSections = computed(() => {
 
 const auditUrl = (version) => {
   if (!version || !version.reportId) return '#'
-  return `/api/report/${version.reportId}/audit/download`
+  return getReportAuditDownloadUrl(version.reportId)
 }
+
+// Une archive d'audit n'existe que pour les rapports produits après la
+// story 011-5 : le lien n'est proposé que lorsqu'elle est réellement là.
+const auditAvailable = computed(() =>
+  Boolean(props.left && props.left.auditAvailable)
+  || Boolean(props.right && props.right.auditAvailable)
+)
 
 const statusLabel = (status) => {
   if (status === 'added') return t('step4.diffStatusAdded')
@@ -158,9 +167,12 @@ const formatSeconds = (value) => {
 
 const formatCost = (usage) => {
   if (!usage || !usage.costAvailable || usage.estimatedCostUsd === null) return unavailable.value
+  // La devise vient du fichier de télémétrie : une valeur illisible y ferait
+  // lever `Intl.NumberFormat` (RangeError) et casserait tout le panneau.
+  const currency = ['USD', 'EUR'].includes(usage.currency) ? usage.currency : 'USD'
   const amount = formatNumber(usage.estimatedCostUsd, {
     style: 'currency',
-    currency: usage.currency || 'USD',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   })
@@ -192,7 +204,28 @@ const formatEffort = (version, key) => {
 
 const formatStopReason = (version) => {
   if (!version || !version.stopReason) return unavailable.value
-  return t(version.stopReason.i18nKey)
+  const label = t(version.stopReason.i18nKey)
+  // Le code dit *quoi*, le message dit *pourquoi* (AC4).
+  return version.stopMessage ? `${label} — ${version.stopMessage}` : label
+}
+
+const formatPublishable = (version) => {
+  if (!version || version.isPublishable === null || version.isPublishable === undefined) {
+    return unavailable.value
+  }
+  return version.isPublishable
+    ? t('step4.publishableYes')
+    : t('step4.publishableNo')
+}
+
+const formatCount = (value) => {
+  if (value === null || value === undefined) return unavailable.value
+  return formatNumber(value)
+}
+
+const formatRatio = (value) => {
+  if (value === null || value === undefined) return unavailable.value
+  return `${formatNumber(value, { maximumFractionDigits: 1 })} %`
 }
 
 const publicationLabel = (version) => {
@@ -225,7 +258,11 @@ const rows = computed(() => {
     { key: 'effortEffective', label: t('step4.metricEffortEffective'), left: formatEffort(left, 'effortEffective'), right: formatEffort(right, 'effortEffective'), delta: '—' },
     { key: 'replayMode', label: t('step4.metricReplayMode'), left: replayModeLabel(left), right: replayModeLabel(right), delta: '—' },
     { key: 'publication', label: t('step4.metricPublicationStatus'), left: publicationLabel(left), right: publicationLabel(right), delta: '—' },
+    { key: 'publishable', label: t('step4.metricPublishable'), left: formatPublishable(left), right: formatPublishable(right), delta: '—' },
     { key: 'claims', label: t('step4.metricClaims'), left: formatClaims(left), right: formatClaims(right), delta: formatDeltaNumber(left.supportedClaims, right.supportedClaims) },
+    { key: 'unsupportedClaims', label: t('step4.metricUnsupportedClaims'), left: formatCount(left.unsupportedClaims), right: formatCount(right.unsupportedClaims), delta: formatDeltaNumber(left.unsupportedClaims, right.unsupportedClaims) },
+    { key: 'contradictedClaims', label: t('step4.metricContradictedClaims'), left: formatCount(left.contradictedClaims), right: formatCount(right.contradictedClaims), delta: formatDeltaNumber(left.contradictedClaims, right.contradictedClaims) },
+    { key: 'verificationRatio', label: t('step4.metricVerificationRatio'), left: formatRatio(left.verificationRatio), right: formatRatio(right.verificationRatio), delta: formatDeltaNumber(left.verificationRatio, right.verificationRatio) },
     { key: 'tokens', label: t('step4.metricTokens'), left: formatTokens(leftUsage.totalTokens), right: formatTokens(rightUsage.totalTokens), delta: formatDeltaNumber(leftUsage.totalTokens, rightUsage.totalTokens) },
     { key: 'duration', label: t('step4.metricInferenceDuration'), left: formatSeconds(leftUsage.durationSeconds), right: formatSeconds(rightUsage.durationSeconds), delta: formatDeltaNumber(leftUsage.durationSeconds, rightUsage.durationSeconds) },
     { key: 'wall', label: t('step4.metricWallDuration'), left: formatSeconds(leftUsage.wallSeconds), right: formatSeconds(rightUsage.wallSeconds), delta: formatDeltaNumber(leftUsage.wallSeconds, rightUsage.wallSeconds) },
@@ -244,6 +281,11 @@ const rows = computed(() => {
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 10px;
+  /* Hauteur bornée : le panneau vit dans la barre de version, qui ne défile
+     pas. Sans borne, un diff long réduisait la zone des journaux à une
+     hauteur nulle (Story 013-5, revue BMAD du 20 octobre 2026). */
+  max-height: 45vh;
+  overflow-y: auto;
 }
 
 .comparison-header {

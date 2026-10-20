@@ -403,6 +403,9 @@ class ReportUsageMetrics:
     budget_exceeded: bool = False
     timeout_exceeded: bool = False
     stop_reason: Optional[str] = None
+    # Message d'arrêt contrôlé, porté par le job : le code seul ne dit pas
+    # *pourquoi* le générateur s'est arrêté (Story 013-5, AC4).
+    stop_message: Optional[str] = None
     phase_totals: Dict[str, Dict[str, int]] = field(default_factory=dict)
     calls: List[CallUsageRecord] = field(default_factory=list)
     started_at: Optional[str] = None
@@ -435,6 +438,7 @@ class ReportUsageMetrics:
             "budget_exceeded": bool(self.budget_exceeded),
             "timeout_exceeded": bool(self.timeout_exceeded),
             "stop_reason": self.stop_reason,
+            "stop_message": self.stop_message,
             "phase_totals": self.phase_totals,
             "calls": [call.to_dict() for call in self.calls],
             "started_at": self.started_at,
@@ -502,6 +506,7 @@ class ReportUsageMetrics:
             budget_exceeded=bool(data.get("budget_exceeded", False)),
             timeout_exceeded=bool(data.get("timeout_exceeded", False)),
             stop_reason=data.get("stop_reason"),
+            stop_message=data.get("stop_message"),
             phase_totals=phase_totals,
             calls=calls,
             started_at=data.get("started_at"),
@@ -531,6 +536,7 @@ class ReportUsageMetrics:
             "budget_exceeded": bool(self.budget_exceeded),
             "timeout_exceeded": bool(self.timeout_exceeded),
             "stop_reason": self.stop_reason,
+            "stop_message": self.stop_message,
         }
 
     def save_to_file(self, target_path: str) -> str:

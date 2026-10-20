@@ -307,3 +307,84 @@ test('short identifier drops the prefix and keeps the full one available', () =>
   assert.equal(shortReportId('report_short'), 'short')
   assert.equal(shortReportId(''), '')
 })
+
+test('history sorting compares instants, not date strings of mixed formats', () => {
+  // Le serveur écrit une horodatage local naïf, le navigateur un horodatage
+  // UTC : une comparaison lexicale des deux écritures rangeait l'entrée UTC
+  // avant l'entrée locale pour tout décalage négatif.
+  const entries = [
+    { report_id: 'report_utc', created_at: '2026-10-20T07:32:00.000Z' },
+    { report_id: 'report_local', created_at: '2026-10-20T02:32:00.123456' },
+  ]
+  const sorted = sortReportHistory(entries)
+  // 02:32 locales précèdent 07:32 UTC : le tri suit l'instant, pas la chaîne.
+  assert.deepEqual(sorted.map(entry => entry.report_id), ['report_local', 'report_utc'])
+})
+
+test('a heading inside a code fence is not a section title', () => {
+  const markdown = [
+    '# Titre réel',
+    '',
+    '```python',
+    '# commentaire qui ressemble à un titre',
+    'print("ok")',
+    '```',
+    '',
+    '## Section suivante',
+  ].join('\n')
+  const sections = parseMarkdownSections(markdown)
+  assert.deepEqual(sections.map(section => section.title), ['Titre réel', 'Section suivante'])
+})
+
+test('the usage summary of the history entry is the fallback of the usage payload', () => {
+  const version = buildComparisonVersion({
+    historyEntry: {
+      report_id: 'report_historique',
+      usage_summary: {
+        usage_available: true,
+        pricing_available: true,
+        estimated_cost_usd: 0.42,
+        currency: 'USD',
+        total_tokens: 1234,
+        stop_reason: 'budget_exceeded',
+        stop_message: 'Plafond budgétaire atteint',
+      },
+    },
+  })
+  assert.equal(version.usage.usageAvailable, true)
+  assert.equal(version.usage.totalTokens, 1234)
+  assert.equal(version.usage.estimatedCostUsd, 0.42)
+  assert.equal(version.stopReason.reason, 'budget_exceeded')
+  assert.equal(version.stopMessage, 'Plafond budgétaire atteint')
+})
+
+test('an assembled version exposes the publication and claim breakdown', () => {
+  const version = buildComparisonVersion({
+    report: { report_id: 'report_details', simulation_id: 'sim_x' },
+    quality: { publication_status: 'needs_review', is_publishable: false },
+    claims: {
+      total_claims: 10,
+      verified_claims: 4,
+      unsupported_claims: 5,
+      contradicted_claims: 1,
+      verification_ratio: 40.0,
+    },
+    historyEntry: { report_id: 'report_details', audit_available: true },
+  })
+  assert.equal(version.publicationStatus, 'needs_review')
+  assert.equal(version.isPublishable, false)
+  assert.equal(version.totalClaims, 10)
+  assert.equal(version.supportedClaims, 4)
+  assert.equal(version.unsupportedClaims, 5)
+  assert.equal(version.contradictedClaims, 1)
+  assert.equal(version.verificationRatio, 40.0)
+  assert.equal(version.auditAvailable, true)
+})
+
+test('a version without quality result leaves publishability unknown', () => {
+  const version = buildComparisonVersion({
+    report: { report_id: 'report_sans_qualite' },
+  })
+  assert.equal(version.isPublishable, null)
+  assert.equal(version.auditAvailable, false)
+})
