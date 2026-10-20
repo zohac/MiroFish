@@ -96,6 +96,35 @@ def _safe_float(value: Any) -> Optional[float]:
     return result
 
 
+def infer_provider_id(
+    profile: Optional[Any],
+    explicit_provider_id: Optional[str] = None,
+    base_url: Optional[str] = None,
+) -> Optional[str]:
+    """Résout le fournisseur, en reconnaissant les passerelles locales.
+
+    Ne conserve jamais l'URL elle-même : seul un identifiant de passerelle
+    (``antigravity-local``, ``codex-local``) est dérivé des ports connus.
+    """
+    candidate = str(
+        _safe_str(explicit_provider_id)
+        or _safe_str(getattr(profile, "provider_id", None))
+        or ""
+    ).strip()
+    if candidate and candidate.lower() not in {"custom", "env", "unknown"}:
+        return candidate
+    resolved_url = (
+        _safe_str(base_url)
+        or _safe_str(getattr(profile, "base_url", None))
+        or ""
+    )
+    if "18081" in resolved_url:
+        return "antigravity-local"
+    if "18080" in resolved_url:
+        return "codex-local"
+    return candidate or None
+
+
 def extract_usage_counts(usage: Any) -> Dict[str, Any]:
     """Extrait défensivement tokens et disponibilité d'un objet ``usage``.
 
@@ -182,7 +211,10 @@ class ReportUsageTracker:
         self.simulation_id = simulation_id
         self.profile = profile
         self.model = _safe_str(model) or _safe_str(getattr(profile, "model", None)) or ""
-        self.provider_id = self._infer_provider_id(profile, provider_id, base_url)
+        self.provider_id = infer_provider_id(profile, provider_id, base_url)
+        self._billing_mode = (
+            _safe_str(getattr(profile, "billing_mode", None)) or "auto"
+        )
         self.pricing_table = pricing_table or PricingTable()
         self._clock = clock
         self._start_monotonic = float(clock())
@@ -197,35 +229,13 @@ class ReportUsageTracker:
         self._stop_reason: Optional[str] = None
         self._unpriced_model_calls = 0
         self._previous_callback: Optional[Callable[..., Any]] = None
+        # Référence stable : un *bound method* est recréé à chaque accès, donc
+        # toute comparaison par identité doit porter sur cette valeur.
+        self._bound_callback = self.handle_llm_usage
 
     # ──────────────────────────────────────────────────────────────────
     # Cycle de vie
     # ──────────────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _infer_provider_id(
-        profile: Optional[Any],
-        explicit_provider_id: Optional[str],
-        base_url: Optional[str] = None,
-    ) -> Optional[str]:
-        """Résout le fournisseur, en reconnaissant les passerelles locales."""
-        candidate = str(
-            _safe_str(explicit_provider_id)
-            or _safe_str(getattr(profile, "provider_id", None))
-            or ""
-        ).strip()
-        if candidate and candidate.lower() not in {"custom", "env", "unknown"}:
-            return candidate
-        resolved_url = (
-            _safe_str(base_url)
-            or _safe_str(getattr(profile, "base_url", None))
-            or ""
-        )
-        if "18081" in resolved_url:
-            return "antigravity-local"
-        if "18080" in resolved_url:
-            return "codex-local"
-        return candidate or None
 
     def begin(self, report_id: str, simulation_id: Optional[str] = None) -> None:
         """Démarre une nouvelle mesure pour un job de rapport."""
@@ -242,11 +252,7 @@ class ReportUsageTracker:
         self._timeout_exceeded = False
         self._stop_reason = None
         self._unpriced_model_calls = 0
-        self._reasoning_effort_effective = (
-            "unknown"
-            if _safe_str(getattr(self.profile, "reasoning_effort", None))
-            else None
-        )
+        self._reasoning_effort_effective = "unknown"
 
     def set_phase(self, phase: str) -> None:
         """Fixe la phase courante utilisée pour attribuer les appels suivants."""
@@ -309,33 +315,44 @@ class ReportUsageTracker:
         )
         if reasoning_effort_effective is not None:
             effective = str(reasoning_effort_effective).strip().lower() or "unknown"
-        elif requested_effort:
-            effective = str(self._reasoning_effort_effective or "unknown")
+        elif requested_effort and counts["usage_available"] and resolved_provider == "antigravity-local":
+            # L'effort n'est déclaré effectif qu'avec une preuve par réponse :
+            # la passerelle locale traduit l'effort en thinkingConfig (013-1),
+            # mais AC3 interdit de l'affirmer sans objet `usage`.
+            effective = str(requested_effort).strip().lower()
+            self._reasoning_effort_effective = effective
         else:
             effective = "unknown"
 
-        pricing = self.pricing_table.get_pricing(resolved_model, resolved_provider)
-        cost = self.pricing_table.calculate_cost(
-            resolved_model,
-            prompt_tokens=counts["prompt_tokens"],
-            completion_tokens=counts["completion_tokens"],
-            thinking_tokens=counts["thinking_tokens"],
-            provider_id=resolved_provider,
-        )
+        pricing = self.pricing_table.get_pricing(resolved_model)
+        provider_free = self.pricing_table.is_free_provider(resolved_provider)
+        model_free = self.pricing_table.is_free_model(resolved_model)
+        known_billable = pricing is not None and not provider_free and not model_free
+        # « free » déclaratif n'est honoré que si la grille ne prouve pas le
+        # contraire : un client ne peut pas annuler le coût d'un modèle tarifé.
+        free_granted = self._billing_mode == "free" and not known_billable
+
+        if self._billing_mode == "metered" and not provider_free:
+            cost = self.pricing_table.theoretical_cost(
+                resolved_model,
+                prompt_tokens=counts["prompt_tokens"],
+                completion_tokens=counts["completion_tokens"],
+                thinking_tokens=counts["thinking_tokens"],
+            )
+        else:
+            cost = self.pricing_table.calculate_cost(
+                resolved_model,
+                prompt_tokens=counts["prompt_tokens"],
+                completion_tokens=counts["completion_tokens"],
+                thinking_tokens=counts["thinking_tokens"],
+                provider_id=resolved_provider,
+            )
+        if free_granted:
+            cost = 0.0
         if not counts["usage_available"]:
             cost = None
 
-        free_override = (
-            _safe_str(getattr(self.profile, "billing_mode", None)) == "free"
-        )
-        if free_override and counts["usage_available"]:
-            cost = 0.0
-
-        if (
-            pricing is None
-            and not free_override
-            and not self.pricing_table.is_free(resolved_model, resolved_provider)
-        ):
+        if pricing is None and not provider_free and not model_free and not free_granted:
             self._unpriced_model_calls += 1
 
         record = CallUsageRecord(
@@ -372,7 +389,7 @@ class ReportUsageTracker:
         totals["total_tokens"] += record.total_tokens
         totals["calls_count"] += 1
 
-        if pricing is None:
+        if pricing is None and not provider_free and not model_free and not free_granted:
             logger.warning(
                 "Modèle sans grille tarifaire connue (%s) : coût laissé inconnu",
                 resolved_model,
@@ -423,9 +440,9 @@ class ReportUsageTracker:
             return
         try:
             previous = getattr(llm_client, "usage_callback", None)
-            if callable(previous) and previous is not self.handle_llm_usage:
+            if callable(previous) and previous is not self._bound_callback:
                 self._previous_callback = previous
-            llm_client.usage_callback = self.handle_llm_usage
+            llm_client.usage_callback = self._bound_callback
         except Exception as error:  # pragma: no cover - client exotique
             logger.warning("Impossible de brancher la télémétrie sur le client LLM : %s", error)
 
@@ -434,7 +451,7 @@ class ReportUsageTracker:
         if llm_client is None:
             return
         try:
-            if getattr(llm_client, "usage_callback", None) is self.handle_llm_usage:
+            if getattr(llm_client, "usage_callback", None) is self._bound_callback:
                 llm_client.usage_callback = self._previous_callback
         except Exception:  # pragma: no cover - client exotique
             pass
@@ -520,22 +537,26 @@ class ReportUsageTracker:
         theoretical_cost = None
         if all_priced:
             theoretical_cost = round(known_cost, 8)
-            profile_free = (
-                _safe_str(getattr(self.profile, "billing_mode", None)) == "free"
+            needs_theoretical = (
+                self.pricing_table.is_free_provider(self.provider_id)
+                or self._billing_mode in {"free", "metered"}
             )
-            if self.pricing_table.is_free_provider(self.provider_id) or profile_free:
-                theoretical_cost = round(
-                    sum(
-                        self.pricing_table.theoretical_cost(
-                            call.model,
-                            prompt_tokens=call.prompt_tokens,
-                            completion_tokens=call.completion_tokens,
-                            thinking_tokens=call.thinking_tokens,
-                        )
-                        or 0.0
-                        for call in self._calls
-                    ),
-                    8,
+            if needs_theoretical:
+                per_call = [
+                    self.pricing_table.theoretical_cost(
+                        call.model,
+                        prompt_tokens=call.prompt_tokens,
+                        completion_tokens=call.completion_tokens,
+                        thinking_tokens=call.thinking_tokens,
+                    )
+                    for call in self._calls
+                ]
+                # Aucun coût théorique n'est inventé : un modèle hors grille
+                # laisse la valeur inconnue plutôt que de publier 0.0 (AT-12).
+                theoretical_cost = (
+                    round(sum(per_call), 8)
+                    if all(value is not None for value in per_call)
+                    else None
                 )
 
         return ReportUsageMetrics(
@@ -604,6 +625,7 @@ class BudgetGuard:
         max_total_cost_usd: Optional[float] = None,
         max_wall_seconds: Optional[float] = None,
         project_next_call: bool = True,
+        fail_closed_unpriced: bool = False,
     ):
         self.tracker = tracker
         self.max_total_cost_usd = (
@@ -613,11 +635,15 @@ class BudgetGuard:
             float(max_wall_seconds) if max_wall_seconds is not None else None
         )
         self.project_next_call = project_next_call
+        # Le Fail-Closed tarifaire n'est armé que sur un profil explicitement
+        # payant : un run gratuit ou non tarifé ne doit pas être interrompu.
+        self.fail_closed_unpriced = fail_closed_unpriced
 
     @classmethod
     def from_profile(
         cls, tracker: ReportUsageTracker, profile: Optional[Any]
     ) -> "BudgetGuard":
+        billing_mode = _safe_str(getattr(profile, "billing_mode", None)) or "auto"
         return cls(
             tracker,
             max_total_cost_usd=_safe_float(
@@ -626,6 +652,7 @@ class BudgetGuard:
             max_wall_seconds=_safe_float(
                 getattr(profile, "max_wall_seconds", None)
             ),
+            fail_closed_unpriced=(billing_mode == "metered"),
         )
 
     @property
@@ -662,7 +689,7 @@ class BudgetGuard:
         # Fail-Closed tarifaire : un modèle facturable sans grille connue ne
         # peut pas être borné. On refuse de continuer plutôt que de considérer
         # « inconnu » comme gratuit.
-        if self.tracker.unpriced_model_calls > 0:
+        if self.fail_closed_unpriced and self.tracker.unpriced_model_calls > 0:
             self.tracker.mark_stop("pricing_unavailable", budget_exceeded=True)
             raise ReportBudgetExceededError(
                 (

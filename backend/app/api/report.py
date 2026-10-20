@@ -1541,7 +1541,19 @@ def get_report_usage(report_id: str):
                 ),
             }), 500
         elif isinstance(report.usage_metrics, dict):
-            usage_data = report.usage_metrics
+            # Reconstruction par le modèle : les clés inconnues d'un meta.json
+            # altéré ne traversent pas la réponse (liste blanche de champs).
+            from ..models.report_usage import ReportUsageMetrics
+
+            try:
+                usage_data = ReportUsageMetrics.from_dict(report.usage_metrics).to_dict()
+            except (TypeError, ValueError, OverflowError):
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        f"Métriques d'usage illisibles pour le rapport {report_id}"
+                    ),
+                }), 500
         else:
             return jsonify({
                 "success": False,

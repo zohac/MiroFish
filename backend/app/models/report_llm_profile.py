@@ -6,9 +6,12 @@ sans altérer les variables d'environnement globales du processus.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional
+
+from .report_usage import PricingTable
 
 VALID_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
 VALID_BILLING_MODES = {"auto", "free", "metered"}
@@ -51,6 +54,31 @@ class ReportLLMProfile:
             )
         object.__setattr__(self, "billing_mode", normalized_billing)
 
+        # Un plafond négatif ou non fini produirait un arrêt immédiat (ou un
+        # plafond silencieusement désactivé en aval) : on refuse à l'entrée.
+        cost_cap = self.max_total_cost_usd
+        if (
+            isinstance(cost_cap, bool)
+            or not isinstance(cost_cap, (int, float))
+            or not math.isfinite(float(cost_cap))
+            or float(cost_cap) < 0
+        ):
+            raise ValueError(
+                "max_total_cost_usd doit être un nombre fini positif ou nul"
+            )
+        wall_cap = self.max_wall_seconds
+        if (
+            isinstance(wall_cap, bool)
+            or not isinstance(wall_cap, (int, float))
+            or not math.isfinite(float(wall_cap))
+            or float(wall_cap) < 0
+        ):
+            raise ValueError(
+                "max_wall_seconds doit être un nombre fini positif ou nul"
+            )
+        object.__setattr__(self, "max_total_cost_usd", float(cost_cap))
+        object.__setattr__(self, "max_wall_seconds", int(wall_cap))
+
     def to_dict(self, expose_secrets: bool = False) -> Dict[str, Any]:
         """Sérialise le profil en dictionnaire. Masque les clés API par défaut."""
         data = asdict(self)
@@ -79,7 +107,11 @@ class ReportLLMProfile:
             api_key=data_copy.get("api_key"),
             max_total_cost_usd=float(data_copy.get("max_total_cost_usd", 2.0)),
             max_wall_seconds=int(data_copy.get("max_wall_seconds", 900)),
-            billing_mode=str(data_copy.get("billing_mode", "auto")),
+            billing_mode=(
+                str(data_copy.get("billing_mode"))
+                if data_copy.get("billing_mode") is not None
+                else "auto"
+            ),
         )
 
     @classmethod
@@ -89,7 +121,7 @@ class ReportLLMProfile:
 
         effort = (Config.LLM_REASONING_EFFORT or "").strip().lower() or None
         model_name = Config.LLM_MODEL_NAME or "gemini-3.8-flash"
-        is_free_model = "free" in str(model_name).lower()
+        is_free_model = PricingTable.is_free_model(model_name)
         return cls(
             profile_id=profile_id,
             model=model_name,
@@ -116,7 +148,10 @@ class ReportLLMProfile:
                 reasoning_effort="medium",
                 base_url=base_url,
                 api_key=api_key,
-                billing_mode="auto",
+                # Profil de benchmark : le plafond doit être réellement
+                # opposable, donc le Fail-Closed tarifaire est armé. Une
+                # passerelle locale reste facturée 0 $ par la grille.
+                billing_mode="metered",
             ),
             "flash-high": cls(
                 profile_id="flash-high",
@@ -125,7 +160,7 @@ class ReportLLMProfile:
                 reasoning_effort="high",
                 base_url=base_url,
                 api_key=api_key,
-                billing_mode="auto",
+                billing_mode="metered",
             ),
             "deepseek-v4-pro": cls(
                 profile_id="deepseek-v4-pro",

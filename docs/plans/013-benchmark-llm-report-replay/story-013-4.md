@@ -2,7 +2,7 @@
 id: "013-4"
 epic: "013"
 titre: "Télémétrie d'usage, mesure des temps et plafonds budgétaires"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -110,21 +110,21 @@ Cette story répond à l'exigence fonctionnelle **FR-08** (télémétrie d'usage
 
 ## Notes de développement
 
-1. **Table de tarification standard (`PricingTable`)** :
+1. **Table de tarification standard (`PricingTable`)** — valeurs reprises de la table de référence du PRD source (§6, captures du 19 octobre 2026) :
    ```python
    DEFAULT_PRICING = {
        "gemini-3.8-flash": {
-           "input_cost_per_million": 0.15,
-           "output_cost_per_million": 0.60,
+           "input_cost_per_million": 1.50,
+           "output_cost_per_million": 7.50,
            "currency": "USD",
        },
        "deepseek-v4-pro": {
-           "input_cost_per_million": 0.27,
-           "output_cost_per_million": 1.10,
+           "input_cost_per_million": 1.74,
+           "output_cost_per_million": 3.84,
            "currency": "USD",
        },
        "gpt-6.1-sol": {
-           "input_cost_per_million": 2.50,
+           "input_cost_per_million": 2.00,
            "output_cost_per_million": 10.00,
            "currency": "USD",
        },
@@ -141,13 +141,13 @@ Cette story répond à l'exigence fonctionnelle **FR-08** (télémétrie d'usage
 
 ### Notes d'implémentation (19 octobre 2026)
 
-- **Politique de gratuité explicite** : `PricingTable` distingue les passerelles locales (`antigravity-local`, `codex-local`, `local`, `ollama`), les modèles explicitement gratuits (`-free`, `:free`) et un champ `billing_mode` (`auto`, `free`, `metered`) ajouté à `ReportLLMProfile`. Un modèle gratuit reste à `0.00 $` même hors grille tarifaire, tout en conservant un `theoretical_cost_usd` informatif.
+- **Politique de gratuité explicite** : `PricingTable` distingue les passerelles locales (`antigravity-local`, `codex-local`, `local`, `ollama`) et les modèles explicitement gratuits (`-free`, `:free`, `free-`). Le champ `billing_mode` (`auto`, `free`, `metered`) de `ReportLLMProfile` rend la gratuité déclarative : `free` n'est honoré que si la grille ne prouve pas le modèle facturable, et `metered` arme le Fail-Closed. Un modèle gratuit reste à `0.00 $` même hors grille tarifaire, tout en conservant un `theoretical_cost_usd` informatif (ou `None` s'il n'est pas calculable).
 - **Table tarifaire datée** : `PRICING_TABLE_VERSION = "2026-10-19"` ; les tarifs sont indicatifs et jamais présentés comme une facture. `estimated_cost_usd` vaut `None` dès qu'un appel n'a pas d'`usage` exploitable.
 - **Tokens de réflexion** : extraction défensive depuis `completion_tokens_details.reasoning_tokens`, puis `reasoning_tokens` et `output_tokens_details`. Ils sont considérés comme un sous-ensemble de `completion_tokens` ; un tarif séparé n'est appliqué que si `thinking_billed_separately` est vrai.
 - **Durées** : `duration_seconds` est la somme des temps d'inférence mesurés par appel ; `wall_seconds` conserve le temps mural du job (outils, E/S, audits compris).
 - **Couverture des outils** : `ReportAgent` injecte son client LLM profilé dans `ZepToolsService` (`llm_client=self.llm`) et bascule en phase `interviews` autour de l'outil d'interview. Les appels d'outils sont donc mesurés et soumis au même garde-fou.
 - **Garde-fou à deux niveaux** : contrôle aux frontières (planification, sections, outils, audit) et `pre_request_callback` dans `LLMClient`, qui bloque chaque tentative HTTP, y compris les relances JSON et les reprises anti-troncature. Le temps restant est transmis comme `timeout` de la requête OpenAI-compatible.
-- **Fail-Closed tarifaire** : un modèle facturable absent de la grille déclenche `ReportBudgetExceededError` plutôt que de traiter « inconnu » comme gratuit. Une erreur `usage` manquante, elle, reste marquée inconnue sans fabriquer de coût (AT-12).
+- **Fail-Closed tarifaire** : un modèle facturable absent de la grille déclenche `ReportBudgetExceededError` plutôt que de traiter « inconnu » comme gratuit — mais seulement sur un profil `billing_mode="metered"`, pour qu'un run gratuit ou non tarifé ne soit jamais interrompu. Une erreur `usage` manquante, elle, reste marquée inconnue sans fabriquer de coût (AT-12).
 - **Persistance** : `usage.json` est écrit atomiquement avant le scellement du ZIP d'audit ; il est ensuite inclus dans `checksums.sha256`. Une fois scellé, il n'est plus réécrit (le ZIP et le fichier disque restent identiques). Le résumé est repris dans `meta.json`, `run_manifest.json` et `report_history.json` (avec rétro-remplissage des entrées historiques).
 - **API** : `GET /api/report/<report_id>/usage` reconstruit la réponse depuis `ReportUsageMetrics` (liste blanche de champs) ; un fichier absent renvoie 404, un fichier corrompu 500 sans traceback serveur.
 - **Secrets** : `sanitize_usage_payload` filtre récursivement les clés sensibles en normalisant casse, tirets et underscores (`api_key`, `baseUrl`, `access-token`, `prompt_messages`, etc.). `run_manifest.json` n'expose plus `LLM_BASE_URL`, seulement `base_url_configured`.
@@ -187,16 +187,65 @@ Quatre relectures indépendantes (correction fonctionnelle, preuve par les tests
 
 ### Verdict
 
-**Conforme aux AC1–AC6 après correctifs.** Filet complet : **1 920 tests hôte verts** (dont 40 tests hermétiques dédiés à la story) + 9 tests Node frontend. `ruff check` et `validate_plans.py` au vert.
+**Conforme aux AC1–AC6 après correctifs.** Deuxième passe de revue contradictoire (19-20 octobre 2026) : 14 findings corrigés, dont quatre arbitrages tranchés (périmètre du Fail-Closed, sémantique de `billing_mode`, preuve de l'effort effectif, source des prix alignée sur le PRD source). Filet complet : **1 939 tests hôte verts** (dont 59 tests hermétiques dédiés à la story) + 9 tests Node frontend. `ruff check` et `validate_plans.py` au vert.
+
+### Review Findings
+
+Revue contradictoire BMAD à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) menée le 19 octobre 2026 sur le commit `9659397`, puis vérification de chaque finding contre le code réel. Filet mesuré : `pytest --collect-only` → **1 920 tests collectés**, dont **40** dans `test_report_usage_telemetry.py`.
+
+- [x] [Review][Patch] **Source des prix : grille alignée sur la table du PRD source** — `DEFAULT_PRICING` (`backend/app/models/report_usage.py:36-57`) fixe `gemini-3.8-flash` à `0,15 / 0,60 $` et `deepseek-v4-pro` à `0,27 / 1,10 $`, alors que la table de référence du PRD source (§6, lignes 149-153, captures du 19 octobre 2026) indique `1,50 / 7,50 $` et `1,74 / 3,84 $` ; `gpt-6.1-sol` est à `2,50 $` en entrée contre `2,00 $`. Pour 1 M tokens entrée + 1 M sortie, le coût estimé est 12× trop bas sur Flash et 4× sur DeepSeek : le plafond `max_total_cost_usd` peut donc être franchi d'un ordre de grandeur avant l'arrêt, et la comparaison de coûts du benchmark est faussée. La story elle-même reprend les valeurs du code dans ses Notes de développement (§1). **Décision de revue (20 oct. 2026) : aligner la grille sur la table du PRD source.** `DEFAULT_PRICING` porte désormais 1,50 / 7,50 (Flash), 1,74 / 3,84 (DeepSeek) et 2,00 / 10,00 (gpt-6.1-sol), avec la référence de la table en commentaire. Le plafond budgétaire redevient significatif et les tests de coût suivent.
+
+- [x] [Review][Patch] **Périmètre du Fail-Closed tarifaire** [backend/app/services/report_usage_tracker.py:665] — `FREE_PROVIDER_IDS` (`backend/app/models/report_usage.py:61`) ignore `opencode-go`, et `_infer_provider_id` (`report_usage_tracker.py:206-231`) ne reconnaît que les ports `18081`/`18080`. Les modèles réellement configurés hors des 4 entrées de `DEFAULT_PRICING` — `gpt-4o-mini` (défaut de `Config`, `backend/app/config.py:30`), `qwen-plus` (`.env.example`), `space-bunny` (OpenCode Go, §2.9 de la constitution) — ne sont ni tarifés ni gratuits : `record_call` incrémente `unpriced_model_calls`, puis `BudgetGuard.check` lève `ReportBudgetExceededError` au contrôle de section suivant ; le rapport part en `FAILED` après la seule planification. Le même garde-fou est branché sur `POST /api/report/chat` (`backend/app/api/report.py:703`), qui renvoie alors un **500 avec traceback** (`:718-723`). **Décision de revue (19 oct. 2026) : orienter le Fail-Closed sur `billing_mode="metered"`.** Le refus de démarrer ne s'applique qu'à un profil explicitement payant ; les profils `flash-medium`/`flash-high` du catalogue passent en `metered`, un run gratuit ou non tarifé n'échoue plus, et le chat n'est plus exposé au plafond d'un profil qu'il n'a pas demandé.
+- [x] [Review][Patch] **Sémantique de `billing_mode`** [backend/app/services/report_usage_tracker.py:329,524] — `"metered"` est déclaré par le catalogue (`backend/app/models/report_llm_profile.py:137,146,155`) mais n'est jamais lu (seul `== "free"` est testé). À l'inverse, un `"billing_mode": "free"` fourni par le client force `cost = 0.0` sur un modèle facturable et neutralise le plafond (mesuré : `deepseek-v4-pro`, 1 M entrée + 1 M sortie → `0.0` au lieu de 1,37 $ estimés). `default_from_env` teste de plus la sous-chaîne nue `"free"` (`:92`) alors que `FREE_MODEL_MARKERS` impose `-free`/`:free`/`free-`. **Décision de revue : valider `free` contre la grille.** `free` n'est honoré (coût `0.0`) que si le modèle est réellement gratuit — passerelle locale ou marqueur de la grille — sinon repli sur `auto` ; `metered` force le coût théorique même sur une passerelle gratuite.
+- [x] [Review][Patch] **`reasoning_effort_effective` sur Antigravity** [backend/app/services/report_agent.py:1293-1312] — l'effort demandé est marqué **effectif** avant tout appel LLM (`:2407`), sans confirmation issue de la réponse. AC3 exige `"unknown"` quand le provider ne renvoie pas d'`usage` : un run Antigravity sans `usage` produit `usage_available=False`, `estimated_cost_usd=None` **et** `reasoning_effort_effective="high"`. **Décision de revue : exiger une preuve par réponse.** L'effort effectif n'est renseigné qu'à partir d'une réponse porteuse d'`usage` ; sinon il reste `"unknown"`.
+
+- [x] [Review][Patch] Arrêt contrôlé sans corps de rapport ni manifeste d'audit [backend/app/services/report_agent.py:2709-2760] — `markdown_content` n'est assemblé qu'à `:2556`, donc un arrêt budget/timeout laisse `full_report.md` absent (garde `if report.markdown_content`, `:4306`) alors que la Définition de prêt promet une « sauvegarde partielle » ; aucun `run_manifest.json`/ZIP n'est produit (le handler retourne avant `build_audit_package`) ; le statut écrit est `publication_status: "failed_validation"` sans qu'aucun `ReportQualityGate` n'ait tourné, et `update_progress(..., -1, ...)` n'a pas de contrat côté API/IHM.
+- [x] [Review][Patch] Cycle de vie des callbacks sur client partagé [backend/app/services/report_usage_tracker.py:437] — `detach` compare `getattr(...) is self.handle_llm_usage` : chaque accès recrée un objet *bound method*, donc l'identité est toujours fausse et le callback précédent n'est **jamais** restauré. S'y ajoutent : `pre_request_callback` écrasé sans chaînage ni restauration (`report_agent.py:1338`, `:2835-2839` inversement au finding #12 de la revue initiale), `request_timeout` laissé à sa dernière valeur (`:1333`), et aucun ré-attachement au second `generate_report` sur la même instance (`attach_to` n'est appelé qu'en `__init__`, `:1163`) alors que `_usage_persisted` est remis à `False` à chaque génération.
+- [x] [Review][Patch] Couverture de vérification de bout en bout [backend/tests/test_report_usage_telemetry.py] — six garanties ne sont pas protégées : (1) le branchement `pre_request_callback` → `_create_completion` (`llm_client.py:162-164`) n'est jamais exercé (les deux tests appellent la closure directement, `:661-677`) ; (2) le `timeout` transmis au SDK (`openai_chat_compat.py:65-67`) n'est asserté nulle part ; (3) l'effort effectif Antigravity n'est pas observé sur `generate_report` ; (4) le rétro-remplissage `usage_summary` des rapports legacy/historique n'est pas testé ; (5) `billing_mode` n'est pas couvert à `from_dict`/`to_dict` ; (6) le contrôle budgétaire d'entrée de `_execute_tool` (`report_agent.py:1466-1469`) n'est pas testé au-delà du plafond. Enfin `test_usage_endpoint_reports_corrupt_file_without_traceback` teste l'absence d'une *clé*, pas du corps sérialisé.
+- [x] [Review][Patch] Résolution tarifaire approximative [backend/app/models/report_usage.py:247] — le repli `lowered.startswith(key_lower) or key_lower in lowered` fait hériter à `gemini-3.8-flash-pro` ou `qwen3.8-max-plus` le tarif du modèle de base (coût sous-estimé, plafond contourné, Fail-Closed jamais déclenché) ; le paramètre `provider_id` de `get_pricing` est accepté mais jamais lu.
+- [x] [Review][Patch] Télémétrie trompeuse pour les modèles hors grille [backend/app/services/report_usage_tracker.py:375-379] — l'avertissement « coût laissé inconnu » est émis à chaque appel même quand le run est gratuit et que le coût vaut bien `0.0` (cas nominal des passerelles locales) ; et `build_metrics` agrège `theoretical_cost(...) or 0.0` (`:527-535`), ce qui publie `theoretical_cost_usd=0.0` et `pricing_available=True` pour un modèle absent de la grille — un coût théorique fabriqué, contraire à AT-12.
+- [x] [Review][Patch] Contrat de `usage.json` absent ou illisible [backend/app/api/report.py:1530-1546] — la docstring promet une « liste blanche de champs », mais la branche de repli renvoie le dictionnaire hérité de `meta.json` filtré par une *blocklist* (`sanitize_usage_payload`) ; côté audit, `usage.json` n'est ajouté que s'il se charge (`simulation_audit_service.py:326-340`) — une archive scellée peut donc l'omettre en silence, alors que l'en-tête du service annonce un décompte d'artefacts qui ne correspond plus.
+- [x] [Review][Patch] Télémétrie complète exposée par les endpoints de rapport [backend/app/services/report_agent.py:505] — `Report.to_dict()` embarque désormais `usage_metrics` (avec la liste `calls`), donc `GET /api/report/<id>`, `/by-simulation/<id>` et surtout `/list?limit=50` (`api/report.py:518`) restituent la télémétrie brute de chaque rapport, sans passer par la liste blanche réservée à `/usage` (volume multiplié sur la liste, aucune couverture de test).
+- [x] [Review][Patch] Manifeste d'audit : version et provenance [backend/app/services/simulation_audit_service.py:149-166] — le schéma de `run_manifest.json` change (`base_url` remplacé par `base_url_configured`, ajout de `usage` et de deux champs d'effort) sans incrément de `version` (toujours `"1.0.0"`), et deux runs ciblant des passerelles différentes (18080, 18081, OpenCode Go) deviennent indistinguables — alors que la reproductibilité est l'objet de l'epic.
+- [x] [Review][Patch] Validation d'entrée du profil à la frontière API [backend/app/models/report_llm_profile.py:74-82] — `"billing_mode": null` devient la chaîne `"None"` puis un 400 ; `max_total_cost_usd`/`max_wall_seconds` négatifs sont acceptés et produisent un arrêt immédiat avec un message « plafond atteint » au lieu d'une erreur explicite ; une valeur non finie retombe silencieusement à `None` dans `BudgetGuard.from_profile` (`report_usage_tracker.py:87-101`) et **désactive** le plafond.
+- [x] [Review][Patch] Extrait de `architecture.md` non exécutable [docs/plans/013-benchmark-llm-report-replay/architecture.md:116-136] — `phase_totals` et `calls` sont déclarés sans valeur par défaut après des champs qui en ont une : le dataclass lèverait au chargement. Le contrat publié ne correspond pas à `report_usage.py`.
+
+- [x] [Review][Defer] `AGENTS.md` contredit ses propres chiffres [AGENTS.md:§2.2, §3, §11] — deferred: le diff met à jour le tableau d'axes et « la tâche du moment » à 1 920 tests, mais §2.2 s'arrête à `post-011-4 : 1719`, §3 annonce « 1431 tests collectés » et §11 « 333 passed ». Fichier de contexte agent : correction hors périmètre de patch automatique.
+- [x] [Review][Defer] Écart de référence du filet (1 881 → 1 920, +39 pour 40 tests) [docs/plans/013-benchmark-llm-report-replay/story-013-4.md] — deferred: `pytest --collect-only` mesure 1 920 tests et 40 dans le nouveau fichier ; la base antérieure réellement collectée était donc 1 880, non 1 881. Dérive de reporting antérieure, sans effet sur le code.
+- [x] [Review][Defer] ADR manquant sur tarification, budget et accès à l'`usage` brut — deferred: exigé par le PRD source §12.4 et AGENTS.md §2.3, mais l'ADR dépend de l'arbitrage des trois décisions ci-dessus (source des prix, sémantique de `billing_mode`, périmètre du Fail-Closed).
+- [x] [Review][Defer] Télémétrie du cache, des erreurs et des reprises [backend/app/models/report_usage.py:311-327] — deferred: le PRD source §6.3/§6.6 demande de comptabiliser séparément entrée, sortie, **cache** et raisonnement, et de conserver erreurs/reprises par appel ; ni `cached_tokens` ni `finish_reason` n'existent. Hors AC1–AC6 de la story, à traiter avec le banc 013-6.
+- [x] [Review][Defer] `dry_run` de FR-08 (PRD source) absent — deferred: l'epic 013 (FR-07) cadre la story sur la télémétrie et les plafonds ; l'estimation sans appel LLM reste à couvrir en 013-5/013-6.
+- [x] [Review][Defer] Amplification des reprises du SDK au-delà du plafond temporel [backend/app/utils/llm_client.py:133-137] — deferred: `OpenAI(...)` conserve `max_retries=2` par défaut, donc un `timeout` de temps restant peut être rejoué jusqu'à trois fois ; borner le plafond mural suppose de changer la construction du client (impact global), hors du correctif direct.
+
+**Rejetés (avec réfutation)**
+
+- `false` — `_persist_usage_metrics` fabriquerait `usage_available=True` pour zéro appel : la branche `tracker is None` est inatteignable, `usage_tracker` étant toujours instancié dans `ReportAgent.__init__` (`:1154`) ; le chemin réel `build_metrics()` renvoie bien `False` sans appel (`bool(self._calls)`).
+- `false` — `call_index` dupliqué après fusion manuelle de `usage.json` : aucune voie du programme ne recharge puis réenregistre des appels ; `from_dict` ne fait que restaurer un état déjà écrit par `record_call`.
+- `false` — hermeticité incomplète de `test_default_agent_falls_back_to_env_profile_guard` : le test n'assert que `profile_id` et les plafonds ; ni `provider_id` ni `reasoning_effort` n'entrent dans ses assertions, donc `Config.LLM_BASE_URL`/`LLM_REASONING_EFFORT` ne peuvent pas le faire varier.
+- `false` — absence de mesure réelle (`mesure-013-4.md`) : aucun AC de la story ne l'exige ; l'épreuve empirique A/B est le livrable de la story 013-6.
+- `low` → rejeté — `NaN` dans `usage.json`, ou plafond `NaN` : aucun producteur interne n'écrit de non-fini ; le seul chemin est un fichier ou un corps JSON forgé à la main, et la correction ajouterait de la validation pour un cas non atteint.
+- `low` → rejeté — `datetime.utcnow()` (naïf/déprécié), absence de `fsync` de répertoire, import local de `sanitize_usage_payload`, usage de `ReportManager._get_usage_path` depuis l'API : cosmétique ou encapsulation, sans consommateur qui en diverge aujourd'hui.
+- `low` → rejeté — `getattr(self.zep_tools, "llm", None)` instancie un `LLMClient` par effet de bord d'une propriété paresseuse (`zep_tools.py:518-522`) : le client créé est précisément celui que les outils utiliseront, donc l'instrumenter est correct ; le coût est une construction d'objet OpenAI sans appel réseau.
+- `low` → rejeté — `ReportUsageMetrics.summary()` sans `profile_id` : `meta.json`, `report_history.json` et le bloc `llm` du manifeste portent déjà le profil, le modèle, le provider et l'effort ; aucune jointure n'est perdue.
 
 ---
 
 ## Notes de complétion
 
 - **Divergences assumées par rapport au plan initial** :
-  - Le champ `billing_mode` a été ajouté à `ReportLLMProfile` pour rendre la gratuité explicite plutôt que déduite du seul `provider_id`. Cela évite de facturer à tort un run gratuit et de déclarer gratuit un modèle payant.
+  - Le champ `billing_mode` a été ajouté à `ReportLLMProfile` pour rendre la gratuité explicite plutôt que déduite du seul `provider_id`. `free` reste validé contre la grille (un modèle prouvé facturable n'est pas mis à 0 $), et `metered` arme le Fail-Closed.
   - `duration_seconds` désigne désormais le temps d'inférence cumulé ; le temps mural est conservé dans `wall_seconds`. Le critère AC1 reste satisfait et AC2 devient mesurable sans biais.
   - `usage.json` n'est pas réécrit après le scellement de l'archive d'audit : l'idempotence prime sur l'actualisation tardive d'une durée.
-  - Un modèle facturable absent de la grille tarifaire provoque un arrêt Fail-Closed (`pricing_unavailable`) au lieu d'un plafond silencieusement inopérant.
+  - Un modèle facturable absent de la grille provoque un arrêt Fail-Closed (`pricing_unavailable`) sur un profil déclaré `metered`, au lieu d'un plafond silencieusement inopérant.
 - **Limite connue** : le plafond temporel est vérifié avant chaque tentative HTTP et borné par le `timeout` transmis au SDK ; il ne peut pas interrompre de force une requête déjà bloquée côté fournisseur au-delà de ce timeout.
-- **Validation** : `uv run pytest tests/ -q` → **1 920 passed** ; `uv run ruff check .` → propre ; `uv run python scripts/validate_plans.py` → structure valide. Les nouveaux tests couvrent les coûts, la gratuité locale, l'usage manquant, les cumuls par phase, les arrêts budget/timeout, l'API, les secrets et l'archive d'audit.
+- **Validations et divergences de la seconde passe** :
+  - **Fail-Closed tarifaire orienté `metered`** : le refus de démarrer ne s'applique plus qu'à un profil explicitement payant. Les profils `flash-medium`/`flash-high` du catalogue passent en `metered` ; un run gratuit ou non tarifé (gpt-4o-mini, qwen-plus, space-bunny) ne casse plus, et le chat n'est plus exposé au plafond.
+  - **`billing_mode` effectif** : `free` n'est honoré que si la grille ne prouve pas le modèle facturable (sinon repli sur le tarif réel) ; `metered` force le calcul théorique hors passerelle gratuite. `default_from_env` réutilise `PricingTable.is_free_model` au lieu d'une sous-chaîne nue.
+  - **Effort effectif prouvé** : `reasoning_effort_effective` n'est renseigné qu'à partir d'une réponse porteuse d'`usage` sur la passerelle Antigravity ; sinon `"unknown"` (AC3 à la lettre).
+  - **Arrêt contrôlé réellement partiel** : la section en cours est écrite avant l'arrêt, le markdown partiel est assemblé, et le manifeste + ZIP d'audit sont produits pour un run interrompu. Le statut de progression reste `"failed"` (plus de statut `budget_exceeded` sans contrat).
+  - **Cycle de vie des callbacks** : `detach` compare une référence stable (un *bound method* est recréé à chaque accès), le callback pré-requête est chaîné puis restauré avec son `request_timeout`, et la télémétrie est rebranchée au démarrage de chaque génération.
+  - **Honnêteté de la télémétrie** : plus d'avertissement « coût inconnu » sur un run gratuit, plus de `theoretical_cost_usd` fabriqué à `0.0` pour un modèle hors grille, et `usage.json` toujours présent dans l'archive avec `usage_available: false` s'il manque.
+  - **Manifeste d'audit en version 1.1.0** avec alias de passerelle (`antigravity-local`, `codex-local`, `external`) : deux runs de gateways différentes restent distinguables sans exposer l'URL.
+  - **Grille tarifaire alignée sur le PRD source** : Flash 1,50 / 7,50, DeepSeek 1,74 / 3,84, gpt-6.1-sol 2,00 / 10,00, avec la référence datée en commentaire (l'ADR 0018 reste à écrire).
+  - **Validation d'entrée du profil** : `billing_mode: null` retombe sur `auto`, les plafonds négatifs ou non finis sont refusés.
+  - **Validation** : `uv run pytest tests/` → **1 939 passed** ; `uv run ruff check .` → propre ; `uv run python scripts/validate_plans.py` → structure valide. Les six garanties auparavant non couvertes (callback pré-requête, `timeout` SDK, effort effectif, rétro-remplissage legacy, `billing_mode`, contrôle d'outil) sont désormais testées.

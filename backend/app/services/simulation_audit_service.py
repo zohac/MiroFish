@@ -1,9 +1,9 @@
 """Service de confection du dossier d'audit autonome exportable (Epic 011, FR-10, C10).
 
 Rassemble dans une archive ZIP canonique (`simulation_audit_<sim_id>.zip`)
-l'ensemble des 8 artefacts de preuve vérifiables hors-ligne par un tiers,
+l'ensemble des 11 artefacts de preuve vérifiables hors-ligne par un tiers,
 scellés par un condensat cryptographique SHA-256 (`checksums.sha256`) :
-  1. `run_manifest.json` : versions, modèle, provider, locale, git sha, dates ISO.
+  1. `run_manifest.json` : versions, modèle, provider, passerelle, locale, git sha, dates ISO.
   2. `simulation_brief.json` : brief, scénario, hypothèses et horizon temporel.
   3. `actors.json` : sélection formelle d'acteurs, rôles de scénario et empreinte SHA-256.
   4. `source_manifest.json` : inventaire des documents sources avec typage épistémique.
@@ -11,9 +11,10 @@ scellés par un condensat cryptographique SHA-256 (`checksums.sha256`) :
   6. `cohort_coverage.json` : tableau de couverture de cohorte et statuts décisionnels.
   7. `report_claims.json` : registre des affirmations du rapport, preuves et statuts.
   8. `quality_checks.json` : journal d'inspection de la barrière ReportQualityGate.
-  9. `usage.json` : télémétrie d'usage LLM du rapport (tokens, durée, coût estimé).
-  10. `report.md` : texte final intégral du rapport publié.
-  11. `checksums.sha256` : hachages SHA-256 scellant l'intégrité de tous les fichiers ci-dessus.
+  9. `usage.json` : télémétrie d'usage LLM (tokens, durée, coût estimé) ; présent
+     même lorsqu'elle est indisponible, avec `usage_available: false`.
+ 10. `report.md` : texte final intégral du rapport publié (ou partiel sur arrêt contrôlé).
+ 11. `checksums.sha256` : hachages SHA-256 scellant l'intégrité de tous les fichiers ci-dessus.
 """
 
 from __future__ import annotations
@@ -143,9 +144,14 @@ class SimulationAuditService:
 
         # Bloc LLM : le profil du job prime sur la configuration globale, et
         # l'URL privée n'est jamais exposée dans un manifeste scellé (NFR-4).
+        # La passerelle est identifiée par un alias, jamais par son adresse.
+        from .report_usage_tracker import infer_provider_id
+
+        gateway = infer_provider_id(None, None, Config.LLM_BASE_URL) or "external"
         llm_block: Dict[str, Any] = {
             "model_name": Config.LLM_MODEL_NAME,
             "provider": "local-openai-compatible",
+            "gateway": gateway,
             "base_url_configured": bool(Config.LLM_BASE_URL),
         }
         if usage_summary:
@@ -159,7 +165,7 @@ class SimulationAuditService:
             )
 
         manifest = {
-            "version": "1.0.0",
+            "version": "1.1.0",
             "simulation_id": self.simulation_id,
             "report_id": self.report_id,
             "git_commit": self._get_git_commit(),
@@ -324,16 +330,30 @@ class SimulationAuditService:
             files["quality_checks.json"] = json.dumps({"simulation_id": self.simulation_id, "checks": []}, indent=2).encode("utf-8")
 
         # 8 bis. usage.json (télémétrie d'usage per-report, Story 013-4)
-        if rep_dir:
-            usage_metrics = ReportUsageMetrics.load_from_file(
-                os.path.join(rep_dir, "usage.json")
+        if self.report_id:
+            usage_path = (
+                os.path.join(rep_dir, "usage.json") if rep_dir else ""
+            )
+            usage_metrics = (
+                ReportUsageMetrics.load_from_file(usage_path) if usage_path else None
             )
             if usage_metrics is not None:
-                files["usage.json"] = json.dumps(
-                    sanitize_usage_payload(usage_metrics.to_dict()),
-                    ensure_ascii=False,
-                    indent=2,
-                ).encode("utf-8")
+                usage_payload = sanitize_usage_payload(usage_metrics.to_dict())
+            else:
+                # L'absence de télémétrie n'est jamais silencieuse : l'artefact
+                # est présent et déclare explicitement son indisponibilité.
+                usage_payload = {
+                    "report_id": self.report_id,
+                    "usage_available": False,
+                    "reason": (
+                        "absent"
+                        if not usage_path or not os.path.exists(usage_path)
+                        else "unreadable"
+                    ),
+                }
+            files["usage.json"] = json.dumps(
+                usage_payload, ensure_ascii=False, indent=2
+            ).encode("utf-8")
 
         # 9. report.md (priorité rep_dir full_report.md)
         report_md_path = ""

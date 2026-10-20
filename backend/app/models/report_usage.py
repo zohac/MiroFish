@@ -30,18 +30,19 @@ from typing import Any, Dict, List, Optional
 # nouvelle version plutôt que réécrire silencieusement l'historique.
 PRICING_TABLE_VERSION = "2026-10-19"
 
-# Grille indicative en USD pour 1 million de tokens, issue du cadrage de la
-# story 013-4. Les tarifs fournisseurs évoluent : ``estimated_cost_usd`` est
-# une estimation, jamais une facture.
+# Grille indicative en USD pour 1 million de tokens, reprise de la table de
+# référence du PRD source (§6, captures du 19 octobre 2026). Les tarifs
+# fournisseurs évoluent : ``estimated_cost_usd`` est une estimation, jamais une
+# facture. Toute mise à jour doit être datée plutôt que réécrite en silence.
 DEFAULT_PRICING: Dict[str, Dict[str, Any]] = {
     "gemini-3.8-flash": {
-        "input_cost_per_million": 0.15,
-        "output_cost_per_million": 0.60,
+        "input_cost_per_million": 1.50,
+        "output_cost_per_million": 7.50,
         "currency": "USD",
     },
     "deepseek-v4-pro": {
-        "input_cost_per_million": 0.27,
-        "output_cost_per_million": 1.10,
+        "input_cost_per_million": 1.74,
+        "output_cost_per_million": 3.84,
         "currency": "USD",
     },
     "qwen3.8-max": {
@@ -50,7 +51,7 @@ DEFAULT_PRICING: Dict[str, Dict[str, Any]] = {
         "currency": "USD",
     },
     "gpt-6.1-sol": {
-        "input_cost_per_million": 2.50,
+        "input_cost_per_million": 2.00,
         "output_cost_per_million": 10.00,
         "currency": "USD",
     },
@@ -229,10 +230,14 @@ class PricingTable:
         """Combine gratuité du fournisseur et gratuité explicite du modèle."""
         return self.is_free_provider(provider_id) or self.is_free_model(model)
 
-    def get_pricing(
-        self, model: Optional[str], provider_id: Optional[str] = None
-    ) -> Optional[ModelPricing]:
-        """Résout la grille d'un modèle, sans jamais inventer un tarif inconnu."""
+    def get_pricing(self, model: Optional[str]) -> Optional[ModelPricing]:
+        """Résout la grille d'un modèle, sans jamais inventer un tarif inconnu.
+
+        Seuls un nom exact et les alias préfixés (``gemini-3.8-flash-tiered``)
+        sont résolus : un modèle distinct qui contient un nom connu
+        (``gemini-3.8-flash-pro``) ne doit pas hériter du tarif du modèle de
+        base, sous peine de sous-estimer le coût et de contourner le plafond.
+        """
         model_str = str(model or "").strip()
         if not model_str:
             return None
@@ -243,8 +248,7 @@ class PricingTable:
             if lowered == key.lower():
                 return self._pricing[key]
         for key in self._lookup_keys:
-            key_lower = key.lower()
-            if lowered.startswith(key_lower) or key_lower in lowered:
+            if lowered.startswith(key.lower()):
                 return self._pricing[key]
         return None
 

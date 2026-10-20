@@ -115,24 +115,34 @@ Consigne l'utilisation effective des tokens et le coût estimé :
 @dataclass
 class ReportUsageMetrics:
     report_id: str
-    profile_id: str
-    model: str
-    reasoning_effort_requested: Optional[str]
-    reasoning_effort_effective: Optional[str] # Confirmé ou "unknown"
+    simulation_id: Optional[str] = None
+    profile_id: Optional[str] = None
+    model: str = ""
+    provider_id: Optional[str] = None
+    reasoning_effort_requested: Optional[str] = None
+    reasoning_effort_effective: str = "unknown"   # prouvé par réponse, sinon "unknown"
     prompt_tokens: int = 0
     completion_tokens: int = 0
     thinking_tokens: int = 0
     total_tokens: int = 0
-    estimated_cost_usd: Optional[float] = None
     duration_seconds: float = 0.0       # somme des temps d'inférence
     wall_seconds: float = 0.0           # temps mural du job
     calls_count: int = 0
+    estimated_cost_usd: Optional[float] = None
+    theoretical_cost_usd: Optional[float] = None
+    currency: str = "USD"
+    pricing_table_version: str = PRICING_TABLE_VERSION
+    pricing_available: bool = True
     usage_available: bool = True
-    phase_totals: Dict[str, Dict[str, int]]
-    calls: List[CallUsageRecord]
+    max_total_cost_usd: Optional[float] = None
+    max_wall_seconds: Optional[float] = None
     budget_exceeded: bool = False
     timeout_exceeded: bool = False
     stop_reason: Optional[str] = None
+    phase_totals: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    calls: List[CallUsageRecord] = field(default_factory=list)
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
 ```
 
 ---

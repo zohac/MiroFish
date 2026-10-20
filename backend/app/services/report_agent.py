@@ -502,7 +502,17 @@ class Report:
                 if hasattr(self.evidence_snapshot, "to_dict") and callable(self.evidence_snapshot.to_dict)
                 else self.evidence_snapshot
             ),
-            "usage_metrics": self.usage_metrics,
+            # La liste `calls` reste dans usage.json : `meta.json` et les
+            # endpoints de rapport n'en portent que le résumé (volume).
+            "usage_metrics": (
+                {
+                    key: value
+                    for key, value in self.usage_metrics.items()
+                    if key != "calls"
+                }
+                if isinstance(self.usage_metrics, dict)
+                else self.usage_metrics
+            ),
         }
 
 
@@ -1160,22 +1170,14 @@ class ReportAgent:
             else None,
             base_url=getattr(self.llm, "base_url", None),
         )
-        self.usage_tracker.attach_to(self.llm)
-        # Les outils (insight_forge, interviews, synthèse hors-ligne) peuvent
-        # appeler un LLM : le même client profilé et le même traqueur doivent
-        # couvrir ces appels (AC2, phases `interviews`).
-        try:
-            tool_llm = getattr(self.zep_tools, "llm", None)
-            if tool_llm is not None and tool_llm is not self.llm:
-                self.usage_tracker.attach_to(tool_llm)
-        except Exception as tool_llm_err:
-            logger.debug(
-                f"Client LLM des outils non instrumenté ({self.simulation_id}): {tool_llm_err}"
-            )
         self.budget_guard = BudgetGuard.from_profile(
             self.usage_tracker, effective_profile
         )
-        self._attach_pre_request_guard()
+        self._telemetry_sources: list = []
+        self._previous_pre_request_callback: Optional[Any] = None
+        self._previous_request_timeout: Optional[float] = None
+        self._pre_request_callback_ref: Optional[Any] = None
+        self._bind_telemetry()
         self._usage_persisted = False
         
         # 工具定义
@@ -1290,49 +1292,64 @@ class ReportAgent:
                 candidate = None
         return candidate
 
-    def _reasoning_effort_confirmation(self) -> None:
-        """Marque l'effort comme effectif uniquement là où il est prouvé.
+    def _bind_telemetry(self) -> None:
+        """Branche la télémétrie et le garde-fou pré-requête sur les clients LLM.
 
-        La passerelle Antigravity locale traduit l'effort en ``thinkingConfig``
-        (mesuré en story 013-1). Pour les autres fournisseurs, l'effort reste
-        ``unknown`` tant qu'aucune confirmation explicite n'est disponible.
+        Appelé à la construction **et** au démarrage de chaque génération : les
+        callbacks sont détachés en fin de job, donc une seconde génération sur
+        la même instance doit les rebrancher (client partagé).
         """
         tracker = getattr(self, "usage_tracker", None)
         if tracker is None:
             return
-        profile = getattr(tracker, "profile", None)
-        requested = getattr(profile, "reasoning_effort", None)
-        provider = getattr(tracker, "provider_id", None)
-        if (
-            isinstance(requested, str)
-            and requested
-            and provider == "antigravity-local"
-        ):
-            tracker.mark_reasoning_effort_effective(requested)
+
+        sources: List[Any] = [self.llm] if getattr(self, "llm", None) is not None else []
+        # Les outils (insight_forge, interviews, synthèse hors-ligne) peuvent
+        # appeler un LLM : le même traqueur doit couvrir ces appels (AC2).
+        try:
+            tool_llm = getattr(self.zep_tools, "llm", None)
+            if tool_llm is not None and tool_llm is not self.llm:
+                sources.append(tool_llm)
+        except Exception as tool_llm_err:
+            logger.debug(
+                f"Client LLM des outils non instrumenté ({self.simulation_id}): {tool_llm_err}"
+            )
+        self._telemetry_sources = sources
+        for client in sources:
+            tracker.attach_to(client)
+        self._attach_pre_request_guard()
 
     def _attach_pre_request_guard(self) -> None:
         """Branche un contrôle avant chaque tentative HTTP du client LLM.
 
         Couvre les relances internes de ``chat_json`` et les reprises de
         ``SectionCompletionGuard`` : aucune requête ne part après le plafond
-        (Story 013-4, AC4). Le callback est optionnel et neutre pour les autres
-        clients.
+        (Story 013-4, AC4). Un callback préexistant est chaîné puis restauré,
+        et le ``request_timeout`` d'origine est rétabli en fin de job.
         """
         llm = getattr(self, "llm", None)
         if llm is None:
             return
+        # Déjà branché par nous (seconde génération) : ne pas s'auto-chaîner.
+        if getattr(llm, "pre_request_callback", None) is self._pre_request_callback_ref:
+            return
+
+        previous_callback = getattr(llm, "pre_request_callback", None)
+        self._previous_pre_request_callback = previous_callback
+        self._previous_request_timeout = getattr(llm, "request_timeout", None)
 
         def _pre_request(**_kwargs: Any) -> None:
             guard = getattr(self, "budget_guard", None)
-            if guard is None:
-                return
-            guard.check(phase=self.usage_tracker.current_phase)
-            remaining = guard.remaining_wall_seconds
-            if remaining is not None:
-                try:
-                    llm.request_timeout = remaining
-                except Exception:
-                    pass
+            if guard is not None:
+                guard.check(phase=self.usage_tracker.current_phase)
+                remaining = guard.remaining_wall_seconds
+                if remaining is not None:
+                    try:
+                        llm.request_timeout = remaining
+                    except Exception:
+                        pass
+            if callable(previous_callback):
+                previous_callback(**_kwargs)
 
         try:
             llm.pre_request_callback = _pre_request
@@ -2404,7 +2421,9 @@ class ReportAgent:
             # qui s'échappe de generate_report (Story 013-4, AC4).
             self.usage_tracker.begin(report_id, self.simulation_id)
             self.usage_tracker.set_phase("planning")
-            self._reasoning_effort_confirmation()
+            # Rebrancher callbacks et garde-fou : ils sont détachés en fin de
+            # job, et une seconde génération doit rester mesurée (AC2/AC4).
+            self._bind_telemetry()
             self._check_budget("planning")
             
             # 初始化日志记录器（结构化日志 agent_log.jsonl）
@@ -2500,7 +2519,21 @@ class ReportAgent:
 
                 # Contrôle anti-troncature et prolongation ciblée (Story 011-5, FR-09, C9)
                 from .report_quality_gate import SectionCompletionGuard
-                self._check_budget("sections")
+                try:
+                    self._check_budget("sections")
+                except (ReportBudgetExceededError, ReportTimeoutError):
+                    # Le contenu déjà généré n'est pas jeté : il est écrit avant
+                    # l'arrêt contrôlé, pour que la sauvegarde partielle existe
+                    # réellement (Story 013-4, AC4).
+                    section.content = section_content
+                    try:
+                        ReportManager.save_section(report_id, section_num, section)
+                    except Exception as save_err:
+                        logger.warning(
+                            f"Section {section_num} non sauvegardée avant arrêt "
+                            f"contrôlé ({report_id}): {save_err}"
+                        )
+                    raise
                 try:
                     completed_content, retries_cnt, is_complete_sec = SectionCompletionGuard.complete_section(
                         llm_client=self.llm,
@@ -2718,6 +2751,19 @@ class ReportAgent:
             if self.report_logger:
                 self.report_logger.log_error(str(limit_error), "failed")
 
+            # Sauvegarde partielle : assembler les sections déjà écrites sur
+            # disque pour qu'un arrêt contrôlé ne rende pas un rapport vide.
+            if report.outline:
+                try:
+                    if ReportManager.get_generated_sections(report_id):
+                        report.markdown_content = ReportManager.assemble_full_report(
+                            report_id, report.outline
+                        )
+                except Exception as assemble_err:
+                    logger.warning(
+                        f"Assemblage partiel impossible pour {report_id}: {assemble_err}"
+                    )
+
             limit_metrics = self._persist_usage_metrics(report_id, report)
             limit_summary = limit_metrics.summary()
 
@@ -2742,20 +2788,27 @@ class ReportAgent:
 
             try:
                 ReportManager.save_report(report)
-                status_label = (
-                    "budget_exceeded"
-                    if isinstance(limit_error, ReportBudgetExceededError)
-                    else "timeout"
-                )
                 ReportManager.update_progress(
                     report_id,
-                    status_label,
+                    "failed",
                     -1,
                     str(limit_error),
                     completed_sections=completed_section_titles,
                 )
             except Exception:
                 pass
+
+            # Un run interrompu reste auditable : manifeste et archive scellée.
+            try:
+                from .simulation_audit_service import SimulationAuditService
+                SimulationAuditService(
+                    simulation_id=self.simulation_id, report_id=report_id
+                ).build_audit_package()
+            except Exception as audit_pkg_err:
+                logger.warning(
+                    f"Avertissement lors de la génération de l'audit package "
+                    f"pour un arrêt contrôlé ({report_id}): {audit_pkg_err}"
+                )
 
             if self.console_logger:
                 self.console_logger.close()
@@ -2827,15 +2880,15 @@ class ReportAgent:
                     )
 
             # Détachement des callbacks de télémétrie/garde-fou (client partagé)
+            for client in getattr(self, "_telemetry_sources", []):
+                try:
+                    self.usage_tracker.detach(client)
+                except Exception:
+                    pass
             try:
-                self.usage_tracker.detach(self.llm)
-            except Exception:
-                pass
-            try:
-                if getattr(self.llm, "pre_request_callback", None) is getattr(
-                    self, "_pre_request_callback_ref", None
-                ):
-                    self.llm.pre_request_callback = None
+                if getattr(self.llm, "pre_request_callback", None) is self._pre_request_callback_ref:
+                    self.llm.pre_request_callback = self._previous_pre_request_callback
+                    self.llm.request_timeout = self._previous_request_timeout
             except Exception:
                 pass
 

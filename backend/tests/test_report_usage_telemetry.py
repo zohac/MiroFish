@@ -53,6 +53,7 @@ from app.services.report_usage_tracker import (
 )
 from app.services.simulation_audit_service import SimulationAuditService
 from app.utils.llm_client import LLMClient
+from app.utils.openai_chat_compat import create_chat_completion
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -110,11 +111,11 @@ def _record(
 class TestPricingTable:
     def test_known_model_cost_is_exact(self):
         table = PricingTable()
-        # gemini-3.8-flash : 0.15 $/M entrée, 0.60 $/M sortie.
+        # gemini-3.8-flash : 1.50 $/M entrée, 7.50 $/M sortie.
         cost = table.calculate_cost(
             "gemini-3.8-flash", prompt_tokens=1000, completion_tokens=500
         )
-        assert cost == pytest.approx(0.00045)
+        assert cost == pytest.approx(0.00525)
 
     def test_local_provider_is_free_but_theoretical_cost_remains(self):
         table = PricingTable()
@@ -128,7 +129,7 @@ class TestPricingTable:
             "gemini-3.8-flash", prompt_tokens=1000, completion_tokens=500
         )
         assert billed == 0.0
-        assert theoretical == pytest.approx(0.00045)
+        assert theoretical == pytest.approx(0.00525)
 
     def test_local_provider_unknown_model_is_still_free(self):
         table = PricingTable()
@@ -147,7 +148,7 @@ class TestPricingTable:
                 "deepseek-v4-pro", prompt_tokens=1000, completion_tokens=500,
                 provider_id="opencode-go",
             )
-            == pytest.approx(0.00082)
+            == pytest.approx(0.00366)
         )
         assert (
             table.calculate_cost(
@@ -157,7 +158,7 @@ class TestPricingTable:
             == 0.0
         )
 
-    def test_explicit_free_billing_mode_zeroes_billable_cost(self):
+    def test_explicit_free_billing_mode_does_not_zero_a_billable_model(self):
         profile = ReportLLMProfile(
             profile_id="opencode-free",
             model="gemini-3.8-flash",
@@ -168,13 +169,56 @@ class TestPricingTable:
         tracker.begin("report_billing_free")
         _record(tracker, phase="planning", prompt=1000, completion=500)
         metrics = tracker.build_metrics()
+        # La grille prouve que le modèle est facturable : « free » déclaratif
+        # ne peut pas annuler le coût ni neutraliser le plafond.
+        assert metrics.estimated_cost_usd == pytest.approx(0.00525)
+        assert metrics.theoretical_cost_usd == pytest.approx(0.00525)
+
+    def test_explicit_free_billing_mode_zeroes_an_unpriced_model(self):
+        profile = ReportLLMProfile(
+            profile_id="local-free",
+            model="modele-local-maison",
+            provider_id="mon-passage-local",
+            billing_mode="free",
+        )
+        tracker = ReportUsageTracker(profile=profile, model="modele-local-maison")
+        tracker.begin("report_billing_free_unknown")
+        _record(tracker, phase="planning", prompt=1000, completion=500)
+        metrics = tracker.build_metrics()
         assert metrics.estimated_cost_usd == 0.0
-        assert metrics.theoretical_cost_usd == pytest.approx(0.00045)
+        # Aucun coût théorique n'est inventé pour un modèle hors grille.
+        assert metrics.theoretical_cost_usd is None
+        assert tracker.unpriced_model_calls == 0
 
     def test_invalid_billing_mode_is_rejected(self):
         with pytest.raises(ValueError, match="billing_mode"):
             ReportLLMProfile(
                 profile_id="bad", model="gemini-3.8-flash", billing_mode="freeish"
+            )
+
+    def test_billing_mode_survives_from_dict_and_to_dict(self):
+        profile = ReportLLMProfile.from_dict(
+            {"profile_id": "p", "model": "m", "billing_mode": "metered"}
+        )
+        assert profile.billing_mode == "metered"
+        assert profile.to_dict()["billing_mode"] == "metered"
+
+    def test_null_billing_mode_falls_back_to_auto(self):
+        profile = ReportLLMProfile.from_dict(
+            {"profile_id": "p", "model": "m", "billing_mode": None}
+        )
+        assert profile.billing_mode == "auto"
+
+    def test_negative_cost_cap_is_rejected(self):
+        with pytest.raises(ValueError, match="max_total_cost_usd"):
+            ReportLLMProfile(
+                profile_id="p", model="m", max_total_cost_usd=-1.0
+            )
+
+    def test_non_finite_cost_cap_is_rejected(self):
+        with pytest.raises(ValueError, match="max_total_cost_usd"):
+            ReportLLMProfile(
+                profile_id="p", model="m", max_total_cost_usd=float("nan")
             )
 
     def test_unknown_model_has_no_invented_price(self):
@@ -192,6 +236,11 @@ class TestPricingTable:
         pricing = table.get_pricing("gemini-3.8-flash-tiered")
         assert pricing is not None
         assert pricing.model == "gemini-3.8-flash"
+
+    def test_model_merely_containing_a_known_name_is_not_aliased(self):
+        # `key in lowered` résolvait n'importe quel nom contenant un modèle
+        # tarifé, en sous-estimant le coût et en contournant le plafond.
+        assert PricingTable().get_pricing("my-gemini-3.8-flash-clone") is None
 
     def test_metrics_roundtrip_and_atomic_persistence(self, tmp_path):
         metrics = ReportUsageMetrics(
@@ -362,6 +411,67 @@ class TestReportUsageTracker:
         _record(tracker, phase="planning")
         assert tracker.build_metrics().reasoning_effort_effective == "high"
 
+    def test_antigravity_effort_is_effective_only_with_usage(self):
+        profile = ReportLLMProfile(
+            profile_id="flash-high",
+            model="gemini-3.8-flash",
+            provider_id="antigravity-local",
+            reasoning_effort="high",
+        )
+        fake_response = SimpleNamespace(
+            usage=_usage(prompt=10, completion=5, thinking=8),
+            choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
+        )
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion",
+            return_value=fake_response,
+        ):
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+            )
+            tracker = ReportUsageTracker(
+                profile=profile,
+                model="gemini-3.8-flash",
+                base_url="http://127.0.0.1:18081/v1",
+            )
+            tracker.attach_to(client)
+            tracker.begin("report_effort_usage")
+            tracker.set_phase("planning")
+            client.chat([{"role": "user", "content": "ping"}])
+
+        assert tracker.build_metrics().reasoning_effort_effective == "high"
+
+    def test_antigravity_effort_stays_unknown_without_usage(self):
+        profile = ReportLLMProfile(
+            profile_id="flash-high",
+            model="gemini-3.8-flash",
+            provider_id="antigravity-local",
+            reasoning_effort="high",
+        )
+        tracker = ReportUsageTracker(
+            profile=profile,
+            model="gemini-3.8-flash",
+            provider_id="antigravity-local",
+        )
+        tracker.begin("report_effort_missing")
+        tracker.set_phase("planning")
+        tracker.record_call(usage=None, duration_seconds=1.0)
+        metrics = tracker.build_metrics()
+        assert metrics.usage_available is False
+        assert metrics.reasoning_effort_effective == "unknown"
+
+    def test_detach_restores_the_previous_usage_callback(self):
+        previous = lambda **kwargs: None  # noqa: E731
+        client = MagicMock()
+        client.usage_callback = previous
+        tracker = ReportUsageTracker(model="gemini-3.8-flash")
+        tracker.attach_to(client)
+        assert client.usage_callback is tracker._bound_callback
+        tracker.detach(client)
+        assert client.usage_callback is previous
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # AC4 — Plafonds budgétaire et temporel
@@ -413,13 +523,36 @@ class TestBudgetGuard:
             guard.check(phase="planning")
 
     def test_unpriced_paid_model_fails_closed(self):
-        tracker = ReportUsageTracker(model="claude-opus-5.5")
+        profile = ReportLLMProfile(
+            profile_id="metered-unpriced",
+            model="claude-opus-5.5",
+            provider_id="opencode-go",
+            billing_mode="metered",
+        )
+        tracker = ReportUsageTracker(profile=profile, model="claude-opus-5.5")
         tracker.begin("report_unpriced")
         _record(tracker, phase="sections", prompt=1000, completion=500)
-        guard = BudgetGuard(tracker, max_total_cost_usd=2.0)
+        guard = BudgetGuard.from_profile(tracker, profile)
         with pytest.raises(ReportBudgetExceededError, match="non vérifiable"):
             guard.check(phase="sections")
         assert tracker.build_metrics().stop_reason == "pricing_unavailable"
+
+    def test_unpriced_model_does_not_fail_closed_on_auto_profile(self):
+        profile = ReportLLMProfile(
+            profile_id="auto-unpriced",
+            model="qwen-plus",
+            provider_id="env",
+            billing_mode="auto",
+        )
+        tracker = ReportUsageTracker(profile=profile, model="qwen-plus")
+        tracker.begin("report_unpriced_auto")
+        _record(tracker, phase="planning", prompt=1000, completion=500)
+        guard = BudgetGuard.from_profile(tracker, profile)
+        # Un run non déclaré payant ne doit pas être interrompu faute de tarif.
+        guard.check(phase="sections")
+        metrics = tracker.build_metrics()
+        assert metrics.estimated_cost_usd is None
+        assert metrics.stop_reason is None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -483,6 +616,69 @@ class TestLLMClientTelemetryHook:
                 response_format=None,
             )
         assert response is fake_response
+
+    def test_pre_request_callback_blocks_before_http_call(self):
+        def _block(**_kwargs):
+            raise ReportBudgetExceededError("plafond atteint")
+
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion"
+        ) as create_mock:
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+                pre_request_callback=_block,
+            )
+            with pytest.raises(ReportBudgetExceededError):
+                client.chat([{"role": "user", "content": "ping"}])
+
+        create_mock.assert_not_called()
+
+    def test_pre_request_callback_blocks_json_retry_before_http_call(self):
+        def _block(**_kwargs):
+            raise ReportBudgetExceededError("plafond atteint")
+
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion"
+        ) as create_mock:
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+                pre_request_callback=_block,
+            )
+            with pytest.raises(ReportBudgetExceededError):
+                client.chat_json(
+                    [{"role": "user", "content": "ping"}], max_attempts=2
+                )
+
+        create_mock.assert_not_called()
+
+    def test_request_timeout_is_forwarded_to_the_sdk_call(self):
+        fake_response = SimpleNamespace(
+            usage=None, choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))]
+        )
+        with patch("app.utils.llm_client.OpenAI"), patch(
+            "app.utils.llm_client.create_chat_completion",
+            return_value=fake_response,
+        ) as create_mock:
+            client = LLMClient(
+                api_key="test-key",
+                base_url="http://127.0.0.1:18081/v1",
+                model="gemini-3.8-flash",
+                request_timeout=30.0,
+            )
+            client.chat([{"role": "user", "content": "ping"}])
+
+        assert create_mock.call_args.kwargs["timeout"] == 30.0
+
+    def test_create_chat_completion_puts_timeout_in_sdk_kwargs(self):
+        recorder = MagicMock()
+        create_chat_completion(
+            recorder, model="gemini-3.8-flash", messages=[], timeout=12.5
+        )
+        assert recorder.chat.completions.create.call_args.kwargs["timeout"] == 12.5
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -689,6 +885,32 @@ class TestReportAgentUsageIntegration:
         assert result == "ok"
         assert agent.usage_tracker.current_phase == "sections"
 
+    def test_execute_tool_is_blocked_above_budget(self, tmp_path, monkeypatch):
+        agent = _build_agent(tmp_path, monkeypatch, max_total_cost_usd=0.0)
+        agent.usage_tracker.begin("report_tool_budget")
+        agent.zep_tools.query_simulation_events = MagicMock()
+
+        with pytest.raises(ReportBudgetExceededError):
+            agent._execute_tool("query_simulation_events", {"query": "x"})
+
+        agent.zep_tools.query_simulation_events.assert_not_called()
+
+    def test_bind_telemetry_reattaches_after_detach(self, tmp_path, monkeypatch):
+        agent = _build_agent(tmp_path, monkeypatch)
+        agent.llm.usage_callback = None
+        agent.llm.pre_request_callback = None
+        agent._bind_telemetry()
+
+        assert agent.llm.usage_callback is agent.usage_tracker._bound_callback
+        assert callable(agent.llm.pre_request_callback)
+
+        agent.usage_tracker.detach(agent.llm)
+        agent.llm.pre_request_callback = None
+        agent._bind_telemetry()
+
+        assert agent.llm.usage_callback is agent.usage_tracker._bound_callback
+        assert callable(agent.llm.pre_request_callback)
+
     def test_usage_is_accumulated_and_persisted(self, tmp_path, monkeypatch):
         agent = _build_agent(tmp_path, monkeypatch)
         outline = ReportOutline(
@@ -711,7 +933,7 @@ class TestReportAgentUsageIntegration:
         assert metrics.completion_tokens == 150
         assert metrics.phase_totals["planning"]["calls_count"] == 1
         assert metrics.phase_totals["sections"]["calls_count"] == 2
-        assert metrics.estimated_cost_usd == pytest.approx(0.000135)
+        assert metrics.estimated_cost_usd == pytest.approx(0.001575)
         assert metrics.reasoning_effort_requested == "high"
         assert metrics.reasoning_effort_effective == "unknown"
         assert report.usage_metrics is not None
@@ -731,7 +953,7 @@ class TestReportAgentUsageIntegration:
         assert history["reports"][-1]["usage_summary"]["calls_count"] == 3
 
     def test_budget_stops_before_second_section(self, tmp_path, monkeypatch):
-        agent = _build_agent(tmp_path, monkeypatch, max_total_cost_usd=0.0001)
+        agent = _build_agent(tmp_path, monkeypatch, max_total_cost_usd=0.0012)
         outline = ReportOutline(
             title="Rapport",
             summary="Résumé",
@@ -754,6 +976,13 @@ class TestReportAgentUsageIntegration:
         assert metrics.calls_count == 2
         assert not os.path.exists(
             ReportManager._get_section_path("report_budget_stop", 2)
+        )
+        # La section déjà écrite reste exploitable : sortie partielle assemblée.
+        assert os.path.exists(
+            ReportManager._get_section_path("report_budget_stop", 1)
+        )
+        assert os.path.exists(
+            ReportManager._get_report_markdown_path("report_budget_stop")
         )
 
         history = json.loads(
@@ -814,6 +1043,43 @@ class TestReportAgentUsageIntegration:
             ReportManager._get_section_path("report_timeout_stop", 1)
         )
 
+    def test_history_backfills_usage_summary_from_usage_file(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+        report = Report(
+            report_id="report_legacy_usage",
+            simulation_id="sim_legacy",
+            graph_id="graph_legacy",
+            simulation_requirement="Test",
+            status=ReportStatus.COMPLETED,
+            created_at="2026-10-19T10:00:00Z",
+        )
+        ReportManager.save_report(report)
+        ReportUsageMetrics(
+            report_id="report_legacy_usage",
+            model="gemini-3.8-flash",
+            calls_count=2,
+            total_tokens=30,
+            estimated_cost_usd=0.1,
+        ).save_to_file(ReportManager._get_usage_path("report_legacy_usage"))
+        ReportManager._append_to_history(
+            "sim_legacy",
+            {
+                "report_id": "report_legacy_usage",
+                "simulation_id": "sim_legacy",
+                "created_at": "2026-10-19T10:00:00Z",
+                "status": "completed",
+            },
+        )
+
+        entries = ReportManager.list_reports_by_simulation("sim_legacy")
+        entry = next(
+            item for item in entries if item["report_id"] == "report_legacy_usage"
+        )
+        assert entry["usage_summary"]["calls_count"] == 2
+        assert entry["usage_summary"]["total_tokens"] == 30
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # AC5 — Inclusion dans le dossier d'audit / run_manifest
@@ -850,6 +1116,8 @@ class TestAuditUsageInclusion:
         assert persisted["total_tokens"] == 150
 
         manifest = json.loads(files["run_manifest.json"].decode("utf-8"))
+        assert manifest["version"] == "1.1.0"
+        assert manifest["llm"]["gateway"]
         assert manifest["usage"]["total_tokens"] == 150
         assert manifest["usage"]["estimated_cost_usd"] == pytest.approx(0.000045)
         assert manifest["llm"]["model_name"] == "gemini-3.8-flash"
@@ -860,6 +1128,22 @@ class TestAuditUsageInclusion:
         checksums = files["checksums.sha256"].decode("utf-8")
         usage_hash = __import__("hashlib").sha256(files["usage.json"]).hexdigest()
         assert f"{usage_hash}  usage.json" in checksums
+
+    def test_audit_declares_missing_usage_instead_of_omitting_it(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+        with patch.object(
+            SimulationAuditService, "_get_git_commit", return_value="test-commit"
+        ):
+            files = SimulationAuditService(
+                simulation_id="sim_sans_usage", report_id="report_sans_usage"
+            ).gather_audit_files()
+
+        payload = json.loads(files["usage.json"].decode("utf-8"))
+        assert payload["report_id"] == "report_sans_usage"
+        assert payload["usage_available"] is False
+        assert payload["reason"] == "absent"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -894,6 +1178,30 @@ def _mock_report(report_id: str = "report_api_usage") -> Report:
 
 
 class TestUsageApi:
+    def test_list_reports_omits_call_level_telemetry(self, client):
+        report = _mock_report("report_list_usage")
+        report.usage_metrics = ReportUsageMetrics(
+            report_id="report_list_usage",
+            model="gemini-3.8-flash",
+            calls_count=1,
+            calls=[
+                CallUsageRecord(
+                    call_index=1, phase="planning", model="gemini-3.8-flash"
+                )
+            ],
+        ).to_dict()
+        ReportManager.save_report(report)
+
+        payload = client.get("/api/report/list").get_json()
+
+        item = next(
+            entry
+            for entry in payload["data"]
+            if entry["report_id"] == "report_list_usage"
+        )
+        assert "calls" not in item["usage_metrics"]
+        assert item["usage_metrics"]["calls_count"] == 1
+
     def test_usage_endpoint_returns_complete_metrics(self, client):
         report = _mock_report()
         ReportManager.save_report(report)

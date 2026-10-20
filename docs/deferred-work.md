@@ -439,3 +439,14 @@ Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `ver
 
 - **`backend/app/services/report_agent.py:1131` — Propagation de l'instance LLM/profil de ReportAgent vers ZepToolsService.** `self.zep_tools = zep_tools or ZepToolsService()` ne transmet pas le client LLM dédié ou le profil configuré (`llm_client=self.llm`). `ZepToolsService` initialise donc son propre `LLMClient()` par défaut pour `_synthesize_offline_interviews`. *Différé : préexistant à l'Epic 013, à harmoniser lors des travaux de calibrage et consommation des profils LLM (Story 013-5).*
 
+
+## Deferred from: code review of story-013-4.md (2026-10-19)
+
+Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`) de la télémétrie d'usage, de la mesure des temps et des plafonds budgétaires du `ReportAgent`.
+
+- **`AGENTS.md` — Chiffres de référence désynchronisés.** Le diff met à jour le tableau d'axes et « la tâche du moment » à 1 920 tests, mais §2.2 s'arrête à `post-011-4 : 1719`, §3 annonce « 1431 tests collectés au 12 octobre 2026 » et §11 « 333 passed ». *Différé : correction d'un fichier de contexte agent, hors du correctif automatique de revue.*
+- **`docs/plans/013-benchmark-llm-report-replay/story-013-4.md` — Écart de référence du filet.** Le passage de 1 881 à 1 920 tests (+39) pour 40 tests ajoutés indique que la base antérieure réellement collectée valait 1 880. *Différé : dérive de reporting antérieure, sans effet sur le code.*
+- **`docs/decisions/` — ADR manquant sur la tarification, le budget et l'accès à l'`usage` brut.** Exigé par le PRD source §12.4 et AGENTS.md §2.3. Les arbitrages sont désormais tranchés (grille alignée sur le PRD source, Fail-Closed réservé aux profils `metered`, `free` validé contre la grille) : il reste à les consigner formellement.
+- **`backend/app/models/report_usage.py:311-327` — Télémétrie du cache, des erreurs et des reprises.** Le PRD source §6.3/§6.6 demande de comptabiliser séparément entrée, sortie, cache et raisonnement, et de conserver erreurs et reprises par appel ; `CallUsageRecord` ne porte ni `cached_tokens` ni `finish_reason`. *Différé : hors AC1–AC6 de la story, à traiter avec le banc 013-6.*
+- **`backend/app/api/report.py` — `dry_run` (PRD source FR-08) absent.** L'estimation sans appel LLM avant démarrage n'est pas implémentée. *Différé : l'epic 013 (FR-07) cadre la story sur la télémétrie et les plafonds ; à couvrir en 013-5/013-6.*
+- **`backend/app/utils/llm_client.py:133-137` — Amplification des reprises du SDK au-delà du plafond temporel.** Le client `OpenAI` conserve `max_retries=2` par défaut : un `timeout` égal au temps restant peut être rejoué jusqu'à trois fois. *Différé : borner le plafond mural suppose de modifier la construction du client, d'impact global.*
