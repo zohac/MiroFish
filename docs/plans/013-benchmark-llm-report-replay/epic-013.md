@@ -60,7 +60,7 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 | 013-3 | Isolation multi-rapports sous `reports/<report_id>/` et API d'historique | `done` | [`story-013-3.md`](story-013-3.md) |
 | 013-4 | Télémétrie d'usage, mesure des temps et plafonds budgétaires | `done` | [`story-013-4.md`](story-013-4.md) |
 | 013-5 | Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison | `done` | [`story-013-5.md`](story-013-5.md) |
-| 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `in-progress` | [`story-013-6.md`](story-013-6.md) |
+| 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `review` | [`story-013-6.md`](story-013-6.md) |
 
 ---
 
@@ -75,6 +75,24 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 7. **C7 : Benchmark A/B documenté** : Rapport formel de qualification consignant la comparaison contrôlée de `gemini-3.8-flash` `medium` vs `high` sur R7.
 8. **C8 : Non-régression globale** : $\ge 1 842$ tests au vert sur l'hôte, 0 échec.
 
+> **C7 est porté par la story 013-6** (`review` au 20 octobre 2026) : banc de
+> benchmark contrôlé A/B (`backend/scripts/verifier_benchmark_epic_013.py`),
+> grille de score fermée et purement mécanique
+> (`backend/app/utils/report_benchmark_score.py`, version `1.1.0`), rapport
+> formel
+> [`rapport-qualification-epic-013.md`](rapport-qualification-epic-013.md) et
+> matériel de revue aveugle dans un dossier de campagne versionné. La campagne
+> réelle a été exécutée sur R7 (`sim_80a54d7bbd7b`) dans la stack Docker de
+> référence ; le banc **ne désigne aucun modèle gagnant** et n'exécute pas la
+> revue aveugle (un agent ne peut pas être son propre juge aveugle).
+>
+> **Point de méthode acté** : le graphe n'est **pas** scellé par l'empreinte
+> des preuves (`replay_frozen` ne gèle que les interactions OASIS live). Le
+> banc mesure donc l'état du graphe — cardinalités **et** empreinte de contenu
+> — avant la première variante et après chacune, et écarte toute variante dont
+> l'état diffère. C'est le principal biais résiduel du protocole, et il est
+> déclaré comme tel dans le rapport de qualification.
+
 ---
 
 ## 6. Documents à consulter
@@ -85,6 +103,8 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 | [`architecture.md`](architecture.md) | Architecture technique et contrats de données. |
 | [`../../PRD-MiroFish-benchmark-LLM-ReportAgent-replay-2026-10-19.md`](../../PRD-MiroFish-benchmark-LLM-ReportAgent-replay-2026-10-19.md) | Document source du cadrage de benchmark. |
 | [`../../backend/scripts/antigravity_proxy.py`](../../backend/scripts/antigravity_proxy.py) | Passerelle locale vers Google Cloud Code Assist. |
+| [`../../backend/scripts/verifier_benchmark_epic_013.py`](../../backend/scripts/verifier_benchmark_epic_013.py) | Banc de benchmark A/B (story 013-6) : pré-contrôle, variantes, rapport, matériel de revue aveugle. |
+| [`../../backend/app/utils/report_benchmark_score.py`](../../backend/app/utils/report_benchmark_score.py) | Grille de score fermée, pure et versionnée du banc (story 013-6). |
 | [`../../backend/app/utils/openai_chat_compat.py`](../../backend/app/utils/openai_chat_compat.py) | Adaptateur OpenAI Chat Completions. |
 | [`../../backend/app/services/report_agent.py`](../../backend/app/services/report_agent.py) | Service de génération de rapport. |
 | [`../../AGENTS.md`](../../AGENTS.md) | Constitution du dépôt. |

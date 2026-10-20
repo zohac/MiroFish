@@ -458,3 +458,46 @@ Revue contradictoire à quatre couches (`blind-hunter`, `edge-case-hunter`, `ver
 - **`docs/STATUS.md`, `AGENTS.md`, `story-013-5.md` — Décompte des clés i18n `step4.*` faux : 74, pas 78.** Mesuré : 50 → 124 clés feuilles sous `step4` dans `locales/{fr,en,zh}.json`. Le « 78 » annoncé trois fois compte les lignes ajoutées au JSON, pas les clés. *Différé : correction d'un fichier de contexte agent et de documents de référence.*
 - **`AGENTS.md:558` — Statut de la story 013-5 contradictoire dans le même fichier.** La ligne 558 annonce encore « stories 013-1 à 013-4 `done`, 013-5 `review` » alors que les lignes 34 et 48 la donnent `done`. *Différé : correction d'un fichier de contexte agent.*
 - **`docs/plans/013-benchmark-llm-report-replay/story-013-5.md` — La story a sauté l'état `review`.** Le diff bascule `statut: in-progress` → `statut: done` en un seul commit ; `AGENTS.md` §2.8 impose `backlog → in-progress → review → done` et le validateur ne contrôle que l'état courant, jamais l'historique de transition. *Différé : fait d'historique, non rattrapable par un correctif de code ; l'état `review` n'existe dans aucun fichier. La story 013-6 doit passer par `review`.*
+
+## Deferred from: code review of story-013-6.md (2026-10-20)
+
+Revue contradictoire à quatre couches (logique, secrets et honnêteté, qualité des
+tests, architecture) du banc de benchmark A/B du `ReportAgent`.
+
+- **La clé de l'aveuglement vit dans le même dossier que le matériel de revue.** Le
+  dossier de campagne contient `variante-A.md`, `variante-B.md`,
+  `grille-aveugle.md`, `correspondance.json` **et** `mesure-benchmark-013.json` : les
+  deux derniers portent le couple variante ↔ profil. C'est ce qu'exige la
+  définition de fini de la story 013-6 (« `correspondance.json` dans le **même**
+  dossier de campagne »), et la règle de procédure (« la correspondance ne
+  s'ouvre qu'après remplissage de la grille ») est désormais écrite dans la
+  grille elle-même. *Différé : un paquet de revue exportable (les seuls
+  `variante-*.md` et `grille-aveugle.md`) qui serait la seule chose remise à
+  l'évaluateur ; cela suppose de trancher ce que le dépôt doit versionner.*
+- **La règle de comparabilité est écrite deux fois** — en Python
+  (`app/utils/report_benchmark_score.py::evaluate_comparability`) et en JavaScript
+  (`frontend/src/utils/reportComparison.js::evaluateComparability`). Les deux
+  implémentations ont été alignées cas par cas le 20 octobre 2026 (instantané
+  absent, simulation différente, empreinte SHA-256, repli sur l'identifiant
+  d'instantané), et la règle est énoncée dans le rapport. Rien n'empêche
+  demain une divergence. *Différé : une table de cas partagée, exécutée par les
+  deux suites (`pytest` et `node --test`), qui exige des verdicts identiques.*
+- **La politique d'admission de l'API n'est reproduite qu'en partie par le banc.**
+  `POST /api/report/generate` exige un statut de run terminal, l'absence d'un
+  updater de graphe actif, et une revalidation du projet sous
+  `graph_lifecycle_lock`. Le banc reproduit le projet `GRAPH_COMPLETED`, la
+  concordance des `graph_id`, l'exigence de simulation non vide et le verrou —
+  mais pas l'état terminal du run ni l'absence d'updater. *Différé : un service
+  d'admission partagé (`app/services/report_generation_admission.py`), appelé par
+  l'API et par le banc ; cela sort du périmètre de la story 013-6, qui ne touche
+  pas à l'API.*
+- **L'empreinte de contenu du graphe ne couvre pas toutes les propriétés.** Le
+  garde-fou de cohérence (décision d'ingénierie n° 3) mesure les identifiants, les
+  noms et les résumés des nœuds, et les identifiants et faits des arêtes. Un
+  attribut enrichi en dehors de ces champs ne serait pas vu. *Différé : le
+  `GraphStore` n'expose pas l'objet d'attributs complet dans `get_all_nodes` ;
+  le contrat devrait le porter.*
+
+## Deferred from: code review of story-013-6.md (2026-10-20) — suite
+
+- **`backend/tests/test_report_llm_profile.py::test_antigravity_proxy_build_gemini_request_translates_effort` — échec intermittent sous charge de l'hôte.** Le test importe `backend/scripts/antigravity_proxy.py` par un `sys.path.insert(0, .../scripts)`, puis appelle `_build_gemini_request` (fonction pure, sans E/S). Le test est **antérieur à la story 013-6** et n'a pas été touché par son diff. Observé : **2 échecs sur ~10 exécutions complètes** de la suite backend, **0 échec** sur 7 exécutions isolées du fichier et sur 3 suites complètes consécutives (2 067 passantes chacune). Les deux échecs sont survenus sur des exécutions lancées immédiatement après une forte activité Docker sur la même machine. *Différé : l'import par `sys.path` rend le test dépendant de l'état de la machine ; un correctif propre passerait par un import relatif du module (`from scripts import antigravity_proxy`), ou par un `conftest` qui rend `backend/scripts` importable une fois pour toutes. hors périmètre de la story 013-6, qui ne touche pas ce test.*

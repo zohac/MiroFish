@@ -1,0 +1,34 @@
+{
+  "campagne": "benchmark-013-20261020-203040",
+  "simulation_id": "sim_80a54d7bbd7b",
+  "regle": "La correspondance ne s'ouvre qu'après remplissage complet de la grille de revue aveugle (grille-aveugle.md).",
+  "procedure": "Seuls les fichiers `variante-*.md` et `grille-aveugle.md` sont remis à l'évaluateur. `correspondance.json` et `mesure-benchmark-013.json` restent avec le responsable de campagne : ils portent la clé de l'aveuglement.",
+  "variantes": {
+    "A": {
+      "profile_id": "flash-medium",
+      "model": "gemini-3.8-flash",
+      "reasoning_effort": "medium",
+      "report_id": "report_108186c7524b",
+      "repetition": 1,
+      "exclue": false,
+      "motif_exclusion": null
+    },
+    "B": {
+      "profile_id": "flash-high",
+      "model": "gemini-3.8-flash",
+      "reasoning_effort": "high",
+      "report_id": "report_ccf28321dcb8",
+      "repetition": 1,
+      "exclue": false,
+      "motif_exclusion": null
+    }
+  },
+  "declassement": {
+    "A": false,
+    "B": false
+  },
+  "declassement_croise": {
+    "A": [],
+    "B": []
+  }
+}
