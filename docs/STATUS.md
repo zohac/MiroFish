@@ -87,6 +87,38 @@ L'**Epic 007 (Ontologie dynamique, v2) est intégralement clos avec succès (7/7
 - **Story 007-6 (done au 14 octobre 2026)** : Audit d'ontologie appliquée dans `ReportAgent` et exposition outillée LLM / API. Intégration de la sous-section Markdown « ### 6. Ontologie appliquée (Epic 007, FR-6) » dans `build_sources_provenance_section()` détaillant les types d'entités avec `InformationOrigin` et comptes réels, les types de relations, les métadonnées de version (`ont_<uuid12>`, date ISO 8601, parent, résumé de sources) et la politique de validation avec compte des avertissements récents. Omission conditionnelle stricte sur projet sans ontologie appliquée (AC2, C7). Outil LLM `get_applied_ontology` déclaré dans `_define_tools` et exécutable dans `_execute_tool` avec formatage JSON structuré complet. Décompte tolérant aux pannes `_get_ontology_instance_counts` (AC5, NFR-4) sans rupture de génération en cas d'indisponibilité de la base. Consolidation de `GET /api/project/<id>/ontology` (AC7, PRD Q4) avec politique, avertissements et statistiques sous `include_counts=true` et restitution sécurisée des connexions via `release_graph_store`. 18 tests hermétiques dédiés (`test_report_ontology_audit.py`, 15 initiaux + 3 issus de la revue BMAD), filet global porté à **1537 tests verts sur l'hôte** (0 échec). Revue contradictoire BMAD 4 couches validée.
 - **Story 007-7 (done au 14 octobre 2026)** : Sonde autonome d'orchestration globale `backend/scripts/verifier_qualification_epic_007.py` évaluant de bout en bout l'ensemble des critères C1 à C8. Consignation du constat empirique C3 sur modèle externe amont (`gpt-6.1-sol`, 91–193 s) en NO-GO empirique C3 sans altérer le moteur interne. Rapport formel [`rapport-qualification-epic-007.md`](plans/007-ontologie-dynamique/rapport-qualification-epic-007.md) versionné avec **VERDICT GO**. Suite hermétique dédiée de 12 tests (`test_verifier_qualification_epic_007.py`) au vert. Revue contradictoire BMAD 4 couches validée (8 patches appliqués). Filet global porté à **1550 tests verts sur l'hôte** (0 échec). L'Epic 007 est **clos**.
 
+## En cours
+
+**Epic 014 (« Intégrité des preuves de rédaction ») est ouvert** — dossier de plan :
+[`docs/plans/014-integrite-preuves-redaction/`](plans/014-integrite-preuves-redaction/epic-014.md)
+(`prd.md`, `architecture.md`, `epic-014.md`). Il est né de la revue aveugle de la
+campagne de l'Epic 013 : l'écart entre `medium` et `high` ne porte pas sur la
+qualité de rédaction, mais sur le **régime de preuve** du rapport.
+
+Quatre défauts, mesurés dans le code et sur les artefacts de la campagne :
+
+1. Les citations d'`interview_agents` — des entretiens menés **pendant** la
+   rédaction, hors du paquet de preuves figé — sont présentées comme des
+   « événements simulés réels » : 24 sur 31 citations longues en variante B.
+2. La section « Sources & Provenance » est construite **avant** le registre
+   d'affirmations, et certifie une traçabilité que ce registre nie.
+3. La règle de silence (un persona sans action ne peut se voir attribuer
+   d'action) n'agit que sur le registre, jamais sur la prose, et sa
+   contradiction n'est pas critique pour la barrière de publication.
+4. Le brief confond deux biographies de départ, et les fiches des personas non
+   admis arrivent dans le contexte de rédaction sans filtrage.
+
+Cinqième défaut trouvé en relevant le code : **un seul `project.json`
+corrompu** dans le répertoire voisin prive *tous* les rapports de la pile de
+leur section de sources.
+
+Quatre stories prévues (régime de preuve des entretiens ; la section qui
+certifie ou s'abstient ; la règle de silence jusqu'à la prose et à la
+barrière ; le brief et les fiches persona). Le fichier de story sera créé au
+démarrage de chacune, comme le veut la constitution.
+
+---
+
 ## Fait
 
 | Livrable | Où |

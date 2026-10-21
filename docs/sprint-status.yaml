@@ -17,6 +17,7 @@
 
 projet: mirofish-local-first
 branche: local-first
+# 21 oct. 2026 : Epic 014 OUVERT (« Intégrité des preuves de rédaction ») : la revue aveugle de la campagne de l'Epic 013 a montré que l'écart entre `medium` et `high` ne porte pas sur la qualité de rédaction, et que le vrai sujet est le RÉGIME DE PREUVE du rapport. Quatre défauts mesurés dans le code et sur les artefacts : (1) les citations d'interview_agents — entretiens menés PENDANT la rédaction, hors du paquet figé — sont présentées comme des « événements simulés réels » (24 sur 31 citations longues en variante B), sans aucun typage de provenance ; (2) la section « Sources & Provenance » est construite AVANT le registre d'affirmations et certifie une traçabilité que ce registre nie (deux littéraux non calculés, report_agent.py:2987 et :2998) ; (3) la règle de silence n'agit que sur le registre, jamais sur la prose, et sa contradiction n'est pas critique pour la barrière ; (4) le brief confond deux biographies de départ et les fiches des personas non admis entrent dans le contexte de rédaction sans filtrage. Cinquième défaut trouvé en relevant le code : un seul project.json corrompu dans le répertoire voisin prive TOUS les rapports de la pile de leur section de sources. Dossier : docs/plans/014-integrite-preuves-redaction/ (prd.md, architecture.md, epic-014.md) ; 4 stories prévues (014-1 régime de preuve des entretiens, 014-2 la section qui certifie ou s'abstient, 014-3 la règle de silence jusqu'à la prose et à la barrière, 014-4 le brief et les fiches persona), fichiers de story à créer au démarrage de chacune.
 # 21 oct. 2026 : Epic 013 CLOS (7/7 stories done, 2 067 tests verts). La story 013-6 passe review -> done : revue de clôture sur les 12 critères d'acceptation (tous conformes) et grille de revue aveugle remplie. Résultat de la campagne : les deux variantes (flash-medium / flash-high) notées 2/5 chacune — les erreurs matérielles majeures sont COMMUNES aux deux (arc « Émilie » fabriqué alors qu'elle n'a aucune action observée, citations présentées comme verbatim et qui ne le sont pas, souscriptions contredites par le tableau de cohorte du rapport lui-même, section « Sources & Provenance » sur-certifiée). « high » consomme ~13 % de tokens de plus sans réduction claire des erreurs : le critère de décision du PRD source §8 n'est PAS rempli, la configuration par défaut reste « medium ». Trois défauts de PIPELINE indépendants de l'effort sont consignés dans deferred-work.md (citations d'interview_agents présentées comme des événements du jeu figé ; provenance sur-certifiée ; fiction de scénario d'un persona non admis qui fuit dans la prose) : c'est le prochain chantier de l'Epic 013.
 # 20 oct. 2026 : story 013-6 passe in-progress -> review après implémentation du banc de benchmark A/B, revue contradictoire BMAD 4 couches (24 correctifs appliqués, 4 points différés, 3 rejets motivés) et campagne réelle sur R7 dans la stack Docker de référence (deux variantes flash-medium / flash-high, un report_id chacune, empreinte de référence 26cf493ea7bbd579… retrouvée au pré-contrôle, graphe inchangé pendant la campagne). Livré : moteur de score pur et fermé versionné (report_benchmark_score.py, 34 métriques), orchestrateur de campagne (verifier_benchmark_epic_013.py, --dry-run sans génération), extension de la télémétrie (cached_tokens, finish_reason). Le banc ne désigne jamais de modèle gagnant et n'exécute pas la revue aveugle : il en outille le matériel. Filet porté à 2 067 tests passants sur l'hôte (+ 43 tests Node frontend, inchangés). Epic 013 in-progress (5/7 done, 1 en review).
 # 20 oct. 2026 : story 013-6 rédigée et passée backlog -> in-progress (banc de benchmark contrôlé A/B et qualification globale de l'Epic 013). Cadrage arrêté avant code : le banc s'exécute dans la stack Docker de référence (ADR 0006) — sur l'hôte, ZEP_BACKEND est absent de .env et le défaut 'cloud' viserait un Zep Cloud sans clé, donc les deux variantes seraient dégradées de façon non comparable ; le score est une grille fermée et purement mécanique calculée par un module pur (backend/app/utils/report_benchmark_score.py), versionnée et écrite avant la campagne ; le graphe n'étant PAS dans l'empreinte des preuves (replay_frozen ne gèle que les interviews live), un garde-fou de cohérence du graphe exclut le comparatif s'il varie. Cas de référence mesuré : R7 = sim_80a54d7bbd7b, empreinte figée 26cf493ea7bbd579be7162c0eec3ee7074f905f0e5532a3c004cb9c017989f56 (737 événements, 41 acteurs), stable sur deux captures consécutives, baseline 167 affirmations dont 0 vérifiée et needs_review. Le banc appelle ReportAgent en direct (l'API répond task_id et travaille en thread de fond) et reproduit ses préconditions (projet GRAPH_COMPLETED, concordance des graph_id, graph_lifecycle_lock). La revue aveugle est outillée mais pas exécutée : la correspondance A/B reste dans un fichier distinct, à n'ouvrir qu'après remplissage de la grille. Filet de référence : 1 971 tests backend + 43 tests Node frontend.
@@ -952,6 +953,62 @@ epics:
     # variantes sont de qualité comparable (2/5 chacune) — la configuration par
     # défaut reste « medium ». Trois défauts de pipeline sont consignés dans
     # deferred-work.md et deviennent le prochain chantier de l'epic.
+
+  - id: "014"
+    slug: integrite-preuves-redaction
+    titre: "Intégrité des preuves de rédaction"
+    statut: in-progress
+    plan: docs/plans/014-integrite-preuves-redaction
+    depend_de: ["011", "012", "013"]
+    pourquoi: >-
+      La campagne de benchmark de l'Epic 013 a montré que l'écart entre
+      `medium` et `high` ne porte pas sur la qualité de rédaction, mais sur
+      un défaut de régime de preuve : le rapport peut présenter comme
+      « événement simulé réel » une parole fabriquée pendant la rédaction,
+      certifier une traçabilité que son propre registre nie, et attribuer un
+      refus à un persona qui n'a jamais agi. Ces défauts sont communs aux deux
+      efforts de raisonnement, donc indépendants du modèle.
+    criteres_de_sortie:
+      - "C1 : 100 % des passages issus d'un entretien de rédaction portent leur régime de provenance, et aucun n'est compté comme un événement du jeu figé"
+      - "C2 : la section « Sources & Provenance » ne contient plus d'affirmation de traçabilité non calculée (prouvé par test sur un registre réel)"
+      - "C3 : un persona silencieux ou non admis ne peut recevoir ni parole, ni décision, ni section, en prose comme au registre"
+      - "C4 : la contradiction « persona silence ↔ action affirmée » déclenche un ÉCHEC de la barrière de publication, et non un avertissement"
+      - "C5 : le brief et les fiches persona ne font plus diverger deux biographies de départ ; les fiches non admises sont hors du contexte de rédaction"
+      - "C6 : un project.json corrompu n'affecte que son propre projet"
+      - "C7 : un tiers recevant l'archive d'audit peut établir l'origine de chaque passage cité"
+      - "C8 : filet de tests non régressé, et re-qualification sur R7 produisant un rapport sans certification mensongère"
+    # Story 014-1 (backlog) : régime de preuve des entretiens de rédaction —
+    # `interview_agents` renvoie un texte libre (zep_tools.py:437-460) sans
+    # event_id ni provenance, et en mode replay_frozen ses réponses sont
+    # FABRIQUÉES par le LLM du rapport pendant la rédaction
+    # (zep_tools.py:1736-1835) ; l'étiquette « [Événements simulés réels] » n'est
+    # produite par aucun code et se fait avaler par l'extracteur comme un nom
+    # d'agent (r6_bundle/report_claims.json:1046). 24 des 31 citations longues
+    # de la variante B viennent de là.
+    # Story 014-2 (backlog) : la section « Sources & Provenance » est insérée
+    # (report_agent.py:2591-2597) AVANT l'écriture du registre (:2618-2625) ;
+    # ses deux affirmations clés sont des littéraux non calculés (:2987, :2998) ;
+    # « aucune divergence détectée » signifie en réalité « 0 post n'a matché
+    # les motifs d'intention » (confusion de dénominateurs) ; 216 actions
+    # (actions.jsonl) et 737 événements (EvidencePack) ne sont jamais
+    # confrontés.
+    # Story 014-3 (backlog) : la règle de silence n'existe qu'en un seul
+    # endroit (simulation_action_verifier.py:939-961), ne réécrit que le
+    # ReportClaim, et sa contradiction est reclassée SPECULATIVE_PROJECTION
+    # (:953) donc non critique pour la barrière
+    # (report_quality_gate.py:464-493). Les fiches persona et le brief entrent
+    # dans le prompt sans filtrage (report_agent.py:688, :1886) ; un acteur
+    # `review` n'est jamais filtré (cohort_coverage.py:83-86, :622-625).
+    # Story 014-4 (backlog) : l'épisode « 1 500 € / WordPress » appartient à la
+    # fiche d'un persona et se retrouve dans la fiche d'un autre, dans le brief
+    # (projet proj_cc8bc57b87fe). La confusion précède le rapport : elle est
+    # dans la construction des briefs et des fiches.
+    # Défaut transverse (014-2) : ProjectManager.get_project (project.py:307-325)
+    # fait json.load sans garde ; un project.json tronqué dans le répertoire
+    # voisin fait échouer find_projects_by_graph_id, l'exception est avalée par
+    # _resolve_project (report_agent.py:1414-1424) et TOUS les rapports perdent
+    # leur section de sources — mesuré sur proj_d850cdad31ee.
+    # Epic 014 in-progress (0/4 stories démarrées).
 
 
 
