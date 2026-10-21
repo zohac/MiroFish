@@ -14,6 +14,36 @@ pas être son propre juge aveugle.
 
 ## 1. Ce que l'évaluateur reçoit
 
+### Contrôle préalable — obligatoire
+
+Une première tentative a échoué : les pièces de preuve jointes étaient celles
+d'une **autre simulation** (`sim_ea4f3cfe1028`, 258 affirmations — l'exécution
+R6, encore présente dans `backend/uploads/reports/report_77d96ea4c1c9/` et
+dans `backend/tests/fixtures/qualification_epic_012/r6_bundle/`). L'évaluateur
+l'a détecté, et ses notes des critères 1 et 5 sont devenues provisoires.
+
+**Avant d'envoyer quoi que ce soit, vérifiez** que chaque pièce de preuve
+jointe est la bonne. Le contrôle tient en une ligne :
+
+```bash
+cd /chemin/vers/le/dépôt
+for f in A-report_claims.json B-report_claims.json; do
+  python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(sys.argv[1], d.get('simulation_id'), d.get('total_claims'))" "$f"
+done
+```
+
+La sortie attendue est **exactement** :
+
+```
+A-report_claims.json sim_80a54d7bbd7b 159
+B-report_claims.json sim_80a54d7bbd7b 178
+```
+
+Un autre `simulation_id`, un autre nombre d'affirmations : **n'envoyez pas**,
+reprenez la liste de fichiers ci-dessous. Le dossier `backend/uploads/reports/`
+contient plus de trente rapports anciens : c'est la source d'erreur la plus
+probable.
+
 ### Les deux rapports à juger
 
 - `variante-A.md`
@@ -22,26 +52,32 @@ pas être son propre juge aveugle.
 ### Les preuves, si l'on veut juger l'exactitude factuelle
 
 Les preuves **ne divulguent pas** l'identité technique des variantes (ni le
-modèle, ni l'effort) : les transmettre ne rompt donc pas l'aveuglement. Sans
-elles, le critère « exactitude factuelle vérifiable » n'est pas **mesurable**,
- seulement appréciable.
+modèle, ni l'effort, ni le `report_id` de correspondance) : les transmettre ne
+rompt donc pas l'aveuglement. Sans elles, le critère « exactitude factuelle
+vérifiable » n'est pas **mesurable**,
+seulement appréciable.
 
-Pour chaque variante, trois fichiers suffisent (ils sont dans le dossier de
-rapport correspondant, sous `backend/uploads/reports/<report_id>/`) :
+Pour chaque variante, trois fichiers suffisent. Les chemins complets, à
+prendre **tels quels** :
 
-| Fichier | Ce qu'il permet de vérifier |
-|---|---|
-| `report_claims.json` | le statut de chaque affirmation (`VERIFIED` / `UNSUPPORTED` / `CONTRADICTED`), le `claim_id`, le champ `limitations`, et le `evidence_refs` (vide = non rattaché à un événement) |
-| `quality_checks.json` | les 5 contrôles de publication et leur verdict |
-| `cohort_coverage.json` | les 18 membres, leurs rôles, leurs statuts de décision, les comptes d'actions, les membres silencieux |
+| Variante | Fichier | Ce qu'il permet de vérifier |
+|---|---|---|
+| A | `backend/uploads/reports/report_108186c7524b/report_claims.json` | statut de chaque affirmation (`VERIFIED` / `UNSUPPORTED` / `CONTRADICTED`), `claim_id`, champ `limitations`, `evidence_refs` (vide = non rattaché à un événement) |
+| A | `backend/uploads/reports/report_108186c7524b/quality_checks.json` | les 5 contrôles de publication et leur verdict |
+| A | `backend/uploads/reports/report_108186c7524b/cohort_coverage.json` | les 18 membres, rôles, statuts de décision, comptes d'actions, membres silencieux |
+| B | `backend/uploads/reports/report_ccf28321dcb8/report_claims.json` | idem |
+| B | `backend/uploads/reports/report_ccf28321dcb8/quality_checks.json` | idem |
+| B | `backend/uploads/reports/report_ccf28321dcb8/cohort_coverage.json` | idem |
 
 À quoi s'ajoutent, communs aux deux variantes :
 `backend/uploads/simulations/sim_80a54d7bbd7b/actors.json` (les personas) et
-`.../simulation_config.json` (le brief et ses règles).
+`backend/uploads/simulations/sim_80a54d7bbd7b/simulation_config.json` (le brief
+et ses règles).
 
 **Prudence de nommage** : les fichiers de preuve portent le même nom pour les
 deux variantes. Renommez-les en les transmettant (`A-report_claims.json`,
-`B-report_claims.json`, …) pour que l'évaluateur ne les confonde pas.
+`B-report_claims.json`, …) pour que l'évaluateur ne les confonde pas — et
+appliquez le contrôle préalable ci-dessus **après** renommage.
 
 ### Ce que l'évaluateur ne doit **pas** recevoir
 
@@ -125,6 +161,19 @@ Termine par :
    sans en tirer de conclusion générale sur la configuration ;
 3. ce que tu n'as pas pu vérifier.
 ```
+
+## 2 bis. La grille de cette campagne a déjà été remplie
+
+Une première version de la grille a été remplie (voir `grille-aveugle.md`),
+puis confirmée par une **revue indépendante** (voir
+`revue-aveugle-independante.md`). La campagne est donc **documentée** ; la
+procédure ci-dessus reste la référence pour une **contre-évaluation** ou pour
+un nouvel arrivant.
+
+Rappel de la conclusion, pour ne pas la réinterpréter : les deux variantes
+sont notées **2/5**, les erreurs matérielles majeures sont **communes**, et la
+variante `high` n'apporte **aucune réduction claire** des erreurs pour ~13 % de
+tokens de plus. **La configuration par défaut reste `medium`.**
 
 ## 3. Après la grille remplie
 

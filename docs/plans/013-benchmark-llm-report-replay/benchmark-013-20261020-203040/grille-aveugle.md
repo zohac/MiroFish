@@ -128,6 +128,28 @@ matérielles en `high`.
   variante A = `flash-medium` (`gemini-3.8-flash`, effort `medium`) ;
   variante B = `flash-high` (`gemini-3.8-flash`, effort `high`).
 
+### Confirmation indépendante
+
+Une **seconde revue, indépendante**, a été conduite le 21 octobre 2026 par
+ChatGPT (session neuve, sans accès à la correspondance) : voir
+[`revue-aveugle-independante.md`](revue-aveugle-independante.md).
+
+Ses notes : A = 1/2/3/4/1, B = 0/2/2/4/1 — soit **2,2/5** et **1,8/5**.
+Les deux revues **convergent** : même note globale (2/5 par variante), mêmes
+erreurs matérielles jugées décisives, et `high` **jamais supérieure** à
+`medium` (inférieure sur l'exactitude et sur les limites). Le verdict de la
+section 7 — *la configuration par défaut reste `medium`* — est donc confirmé
+par un évaluateur qui n'avait pas la correspondance.
+
+**Réserve** : les pièces de preuve jointes à cette seconde revue étaient
+erronées (elles portaient `simulation_id: sim_ea4f3cfe1028`, l'exécution R6,
+au lieu de `sim_80a54d7bbd7b`), ce qui rend **provisoires** ses notes des
+critères 1 et 5. Les critères 2, 3 et 4, ainsi que le verdict global et la
+comparaison A/B, reposent sur des faits vérifiables dans les textes mêmes des
+rapports : ils sont exploitables. La consigne a été durcie en conséquence
+(vérification du `simulation_id` des pièces jointes avant l'envoi).
+
+
 ## 7. Lecture après ouverture de la correspondance
 
 La comparaison des deux grilles **ne fait apparaître aucune réduction claire

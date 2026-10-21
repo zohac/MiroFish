@@ -580,6 +580,20 @@ prose). `high` ajoute des erreurs qui lui sont propres (citations
 d'entretiens menés pendant la rédaction présentées comme des événements
 observés, question d'entretien présupposant la conversion).
 
+**Confirmation indépendante** : une seconde revue a été conduite le
+21 octobre 2026 par un évaluateur externe (ChatGPT, session neuve, sans
+accès à la correspondance) — voir
+`benchmark-013-20261020-203040/revue-aveugle-independante.md`. Ses notes :
+A = 1/2/3/4/1, B = 0/2/2/4/1 (2,2/5 et 1,8/5). Les deux revues
+**convergent** : même note globale, mêmes erreurs matérielles décisives, et
+`high` **jamais supérieure** à `medium` — inférieure sur l'exactitude et sur
+les limites. *Réserve* : les pièces de preuve jointes à cette seconde revue
+portaient `sim_ea4f3cfe1028` (l'exécution R6) au lieu de `sim_80a54d7bbd7b`,
+ce qui rend **provisoires** ses notes des critères 1 et 5 ; le verdict global
+et la comparaison A/B, eux, reposent sur les textes mêmes des rapports. La
+procédure a été durcie : la consigne exige désormais un contrôle du
+`simulation_id` des pièces jointes avant l'envoi.
+
 **Décision (PRD source §8)** : le critère « *choisir `high` si la revue
 aveugle montre une réduction claire des erreurs matérielles et des citations
 non fondées* » **n'est pas rempli** → **la configuration par défaut reste
