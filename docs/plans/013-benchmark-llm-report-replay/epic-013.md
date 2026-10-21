@@ -60,7 +60,7 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 | 013-3 | Isolation multi-rapports sous `reports/<report_id>/` et API d'historique | `done` | [`story-013-3.md`](story-013-3.md) |
 | 013-4 | Télémétrie d'usage, mesure des temps et plafonds budgétaires | `done` | [`story-013-4.md`](story-013-4.md) |
 | 013-5 | Interface Vue 3 Step 4 : sélecteur de rapport, régénération et comparaison | `done` | [`story-013-5.md`](story-013-5.md) |
-| 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `review` | [`story-013-6.md`](story-013-6.md) |
+| 013-6 | Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013 | `done` | [`story-013-6.md`](story-013-6.md) |
 
 ---
 
@@ -75,7 +75,7 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 7. **C7 : Benchmark A/B documenté** : Rapport formel de qualification consignant la comparaison contrôlée de `gemini-3.8-flash` `medium` vs `high` sur R7.
 8. **C8 : Non-régression globale** : $\ge 1 842$ tests au vert sur l'hôte, 0 échec.
 
-> **C7 est porté par la story 013-6** (`review` au 20 octobre 2026) : banc de
+> **C7 est porté par la story 013-6** (`done` au 21 octobre 2026) : banc de
 > benchmark contrôlé A/B (`backend/scripts/verifier_benchmark_epic_013.py`),
 > grille de score fermée et purement mécanique
 > (`backend/app/utils/report_benchmark_score.py`, version `1.1.0`), rapport
@@ -92,6 +92,48 @@ L'**Epic 013** met en place la capacité de **régénérer des rapports en mode 
 > — avant la première variante et après chacune, et écarte toute variante dont
 > l'état diffère. C'est le principal biais résiduel du protocole, et il est
 > déclaré comme tel dans le rapport de qualification.
+
+---
+
+## 7. Clôture de l'epic (21 octobre 2026)
+
+Les huit critères de sortie sont satisfaits :
+
+| C | Preuve | Verdict |
+|---|---|---|
+| C1 | `ReportLLMProfile` sans mutation d'`os.environ` (story 013-1) | ✅ |
+| C2 | Effort effectif mesuré : `low` 0 / `medium` 453 / `high` 569 tokens de raisonnement sur la passerelle Antigravity (story 013-1) | ✅ |
+| C3 | Rejeu `replay_frozen` sans appel OASIS live, empreinte SHA-256 de 6 artefacts (story 013-2) | ✅ |
+| C4 | Dossier complet par `report_id`, zéro écrasement (story 013-3) | ✅ |
+| C5 | Télémétrie : tokens, durée, coût estimé, plafonds (story 013-4) | ✅ |
+| C6 | Sélecteur d'historique, régénération par profil, comparaison (story 013-5) | ✅ |
+| C7 | Campagne contrôlée sur R7 : rapport formel, charge utile machine, grille de revue aveugle remplie (story 013-6) | ✅ |
+| C8 | 2 067 tests backend + 43 tests Node frontend au vert (story 013-6) | ✅ |
+
+**Résultat de la campagne** : les deux variantes (`flash-medium` et
+`flash-high`) ont été générées sur le même jeu de preuves figées, avec un
+verdict de **comparaison contrôlée**. La revue aveugle les note **2/5
+chacune** : les erreurs matérielles majeures sont **communes** aux deux
+(arc « Émilie » fabriqué alors qu'elle n'a aucune action observée, citations
+présentées comme verbatim et qui ne le sont pas, souscriptions contredites
+par le tableau de cohorte du rapport lui-même, provenance sur-certifiée).
+`high` consomme ~13 % de tokens de plus et n'apporte **aucune réduction
+claire** des erreurs.
+
+**Décision** : le critère de décision du PRD source (§8) n'est pas rempli →
+**la configuration par défaut reste `medium`**, et le passage à `high` n'est
+pas justifié par cette campagne. L'évaluation indépendante reste requise avant
+toute bascule de modèle (PRD §12.5) : la grille a été remplie par un agent
+qui avait déjà lu la correspondance, ce qui est signalé dans le fichier
+lui-même.
+
+**Ce que l'epic laisse ouvert** : trois défauts de **pipeline**, indépendants
+de l'effort de raisonnement, sont consignés dans `docs/deferred-work.md` —
+(1) les citations d'`interview_agents`, menées pendant la rédaction, sont
+présentées comme des événements du jeu figé ; (2) la section « Sources &
+Provenance » certifie une traçabilité que le registre d'affirmations du même
+rapport nie ; (3) la fiction de scénario d'un persona non admis fuit dans la
+prose. Ces trois points sont le prochain chantier de l'Epic 013.
 
 ---
 

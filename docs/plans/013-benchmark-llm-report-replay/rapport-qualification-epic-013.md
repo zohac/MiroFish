@@ -155,7 +155,7 @@ Un taux dont le dénominateur est connu et vaut zéro ne s'affiche pas : il est 
 Le dossier de campagne `benchmark-013-20261020-203040` contient :
 
 - `variante-A.md` et `variante-B.md` : la paire anonymisée.
-- `grille-aveugle.md` : la grille à remplir.
+- `grille-aveugle.md` : la grille de revue aveugle, à remplir par un évaluateur tiers.
 - `correspondance.json` : l'association variante ↔ profil, dans un **fichier distinct**.
 
 Règle de procédure : la correspondance ne s'ouvre qu'après remplissage complet de la grille. Le banc n'exécute pas cette revue : un agent ne peut pas être son propre juge aveugle.

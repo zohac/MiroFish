@@ -501,3 +501,38 @@ tests, architecture) du banc de benchmark A/B du `ReportAgent`.
 ## Deferred from: code review of story-013-6.md (2026-10-20) — suite
 
 - **`backend/tests/test_report_llm_profile.py::test_antigravity_proxy_build_gemini_request_translates_effort` — échec intermittent sous charge de l'hôte.** Le test importe `backend/scripts/antigravity_proxy.py` par un `sys.path.insert(0, .../scripts)`, puis appelle `_build_gemini_request` (fonction pure, sans E/S). Le test est **antérieur à la story 013-6** et n'a pas été touché par son diff. Observé : **2 échecs sur ~10 exécutions complètes** de la suite backend, **0 échec** sur 7 exécutions isolées du fichier et sur 3 suites complètes consécutives (2 067 passantes chacune). Les deux échecs sont survenus sur des exécutions lancées immédiatement après une forte activité Docker sur la même machine. *Différé : l'import par `sys.path` rend le test dépendant de l'état de la machine ; un correctif propre passerait par un import relatif du module (`from scripts import antigravity_proxy`), ou par un `conftest` qui rend `backend/scripts` importable une fois pour toutes. hors périmètre de la story 013-6, qui ne touche pas ce test.*
+
+## Deferred from: campaign benchmark-013-20261020-203040 (2026-10-21) — défauts de pipeline révélés par la revue aveugle
+
+La revue aveugle de la campagne a mis en évidence trois défauts **systématiques**
+du `ReportAgent`, présents dans **les deux** variantes et donc indépendants de
+l'effort de raisonnement. Ils sont chiffrés et sourcés dans
+`docs/plans/013-benchmark-llm-report-replay/benchmark-013-20261020-203040/grille-aveugle.md`.
+
+- **Les citations d'`interview_agents` sont présentées comme des événements
+  observés du jeu figé.** L'outil interroge les agents **pendant la rédaction**
+  du rapport : ces réponses sont hors du paquet de preuves scellé par
+  l'empreinte SHA-256, et hors des 72 h simulées. La variante `high` en compte
+  **24 sur 31 citations** de cette origine, étiquetées
+  `[Événements simulés réels]`. *Différé : c'est le défaut le plus lourd des
+  deux ; il demande un régime de preuve explicite dans le `ReportAgent`
+  (typologie distincte pour un entretien de rédaction, et exclusion de ce
+  régime du paquet de preuves). Hors périmètre de la story 013-6, qui livre
+  l'appareil de mesure et non le correctif de rédaction.*
+- **La section « Sources & Provenance » certifie une traçabilité que le registre
+  d'affirmations du même rapport nie.** Les deux rapports écrivent « toute
+  affirmation qualifiée d'action observée est reliée à un événement horodaté »
+  et « aucune divergence intention/action non résolue détectée », alors que
+  **0 affirmation** (A : 159 ; B : 178) ne porte d'`evidence_refs` et que
+  7 (A) / 8 (B) sont `CONTRADICTED`. *Différé : la section est produite par le
+  `ReportAgent` à partir des outils graphe, pas du registre ; elle doit lire le
+  registre d'affirmations, ou s'abstenir de certifier.*
+- **La fiction de scénario d'un persona non admis fuit dans les affirmations
+  « observées ».** Émilie n'est pas admise dans la simulation
+  (`eligibility_status: review`, 0 action, `present_no_action`) : les deux
+  rapports lui attribuent pourtant un arc, des citations et une section, et
+  l'un des deux lui oppose une formatrice. La règle de silence C7 du registre
+  ne l'empêche pas — elle n'agit que sur les affirmations extraites, pas sur
+  la prose. *Différé : la règle de silence doit remonter jusqu'à la
+  rédaction, ou le persona doit être filtré des fiches de profil fournies à
+  l'agent.*

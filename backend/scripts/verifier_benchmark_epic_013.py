@@ -1738,7 +1738,7 @@ def construire_rapport_qualification(
         lignes.append("Le dossier de campagne contient :")
     lignes.append("")
     lignes.append("- `variante-A.md` et `variante-B.md` : la paire anonymisée.")
-    lignes.append("- `grille-aveugle.md` : la grille à remplir.")
+    lignes.append("- `grille-aveugle.md` : la grille de revue aveugle, à remplir par un évaluateur tiers.")
     lignes.append(
         "- `correspondance.json` : l'association variante ↔ profil, dans un "
         "**fichier distinct**."

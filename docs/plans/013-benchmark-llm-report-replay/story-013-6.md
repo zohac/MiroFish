@@ -2,7 +2,7 @@
 id: "013-6"
 epic: "013"
 titre: "Banc de benchmark contrôlé A/B et qualification globale de l'Epic 013"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -546,13 +546,56 @@ répétition.
 appliqués et vérifiés par mutation (trois mutations ciblées ont été confirmées
 comme détectées par les tests correspondants).
 
+### Revue de clôture — confrontation des 12 critères d'acceptation
+
+| AC | Preuve | Verdict |
+|---|---|---|
+| AC1 | `test_campagne_refusee_si_preuves_insuffisantes` ; à la campagne, l'empreinte de référence a été retrouvée (737 événements, 41 acteurs) | conforme |
+| AC2 | `test_dry_run_ne_genere_aucun_rapport`, `test_banc_refuse_un_backend_de_graphe_inattendu` ; la rehearsal sur la stack affiche empreinte, graphe, profils et plafonds sans créer de rapport | conforme |
+| AC3 | `test_variante_exclue_si_empreinte_divergente`, `test_variante_exclue_si_le_graphe_a_change` ; les deux rapports portent la même empreinte `26cf493e…`, et l'empreinte de contenu du graphe est identique avant et après | conforme |
+| AC4 | `test_campagne_produit_deux_dossiers_complets_sans_ecrasement` ; les deux dossiers portent les 7 artefacts, le premier est intact après le second | conforme |
+| AC5 | `test_grille_expose_les_metriques_attendues`, `test_version_de_grille_stable` ; le rapport affiche la version `1.1.0` et ses 34 métriques | conforme |
+| AC6 | `test_denominateur_nul_vient_echec_de_couverture` ; la variante A affiche un taux « indisponible » et « échec de couverture » (0 assertion d'action) | conforme |
+| AC7 | `test_verdict_de_comparabilite_et_son_motif` ; le rapport énonce la règle (empreinte SHA-256 prioritaire, instantané en repli) et le motif du verdict | conforme |
+| AC8 | `test_metrique_absente_vaut_null_et_non_zero` ; le rapport affiche « indisponible », libèle le coût comme estimation et publie le coût théorique | conforme |
+| AC9 | `test_rapport_ne_designe_aucun_gagnant` ; le banc refuse lui-même d'écrire un rapport porteur d'un marqueur de désignation | conforme |
+| AC10 | `test_materiel_aveugle_ecrit_avec_correspondance_separee` ; la paire anonymisée, la grille, la correspondance et la consigne sont dans le dossier de campagne | conforme |
+| AC11 | `test_campagne_arretee_sur_plafond_sans_escalade` ; plafonds du profil appliqués, aucune escalade, coût et durée déclarés | conforme |
+| AC12 | 2 067 tests backend et 43 tests Node au vert, aucune dépendance ajoutée, scan de secrets sur les 7 artefacts produits : propre | conforme |
+
+### Revue aveugle — issue et conséquence
+
+La grille a été remplie (voir `benchmark-013-20261020-203040/grille-aveugle.md`),
+avec la réserve explicite que l'évaluateur — un agent de la session de
+développement — avait déjà lu la correspondance : l'évaluation **informe**,
+elle n'**autorise** pas.
+
+**Résultat** : A (`medium`) = 2/5, B (`high`) = 2/5. Les erreurs matérielles
+majeures sont **communes** aux deux variantes (arc « Émilie » fabriqué alors
+qu'elle n'a aucune action observée, citations présentées comme verbatim et
+qui ne le sont pas, souscriptions contredites par le tableau de cohorte du
+rapport lui-même, section « Sources & Provenance » qui certifie une
+traçabilité que le registre du même rapport nie, persona active omise de la
+prose). `high` ajoute des erreurs qui lui sont propres (citations
+d'entretiens menés pendant la rédaction présentées comme des événements
+observés, question d'entretien présupposant la conversion).
+
+**Décision (PRD source §8)** : le critère « *choisir `high` si la revue
+aveugle montre une réduction claire des erreurs matérielles et des citations
+non fondées* » **n'est pas rempli** → **la configuration par défaut reste
+`medium`** ; le banc n'a justifié aucun basculement de modèle. La
+campagne démontre en revanche un **défaut de pipeline**, pas de modèle :
+il est consigné dans `docs/deferred-work.md` et devient le prochain
+chantier de l'Epic 013.
+
 ---
 
 ## Notes de complétion
 
-- **Statut final** : `review`. La story a été implémentée, testée, revue et
-  exécutée en conditions réelles ; la clôture `done` appartient à la revue
-  contradictoire qui suit.
+- **Statut final** : `done`. La story a été implémentée, testée, revue à
+  quatre couches, exécutée en conditions réelles, et la revue aveugle a été
+  remplie. Les 12 critères d'acceptation sont satisfaits (table de clôture
+  dans la section « Revue »).
 - **Tests exécutés** (chiffres lus dans la sortie des commandes) :
   - `cd backend && uv run pytest tests/ -q` → **2 067 passed** (référence
     avant story : 1 971 ; **+ 96 tests** hermétiques nouveaux) ;
