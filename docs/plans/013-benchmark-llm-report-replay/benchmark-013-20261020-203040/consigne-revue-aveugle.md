@@ -1,8 +1,8 @@
 # Consigne d'évaluation — revue aveugle de la campagne `benchmark-013-20261020-203040`
 
 Ce document est la procédure à suivre pour faire la **revue aveugle** de la
-campagne. Elle est la seule chose que le banc n'a pas faite, et c'est
-délibéré : un agent ne peut pas être son propre juge aveugle.
+campagne. Le banc l'a outillée mais ne l'a pas exécutée : un agent ne peut
+pas être son propre juge aveugle.
 
 > **Rappel de la règle du dépôt** (PRD source §8 et §12.5) : l'expérience doit
 > publier séparément le score **brut** des composants existants — c'est fait,
@@ -14,34 +14,67 @@ délibéré : un agent ne peut pas être son propre juge aveugle.
 
 ## 1. Ce que l'évaluateur reçoit
 
-**Uniquement ces deux fichiers :**
+### Les deux rapports à juger
 
 - `variante-A.md`
 - `variante-B.md`
 
-**Et rien d'autre.** En particulier, ne transmettez pas :
+### Les preuves, si l'on veut juger l'exactitude factuelle
 
-- `correspondance.json` (la clé : variante ↔ profil),
-- `mesure-benchmark-013.json` (la charge utile : elle contient la clé),
-- `rapport-qualification-epic-013.md` (il nomme les profils et les écarts).
+Les preuves **ne divulguent pas** l'identité technique des variantes (ni le
+modèle, ni l'effort) : les transmettre ne rompt donc pas l'aveuglement. Sans
+elles, le critère « exactitude factuelle vérifiable » n'est pas **mesurable**,
+ seulement appréciable.
 
-Si l'évaluateur lit l'un de ces trois fichiers, l'aveuglement est rompu : il
-faut recommencer avec un autre évaluateur.
+Pour chaque variante, trois fichiers suffisent (ils sont dans le dossier de
+rapport correspondant, sous `backend/uploads/reports/<report_id>/`) :
+
+| Fichier | Ce qu'il permet de vérifier |
+|---|---|
+| `report_claims.json` | le statut de chaque affirmation (`VERIFIED` / `UNSUPPORTED` / `CONTRADICTED`), le `claim_id`, le champ `limitations`, et le `evidence_refs` (vide = non rattaché à un événement) |
+| `quality_checks.json` | les 5 contrôles de publication et leur verdict |
+| `cohort_coverage.json` | les 18 membres, leurs rôles, leurs statuts de décision, les comptes d'actions, les membres silencieux |
+
+À quoi s'ajoutent, communs aux deux variantes :
+`backend/uploads/simulations/sim_80a54d7bbd7b/actors.json` (les personas) et
+`.../simulation_config.json` (le brief et ses règles).
+
+**Prudence de nommage** : les fichiers de preuve portent le même nom pour les
+deux variantes. Renommez-les en les transmettant (`A-report_claims.json`,
+`B-report_claims.json`, …) pour que l'évaluateur ne les confonde pas.
+
+### Ce que l'évaluateur ne doit **pas** recevoir
+
+| Fichier | Pourquoi |
+|---|---|
+| `correspondance.json` | c'est **la clé** : variante ↔ profil, effort, `report_id` |
+| `mesure-benchmark-013.json` | la charge utile porte la même clé, plus les écarts chiffrés entre les deux variantes |
+| `rapport-qualification-epic-013.md` | il nomme les profils, et affiche déjà les écarts bruts |
+
+Si l'un de ces trois fichiers est lu, l'aveuglement est rompu : il faut
+recommencer avec un autre évaluateur.
 
 ## 2. La consigne à transmettre
 
-Copiez-collez le bloc ci-dessous dans un **contexte neuf**, en joignant
-`variante-A.md` et `variante-B.md` (et rien d'autre).
+Copiez-collez le bloc ci-dessous dans un **contexte neuf**, en joignant les
+deux rapports (et, si vous le souhaitez, les preuves de la section 1).
 
 ```text
-Tu es un évaluateur indépendant. Deux rapports annotés t'ont été fournis :
+Tu es un évaluateur indépendant. Deux rapports t'ont été fournis :
 « variante-A.md » et « variante-B.md ». Ils ont été produits sur le même jeu
-de preuves par deux configurations d'un même modèle, et tu ne sais pas
+de preuves figées par deux configurations d'un même modèle, et tu ne sais pas
 laquelle correspond à laquelle. Tu ne peux pas et ne dois pas deviner.
+
+Des fichiers de preuve accompagne éventuellement chaque rapport :
+<variante>-report_claims.json (statut de chaque affirmation : VERIFIED,
+UNSUPPORTED ou CONTRADICTED, avec son claim_id et ses limitations),
+<variante>-quality_checks.json (contrôles de publication),
+<variante>-cohort_coverage.json (membres de la cohorte, rôles, statuts de
+décision, comptes d'actions, membres silencieux).
 
 Remplis la grille suivante, sur l'échelle 0 à 5 (0 = absent, 5 = excellent),
 et remplis la colonne « Commentaire » avec une justification factuelle
-(appuyer sur des passages précis du rapport, ne pas généraliser) :
+(appuyer sur des passages précis, ne pas généraliser) :
 
 | # | Critère | Échelle | Note A | Note B | Commentaire |
 |---|---|---|---|---|---|
@@ -51,20 +84,43 @@ et remplis la colonne « Commentaire » avec une justification factuelle
 | 4 | Lisibilité et structure du rapport | 0 à 5 | | | |
 | 5 | Respect des contraintes de publication | 0 à 5 | | | |
 
+Pour le critère 1, vérifie point par point :
+- Chaque citation entre guillemets est-elle **verbatim** d'un événement
+  observé, ou une reformulation présentée comme telle ?
+- Chaque affirmation attribuée à un persona est-elle **soutenue** par une
+  action observée de ce persona ? Un persona avec 0 action ne peut se voir
+  attribuer ni parole, ni refus, ni décision.
+- Le rapport affirme-t-il une adoption, une souscription ou un paiement que son
+  propre tableau de cohorte contredit ?
+- La section « Sources & Provenance » certifie-t-elle une traçabilité que le
+  registre d'affirmations du même rapport nie ?
+- Y a-t-il des chiffres, des dates, des durées ou des formulations qui
+  n'apparaissent nulle part dans les preuves ?
+
+Pour le critère 2 : le rapport mentionne-t-il les personas qui ont agi ? Omet-il
+un persona très actif ? Mentionne-t-il un persona sans aucune action ?
+
+Pour le critère 3 : la section « Objections non levées, contradictions et
+limites » est-elle présente ? Contient-elle des objections **réelles** (vérifiables
+dans les preuves) ou seulement des généralités ? Le rapport dit-il la limite la
+plus grave qu'il constate sur lui-même ?
+
+Pour le critère 5 : le respect des 72 h, des rôles réels et pilotes, de la
+distinction Essentiel / Premium, de l'absence de promesse inventée, et de la
+séparation des origines d'information.
+
 Règles de lecture :
-- Un rapport qui affirme une action, un paiement, une adoption ou une
-  citation sans trace observable est une **erreur matérielle** : compte-la et
-  signale-la.
-- Une section obligatoire manquante (objections, limites, contradictions) est
-  un défaut de publication, pas un simple détail de style.
-- Distingue « le rapport dit qu'il n'a pas pu établir » (honnêteté) de « le
-  rapport affirme sans preuve » (erreur).
+- Une affirmation d'action, de paiement ou d'adoption sans trace observable
+  est une **erreur matérielle** : compte-la et signale-la, avec le claim_id.
+- Un rapport qui dit « je n'ai pas pu établir » fait preuve d'honnêteté ; un
+  rapport qui affirme sans preuve est une erreur.
 - N'optimise pas le style, la longueur ou l'assurance du rapport.
 - Si un critère te semble impossible à noter, dis-le au lieu de deviner.
 
 Termine par :
-1. la liste des erreurs matérielles repérées dans chaque variante, avec citation
-   du passage concerné ;
+1. la liste des erreurs matérielles de chaque variante, avec la citation du
+   passage, le claim_id si elle existe, et la preuve qui la contredit (ou
+   l'absence de preuve) ;
 2. les points où l'un des rapports est manifestement plus faible que l'autre,
    sans en tirer de conclusion générale sur la configuration ;
 3. ce que tu n'as pas pu vérifier.
@@ -89,16 +145,14 @@ Le critère de décision du PRD source (§8) :
 
 Trois garde-fous à ne pas oublier :
 
-- **Le budget n'est pas le même.** Le rapport formel mesure, pour cette
-  campagne : `high` consomme **~13 % de tokens de plus** et **~12 % de coût
-  théorique de plus** que `medium` (0,9119 $ → 1,0251 $). Sur une passerelle
-  locale facturée au coût nul, cela ne se voit pas ; ailleurs, c'est le poste
-  principal.
+- **Le budget n'est pas le même.** La campagne de référence mesure : `high`
+  consomme **~13 % de tokens de plus** et **~12 % de coût théorique de plus**
+  que `medium` (0,9119 $ → 1,0251 $). Sur une passerelle locale facturée au
+  coût nul, cela ne se voit pas ; ailleurs, c'est le poste principal.
 - **Une seule génération par variante.** L'écart observé entre `medium` et
-  `high` (159 → 178 affirmations ; 0 → 1 assertion d'action vérifiée) peut
-  être dû à l'effort **ou** à la variabilité stochastique du modèle. Pour
-  trancher, il faut `--repetitions > 1` : le banc l'expose, la campagne de
-  référence ne l'a pas fait.
+  `high` peut être dû à l'effort **ou** à la variabilité stochastique du
+  modèle. Pour trancher, il faut `--repetitions > 1` : le banc l'expose, la
+  campagne de référence ne l'a pas fait.
 - **La couverture n'est pas comparable.** Côté `medium`, le taux de
   vérification des actions est **indéfinible** (dénominateur nul → échec de
   couverture) ; côté `high`, il est mesurable. Ce n'est pas un « meilleur
