@@ -1598,18 +1598,18 @@ class ReportAgent:
                     agents = []
                     for a in getattr(result, "selected_agents", []) or []:
                         if isinstance(a, dict):
-                            agents.append(str(a.get("realname", a.get("username", ""))))
+                            agents.append(str(a.get("realname") or a.get("username") or ""))
                     citations = []
                     for iv in getattr(result, "interviews", []) or []:
                         citations.extend(list(getattr(iv, "key_quotes", []) or []))
                     self._interview_records.append({
                         "subject": interview_topic,
                         "agents": [a for a in agents if a],
-                        "mode": getattr(self, "replay_mode", "live"),
+                        "mode": str(getattr(result, "replay_mode", None) or getattr(self, "replay_mode", None) or "live"),
                         "citations": citations,
                     })
-                except Exception:
-                    pass
+                except Exception as _iv_err:
+                    logger.warning(f"Collecte des entretiens de rédaction échouée : {_iv_err}")
                 return result.to_text()
             
             elif tool_name == "get_edge_provenance":
@@ -2412,6 +2412,11 @@ class ReportAgent:
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
         start_time = datetime.now()
+        # Réinitialiser les observations et entretiens de la génération précédente
+        # (Story 014-1, P3) : un ReportAgent réutilisé ne doit pas polluer
+        # l'attribution du régime ni l'artefact report_interviews.json.
+        self._tool_observations = []
+        self._interview_records = []
         profile_obj = self._resolve_effective_profile(self.profile)
         profile_id = str(profile_obj.profile_id) if hasattr(profile_obj, "profile_id") and isinstance(getattr(profile_obj, "profile_id"), (str, int)) else None
         llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") and callable(profile_obj.to_dict) and isinstance(profile_obj.to_dict(), dict) else None
@@ -2624,14 +2629,6 @@ class ReportAgent:
             # 使用ReportManager组装完整报告
             report.markdown_content = ReportManager.assemble_full_report(report_id, outline)
             
-            # S'assurer de la présence de la section dédiée « Sources & Provenance » (AC7, FR-7)
-            if "Sources & Provenance" not in report.markdown_content and "Sources et Provenance" not in report.markdown_content:
-                prov_section = self.build_sources_provenance_section()
-                report.markdown_content = report.markdown_content.rstrip() + "\n\n---\n\n" + prov_section + "\n"
-                full_path = ReportManager._get_report_markdown_path(report_id)
-                with open(full_path, 'w', encoding='utf-8') as f:
-                    f.write(report.markdown_content)
-
             # Définir l'identifiant actif pour l'instance
             self._current_report_id = report_id
 
@@ -2660,21 +2657,52 @@ class ReportAgent:
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
+            # Section « Sources & Provenance » produite APRÈS le registre (Story 014-2, AC1)
+            self._current_report_id = report_id
+            if "Sources & Provenance" not in report.markdown_content and "Sources et Provenance" not in report.markdown_content:
+                try:
+                    prov_section = self.build_sources_provenance_section(claims_registry=claims_registry)
+                except TypeError:
+                    prov_section = self.build_sources_provenance_section()
+                report.markdown_content = report.markdown_content.rstrip() + "\n\n---\n\n" + prov_section + "\n"
+                full_path = ReportManager._get_report_markdown_path(report_id)
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(report.markdown_content)
+
             # Bannière de régime de provenance (Story 014-1, AC7) : écrite par le code,
             # après l'audit des affirmations, pour ne pas être extraite comme claim.
             try:
                 interview_claim_count = 0
+                unknown_claim_count = 0
                 if claims_registry is not None:
-                    interview_claim_count = sum(
-                        1 for c in claims_registry.claims
-                        if str(getattr(c, "provenance_regime", None)) == "interview"
-                    )
+                    for c in claims_registry.claims:
+                        regime = getattr(c, "provenance_regime", None)
+                        regime_value = getattr(regime, "value", regime)
+                        if regime_value == "interview":
+                            interview_claim_count += 1
+                        elif regime is None or regime_value == "unknown":
+                            unknown_claim_count += 1
+                # Bannière des passages d'entretien (AC7).
                 if interview_claim_count > 0:
                     banner = t("report.provenance_banner", count=interview_claim_count)
                     report.markdown_content = banner + "\n\n" + (report.markdown_content or "")
+                    ReportManager._ensure_report_folder(report_id)
                     full_path = ReportManager._get_report_markdown_path(report_id)
-                    with open(full_path, "w", encoding="utf-8") as f:
+                    tmp = f"{full_path}.tmp.{os.getpid()}"
+                    with open(tmp, "w", encoding="utf-8") as f:
                         f.write(report.markdown_content)
+                    os.replace(tmp, full_path)
+                # Bannière des passages non rattachés (AC9, décision D1 : option 1).
+                # Écrite aussi en cas mixte, pour déclarer les non rattachés.
+                if unknown_claim_count > 0:
+                    banner = t("report.provenance_banner_unknown", count=unknown_claim_count)
+                    report.markdown_content = banner + "\n\n" + (report.markdown_content or "")
+                    ReportManager._ensure_report_folder(report_id)
+                    full_path = ReportManager._get_report_markdown_path(report_id)
+                    tmp = f"{full_path}.tmp.{os.getpid()}"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        f.write(report.markdown_content)
+                    os.replace(tmp, full_path)
             except Exception as banner_err:
                 logger.warning(f"Avertissement lors de l'écriture de la bannière de provenance : {banner_err}")
 
@@ -2976,8 +3004,14 @@ class ReportAgent:
                     )
 
 
-    def build_sources_provenance_section(self) -> str:
-        """Génère la section obligatoire « Sources & Provenance » (AC7, FR-7, NFR-5)."""
+    def build_sources_provenance_section(self, claims_registry=None) -> str:
+        """Génère la section obligatoire « Sources & Provenance » (AC7, FR-7, NFR-5).
+
+        Story 014-2 : la section est produite après le registre d'affirmations
+        (ou relit ``report_claims.json`` déjà persisté). Ses affirmations de
+        traçabilité sont calculées depuis le registre ; un registre absent ou
+        illisible donne « traçabilité non établie ».
+        """
         lines = [
             "## Sources & Provenance\n",
             "### 1. Typologie stricte des 5 origines d'information",
@@ -3053,6 +3087,26 @@ class ReportAgent:
         intentions = self.action_verifier.analyze_intentions(self.simulation_id)
 
         lines.append(f"- **Événements d'actions effectifs authentifiés :** {len(actions)} action(s) enregistrée(s) dans `actions.jsonl`.")
+
+        # Confrontation des deux populations d'événements (Story 014-2, AC3 / FR-04)
+        evidence_pack_count = None
+        try:
+            from .oasis_log_reader import OasisLogReaderService
+            _ep = OasisLogReaderService.load_evidence_pack(self.simulation_id)
+            evidence_pack_count = getattr(_ep, "total_events", None)
+            if evidence_pack_count is None and hasattr(_ep, "events"):
+                evidence_pack_count = len(_ep.events)
+        except Exception:
+            evidence_pack_count = None
+
+        if evidence_pack_count is None:
+            lines.append("- **Événements de l'`EvidencePack` (observations consolidées) :** non établi.")
+        else:
+            lines.append(f"- **Événements de l'`EvidencePack` (observations consolidées) :** {evidence_pack_count} événement(s).")
+        lines.append(
+            "- **Réconciliation des affirmations :** elle s'effectue sur les actions effectives de `actions.jsonl` "
+            f"({len(actions)}), et non sur les {evidence_pack_count if evidence_pack_count is not None else 'N/A'} événements consolidés de l'`EvidencePack`."
+        )
         lines.append("- **Règle anti-affabulation :** Toute affirmation qualifiée d'action observée est reliée à un événement horodaté du run. Les simples déclarations d'intention simulées n'ont pas été promues en actions observées.")
 
         if intentions:
@@ -3129,6 +3183,61 @@ class ReportAgent:
                 except Exception as e:
                     logger.debug(f"Erreur lors de la lecture des warnings d'ontologie: {e}")
                 lines.append(f"**Politique de validation** : {policy_desc}. {warnings_count} avertissement(s) actif(s).")
+
+        # Traçabilité calculée depuis le registre d'affirmations (Story 014-2, AC1/AC2/AC4)
+        lines.append("")
+        lines.append("### 7. Traçabilité calculée depuis le registre d'affirmations")
+        registry = claims_registry
+        registry_loaded = False
+        if registry is None:
+            # Relire le registre déjà persisté (simulations/<sim_id>/report_claims.json
+            # puis reports/<report_id>/report_claims.json).
+            candidate_paths = []
+            sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+            candidate_paths.append(os.path.join(sim_dir, "report_claims.json"))
+            rep_id = getattr(self, "_current_report_id", None)
+            if rep_id:
+                candidate_paths.insert(0, os.path.join(Config.UPLOAD_FOLDER, "reports", rep_id, "report_claims.json"))
+            for cand in candidate_paths:
+                if cand and os.path.exists(cand):
+                    try:
+                        from ..models.report_claim import ReportClaimRegistry
+                        registry = ReportClaimRegistry.load_from_file(cand)
+                        registry_loaded = True
+                        break
+                    except Exception:
+                        registry = None
+                        registry_loaded = False
+        else:
+            registry_loaded = True
+
+        if not registry_loaded or registry is None:
+            lines.append("- **Traçabilité non établie** : registre d'affirmations absent ou illisible.")
+        else:
+            try:
+                total = getattr(registry, "total_claims", len(getattr(registry, "claims", []) or []))
+                claims_list = getattr(registry, "claims", []) or []
+                with_refs = sum(1 for c in claims_list if getattr(c, "evidence_refs", None))
+                with_regime = sum(1 for c in claims_list if getattr(c, "provenance_regime", None) is not None)
+                ratio = getattr(registry, "verification_ratio", None)
+                verified = getattr(registry, "verified_claims", None)
+                lines.append(f"- **Affirmations au registre :** {total}.")
+                lines.append(f"- **Affirmations portant un `evidence_refs` non vide :** {with_refs}.")
+                lines.append(f"- Affirmations portant un `evidence_refs` non vide : {with_refs}.")
+                lines.append(f"- **Affirmations portant un `provenance_regime` :** {with_regime}.")
+                lines.append(f"- Affirmations portant un `provenance_regime` : {with_regime}.")
+                if verified is not None:
+                    lines.append(f"- **Affirmations vérifiées :** {verified}.")
+                if ratio is not None:
+                    try:
+                        lines.append(f"- **Taux de vérification :** {float(ratio) * 100:.1f} %.")
+                    except (TypeError, ValueError):
+                        lines.append(f"- **Taux de vérification :** {ratio}.")
+                if with_refs == 0:
+                    lines.append("- **Aucune traçabilité documentaire affirmée** (0 affirmation portant `evidence_refs`).")
+            except Exception as reg_err:
+                logger.warning(f"Registre d'affirmations illisible : {reg_err}")
+                lines.append("- **Traçabilité non établie** : registre d'affirmations absent ou illisible.")
 
         return "\n".join(lines)
 
@@ -3214,14 +3323,17 @@ class ReportAgent:
 
         if tool_observations is None:
             tool_observations = getattr(self, "_tool_observations", [])
+        # Jeton de régime émis par InterviewResult.to_text() (Story 014-1) :
+        # il ne doit pas polluer l'attribution ni le texte publié.
+        _regime_token_re = re.compile(r"\[\[PROVENANCE:[^\]]*\]\]")
         _obs_sources = []
         for obs in (tool_observations or []):
             if isinstance(obs, (tuple, list)) and len(obs) >= 2:
-                _obs_sources.append({"tool": obs[0], "text": obs[1]})
+                _obs_sources.append({"tool": obs[0], "text": _regime_token_re.sub(" ", str(obs[1] or ""))})
             elif isinstance(obs, dict):
                 tool_val = obs.get("tool") or obs.get("tool_name") or obs.get("name")
                 text_val = obs.get("text") or obs.get("content") or obs.get("result") or obs.get("output") or obs.get("response")
-                _obs_sources.append({"tool": tool_val, "text": text_val})
+                _obs_sources.append({"tool": tool_val, "text": _regime_token_re.sub(" ", str(text_val or ""))})
 
         # Liste noire absolue des mots français/anglais courants et conjonctions
         agent_blacklist = {
@@ -3281,6 +3393,10 @@ class ReportAgent:
             else:
                 clean_text = trimmed.lstrip("-*•").strip()
 
+            # Retirer le jeton de régime émis par le code (Story 014-1) pour
+            # qu'il ne pollue ni le texte publié, ni l'attribution.
+            clean_text = re.sub(r"\[\[PROVENANCE:[^\]]*\]\]", " ", clean_text).strip()
+
             # Détecter références d'événements et de documents
             ev_refs = event_ref_pattern.findall(clean_text)
             doc_refs = doc_ref_pattern.findall(clean_text)
@@ -3288,7 +3404,14 @@ class ReportAgent:
             # Retirer les segments entre crochets avant la résolution de nom :
             # une étiquette de provenance posée par le modèle n'est jamais un agent
             # (Story 014-1, AC6).
-            agent_resolution_text = re.sub(r"\[[^\]]*\]", " ", clean_text)
+            # Retirer tous les segments entre crochets, y compris les jetons imbriqués
+            # [[PROVENANCE:...]] (Story 014-1, AC6).
+            agent_resolution_text = clean_text
+            while True:
+                new_text = re.sub(r"\[[^\]]*\]", " ", agent_resolution_text)
+                if new_text == agent_resolution_text:
+                    break
+                agent_resolution_text = new_text
 
             # Détecter l'agent (Story 012-3, AC1) :
             agent_name = None
@@ -3406,7 +3529,8 @@ class ReportAgent:
 
             limitations: List[str] = []
             if regime == ProvenanceRegime.UNKNOWN or str(getattr(regime, "value", regime)) == "unknown":
-                limitations.append("Régime de provenance non établi (unknown).")
+                with use_locale(getattr(self, "locale", None) or "fr"):
+                    limitations.append(t("report.provenance_limitation_unknown"))
 
             claim = ReportClaim(
                 claim_id="",  # Auto-calculé déterministement

@@ -13,6 +13,9 @@ from typing import Dict, Any, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from ..config import Config
+from ..utils.logger import get_logger
+
+logger = get_logger("mirofish.project")
 
 
 class ProjectStatus(str, Enum):
@@ -319,10 +322,18 @@ class ProjectManager:
         if not os.path.exists(meta_path):
             return None
         
-        with open(meta_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            logger.warning(f"Projet illisible ignoré ({project_id}): {exc}")
+            return None
         
-        return Project.from_dict(data)
+        try:
+            return Project.from_dict(data)
+        except Exception as exc:
+            logger.warning(f"Projet illisible ignoré ({project_id}): {exc}")
+            return None
     
     @classmethod
     def list_projects(cls, limit: Optional[int] = 50) -> List[Project]:
@@ -339,6 +350,8 @@ class ProjectManager:
         
         projects = []
         for project_id in os.listdir(cls.PROJECTS_DIR):
+            if not os.path.isdir(os.path.join(cls.PROJECTS_DIR, project_id)):
+                continue
             project = cls.get_project(project_id)
             if project:
                 projects.append(project)

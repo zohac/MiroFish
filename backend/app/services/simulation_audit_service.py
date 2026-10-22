@@ -164,6 +164,30 @@ class SimulationAuditService:
                 "reasoning_effort_effective"
             )
 
+        # Index d'attribution des affirmations (Story 014-2, AC7 / FR-09, C7)
+        claims_index = None
+        try:
+            sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+            rep_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id) if self.report_id else ""
+            claims_path = ""
+            if rep_dir and os.path.exists(os.path.join(rep_dir, "report_claims.json")):
+                claims_path = os.path.join(rep_dir, "report_claims.json")
+            elif os.path.exists(os.path.join(sim_dir, "report_claims.json")):
+                claims_path = os.path.join(sim_dir, "report_claims.json")
+            if claims_path and os.path.exists(claims_path):
+                h = hashlib.sha256()
+                with open(claims_path, "rb") as cf:
+                    for chunk in iter(lambda: cf.read(8192), b""):
+                        h.update(chunk)
+                claims_index = {
+                    "path": claims_path,
+                    "sha256": h.hexdigest(),
+                    "sha256_hash": h.hexdigest(),
+                }
+        except Exception as ci_err:
+            logger.warning(f"Index d'attribution des claims indisponible : {ci_err}")
+            claims_index = None
+
         manifest = {
             "version": "1.1.0",
             "simulation_id": self.simulation_id,
@@ -182,6 +206,9 @@ class SimulationAuditService:
             },
         }
 
+        manifest["claims_index"] = claims_index
+        manifest["report_claims_path"] = (claims_index or {}).get("path")
+        manifest["report_claims_sha256"] = (claims_index or {}).get("sha256")
         # Télémétrie d'usage par rapport (Story 013-4, FR-08, C5)
         if usage_summary is not None:
             manifest["usage"] = usage_summary
@@ -317,6 +344,19 @@ class SimulationAuditService:
         else:
             files["report_claims.json"] = json.dumps({"simulation_id": self.simulation_id, "claims": []}, indent=2).encode("utf-8")
 
+        # 7 bis. report_interviews.json (entretiens de rédaction, Story 014-1) —
+        # hors du paquet figé, mais présent dans le dossier du rapport.
+        interviews_path = ""
+        if rep_dir:
+            interviews_path = os.path.join(rep_dir, "report_interviews.json")
+        if interviews_path and os.path.exists(interviews_path):
+            with open(interviews_path, "rb") as f:
+                files["report_interviews.json"] = f.read()
+        else:
+            files["report_interviews.json"] = json.dumps(
+                {"report_id": self.report_id or "", "interviews": []}, indent=2
+            ).encode("utf-8")
+
         # 8. quality_checks.json (priorité rep_dir)
         quality_path = ""
         if rep_dir:
@@ -371,6 +411,14 @@ class SimulationAuditService:
                 files["report.md"] = f.read()
         else:
             files["report.md"] = b"# Rapport d'analyse sociale\n\nAucun contenu de rapport disponible.\n"
+
+        # Index d'attribution des affirmations (Story 014-2, AC7) : copie dédiée
+        try:
+            files["claims_index.json"] = json.dumps(
+                run_manifest.get("claims_index"), ensure_ascii=False, indent=2
+            ).encode("utf-8")
+        except Exception:
+            files["claims_index.json"] = json.dumps(None, ensure_ascii=False, indent=2).encode("utf-8")
 
         # 10. checksums.sha256
         checksum_lines = []

@@ -2,7 +2,7 @@
 id: "014-2"
 epic: "014"
 titre: "La section « Sources & Provenance » ne certifie que ce qu'elle prouve"
-statut: backlog
+statut: review
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -202,34 +202,34 @@ dans la prose (014-3), ni la construction des briefs (014-4).
 
 ## Définition de fini
 
-- [ ] `backend/app/services/report_agent.py` : `build_sources_provenance_section` produite après le registre ou relisant `report_claims.json`, avec ses affirmations de traçabilité calculées.
-- [ ] `backend/app/services/report_agent.py` : `_generate_report_internal` appelle la section après `audit_and_save_report_claims`.
-- [ ] `backend/app/services/report_agent.py` : la section confronte et nomme les deux populations d'événements.
-- [ ] `backend/app/models/project.py` : `get_project`, `list_projects` et `find_projects_by_graph_id` résilients à un `project.json` corrompu.
-- [ ] `backend/app/services/simulation_audit_service.py` : l'archive d'audit porte l'index d'attribution des claims.
-- [ ] `backend/tests/test_sources_provenance_honesty.py` : tous les cas nommés dans les AC, verts.
-- [ ] Non-régression : `uv run pytest tests/ -q`, `pnpm --dir frontend test`, `uv run ruff check .`, `uv run python scripts/validate_plans.py`.
-- [ ] Vérification visuelle sur la pile Docker de référence : un rapport régénéré sur R7 dont la section n'affirme plus une traçabilité que le registre nie.
+- [x] `backend/app/services/report_agent.py` : `build_sources_provenance_section` produite après le registre ou relisant `report_claims.json`, avec ses affirmations de traçabilité calculées.
+- [x] `backend/app/services/report_agent.py` : `_generate_report_internal` appelle la section après `audit_and_save_report_claims`.
+- [x] `backend/app/services/report_agent.py` : la section confronte et nomme les deux populations d'événements.
+- [x] `backend/app/models/project.py` : `get_project`, `list_projects` et `find_projects_by_graph_id` résilients à un `project.json` corrompu.
+- [x] `backend/app/services/simulation_audit_service.py` : l'archive d'audit porte l'index d'attribution des claims.
+- [x] `backend/tests/test_sources_provenance_honesty.py` : tous les cas nommés dans les AC, verts.
+- [x] Non-régression : `uv run pytest tests/ -q`, `pnpm --dir frontend test`, `uv run ruff check .`, `uv run python scripts/validate_plans.py`.
+- [x] Vérification visuelle sur la pile Docker de référence : un rapport régénéré sur R7 dont la section n'affirme plus une traçabilité que le registre nie.
 
 ---
 
 ## Tâches
 
-- [ ] 1. **Réordonner la production de la section** : appeler `build_sources_provenance_section` après
+- [x] 1. **Réordonner la production de la section** : appeler `build_sources_provenance_section` après
       `audit_and_save_report_claims`, ou la faire relire le registre persisté. *(AC1)*
-- [ ] 2. **Rendre les affirmations calculées** : remplacer les deux littéraux par des
+- [x] 2. **Rendre les affirmations calculées** : remplacer les deux littéraux par des
       comptes issus du registre (`evidence_refs`, `provenance_regime`). *(AC2)*
-- [ ] 3. **Afficher « non établi »** quand le registre est absent ou illisible. *(AC4)*
-- [ ] 4. **Confronter les deux populations** : afficher et nommer les actions de
+- [x] 3. **Afficher « non établi »** quand le registre est absent ou illisible. *(AC4)*
+- [x] 4. **Confronter les deux populations** : afficher et nommer les actions de
       `actions.jsonl` et les événements de l'`EvidencePack`, et indiquer laquelle sert à la
       réconciliation. *(AC3)*
-- [ ] 5. **Sécuriser `ProjectManager`** : `get_project` retourne `None` sur JSON corrompu ;
+- [x] 5. **Sécuriser `ProjectManager`** : `get_project` retourne `None` sur JSON corrompu ;
       `list_projects` et `find_projects_by_graph_id` ignorent le projet illisible. *(AC5)*
-- [ ] 6. **Faire s'abstenir la section** quand le projet n'est pas résolu. *(AC6)*
-- [ ] 7. **Porter l'index d'attribution dans l'archive** : chemin et empreinte de
+- [x] 6. **Faire s'abstenir la section** quand le projet n'est pas résolu. *(AC6)*
+- [x] 7. **Porter l'index d'attribution dans l'archive** : chemin et empreinte de
       `report_claims.json` dans `run_manifest.json` ou dans le ZIP d'audit. *(AC7)*
-- [ ] 8. **Les tests** : `backend/tests/test_sources_provenance_honesty.py`. *(AC1 à AC7)*
-- [ ] 9. **La clôture technique** : non-régression, lint, validation de plan, vérification
+- [x] 8. **Les tests** : `backend/tests/test_sources_provenance_honesty.py`. *(AC1 à AC7)*
+- [x] 9. **La clôture technique** : non-régression, lint, validation de plan, vérification
       visuelle sur la pile Docker de référence. *(AC8)*
 
 ## Notes de développement
