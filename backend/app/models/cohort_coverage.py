@@ -82,7 +82,7 @@ class AgentIdentityResolver:
             for item in actor_selection.actors:
                 raw_status = getattr(item, "eligibility_status", None)
                 status_str = raw_status.value if hasattr(raw_status, "value") else str(raw_status or "")
-                if status_str.lower() == "ineligible":
+                if status_str.lower() in ("ineligible", "review"):
                     continue
                 name = item.entity_name.strip()
                 if not name:
@@ -621,7 +621,7 @@ class CohortCoverageTable:
                 # Filtrer strictement les entités inéligibles (Story 012-1, AC3)
                 raw_status = getattr(item, "eligibility_status", None)
                 status_str = raw_status.value if hasattr(raw_status, "value") else str(raw_status or "")
-                if status_str.lower() == "ineligible":
+                if status_str.lower() in ("ineligible", "review"):
                     continue
                 name = item.entity_name.strip()
                 if not name:

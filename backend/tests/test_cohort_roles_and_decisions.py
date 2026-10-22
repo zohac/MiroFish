@@ -88,11 +88,11 @@ class TestScenarioRoleResolution:
 
         # Actor selection
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Simon Jouan", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Alice", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u3", entity_name="Bob", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u4", entity_name="Charlie", qualified_role=ActorRole.ORGANIZATION),
-            ActorItem(entity_uuid="u5", entity_name="David Unknown", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="Simon Jouan", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Alice", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u3", entity_name="Bob", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u4", entity_name="Charlie", qualified_role=ActorRole.ORGANIZATION, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u5", entity_name="David Unknown", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_role_hier",
@@ -125,9 +125,9 @@ class TestDecisionStatusDeterministic:
             goal="Lancement Keova. Le fondateur est Simon et la cofondatrice est Sophie.",
         )
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Simon", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Sophie", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u3", entity_name="Ministère de l'Économie", qualified_role=ActorRole.ORGANIZATION),
+            ActorItem(entity_uuid="u1", entity_name="Simon", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Sophie", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u3", entity_name="Ministère de l'Économie", qualified_role=ActorRole.ORGANIZATION, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_ac2",
@@ -199,8 +199,8 @@ class TestDecisionStatusDeterministic:
     def test_ac3_zero_adopted_without_probative_proof_anti_affabulation(self):
         """Vérifie qu'un prospect actif sans objection N'EST JAMAIS qualifié ADOPTED sans acte d'achat (AC3)."""
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Camille", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Julien", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="Camille", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Julien", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_ac3",
@@ -258,12 +258,12 @@ class TestDecisionStatusDeterministic:
     def test_ac4_decision_nuance_and_probative_transitions(self):
         """Vérifie les transitions et statuts : ADOPTED_VERIFIED, DEMO_REQUESTED, INTERESTED, HESITANT, REJECTED (AC4)."""
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Alice Adoptée", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Bob Démo", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u3", entity_name="Claire Intéressée", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u4", entity_name="Denis Hésitant", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u5", entity_name="Emma Refus", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u6", entity_name="Félix Silencieux", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="Alice Adoptée", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Bob Démo", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u3", entity_name="Claire Intéressée", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u4", entity_name="Denis Hésitant", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u5", entity_name="Emma Refus", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u6", entity_name="Félix Silencieux", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_ac4",
@@ -498,7 +498,7 @@ class TestReviewFindingsPatches:
     def test_patch1_probative_detection_in_long_text_beyond_160_chars(self):
         """Vérifie que les preuves d'adoption situées au-delà du 160e caractère sont bien détectées (Patch 1)."""
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="LongText Client", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="LongText Client", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_patch1",
@@ -548,9 +548,9 @@ class TestReviewFindingsPatches:
             goal="Le fondateur Simon Jouan a lancé la plateforme en 2024. Sophie, cofondatrice, supervise les opérations.",
         )
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Simon Jouan", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Sophie", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u3", entity_name="Autre Personne", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="Simon Jouan", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Sophie", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u3", entity_name="Autre Personne", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_patch2",
@@ -575,11 +575,11 @@ class TestReviewFindingsPatches:
     def test_patch3_present_tense_adoption_demo_and_interest_inflections(self):
         """Vérifie la détection des verbes conjugués au présent et variantes non accentuées (Patch 3)."""
         actors = [
-            ActorItem(entity_uuid="u1", entity_name="Client Souscrit", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u2", entity_name="Client Achete", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u3", entity_name="Client Commande", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u4", entity_name="Client Demo", qualified_role=ActorRole.PERSON),
-            ActorItem(entity_uuid="u5", entity_name="Client Interesse", qualified_role=ActorRole.PERSON),
+            ActorItem(entity_uuid="u1", entity_name="Client Souscrit", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u2", entity_name="Client Achete", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u3", entity_name="Client Commande", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u4", entity_name="Client Demo", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
+            ActorItem(entity_uuid="u5", entity_name="Client Interesse", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE),
         ]
         selection = ActorSelection(
             simulation_id="sim_patch3",

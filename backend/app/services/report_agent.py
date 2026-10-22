@@ -2662,12 +2662,15 @@ class ReportAgent:
             if "Sources & Provenance" not in report.markdown_content and "Sources et Provenance" not in report.markdown_content:
                 try:
                     prov_section = self.build_sources_provenance_section(claims_registry=claims_registry)
-                except TypeError:
-                    prov_section = self.build_sources_provenance_section()
-                report.markdown_content = report.markdown_content.rstrip() + "\n\n---\n\n" + prov_section + "\n"
-                full_path = ReportManager._get_report_markdown_path(report_id)
-                with open(full_path, 'w', encoding='utf-8') as f:
-                    f.write(report.markdown_content)
+                    report.markdown_content = report.markdown_content.rstrip() + "\n\n---\n\n" + prov_section + "\n"
+                    ReportManager._ensure_report_folder(report_id)
+                    full_path = ReportManager._get_report_markdown_path(report_id)
+                    tmp = f"{full_path}.tmp.{os.getpid()}"
+                    with open(tmp, 'w', encoding='utf-8') as f:
+                        f.write(report.markdown_content)
+                    os.replace(tmp, full_path)
+                except Exception as prov_err:
+                    logger.warning(f"Avertissement lors de l'écriture de la section Sources & Provenance : {prov_err}")
 
             # Bannière de régime de provenance (Story 014-1, AC7) : écrite par le code,
             # après l'audit des affirmations, pour ne pas être extraite comme claim.
@@ -3105,7 +3108,7 @@ class ReportAgent:
             lines.append(f"- **Événements de l'`EvidencePack` (observations consolidées) :** {evidence_pack_count} événement(s).")
         lines.append(
             "- **Réconciliation des affirmations :** elle s'effectue sur les actions effectives de `actions.jsonl` "
-            f"({len(actions)}), et non sur les {evidence_pack_count if evidence_pack_count is not None else 'N/A'} événements consolidés de l'`EvidencePack`."
+            f"({len(actions)}), et non sur les {evidence_pack_count if evidence_pack_count is not None else 'non établi'} événements consolidés de l'`EvidencePack`."
         )
         lines.append("- **Règle anti-affabulation :** Toute affirmation qualifiée d'action observée est reliée à un événement horodaté du run. Les simples déclarations d'intention simulées n'ont pas été promues en actions observées.")
 
@@ -3115,7 +3118,8 @@ class ReportAgent:
                 if it.has_executed_action:
                     lines.append(f"- Agent `{it.agent_name}` (ID {it.agent_id}) : {it.qualification}")
                 else:
-                    lines.append(f"- Agent `{it.agent_name}` (ID {it.agent_id}) : **{it.status}** — \"{it.post_content[:80]}...\" (Action concrète `{it.intended_action}` non constatée dans le run)")
+                    _pc = it.post_content if isinstance(it.post_content, str) else str(it.post_content or "")
+                    lines.append(f"- Agent `{it.agent_name}` (ID {it.agent_id}) : **{it.status}** — \"{_pc[:80]}...\" (Action concrète `{it.intended_action}` non constatée dans le run)")
             lines.append("")
         else:
             lines.append("- Aucune divergence intention vs action non résolue détectée.\n")
@@ -3193,8 +3197,13 @@ class ReportAgent:
             # Relire le registre déjà persisté (simulations/<sim_id>/report_claims.json
             # puis reports/<report_id>/report_claims.json).
             candidate_paths = []
-            sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
-            candidate_paths.append(os.path.join(sim_dir, "report_claims.json"))
+            if not self.simulation_id:
+                # Pas de simulation associée : impossible de relire un registre.
+                registry_loaded = False
+                registry = None
+            else:
+                sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+                candidate_paths.append(os.path.join(sim_dir, "report_claims.json"))
             rep_id = getattr(self, "_current_report_id", None)
             if rep_id:
                 candidate_paths.insert(0, os.path.join(Config.UPLOAD_FOLDER, "reports", rep_id, "report_claims.json"))
@@ -3223,9 +3232,7 @@ class ReportAgent:
                 verified = getattr(registry, "verified_claims", None)
                 lines.append(f"- **Affirmations au registre :** {total}.")
                 lines.append(f"- **Affirmations portant un `evidence_refs` non vide :** {with_refs}.")
-                lines.append(f"- Affirmations portant un `evidence_refs` non vide : {with_refs}.")
                 lines.append(f"- **Affirmations portant un `provenance_regime` :** {with_regime}.")
-                lines.append(f"- Affirmations portant un `provenance_regime` : {with_regime}.")
                 if verified is not None:
                     lines.append(f"- **Affirmations vérifiées :** {verified}.")
                 if ratio is not None:
@@ -3274,6 +3281,9 @@ class ReportAgent:
         resolver: Optional[Any] = None,
         known_agent_names: Optional[Set[str]] = None,
         tool_observations: Optional[Any] = None,
+        cohort_table: Optional[Any] = None,
+        cohort_coverage: Optional[Any] = None,
+        silent_personas: Optional[Any] = None,
     ) -> List[ReportClaim]:
         """Extrait les affirmations du rapport à partir de phrases ou puces clés (Story 011-3, Story 012-3, AC1-AC3).
 
@@ -3348,6 +3358,30 @@ class ReportAgent:
             "recommandation", "resume", "résumé", "bilan", "rapport", "round", "tour", "agent",
             "dynamique", "dynamiques", "perspective", "perspectives", "etat", "état",
         }
+
+        # Normalisation de la table de cohorte transmise (Story 014-3, AC5) :
+        # la rédaction reçoit la table déjà construite, elle ne la recalcule pas.
+        if cohort_table is None and cohort_coverage is not None:
+            cohort_table = cohort_coverage
+        silent_agent_names: set = set()
+        if silent_personas:
+            try:
+                for sp in silent_personas:
+                    if isinstance(sp, str):
+                        silent_agent_names.add(sp.strip().lower())
+                    elif hasattr(sp, "persona_name"):
+                        silent_agent_names.add(str(getattr(sp, "persona_name")).strip().lower())
+            except Exception:
+                pass
+        if cohort_table is not None and hasattr(cohort_table, "members"):
+            try:
+                for m in cohort_table.members:
+                    if getattr(m, "is_silent", False):
+                        silent_agent_names.add(str(getattr(m, "persona_name", "")).strip().lower())
+            except Exception:
+                pass
+        # Conserver la table pour consultation ultérieure (pas de recalcul)
+        self._last_cohort_table = cohort_table
 
         claims: List[ReportClaim] = []
         lines = markdown_content.split("\n")
@@ -3525,12 +3559,41 @@ class ReportAgent:
                 claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.INFERENCE
 
+            # Règle de silence (Story 014-3, AC1, AC4) : un persona silencieux
+            # (is_silent == True) ne peut se voir attribuer ni parole, ni décision,
+            # ni section. Le passage est déclassé et inhibé de la prose publiée.
+            _agent_is_silent = False
+            if agent_name and silent_agent_names:
+                if str(agent_name).strip().lower() in silent_agent_names:
+                    _agent_is_silent = True
+            # Résolution complémentaire via la table de cohorte (nom normalisé)
+            if not _agent_is_silent and agent_name and cohort_table is not None and hasattr(cohort_table, "get_member"):
+                try:
+                    _member = cohort_table.get_member(agent_name)
+                    if _member is not None and getattr(_member, "is_silent", False):
+                        _agent_is_silent = True
+                except Exception:
+                    pass
+
+            if _agent_is_silent:
+                # Inhibition : aucune action observée ne peut être attribuée à un silencieux
+                if claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+                    claim_kind = ClaimKind.REPORTED_INTENTION
+                    origin = InformationOrigin.INFERENCE
+
             all_refs = list(ev_refs) + list(doc_refs)
 
             limitations: List[str] = []
             if regime == ProvenanceRegime.UNKNOWN or str(getattr(regime, "value", regime)) == "unknown":
                 with use_locale(getattr(self, "locale", None) or "fr"):
                     limitations.append(t("report.provenance_limitation_unknown"))
+
+            if _agent_is_silent and agent_name:
+                limitations.append(
+                    "Règle de silence (Story 014-3) : le persona "
+                    f"'{agent_name}' est consigné comme present_no_action (0 action observée). "
+                    "Aucune parole, décision ou section ne peut lui être attribuée ; passage inhibé."
+                )
 
             claim = ReportClaim(
                 claim_id="",  # Auto-calculé déterministement
@@ -3661,6 +3724,7 @@ class ReportAgent:
         raw_claims = self.extract_claims_from_content(
             markdown_content,
             resolver=resolver,
+            cohort_table=cohort_table,
         )
 
         project = self._resolve_project()

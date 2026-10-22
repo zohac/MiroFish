@@ -473,6 +473,24 @@ class ReportQualityGate:
                 and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
             ]
 
+            # Contradictions de silence (Story 014-3, AC3, FR-06) : un claim
+            # CONTRADICTED imputé à un persona silencieux est critique pour la
+            # barrière, quel que soit son ClaimKind (le reclassement en
+            # SPECULATIVE_PROJECTION ne l'exonère pas).
+            silence_contradictions = []
+            if cohort_table is not None:
+                for c in claims_registry.claims:
+                    if c.verification_status != VerificationStatus.CONTRADICTED:
+                        continue
+                    if not getattr(c, "agent_name", None):
+                        continue
+                    try:
+                        member = cohort_table.get_member(c.agent_name)
+                    except Exception:
+                        member = None
+                    if member is not None and getattr(member, "is_silent", False):
+                        silence_contradictions.append(c)
+
             action_claims = [
                 c for c in claims_registry.claims
                 if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
@@ -535,7 +553,22 @@ class ReportQualityGate:
                 )
             )
         elif claims_registry and claims_registry.claims:
-            if critical_contradictions:
+            if silence_contradictions:
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.FAILED,
+                        message=f"{len(silence_contradictions)} contradiction(s) de silence : action affirmée pour un persona silencieux (present_no_action).",
+                        details={
+                            "silence_contradictions_count": len(silence_contradictions),
+                            "sample_contradictions": [(c.text or "")[:80] for c in silence_contradictions[:3]],
+                            "total_claims": total_claims,
+                            "contradicted": contradicted,
+                        },
+                    )
+                )
+            elif critical_contradictions:
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,

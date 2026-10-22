@@ -6,7 +6,7 @@ import json
 import os
 import pytest
 
-from app.models.actor_selection import ActorItem, ActorRole, ActorSelection
+from app.models.actor_selection import ActorItem, ActorRole, ActorSelection, EligibilityStatus
 from app.models.cohort_coverage import (
     CohortCoverageTable,
     CohortMemberStatus,
@@ -121,11 +121,13 @@ class TestCohortAggregation:
             entity_uuid="uuid_1",
             entity_name="Florence",
             qualified_role=ActorRole.PERSON,
+            eligibility_status=EligibilityStatus.ELIGIBLE,
         )
         item2 = ActorItem(
             entity_uuid="uuid_2",
             entity_name="Simon",
             qualified_role=ActorRole.PERSON,
+            eligibility_status=EligibilityStatus.ELIGIBLE,
         )
         selection = ActorSelection(
             simulation_id="sim_agg_1",
@@ -468,8 +470,8 @@ class TestReportAgentCohortIntegration:
 
     def test_exact_match_priority_over_substring_overlap(self):
         # Deux personas où l'un est sous-chaîne de l'autre ("Al" et "Alan")
-        item1 = ActorItem(entity_uuid="u1", entity_name="Al", qualified_role=ActorRole.PERSON)
-        item2 = ActorItem(entity_uuid="u2", entity_name="Alan", qualified_role=ActorRole.PERSON)
+        item1 = ActorItem(entity_uuid="u1", entity_name="Al", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
+        item2 = ActorItem(entity_uuid="u2", entity_name="Alan", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
         selection = ActorSelection(
             simulation_id="sim_sub",
             project_id="p",
@@ -507,7 +509,7 @@ class TestReportAgentCohortIntegration:
         assert alan_member.observed_event_ids == ["evt_alan_1"]
 
     def test_recursive_extraction_of_nested_args_and_result(self):
-        item = ActorItem(entity_uuid="u1", entity_name="Florence", qualified_role=ActorRole.PERSON)
+        item = ActorItem(entity_uuid="u1", entity_name="Florence", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
         selection = ActorSelection(
             simulation_id="sim_rec",
             project_id="p",

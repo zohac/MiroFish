@@ -1012,8 +1012,9 @@ epics:
     # voisin fait échouer find_projects_by_graph_id, l'exception est avalée par
     # _resolve_project (report_agent.py:1414-1424) et TOUS les rapports perdent
     # leur section de sources — mesuré sur proj_d850cdad31ee.
-    # Epic 014 in-progress (1/4 story démarrée : 014-1).
-# 22 oct. 2026 : Story 014-2 passe backlog -> review (section Sources & Provenance honnête : ProjectManager résilient, build_sources_provenance_section après registre, confrontations des populations, index d'attribution dans l'archive). Filet 2068? tests backend.
+    # Epic 014 in-progress (2/4 stories closes : 014-1, 014-2 done).
+# 22 oct. 2026 : Story 014-2 passe review -> done après revue BMAD 4 couches (1 decision-needed tranchée, 10 patches appliqués, 10 deferred, 1 rejected). Section « Sources & Provenance » produite après le registre, affirmations calculées, confrontation des populations, ProjectManager résilient, index d'attribution. Filet 2077 tests collectés.
+# 22 oct. 2026 : Story 014-3 implémentée et passée backlog -> review — « La règle de silence monte jusqu'à la prose et jusqu'à la barrière ». Filtre review/ineligible dans cohort_coverage.py (AgentIdentityResolver + build_from_simulation), transmission de la table de cohorte à extract_claims_from_content (paramètre cohort_table, pas de recalcul), inhibition des passages attribués à un silencieux (déclassement REPORTED_INTENTION/UNSUPPORTED + justification limitations), contradiction de silence critique pour la barrière (report_quality_gate). Filet 2077 tests au vert, ruff clean, validate_plans valide.
 
 
 

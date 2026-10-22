@@ -17,7 +17,7 @@ from typing import List
 import pytest
 
 from app.models.actor_eligibility import ActorRole, EligibilityStatus
-from app.models.actor_selection import ActorItem, ActorSelection
+from app.models.actor_selection import ActorItem, ActorSelection, EligibilityStatus
 from app.models.cohort_coverage import (
     AgentIdentityResolver,
     CohortCoverageTable,
@@ -237,10 +237,10 @@ class TestCohortIdentityResolution:
 
     def test_ac2_strict_name_matching_no_substring_derivation(self):
         """AC2: Dan ne doit pas absorber Daniel, Anne ne doit pas absorber Marianne."""
-        item_dan = ActorItem(entity_uuid="u_dan", entity_name="Dan", qualified_role=ActorRole.PERSON)
-        item_daniel = ActorItem(entity_uuid="u_daniel", entity_name="Daniel", qualified_role=ActorRole.PERSON)
-        item_anne = ActorItem(entity_uuid="u_anne", entity_name="Anne", qualified_role=ActorRole.PERSON)
-        item_marianne = ActorItem(entity_uuid="u_marianne", entity_name="Marianne", qualified_role=ActorRole.PERSON)
+        item_dan = ActorItem(entity_uuid="u_dan", entity_name="Dan", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
+        item_daniel = ActorItem(entity_uuid="u_daniel", entity_name="Daniel", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
+        item_anne = ActorItem(entity_uuid="u_anne", entity_name="Anne", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
+        item_marianne = ActorItem(entity_uuid="u_marianne", entity_name="Marianne", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
 
         selection = ActorSelection(
             simulation_id="sim_ac2",
@@ -392,8 +392,8 @@ class TestCohortIdentityResolution:
         ev_pack = EvidencePack.from_events(sim_id, [ev0, ev1])
 
         # Actor selection avec Simon et Sophie
-        item0 = ActorItem(entity_uuid="u_simon", entity_name="Simon", qualified_role=ActorRole.PERSON)
-        item1 = ActorItem(entity_uuid="u_sophie", entity_name="Sophie", qualified_role=ActorRole.PERSON)
+        item0 = ActorItem(entity_uuid="u_simon", entity_name="Simon", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
+        item1 = ActorItem(entity_uuid="u_sophie", entity_name="Sophie", qualified_role=ActorRole.PERSON, eligibility_status=EligibilityStatus.ELIGIBLE)
         selection = ActorSelection(
             simulation_id=sim_id,
             project_id="prj_1",
