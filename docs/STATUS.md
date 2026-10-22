@@ -113,11 +113,11 @@ Cinquième défaut trouvé en relevant le code : **un seul `project.json`
 corrompu** dans le répertoire voisin prive *tous* les rapports de la pile de
 leur section de sources.
 
-Quatre stories prévues (régime de preuve des entretiens ; la section qui
+Quatre stories prévues (régime de preuve des entretiens — 014-1 en `review` ; la section qui
 certifie ou s'abstient ; la règle de silence jusqu'à la prose et à la
 barrière ; le brief et les fiches persona).
 
-La **story 014-1** est rédigée (`in-progress`) :
+La **story 014-1** est implémentée et passée en `review` :
 [`story-014-1.md`](plans/014-integrite-preuves-redaction/story-014-1.md) —
 11 critères d'acceptation falsifiables, 11 tâches, 12 décisions d'ingénierie
 arrêtées avant code, et une mesure de campagne rejouable exigée (≥ 40 citations
