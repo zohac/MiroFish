@@ -747,6 +747,7 @@
     "sectionContentDone": "Section {title} content generation complete",
     "sectionComplete": "Section {title} generation complete",
     "reportComplete": "Report generation complete",
+    "provenance_banner": "⚠️ {count} passage(s) in this report come from a drafting interview. See report_interviews.json.",
     "errorOccurred": "Error occurred: {error}",
     "agentInitDone": "ReportAgent initialized: graph_id={graphId}, simulation_id={simulationId}",
     "executingTool": "Executing tool: {toolName}, params: {params}",

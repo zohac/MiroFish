@@ -421,7 +421,9 @@ class InterviewResult:
     # 统计
     total_agents: int = 0
     interviewed_count: int = 0
-    
+    # Régime de provenance (Story 014-1, AC1) : mode de rejeu ayant servi.
+    replay_mode: str = "live"
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "interview_topic": self.interview_topic,
@@ -431,12 +433,18 @@ class InterviewResult:
             "selection_reasoning": self.selection_reasoning,
             "summary": self.summary,
             "total_agents": self.total_agents,
-            "interviewed_count": self.interviewed_count
+            "interviewed_count": self.interviewed_count,
+            "replay_mode": self.replay_mode,
         }
     
     def to_text(self) -> str:
         """转换为详细的文本格式，供LLM理解和报告引用"""
+        mode = str(self.replay_mode or "live").strip().lower()
+        if mode not in ("live", "replay_frozen"):
+            mode = "live"
+        regime_token = f"[[PROVENANCE:interview;mode:{mode}]]"
         text_parts = [
+            regime_token,
             "## 深度采访报告",
             f"**采访主题:** {self.interview_topic}",
             f"**采访人数:** {self.interviewed_count} / {self.total_agents} 位模拟Agent",
@@ -1523,7 +1531,8 @@ class ZepToolsService:
         
         result = InterviewResult(
             interview_topic=interview_requirement,
-            interview_questions=custom_questions or []
+            interview_questions=custom_questions or [],
+            replay_mode=replay_mode,
         )
         
         # Step 1: 读取人设文件

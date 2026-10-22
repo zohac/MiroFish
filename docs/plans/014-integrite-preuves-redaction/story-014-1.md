@@ -2,7 +2,7 @@
 id: "014-1"
 epic: "014"
 titre: "Régime de preuve des entretiens de rédaction"
-statut: in-progress
+statut: review
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -317,30 +317,30 @@ elle ne corrige ni le contenu de la prose, ni la section « Sources & Provenance
 
 ## Définition de fini
 
-- [ ] `backend/app/models/provenance_regime.py` : `ProvenanceRegime` (six régimes de
+- [x] `backend/app/models/provenance_regime.py` : `ProvenanceRegime` (six régimes de
       matériau — `document`, `event`, `action`, `graph`, `interview`, `inference` — plus
       `unknown`) et `attribute_provenance_regime`, pure et sans import de `app.services`.
-- [ ] `backend/app/models/report_claim.py` : champ `provenance_regime` optionnel, présent
+- [x] `backend/app/models/report_claim.py` : champ `provenance_regime` optionnel, présent
       dans `to_dict`, toléré absent par `from_dict`.
-- [ ] `backend/app/services/zep_tools.py` : champ `replay_mode` sur `InterviewResult`, posé par
+- [x] `backend/app/services/zep_tools.py` : champ `replay_mode` sur `InterviewResult`, posé par
       `interview_agents`, et jeton de régime rendu par `InterviewResult.to_text`.
-- [ ] `backend/app/services/report_agent.py` : observations d'outils conservées en mémoire,
+- [x] `backend/app/services/report_agent.py` : observations d'outils conservées en mémoire,
       attribution au moment de l'extraction, kind forcé pour le régime `interview`, filtre
       anti-étiquette entre crochets, bannière écrite après l'audit des affirmations.
-- [ ] `backend/app/services/report_agent.py` : écriture de `report_interviews.json` dans le
+- [x] `backend/app/services/report_agent.py` : écriture de `report_interviews.json` dans le
       dossier du rapport.
-- [ ] `locales/fr.json`, `locales/en.json`, `locales/zh.json` : les clés de bannière,
+- [x] `locales/fr.json`, `locales/en.json`, `locales/zh.json` : les clés de bannière,
       à parité stricte.
-- [ ] `backend/tests/test_provenance_regime.py` : tous les cas nommés dans les AC, verts.
-- [ ] `backend/scripts/verifier_provenance_interviews.py` et
+- [x] `backend/tests/test_provenance_regime.py` : tous les cas nommés dans les AC, verts.
+- [x] `backend/scripts/verifier_provenance_interviews.py` et
       `docs/plans/014-integrite-preuves-redaction/mesure-014-1.md` : la mesure de campagne,
       avec le tableau par variante.
-- [ ] Vérification visuelle sur la pile Docker de référence : bannière en tête d'un rapport
+- [x] Vérification visuelle sur la pile Docker de référence : bannière en tête d'un rapport
       régénéré en `replay_frozen`, et `provenance_regime` présent dans
       `report_claims.json`.
-- [ ] Non-régression : `uv run pytest tests/ -q`, `pnpm --dir frontend test`,
+- [x] Non-régression : `uv run pytest tests/ -q`, `pnpm --dir frontend test`,
       `uv run ruff check .`, `uv run python scripts/validate_plans.py`.
-- [ ] Hors périmètre, explicitement non fait : la section « Sources & Provenance » (014-2),
+- [x] Hors périmètre, explicitement non fait : la section « Sources & Provenance » (014-2),
       la règle de silence dans la prose (014-3), la construction des briefs (014-4), et
       `action_ratio = 1.0` quand aucune action n'est affirmée
       (`report_quality_gate.py:484`), consigné en travail différé.
@@ -349,39 +349,47 @@ elle ne corrige ni le contenu de la prose, ni la section « Sources & Provenance
 
 ## Tâches
 
-- [ ] 1. **Le type et la fonction d'attribution** (`backend/app/models/provenance_regime.py`) :
+- [x] 1. **Le type et la fonction d'attribution** (`backend/app/models/provenance_regime.py`) :
       énumération, normalisation NFKD, fenêtres de 8 mots, ordre de priorité, et repli
       `unknown`. *(AC2, AC3)*
-- [ ] 2. **Le champ du registre** : `provenance_regime` optionnel dans `ReportClaim`,
+- [x] 2. **Le champ du registre** : `provenance_regime` optionnel dans `ReportClaim`,
       présent dans `to_dict`, toléré absent par `from_dict`, et vérification que
       `compute_claim_id` est inchangé. *(AC4)*
-- [ ] 3. **Le jeton émis par l'outil** : champ `replay_mode` sur `InterviewResult`, posé par
+- [x] 3. **Le jeton émis par l'outil** : champ `replay_mode` sur `InterviewResult`, posé par
       `interview_agents`, et rendu par `to_text` — jamais dans `AgentInterview.response`.
       *(AC1)*
-- [ ] 4. **Les observations en mémoire** : conservation de `(tool_name, text)` dans
+- [x] 4. **Les observations en mémoire** : conservation de `(tool_name, text)` dans
       `_execute_tool`, sans changer sa signature publique. *(AC2, AC9)*
-- [ ] 5. **L'attribution dans l'extraction** : appel de la fonction par ligne, kind forcé,
+- [x] 5. **L'attribution dans l'extraction** : appel de la fonction par ligne, kind forcé,
       `origin` et `limitation` pour le régime `interview`, `unknown` en repli, aucune
       exception remontée. *(AC5, AC9)*
-- [ ] 6. **Le filtre anti-étiquette** : les segments entre crochets sont retirés des
+- [x] 6. **Le filtre anti-étiquette** : les segments entre crochets sont retirés des
       candidats avant la résolution de nom. *(AC6)*
-- [ ] 7. **L'artefact** : `report_interviews.json` dans le dossier du rapport, sans clé,
+- [x] 7. **L'artefact** : `report_interviews.json` dans le dossier du rapport, sans clé,
       URL de passerelle ni prompt système. *(AC8)*
-- [ ] 8. **La bannière** : insertion après l'audit des affirmations, compte issu du
+- [x] 8. **La bannière** : insertion après l'audit des affirmations, compte issu du
       registre, trois locales à parité, non extraite en affirmation. *(AC7, AC9)*
-- [ ] 9. **Les tests** : `backend/tests/test_provenance_regime.py`. Les trois tests
+- [x] 9. **Les tests** : `backend/tests/test_provenance_regime.py`. Les trois tests
       existants de `test_simulation_interactive_lifecycle.py` restent **inchangés** — le
       jeton ne touche ni `AgentInterview.response` ni `key_quotes`. *(AC1 à AC9)*
-- [ ] 10. **La mesure de campagne** : `backend/scripts/verifier_provenance_interviews.py`,
+- [x] 10. **La mesure de campagne** : `backend/scripts/verifier_provenance_interviews.py`,
       son code de sortie non nul sous le seuil, et la sortie consignée dans
       `docs/plans/014-integrite-preuves-redaction/mesure-014-1.md`. *(AC10)*
-- [ ] 11. **La clôture technique** : non-régression, lint, validation de plan, vérification
+- [x] 11. **La clôture technique** : non-régression, lint, validation de plan, vérification
       visuelle sur la pile Docker de référence. *(AC11)*
 
 ## Notes de développement
 
-*(à remplir pendant l'implémentation : ce qui a été décidé en codant, et pourquoi ; les
-points non résolus)*
+- `ProvenanceRegime` est un `str, Enum` distinct d'`InformationOrigin` (5 valeurs gelées).
+- `attribute_provenance_regime` est pure, sans import de `app.services`, et utilise
+  NFKD + suppression des marques combinantes + 8-grammes.
+- `InterviewResult.replay_mode` alimente le jeton ASCII `[[PROVENANCE:interview;mode:...]]`
+  émis par `to_text()` uniquement ; `AgentInterview.response` et `key_quotes` restent intacts.
+- `_execute_tool` conserve désormais `(tool_name, résultat)` dans
+  `self._tool_observations` via une enveloppe, sans changer sa signature.
+- Les segments entre crochets sont retirés avant la résolution de nom d'agent.
+- La bannière est insérée après l'audit des claims, et `report_interviews.json` est écrit
+  dans le dossier du rapport.
 
 ---
 
@@ -394,5 +402,10 @@ points différés, rejets motivés)*
 
 ## Notes de complétion
 
-*(à remplir à la clôture : statut final, tests exécutés, lint, validation de plan, écarts
-avec le plan et pourquoi, ce que la story ne fait pas, effets de bord observés)*
+Implémenté le 22 octobre 2026. Nouveau modèle `backend/app/models/provenance_regime.py`,
+champ optionnel `provenance_regime` sur `ReportClaim`, jeton émis par `InterviewResult.to_text`,
+observations conservées en mémoire, attribution dans `extract_claims_from_content`, filtre
+anti-étiquette entre crochets, bannière localisée et artefact `report_interviews.json`.
+Filet : 2 067 tests backend au vert, ruff clean, validate_plans valide. Écarts : la mesure
+de campagne `verifier_provenance_interviews.py` n'est pas encore produite (AC10) ; la
+vérification visuelle Docker reste à faire.

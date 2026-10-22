@@ -1179,6 +1179,11 @@ class ReportAgent:
         self._pre_request_callback_ref: Optional[Any] = None
         self._bind_telemetry()
         self._usage_persisted = False
+        # Observations d'outils conservées en mémoire pour l'attribution du régime
+        # de provenance (Story 014-1, T4, décision 8).
+        self._tool_observations = []
+        # Entretiens de rédaction collectés pour report_interviews.json (T7).
+        self._interview_records = []
         
         # 工具定义
         self.tools = self._define_tools()
@@ -1453,6 +1458,19 @@ class ReportAgent:
         return None
     
     def _execute_tool(self, tool_name: str, parameters: Dict[str, Any], report_context: str = "") -> str:
+        """Enveloppe de ``_execute_tool_impl`` : conserve les observations d'outils
+        en mémoire (Story 014-1, T4) et collecte les entretiens de rédaction pour
+        l'artefact ``report_interviews.json`` (T7)."""
+        result = self._execute_tool_impl(tool_name, parameters, report_context)
+        try:
+            if not hasattr(self, "_tool_observations"):
+                self._tool_observations = []
+            self._tool_observations.append((str(tool_name), str(result)))
+        except Exception:
+            pass
+        return result
+
+    def _execute_tool_impl(self, tool_name: str, parameters: Dict[str, Any], report_context: str = "") -> str:
         """
         执行工具调用 (avec protection ToolShield Story 011-2, FR-05, C3)
         
@@ -1574,6 +1592,24 @@ class ReportAgent:
                 finally:
                     if tracker is not None and previous_phase is not None:
                         tracker.set_phase(previous_phase)
+                try:
+                    if not hasattr(self, "_interview_records"):
+                        self._interview_records = []
+                    agents = []
+                    for a in getattr(result, "selected_agents", []) or []:
+                        if isinstance(a, dict):
+                            agents.append(str(a.get("realname", a.get("username", ""))))
+                    citations = []
+                    for iv in getattr(result, "interviews", []) or []:
+                        citations.extend(list(getattr(iv, "key_quotes", []) or []))
+                    self._interview_records.append({
+                        "subject": interview_topic,
+                        "agents": [a for a in agents if a],
+                        "mode": getattr(self, "replay_mode", "live"),
+                        "citations": citations,
+                    })
+                except Exception:
+                    pass
                 return result.to_text()
             
             elif tool_name == "get_edge_provenance":
@@ -1687,7 +1723,7 @@ class ReportAgent:
             elif tool_name == "search_graph":
                 # 重定向到 quick_search
                 logger.info(t('report.redirectToQuickSearch'))
-                return self._execute_tool("quick_search", parameters, report_context)
+                return self._execute_tool_impl("quick_search", parameters, report_context)
             
             elif tool_name == "get_graph_statistics":
                 result = self.zep_tools.get_graph_statistics(self.graph_id)
@@ -1705,7 +1741,7 @@ class ReportAgent:
                 # 重定向到 insight_forge，因为它更强大
                 logger.info(t('report.redirectToInsightForge'))
                 query = parameters.get("query", self.simulation_requirement)
-                return self._execute_tool("insight_forge", {"query": query}, report_context)
+                return self._execute_tool_impl("insight_forge", {"query": query}, report_context)
             
             elif tool_name == "get_entities_by_type":
                 entity_type = parameters.get("entity_type", "")
@@ -2624,6 +2660,39 @@ class ReportAgent:
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
+            # Bannière de régime de provenance (Story 014-1, AC7) : écrite par le code,
+            # après l'audit des affirmations, pour ne pas être extraite comme claim.
+            try:
+                interview_claim_count = 0
+                if claims_registry is not None:
+                    interview_claim_count = sum(
+                        1 for c in claims_registry.claims
+                        if str(getattr(c, "provenance_regime", None)) == "interview"
+                    )
+                if interview_claim_count > 0:
+                    banner = t("report.provenance_banner", count=interview_claim_count)
+                    report.markdown_content = banner + "\n\n" + (report.markdown_content or "")
+                    full_path = ReportManager._get_report_markdown_path(report_id)
+                    with open(full_path, "w", encoding="utf-8") as f:
+                        f.write(report.markdown_content)
+            except Exception as banner_err:
+                logger.warning(f"Avertissement lors de l'écriture de la bannière de provenance : {banner_err}")
+
+            # Artefact report_interviews.json hors du paquet figé (Story 014-1, AC8).
+            try:
+                if getattr(self, "_interview_records", None):
+                    ReportManager._ensure_report_folder(report_id)
+                    interviews_path = ReportManager._get_report_interviews_path(report_id)
+                    with open(interviews_path, "w", encoding="utf-8") as f:
+                        json.dump(
+                            self._interview_records,
+                            f,
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+            except Exception as interviews_err:
+                logger.warning(f"Avertissement lors de l'écriture de report_interviews.json : {interviews_err}")
+
             # Barrière de publication ReportQualityGate (Story 011-5, FR-09, C9 ; Story 012-4, Fail-Closed)
             from ..models.report_quality import PublicationStatus, QualityStatus
             from .report_quality_gate import ReportQualityGate
@@ -3095,6 +3164,7 @@ class ReportAgent:
         markdown_content: str,
         resolver: Optional[Any] = None,
         known_agent_names: Optional[Set[str]] = None,
+        tool_observations: Optional[Any] = None,
     ) -> List[ReportClaim]:
         """Extrait les affirmations du rapport à partir de phrases ou puces clés (Story 011-3, Story 012-3, AC1-AC3).
 
@@ -3142,6 +3212,17 @@ class ReportAgent:
                         known_canonical_map[norm_kn] = kn.strip()
                         has_known_participants = True
 
+        if tool_observations is None:
+            tool_observations = getattr(self, "_tool_observations", [])
+        _obs_sources = []
+        for obs in (tool_observations or []):
+            if isinstance(obs, (tuple, list)) and len(obs) >= 2:
+                _obs_sources.append({"tool": obs[0], "text": obs[1]})
+            elif isinstance(obs, dict):
+                tool_val = obs.get("tool") or obs.get("tool_name") or obs.get("name")
+                text_val = obs.get("text") or obs.get("content") or obs.get("result") or obs.get("output") or obs.get("response")
+                _obs_sources.append({"tool": tool_val, "text": text_val})
+
         # Liste noire absolue des mots français/anglais courants et conjonctions
         agent_blacklist = {
             "si", "des", "dès", "tout", "tous", "toute", "toutes", "en", "selon", "apres", "après",
@@ -3180,6 +3261,13 @@ class ReportAgent:
             if not trimmed or len(trimmed) < 15:
                 continue
 
+            # La bannière de régime (Story 014-1, AC7) est écrite par le code :
+            # elle ne doit jamais être extraite comme affirmation.
+            if "report_interviews.json" in trimmed:
+                continue
+            if trimmed.startswith("⚠️") or trimmed.startswith("<!--"):
+                continue
+
             # Ne garder que les lignes d'affirmations (puces, listes numérotées ou phrases déclaratives)
             bullet_match = re.match(r"^(?:[-*•]|\d+[.)])\s+", trimmed)
             is_bullet = bool(bullet_match)
@@ -3197,6 +3285,11 @@ class ReportAgent:
             ev_refs = event_ref_pattern.findall(clean_text)
             doc_refs = doc_ref_pattern.findall(clean_text)
 
+            # Retirer les segments entre crochets avant la résolution de nom :
+            # une étiquette de provenance posée par le modèle n'est jamais un agent
+            # (Story 014-1, AC6).
+            agent_resolution_text = re.sub(r"\[[^\]]*\]", " ", clean_text)
+
             # Détecter l'agent (Story 012-3, AC1) :
             agent_name = None
 
@@ -3209,7 +3302,7 @@ class ReportAgent:
                     if not canonical_name:
                         continue
                     kn_pattern = re.compile(rf"\b{re.escape(canonical_name)}\b", re.IGNORECASE | re.UNICODE)
-                    m = kn_pattern.search(clean_text)
+                    m = kn_pattern.search(agent_resolution_text)
                     if m:
                         pos = m.start()
                         if earliest_pos is None or pos < earliest_pos:
@@ -3221,7 +3314,7 @@ class ReportAgent:
             # Priorité 2 : Recherche de candidats via regex si aucun persona connu n'a été détecté directement
             if not agent_name:
                 candidates_found: List[Tuple[int, str]] = []
-                for m in agent_pattern.finditer(clean_text):
+                for m in agent_pattern.finditer(agent_resolution_text):
                     cand = m.group(1).strip()
                     tokens = cand.split()
                     while tokens and (
@@ -3296,7 +3389,24 @@ class ReportAgent:
                 claim_kind = ClaimKind.ANALYST_INFERENCE
                 origin = InformationOrigin.INFERENCE
 
+            # Régime de provenance (Story 014-1, T5) : attribution pure, sans LLM.
+            try:
+                from ..models.provenance_regime import attribute_provenance_regime, ProvenanceRegime
+                regime = attribute_provenance_regime(clean_text, _obs_sources)
+            except Exception:
+                from ..models.provenance_regime import ProvenanceRegime
+                regime = ProvenanceRegime.UNKNOWN
+
+            # Une citation d'entretien n'est jamais une action observée.
+            if regime == ProvenanceRegime.INTERVIEW or str(regime) == "interview":
+                claim_kind = ClaimKind.REPORTED_INTENTION
+                origin = InformationOrigin.INFERENCE
+
             all_refs = list(ev_refs) + list(doc_refs)
+
+            limitations: List[str] = []
+            if regime == ProvenanceRegime.UNKNOWN or str(getattr(regime, "value", regime)) == "unknown":
+                limitations.append("Régime de provenance non établi (unknown).")
 
             claim = ReportClaim(
                 claim_id="",  # Auto-calculé déterministement
@@ -3308,6 +3418,8 @@ class ReportAgent:
                 agent_name=agent_name,
                 round_num=round_num,
                 confidence=1.0,
+                limitations=limitations,
+                provenance_regime=regime,
             )
             claims.append(claim)
 
@@ -3776,6 +3888,16 @@ class ReportManager:
     def _get_report_claims_path(cls, report_id: str) -> str:
         """Obtient le chemin du fichier report_claims.json per-report (Story 013-3)."""
         return os.path.join(cls._get_report_folder(report_id), "report_claims.json")
+
+    @classmethod
+    def _get_report_interviews_path(cls, report_id: str) -> str:
+        """Obtient le chemin du fichier report_interviews.json per-report (Story 014-1)."""
+        return os.path.join(cls._get_report_folder(report_id), "report_interviews.json")
+
+    @classmethod
+    def get_report_interviews_path(cls, report_id: str) -> str:
+        """Accesseur public du chemin de report_interviews.json (Story 014-1)."""
+        return cls._get_report_interviews_path(report_id)
 
     @classmethod
     def _get_cohort_coverage_path(cls, report_id: str) -> str:

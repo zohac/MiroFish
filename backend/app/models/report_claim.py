@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .provenance_regime import ProvenanceRegime
 from .source_document import InformationOrigin
 
 
@@ -110,6 +111,7 @@ class ReportClaim:
     round_num: Optional[int] = None
     confidence: float = 1.0
     limitations: List[str] = field(default_factory=list)
+    provenance_regime: Optional[ProvenanceRegime] = None
 
     def __post_init__(self) -> None:
         if not self.text or not str(self.text).strip():
@@ -141,6 +143,11 @@ class ReportClaim:
         if not isinstance(self.limitations, list):
             object.__setattr__(self, "limitations", list(self.limitations or []))
 
+        # Régime de provenance (Story 014-1) : champ optionnel, rétrocompatible.
+        if self.provenance_regime is not None and not isinstance(self.provenance_regime, ProvenanceRegime):
+            object.__setattr__(
+                self, "provenance_regime", ProvenanceRegime.from_str(self.provenance_regime)
+            )
         confidence_val = float(self.confidence) if self.confidence is not None else 1.0
         confidence_val = max(0.0, min(1.0, confidence_val))
         object.__setattr__(self, "confidence", confidence_val)
@@ -158,6 +165,9 @@ class ReportClaim:
             "round_num": self.round_num,
             "confidence": self.confidence,
             "limitations": list(self.limitations),
+            "provenance_regime": (
+                self.provenance_regime.value if self.provenance_regime is not None else None
+            ),
         }
 
     @classmethod
@@ -177,6 +187,7 @@ class ReportClaim:
             round_num=data.get("round_num"),
             confidence=float(data.get("confidence", 1.0)),
             limitations=list(data.get("limitations") or []),
+            provenance_regime=data.get("provenance_regime"),
         )
 
 
