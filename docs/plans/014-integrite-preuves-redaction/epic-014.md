@@ -70,11 +70,13 @@ S'y ajoute un cinquième défaut, trouvé en relevant le code : **un seul
 
 Les quatre stories sont listées ici avec leurs critères résumés. **Le fichier
 de story n'est créé qu'au démarrage de la story** (AGENTS.md §2.8 : un fichier
-par story réellement démarrée, pas imaginée).
+par story réellement démarrée, pas imaginée). La 014-1 est démarrée : son
+fichier est [`story-014-1.md`](story-014-1.md), avec 11 critères d'acceptation
+falsifiables.
 
 | Story | Titre | Statut | Contenu |
 |---|---|---|---|
-| 014-1 | Régime de preuve des entretiens de rédaction | `backlog` | Un entretien de rédaction devient un régime typé et distinct ; son contenu sort du paquet de preuves figé ; le rapport l'étiquette ; l'étiquette `[Événements simulés réels]` cesse d'être une invention du LLM. **Critère central** : 100 % des passages issus d'un entretien portent leur régime, et aucun ne peut être compté comme un événement observé. |
+| 014-1 | [Régime de preuve des entretiens de rédaction](story-014-1.md) | `in-progress` | Un entretien de rédaction devient un régime typé et distinct ; son contenu sort du paquet de preuves figé ; le rapport l'étiquette ; l'étiquette `[Événements simulés réels]` cesse d'être une invention du LLM. **Critère central** : 100 % des passages issus d'un entretien portent leur régime, et aucun ne peut être compté comme un événement observé. |
 | 014-2 | La section « Sources & Provenance » ne certifie que ce qu'elle prouve | `backlog` | La section est produite après le registre, ou par un second passage ; les deux littéraux litigieux deviennent calculés ; les deux populations d'événements sont confrontées et nommées ; un `project.json` corrompu n'affecte que son projet ; l'archive d'audit porte l'index d'attribution. **Critère central** : la section ne contient plus d'affirmation de traçabilité non calculée, et un test le prouve sur un registre réel. |
 | 014-3 | La règle de silence monte jusqu'à la prose et jusqu'à la barrière | `backlog` | Un persona silencieux ou non admis ne peut se voir attribuer ni parole, ni décision, ni section ; ses fiches sont hors du contexte de rédaction ; la contradiction « silence ↔ action affirmée » devient un **échec** de la barrière, et non un avertissement. **Critère central** : une campagne sur R7 ne produit plus de contradiction `CONTRADICTED` sur un persona silencieux qui n'ait pas d'action. |
 | 014-4 | Le brief et les fiches persona ne font plus diverger deux biographies | `backlog` | La construction du brief **échoue** quand deux fiches se contredisent au lieu de propager la contradiction ; l'épisode « 1 500 € / WordPress » n'est plus attribué à deux personas ; les fiches des personas non admis sont retirées du contexte et des artefacts. **Critère central** : la contradiction du brief est détectée à la construction, et aucun persona non admis n'apparaît dans le contexte de rédaction. |
@@ -113,9 +115,9 @@ Tous les constats de ce dossier sont **rejouables** sur la simulation R7 :
 
 | Constat | Comment le reproduire |
 |---|---|
-| 24 citations d'entretien sur 31 en variante B | `backend/uploads/reports/report_ccf28321dcb8/full_report.md`, comparer aux entrées `tool_result` de `agent_log.jsonl` |
-| 0 `evidence_refs` sur 176 (1 sur 176 mesuré) | `backend/uploads/reports/report_108186c7524b/report_claims.json` |
-| 11 `CONTRADICTED` sur un persona silencieux, avec `failed_checks: 0` | idem + `quality_checks.json` |
+| 24 citations d'entretien sur 31 en variante B, 16 sur 17 en variante A | `backend/uploads/reports/report_ccf28321dcb8/full_report.md` et `report_108186c7524b/full_report.md`, comparer aux entrées `tool_result` de `agent_log.jsonl` |
+| 0 `evidence_refs` sur 159 affirmations (A) et 1 sur 178 (B) | `backend/uploads/reports/report_108186c7524b/report_claims.json`, `…/report_ccf28321dcb8/report_claims.json` |
+| 7 `CONTRADICTED` (A) et 8 (B), toutes sur le même persona silencieux, avec `failed_checks: 0` | idem + `quality_checks.json` |
 | La section certifie une traçabilité non calculée | `report_agent.py:2987` et `:2998` |
 | Le label `[Événements simulés réels]` avalé comme un nom d'agent | `backend/tests/fixtures/qualification_epic_012/r6_bundle/report_claims.json:1046` |
 | Un `project.json` corrompu casse la résolution | `backend/uploads/projects/proj_d850cdad31ee/project.json` (tronqué) |

@@ -54,9 +54,19 @@ la campagne** ; les emplacements sont vérifiés, pas supposés.
 | La seule trace d'attribution est `agent_log.jsonl` (`details.tool_name` + `details.result`) — et **elle n'est pas dans l'archive d'audit** | `report_agent.py:213-234` ; `simulation_audit_service.py:228-378` |
 | `interviews_archive.json` est prévu dans le paquet scellé, mais **aucun code ne l'écrit** | `evidence_snapshot_service.py:51`, `:181-188` (lecture seule) |
 
-**Mesuré sur la campagne.** Variante B : **24 de ses 31 citations longues**
-proviennent de l'outil `interview_agents` et sont présentées comme des
-événements du jeu figé. Variante A : 2 citations entières sans aucune source.
+**Mesuré sur la campagne** (21 octobre 2026, rattachement par 8-grammes
+normalisés entre les citations longues du rapport et les `tool_result` de
+`agent_log.jsonl`) :
+
+| Variante | citations longues | depuis `interview_agents` | depuis `insight_forge` | d'aucun outil |
+|---|---|---|---|---|
+| A (`flash-medium`, `report_108186c7524b`) | 17 | **16** | 0 | 1 |
+| B (`flash-high`, `report_ccf28321dcb8`) | 31 | **24** | 4 | 3 |
+
+**40 des 48 citations longues du corpus** — donc **83 %** — viennent d'un
+entretien tenu pendant la rédaction, et **4 seulement** d'un outil graphe. Ce
+sont ces 40 passages que le rapport présente comme des « événements simulés
+réels ».
 
 ### 2.2 « Sources & Provenance » certifie ce qu'elle ne peut pas prouver
 
@@ -68,11 +78,20 @@ proviennent de l'outil `interview_agents` et sont présentées comme des
 | Deux populations coexistent sans être confrontées : **216** actions (`actions.jsonl`) et **737** événements (`EvidencePack`) | `simulation_action_verifier.py:291-398` ; `oasis_log_reader.py` |
 | La contradiction du registre n'est **pas** critique pour la barrière : le Fail-Closed ne compte que les `CONTRADICTED` de kind `OBSERVED_SOCIAL_ACTION`, or la règle de silence reclasse en `SPECULATIVE_PROJECTION` | `report_quality_gate.py:464-493` ; `simulation_action_verifier.py:953` |
 
-**Mesuré sur la campagne.** Variante A : 176 affirmations, **1 seule** porte
-des `evidence_refs`, 11 `CONTRADICTED` (toutes sur le persona silencieux) —
-et `quality_checks.json` affiche `failed_checks: 0`, soit un simple
-avertissement. La section « Sources & Provenance » affirme pourtant que toute
-action affirmée est reliée à un événement horodaté.
+**Mesuré sur la campagne** (21 octobre 2026, `report_claims.json` des deux
+rapports) :
+
+| Variante | affirmations | avec `evidence_refs` | `CONTRADICTED` | `failed_checks` |
+|---|---|---|---|---|
+| A (`flash-medium`) | **159** | **0** | **7** | **0** |
+| B (`flash-high`) | **178** | **1** | **8** | **0** |
+
+Les 15 `CONTRADICTED` portent **toutes** sur le même persona silencieux
+(« Émilie »). La barrière de publication ne relève donc **aucun** échec : ces
+contradictions sont émises comme avertissements. La section « Sources &
+Provenance » affirme pourtant que toute action observée affirmée est reliée à
+un événement horodaté — alors qu'**aucune** affirmation de la variante A n'en
+porte la référence.
 
 ### 2.3 La règle de silence n'agit que sur le registre
 

@@ -99,7 +99,8 @@ Quatre défauts, mesurés dans le code et sur les artefacts de la campagne :
 
 1. Les citations d'`interview_agents` — des entretiens menés **pendant** la
    rédaction, hors du paquet de preuves figé — sont présentées comme des
-   « événements simulés réels » : 24 sur 31 citations longues en variante B.
+   « événements simulés réels » : **40 des 48 citations longues** du corpus
+   (16/17 en variante A, 24/31 en variante B), contre 4 issues d'un outil graphe.
 2. La section « Sources & Provenance » est construite **avant** le registre
    d'affirmations, et certifie une traçabilité que ce registre nie.
 3. La règle de silence (un persona sans action ne peut se voir attribuer
@@ -108,14 +109,22 @@ Quatre défauts, mesurés dans le code et sur les artefacts de la campagne :
 4. Le brief confond deux biographies de départ, et les fiches des personas non
    admis arrivent dans le contexte de rédaction sans filtrage.
 
-Cinqième défaut trouvé en relevant le code : **un seul `project.json`
+Cinquième défaut trouvé en relevant le code : **un seul `project.json`
 corrompu** dans le répertoire voisin prive *tous* les rapports de la pile de
 leur section de sources.
 
 Quatre stories prévues (régime de preuve des entretiens ; la section qui
 certifie ou s'abstient ; la règle de silence jusqu'à la prose et à la
-barrière ; le brief et les fiches persona). Le fichier de story sera créé au
-démarrage de chacune, comme le veut la constitution.
+barrière ; le brief et les fiches persona).
+
+La **story 014-1** est rédigée (`in-progress`) :
+[`story-014-1.md`](plans/014-integrite-preuves-redaction/story-014-1.md) —
+11 critères d'acceptation falsifiables, 11 tâches, 12 décisions d'ingénierie
+arrêtées avant code, et une mesure de campagne rejouable exigée (≥ 40 citations
+longues sur 48 rattachées au régime `interview`). Le type
+`ProvenanceRegime` est distinct d'`InformationOrigin` (dont les cinq valeurs
+sont gelées par les ADR 0012 et 0013) ; aucune nouvelle valeur dans
+`ClaimKind` ; aucune nouvelle dépendance.
 
 ---
 
