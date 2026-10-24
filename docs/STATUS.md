@@ -4,7 +4,7 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas une seconde saisie.
 
-> Dernière mise à jour : **20 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **22 octobre 2026** · branche `local-first`
 
 ---
 
@@ -113,11 +113,11 @@ Cinquième défaut trouvé en relevant le code : **un seul `project.json`
 corrompu** dans le répertoire voisin prive *tous* les rapports de la pile de
 leur section de sources.
 
-Quatre stories prévues (régime de preuve des entretiens — 014-1 en `review` ; la section qui
+Quatre stories prévues (régime de preuve des entretiens — 014-1 `done` ; la section qui
 certifie ou s'abstient ; la règle de silence jusqu'à la prose et à la
 barrière ; le brief et les fiches persona).
 
-La **story 014-1** est implémentée et passée en `review` :
+La **story 014-1** est close (`done`) :
 [`story-014-1.md`](plans/014-integrite-preuves-redaction/story-014-1.md) —
 11 critères d'acceptation falsifiables, 11 tâches, 12 décisions d'ingénierie
 arrêtées avant code, et une mesure de campagne rejouable exigée (≥ 40 citations
@@ -125,6 +125,34 @@ longues sur 48 rattachées au régime `interview`). Le type
 `ProvenanceRegime` est distinct d'`InformationOrigin` (dont les cinq valeurs
 sont gelées par les ADR 0012 et 0013) ; aucune nouvelle valeur dans
 `ClaimKind` ; aucune nouvelle dépendance.
+
+La **story 014-2** est close (`done`) :
+[`story-014-2.md`](plans/014-integrite-preuves-redaction/story-014-2.md) —
+section « Sources & Provenance » produite après le registre, affirmations de
+traçabilité calculées (`evidence_refs`, `provenance_regime`, taux de
+vérification), confrontation des deux populations d'événements (216 actions vs
+737 événements), `ProjectManager` résilient à un `project.json` corrompu,
+index d'attribution dans l'archive d'audit. Revue BMAD 4 couches : 10 patches
+appliqués, 10 différés, 1 rejeté. Filet : 2 077 tests collectés, ruff clean,
+validate_plans valide.
+
+La **story 014-3** est close (`done`) :
+[`story-014-3.md`](plans/014-integrite-preuves-redaction/story-014-3.md) —
+filtrage des acteurs `review`/`ineligible` dans la cohorte, transmission de la
+table à la rédaction, inhibition des passages attribués à un persona silencieux
+(marqueur inline + section dédiée + `limitations`), contradiction de silence
+critique pour la barrière (`FAILED_VALIDATION`, `is_publishable = False`). Revue
+BMAD 4 couches : 6 groupes de correctifs, 6 tests dédiés. Filet : 2 083 tests
+backend + 43 Node, mesuré le 24 octobre 2026.
+
+La **story 014-4** est rédigée (`in-progress`) :
+[`story-014-4.md`](plans/014-integrite-preuves-redaction/story-014-4.md) — le
+brief et les fiches persona ne font plus diverger deux biographies. Constat :
+le brief R7 attribue « 1 500 € / WordPress » à Émilie (`review`, 0 action),
+mais les deux rapports l'attribuent à Nathalie. Le service pur
+`brief_consistency.py` détecte l'épisode partagé ou attribué au mauvais
+persona, `prepare_simulation` échoue à la construction, et le contexte de
+rédaction est filtré des non-admis. 9 AC, 9 tâches.
 
 ---
 

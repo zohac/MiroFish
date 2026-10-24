@@ -2,7 +2,7 @@
 id: "014-2"
 epic: "014"
 titre: "La section « Sources & Provenance » ne certifie que ce qu'elle prouve"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -246,7 +246,38 @@ points différés, rejets motivés)*
 
 ---
 
+## Revue
+
+### Review Findings
+
+**decision-needed** (1), **patch** (10), **defer** (10), **rejected** (1).
+
+- [x] [Review][Rejected] AC6 — repli manifeste contourne l'abstention projet — Tranché par l'utilisateur : garder le repli manifeste (résilience, sources disponibles), aucune modification. [backend/app/services/report_agent.py:3027]
+- [x] [Review][Patch] Métriques de traçabilité dupliquées — chaque métrique (`evidence_refs`, `provenance_regime`) est émise deux fois (une en gras, une sans), bruit de rendu. [backend/app/services/report_agent.py:3184]
+- [x] [Review][Patch] `try/except TypeError` mort autour de `build_sources_provenance_section` — avale silencieusement toute `TypeError` levée dans la méthode et masque une défaillance réelle. [backend/app/services/report_agent.py:2660]
+- [x] [Review][Patch] `ProjectManager.get_project` attrape `Exception` sur `from_dict` — plus large que la spec (JSONDecodeError/OSError) ; réduire à `(ValueError, KeyError, TypeError, AttributeError)`. [backend/app/models/project.py:330]
+- [x] [Review][Patch] `claims_index` porte des clés redondantes (`sha256` et `sha256_hash`) pour la même valeur. [backend/app/services/simulation_audit_service.py:177]
+- [x] [Review][Patch] Écriture non atomique de la section « Sources & Provenance » (`open` direct) alors que les bannières utilisent tmp + `os.replace`. [backend/app/services/report_agent.py:2664]
+- [x] [Review][Patch] `list_projects` trie par `created_at` sans garde contre `None` → `TypeError` sur un `project.json` avec `created_at: null`. [backend/app/models/project.py:360]
+- [x] [Review][Patch] `post_content` potentiellement `None` dans la boucle des intentions → crash sur `[:80]`. [backend/app/services/report_agent.py:3118]
+- [x] [Review][Patch] `simulation_id is None` pendant le rechargement du registre → `os.path.join` lève `TypeError`. [backend/app/services/report_agent.py:3196]
+- [x] [Review][Patch] Construction/écriture de la section non protégée : une exception aborte toute la génération de rapport. [backend/app/services/report_agent.py:2660]
+- [x] [Review][Patch] `evidence_pack_count is None` rend « N/A » en ligne au lieu de « non établi » (cohérence NFR-5). [backend/app/services/report_agent.py:3096]
+- [x] [Review][Patch] Numéro de filet incertain dans `sprint-status.yaml` (« Filet 2068? ») — suite collecte 2078 tests. [docs/sprint-status.yaml:1013]
+- [x] [Review][Defer] `find_projects_by_graph_id` n'a pas de garde propre et ignore silencieusement les projets corrompus sans avertissement dédié. [backend/app/models/project.py:365] — deferred: pre-existing reliance on list_projects, no crash demonstrated.
+- [x] [Review][Defer] Réinitialisation de `_tool_observations`/`_interview_records` plus tôt dans `_generate_report_internal` pour éviter la pollution d'un run précédent après échec partiel. [backend/app/services/report_agent.py:2412] — deferred: low, reset already near top of method.
+- [x] [Review][Defer] `test_verified_count_matches_registry` ne couvre pas le cas `verified > 0` ni le taux de vérification. [backend/tests/test_sources_provenance_honesty.py] — deferred: test coverage gap.
+- [x] [Review][Defer] Aucun test ne vérifie que `_generate_report_internal` transmet bien `claims_registry` à `build_sources_provenance_section`. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- [x] [Review][Defer] Aucun test ne couvre la bannière `provenance_banner_unknown`. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- [x] [Review][Defer] Extraction des jetons de régime (`[[PROVENANCE:...]]`) dans les observations et le texte des claims non vérifiée par test. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- [x] [Review][Defer] Chemin de `get_project` sur fichier JSON valide mais schéma invalide non testé. [backend/app/models/project.py] — deferred: test coverage gap.
+- [x] [Review][Defer] Le commit mélange des préoccupations de la story 014-1 (realname/username, repli replay-mode, jeton de régime, i18n des limitations, bannière unknown). [commit 83a7a9e] — deferred: scope/hygiène, pas un défaut runtime.
+- [x] [Review][Defer] Le chemin de l'index d'attribution dans `run_manifest.json` est un chemin absolu serveur, moins portable pour un tiers. [backend/app/services/simulation_audit_service.py] — deferred: low, la spec demande seulement « le chemin ».
+
+**Rejected (appendix)**
+
+- false — Edge case « `source_manifest.json` avec `documents: null` fait planter la section » : le code fait `source_docs_to_display = manifest_data.get("documents", [])`, qui vaut `None` si la clé est présente avec `null` ; `None` est falsy, donc aucune itération n'a lieu et aucun crash n'est possible. [backend/app/services/report_agent.py:3038]
+
 ## Notes de complétion
 
-*(à remplir à la clôture : statut final, tests exécutés, lint, validation de plan, écarts
-avec le plan et pourquoi, ce que la story ne fait pas, effets de bord observés)*
+Story 014-2 close après revue BMAD code-review à 4 couches (1 decision-needed tranchée, 10 patches appliqués, 10 deferred, 1 rejected). Section « Sources & Provenance » produite après le registre, affirmations de traçabilité calculées, confrontation des deux populations d'événements, `ProjectManager` résilient, index d'attribution dans l'archive. Filet : 2077 tests collectés, ruff clean, validate_plans valide. Vérification visuelle sur R7 non rejouée (hors périmètre de cette revue).

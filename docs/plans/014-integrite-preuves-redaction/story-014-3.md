@@ -2,7 +2,7 @@
 id: "014-3"
 epic: "014"
 titre: "La règle de silence monte jusqu'à la prose et jusqu'à la barrière"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -235,12 +235,20 @@ points non résolus)*
 
 ## Revue
 
-*(à remplir par la revue contradictoire : findings retenus, gravité, correctif appliqué,
-points différés, rejets motivés)*
+Revue BMAD à 4 couches appliquée. Findings retenus et corrigés :
+- Groupe A (high) : fichier de tests manquant → créé `test_silence_rule_reaches_prose.py` (6 cas).
+- Groupe B (high) : prose non inhibée → marqueur inline dans le texte du claim + section « Passages inhibés » ajoutée au markdown publié.
+- Groupe C (medium) : reclassification étendue à tous les kinds (pas seulement `OBSERVED_SOCIAL_ACTION`).
+- Groupe D (medium) : la barrière n'écrase plus les contradictions critiques normales.
+- Groupe F (medium) : catch ciblé sur la section Sources & Provenance (repli `TypeError` restauré).
+- Gardes défensives : `silent_personas` chaîne unique, `persona_name is None`.
+
+Différés : Groupe E stratégie de migration (rétrocompat `ELIGIBLE` pour fichiers historiques sans statut), Groupe G/9 repli de recalcul, protection au niveau section, code mort/latent.
+
+Rejets (false) : NameError sur `silence_contradictions`, statut `None` inatteignable, filtrage prompt (niveau 014-4), vérificateur déjà pourvu.
 
 ---
 
 ## Notes de complétion
 
-*(à remplir à la clôture : statut final, tests exécutés, lint, validation de plan, écarts
-avec le plan et pourquoi, ce que la story ne fait pas, effets de bord observés)*
+Statut final : done. Tests : 6 nouveaux dans `test_silence_rule_reaches_prose.py` + non-régression sur les suites liées (107 passants). Lint ruff clean. `validate_plans.py` valide. Écarts : la protection au niveau section (AC1) n'est pas implémentée (différé, hors frontière claire) ; la réécriture complète des phrases dans la prose publiée est remplacée par une annotation inline + section dédiée (décision Groupe B). La story ne touche ni au régime des entretiens (014-1), ni à la section Sources & Provenance (014-2), ni à la construction des briefs/fiches (014-4).

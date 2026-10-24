@@ -331,7 +331,7 @@ class ProjectManager:
         
         try:
             return Project.from_dict(data)
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
             logger.warning(f"Projet illisible ignoré ({project_id}): {exc}")
             return None
     
@@ -357,7 +357,7 @@ class ProjectManager:
                 projects.append(project)
         
         # 按创建时间倒序排序
-        projects.sort(key=lambda p: p.created_at, reverse=True)
+        projects.sort(key=lambda p: (p.created_at or ""), reverse=True)
         
         return projects if limit is None else projects[:limit]
 

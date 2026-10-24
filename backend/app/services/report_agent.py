@@ -2657,11 +2657,35 @@ class ReportAgent:
             except Exception as claim_err:
                 logger.warning(f"Avertissement lors de l'audit et sauvegarde des report_claims : {claim_err}")
 
+            # Annotation de la prose publiée pour la règle de silence (Story 014-3,
+            # Groupe B) : les passages attribués à un persona silencieux sont
+            # listés comme inhibés, en complément du marqueur inline dans le registre.
+            try:
+                inhibited = getattr(self, "_silence_inhibited", None)
+                if inhibited:
+                    lines = ["", "## Passages inhibés — règle de silence (Story 014-3)", ""]
+                    lines.append(
+                        "Les passages suivants attribuaient une parole, une décision ou une section "
+                        "à un persona consigné comme `present_no_action` (0 action observée). "
+                        "Ils sont déclassés en `REPORTED_INTENTION` / `UNSUPPORTED` et ne comptent "
+                        "pas comme actions observées."
+                    )
+                    lines.append("")
+                    for _name, _txt in inhibited:
+                        lines.append(f"- **{_name}** : {_txt}")
+                    report.markdown_content = report.markdown_content.rstrip() + "\n\n" + "\n".join(lines) + "\n"
+                    self._silence_inhibited = []
+            except Exception as _sil_err:
+                logger.debug(f"Annotation de silence non appliquée : {_sil_err}")
+
             # Section « Sources & Provenance » produite APRÈS le registre (Story 014-2, AC1)
             self._current_report_id = report_id
             if "Sources & Provenance" not in report.markdown_content and "Sources et Provenance" not in report.markdown_content:
                 try:
-                    prov_section = self.build_sources_provenance_section(claims_registry=claims_registry)
+                    try:
+                        prov_section = self.build_sources_provenance_section(claims_registry=claims_registry)
+                    except TypeError:
+                        prov_section = self.build_sources_provenance_section()
                     report.markdown_content = report.markdown_content.rstrip() + "\n\n---\n\n" + prov_section + "\n"
                     ReportManager._ensure_report_folder(report_id)
                     full_path = ReportManager._get_report_markdown_path(report_id)
@@ -2669,7 +2693,7 @@ class ReportAgent:
                     with open(tmp, 'w', encoding='utf-8') as f:
                         f.write(report.markdown_content)
                     os.replace(tmp, full_path)
-                except Exception as prov_err:
+                except (TypeError, OSError, IOError) as prov_err:
                     logger.warning(f"Avertissement lors de l'écriture de la section Sources & Provenance : {prov_err}")
 
             # Bannière de régime de provenance (Story 014-1, AC7) : écrite par le code,
@@ -3365,19 +3389,29 @@ class ReportAgent:
             cohort_table = cohort_coverage
         silent_agent_names: set = set()
         if silent_personas:
+            # Garde défensive : une chaîne unique ne doit pas être éclatée en
+            # caractères (Story 014-3, revue).
+            if isinstance(silent_personas, str):
+                silent_personas = [silent_personas]
             try:
                 for sp in silent_personas:
                     if isinstance(sp, str):
-                        silent_agent_names.add(sp.strip().lower())
+                        nm = sp.strip().lower()
+                        if nm:
+                            silent_agent_names.add(nm)
                     elif hasattr(sp, "persona_name"):
-                        silent_agent_names.add(str(getattr(sp, "persona_name")).strip().lower())
+                        nm = str(getattr(sp, "persona_name") or "").strip().lower()
+                        if nm:
+                            silent_agent_names.add(nm)
             except Exception:
                 pass
         if cohort_table is not None and hasattr(cohort_table, "members"):
             try:
                 for m in cohort_table.members:
                     if getattr(m, "is_silent", False):
-                        silent_agent_names.add(str(getattr(m, "persona_name", "")).strip().lower())
+                        _pn = str(getattr(m, "persona_name", "") or "").strip().lower()
+                        if _pn:
+                            silent_agent_names.add(_pn)
             except Exception:
                 pass
         # Conserver la table pour consultation ultérieure (pas de recalcul)
@@ -3576,10 +3610,20 @@ class ReportAgent:
                     pass
 
             if _agent_is_silent:
-                # Inhibition : aucune action observée ne peut être attribuée à un silencieux
-                if claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
-                    claim_kind = ClaimKind.REPORTED_INTENTION
-                    origin = InformationOrigin.INFERENCE
+                # Inhibition : aucune parole, décision ou section ne peut être
+                # attribuée à un silencieux (Story 014-3, AC1, AC4), quel que
+                # soit le kind initial — pas seulement OBSERVED_SOCIAL_ACTION.
+                claim_kind = ClaimKind.REPORTED_INTENTION
+                origin = InformationOrigin.INFERENCE
+                # Marqueur inline dans le texte de l'affirmation (prose/registre)
+                clean_text = f"{clean_text} [inhibé — persona silencieux, aucune action observée]"
+                # Trace pour annotation de la prose publiée (Groupe B)
+                try:
+                    if not hasattr(self, "_silence_inhibited"):
+                        self._silence_inhibited = []
+                    self._silence_inhibited.append((agent_name, clean_text))  # type: ignore[name-defined]
+                except Exception:
+                    pass
 
             all_refs = list(ev_refs) + list(doc_refs)
 

@@ -15,6 +15,7 @@ import os
 import pytest
 
 from app.models.evidence_pack import EvidencePack, ObservedEvent
+from app.models.provenance_regime import ProvenanceRegime
 from app.models.report_claim import (
     ClaimKind,
     ReportClaim,
@@ -71,12 +72,14 @@ def test_report_claim_serialization_roundtrip():
         verification_status=VerificationStatus.VERIFIED,
         confidence=0.95,
         limitations=["Source 2025"],
+        provenance_regime=ProvenanceRegime.INTERVIEW,
     )
     data = claim.to_dict()
     assert data["claim_id"] == "clm_12345678"
     assert data["claim_kind"] == "SOURCE_FACT"
     assert data["origin"] == "documentary"
     assert data["verification_status"] == "VERIFIED"
+    assert data["provenance_regime"] == "interview"
 
     restored = ReportClaim.from_dict(data)
     assert restored.claim_id == claim.claim_id
@@ -85,6 +88,12 @@ def test_report_claim_serialization_roundtrip():
     assert restored.origin == InformationOrigin.DOCUMENTARY
     assert restored.verification_status == VerificationStatus.VERIFIED
     assert restored.confidence == 0.95
+    assert restored.provenance_regime == ProvenanceRegime.INTERVIEW
+
+    # Tolérance à l'absence du champ (rétrocompatibilité).
+    legacy = dict(data)
+    legacy.pop("provenance_regime", None)
+    assert ReportClaim.from_dict(legacy).provenance_regime is None
 
 
 def test_claim_kind_and_verification_status_robust_parsing():
@@ -377,6 +386,7 @@ def test_report_agent_extract_claims_from_content():
         graph_id="graph_test",
         simulation_id="sim_audit_001",
         simulation_requirement="Tester l'extraction de claims",
+        locale="fr",
     )
     claims = agent.extract_claims_from_content(sample_markdown)
 
@@ -386,6 +396,13 @@ def test_report_agent_extract_claims_from_content():
     assert ClaimKind.OBSERVED_SOCIAL_ACTION in kinds
     assert ClaimKind.REPORTED_INTENTION in kinds
     assert ClaimKind.SPECULATIVE_PROJECTION in kinds
+    # Régime de provenance (Story 014-1) : sans observation, tout est unknown.
+    assert all(
+        getattr(c, "provenance_regime", None) is not None
+        and getattr(c.provenance_regime, "value", c.provenance_regime) == "unknown"
+        for c in claims
+    )
+    assert all("Régime de provenance non établi (unknown)." in (c.limitations or []) for c in claims)
 
 
 def test_report_agent_audit_and_save_report_claims(tmp_path, monkeypatch):

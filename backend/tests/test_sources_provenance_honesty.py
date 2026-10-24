@@ -30,8 +30,8 @@ def test_section_reads_claims_registry(tmp_path, monkeypatch):
     registry.add_claim(c2)
 
     section = agent.build_sources_provenance_section(claims_registry=registry)
-    assert "Affirmations portant un `evidence_refs` non vide : 1" in section
-    assert "Affirmations portant un `provenance_regime` : 1" in section
+    assert "Affirmations portant un `evidence_refs` non vide :** 1." in section
+    assert "Affirmations portant un `provenance_regime` :** 1." in section
 
 
 def test_verified_count_matches_registry(tmp_path, monkeypatch):
@@ -42,7 +42,7 @@ def test_verified_count_matches_registry(tmp_path, monkeypatch):
     registry = ReportClaimRegistry(simulation_id=sim_id)
     # empty registry
     section = agent.build_sources_provenance_section(claims_registry=registry)
-    assert "Affirmations portant un `evidence_refs` non vide : 0" in section
+    assert "Affirmations portant un `evidence_refs` non vide :** 0." in section
     assert "Aucune traçabilité documentaire affirmée" in section
 
 

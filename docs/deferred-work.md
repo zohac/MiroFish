@@ -13,6 +13,12 @@ Revue des commits `c1e17e0` + `0cdf1c0` (`ad4ef4c..HEAD`), le 3 octobre 2026.
 - **`docs/README.md:29-33` — l'ADR 0010 n'y figure pas.** L'index s'arrête à 0005 ; 0006-0009 manquent déjà. Ce diff ajoute 0010 à `docs/decisions/README.md` mais pas à `docs/README.md`, que `AGENTS.md` §9 liste pourtant comme index de la documentation. *Différé : préexistant, et de faible enjeu.*
 - **`backend/scripts/validate_plans.py:43-50,101-108` — titres de section en NFD (décomposition Unicode).** Le motif `^##\s+Tâches\s*$` ne correspondrait pas à un titre en NFD, qui serait rapporté « section obligatoire absente » pour les six sections à la fois. *Différé : `maybe-false` — aucun fichier de story de ce dépôt n'est en NFD, et l'échec serait bruyant en nommant le titre attendu. Ce qui trancherait : un fichier de story en NFD atteignant le validateur, et la confirmation qu'un plan rédigé sur un poste macOS peut en produire un.*
 
+## Deferred from: code review of story-014-1.md (2026-10-22)
+
+Revue BMAD du commit `e3f868f` (« feat(014-1): régime de provenance des entretiens de rédaction »).
+
+- **Artefacts manquants pour la clôture de la story 014-1** — `backend/tests/test_provenance_regime.py`, `backend/scripts/verifier_provenance_interviews.py` et `docs/plans/014-integrite-preuves-redaction/mesure-014-1.md` sont absents alors que la définition de fini et l'AC10/AC11 les exigent ; les notes de complétion l'admettent. La story ne peut pas être marquée `done` tant qu'ils ne sont pas produits. *Déclencheur : rédaction du fichier de tests et du script de mesure, puis re-qualification.*
+
 ## Deferred from: story-001-1b.md (2026-10-04)
 
 Pose de l'`override-dependencies` du driver `neo4j`, geste des ADR 0010 et
@@ -536,3 +542,22 @@ l'effort de raisonnement. Ils sont chiffrés et sourcés dans
   la prose. *Différé : la règle de silence doit remonter jusqu'à la
   rédaction, ou le persona doit être filtré des fiches de profil fournies à
   l'agent.*
+
+## Deferred from: code review of story-014-1.md (2026-10-22, 2e passe)
+
+Revue contradictoire BMAD 4 couches sur le diff `cce6087..HEAD` (code pertinent).
+
+- **Pas d'ADR pour `ProvenanceRegime`** — le type est introduit comme un second axe de provenance distinct d'`InformationOrigin` (ADR 0012/0013 gelés), décision documentée dans la story (décision 1) mais aucun ADR dédié. *Déclencheur : rédaction d'un ADR précisant l'axe, son ordre de priorité Fail-Closed et pourquoi `InformationOrigin` reste gelé.*
+- **`report_interviews.json` absent quand aucun entretien** — AC8 parle de « par appel » (par appel d'entretien) ; les consommateurs attendant toujours le fichier pourraient casser. *Déclencheur : décision de l'utilisateur sur le contrat (fichier toujours présent, vide, vs présent seulement si entretien).*
+
+## Deferred from: code review of story-014-2 (2026-10-22)
+
+- `find_projects_by_graph_id` n'a pas de garde propre et ignore silencieusement les projets corrompus sans avertissement dédié. [backend/app/models/project.py:365] — deferred: pre-existing reliance on list_projects, no crash demonstrated.
+- Réinitialisation de `_tool_observations`/`_interview_records` plus tôt dans `_generate_report_internal` pour éviter la pollution d'un run précédent après échec partiel. [backend/app/services/report_agent.py:2412] — deferred: low, reset already near top of method.
+- `test_verified_count_matches_registry` ne couvre pas le cas `verified > 0` ni le taux de vérification. [backend/tests/test_sources_provenance_honesty.py] — deferred: test coverage gap.
+- Aucun test ne vérifie que `_generate_report_internal` transmet bien `claims_registry` à `build_sources_provenance_section`. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- Aucun test ne couvre la bannière `provenance_banner_unknown`. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- Extraction des jetons de régime (`[[PROVENANCE:...]]`) dans les observations et le texte des claims non vérifiée par test. [backend/app/services/report_agent.py] — deferred: test coverage gap.
+- Chemin de `get_project` sur fichier JSON valide mais schéma invalide non testé. [backend/app/models/project.py] — deferred: test coverage gap.
+- Le commit mélange des préoccupations de la story 014-1 (realname/username, repli replay-mode, jeton de régime, i18n des limitations, bannière unknown). [commit 83a7a9e] — deferred: scope/hygiène, pas un défaut runtime.
+- Le chemin de l'index d'attribution dans `run_manifest.json` est un chemin absolu serveur, moins portable pour un tiers. [backend/app/services/simulation_audit_service.py] — deferred: low, la spec demande seulement « le chemin ».

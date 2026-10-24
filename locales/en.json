@@ -748,6 +748,8 @@
     "sectionComplete": "Section {title} generation complete",
     "reportComplete": "Report generation complete",
     "provenance_banner": "⚠️ {count} passage(s) in this report come from a drafting interview. See report_interviews.json.",
+    "provenance_banner_unknown": "⚠️ {count} passage(s) in this report could not be attributed to a verified source. See report_claims.json.",
+    "provenance_limitation_unknown": "Provenance regime not established (unknown).",
     "errorOccurred": "Error occurred: {error}",
     "agentInitDone": "ReportAgent initialized: graph_id={graphId}, simulation_id={simulationId}",
     "executingTool": "Executing tool: {toolName}, params: {params}",

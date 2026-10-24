@@ -748,6 +748,8 @@
     "sectionComplete": "章节 {title} 生成完成",
     "reportComplete": "报告生成完成",
     "provenance_banner": "⚠️ 本报告中有 {count} 处内容来自撰写期访谈。参见 report_interviews.json。",
+    "provenance_banner_unknown": "⚠️ 本报告中有 {count} 处内容无法归因到已验证的来源。参见 report_claims.json。",
+    "provenance_limitation_unknown": "来源机制未确立 (unknown)。",
     "errorOccurred": "发生错误: {error}",
     "agentInitDone": "ReportAgent 初始化完成: graph_id={graphId}, simulation_id={simulationId}",
     "executingTool": "执行工具: {toolName}, 参数: {params}",

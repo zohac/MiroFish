@@ -754,6 +754,8 @@
     "sectionComplete": "Génération de la section {title} terminée",
     "reportComplete": "Génération du rapport terminée",
     "provenance_banner": "⚠️ {count} passage(s) de ce rapport proviennent d'un entretien de rédaction. Voir report_interviews.json.",
+    "provenance_banner_unknown": "⚠️ {count} passage(s) de ce rapport n'ont pu être rattachés à une source vérifiée. Voir report_claims.json.",
+    "provenance_limitation_unknown": "Régime de provenance non établi (unknown).",
     "errorOccurred": "Une erreur est survenue : {error}",
     "agentInitDone": "ReportAgent initialisé : graph_id={graphId}, simulation_id={simulationId}",
     "executingTool": "Exécution de l'outil : {toolName}, paramètres : {params}",

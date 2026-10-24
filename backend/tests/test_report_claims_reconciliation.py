@@ -542,3 +542,22 @@ class TestReportClaimsExtractionAndReconciliation:
         assert "evt_reddit_1_1_refusal" in verified.evidence_refs
 
 
+    def test_bracketed_label_is_never_an_agent_name(self):
+        """Story 014-1, AC6 : une étiquette entre crochets n'est jamais résolue comme nom d'agent."""
+        agent = ReportAgent(
+            graph_id="graph_test",
+            simulation_id="sim_bracket_test",
+            simulation_requirement="Tester AC6",
+        )
+        known_names = {"Émilie", "Julien"}
+        sample_markdown = """
+# Section
+- [Événements simulés réels] : Émilie a publié un tweet d'indignation.
+- [[PROVENANCE:interview;mode:live]] : Julien a déclaré son refus.
+"""
+        claims = agent.extract_claims_from_content(sample_markdown, known_agent_names=known_names)
+        extracted_agents = [c.agent_name for c in claims if c.agent_name is not None]
+        assert "Événements" not in extracted_agents
+        assert "PROVENANCE" not in extracted_agents
+
+

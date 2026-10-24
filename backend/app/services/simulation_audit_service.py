@@ -182,7 +182,6 @@ class SimulationAuditService:
                 claims_index = {
                     "path": claims_path,
                     "sha256": h.hexdigest(),
-                    "sha256_hash": h.hexdigest(),
                 }
         except Exception as ci_err:
             logger.warning(f"Index d'attribution des claims indisponible : {ci_err}")

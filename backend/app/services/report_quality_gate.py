@@ -553,7 +553,26 @@ class ReportQualityGate:
                 )
             )
         elif claims_registry and claims_registry.claims:
-            if silence_contradictions:
+            if silence_contradictions and critical_contradictions:
+                checks.append(
+                    QualityCheckItem(
+                        category=QualityCategory.CLAIM_VERIFICATION,
+                        title="Intégrité des affirmations d'actions simulées",
+                        status=QualityStatus.FAILED,
+                        message=(
+                            f"{len(silence_contradictions)} contradiction(s) de silence et "
+                            f"{len(critical_contradictions)} contradiction(s) critique(s) détectée(s)."
+                        ),
+                        details={
+                            "silence_contradictions_count": len(silence_contradictions),
+                            "critical_contradictions_count": len(critical_contradictions),
+                            "sample_contradictions": [(c.text or "")[:80] for c in (silence_contradictions + critical_contradictions)[:3]],
+                            "total_claims": total_claims,
+                            "contradicted": contradicted,
+                        },
+                    )
+                )
+            elif silence_contradictions:
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,

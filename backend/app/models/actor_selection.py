@@ -118,7 +118,13 @@ class ActorItem:
         if not isinstance(data, dict):
             raise SelectionValidationError("Les données d'acteur doivent être un dictionnaire")
         raw_role = data.get("qualified_role") or ActorRole.UNKNOWN.value
-        raw_status = data.get("eligibility_status") or EligibilityStatus.REVIEW.value
+        # Rétrocompatibilité (Story 014-3, Groupe E) : un fichier historique sans
+        # champ eligibility_status est traité comme ELIGIBLE (il était inclus avant
+        # l'introduction du filtre review) ; un champ explicite est respecté.
+        if "eligibility_status" not in (data or {}):
+            raw_status = EligibilityStatus.ELIGIBLE.value
+        else:
+            raw_status = data.get("eligibility_status") or EligibilityStatus.REVIEW.value
         raw_conf = data.get("confidence")
         confidence = float(raw_conf) if raw_conf is not None else 0.0
         return cls(

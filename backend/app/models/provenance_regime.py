@@ -53,28 +53,40 @@ class ProvenanceRegime(str, Enum):
         for member in cls:
             if member.value == text or member.name.lower() == text:
                 return member
-        # Synonymes tolérants
-        if "interview" in text:
+        # Synonymes tolérants (sur frontières de mot, pour ne pas classer
+        # « documentation » comme document ni « doctor » comme doc).
+        import re as _re
+        def _word(term: str) -> bool:
+            return bool(_re.search(r"(?<!\w)" + _re.escape(term) + r"(?!\w)", text))
+        if _word("interview"):
             return cls.INTERVIEW
-        if "event" in text:
+        if _word("event"):
             return cls.EVENT
-        if "graph" in text:
+        if _word("graph"):
             return cls.GRAPH
-        if "action" in text:
+        if _word("action"):
             return cls.ACTION
-        if "document" in text or "doc" in text:
+        if _word("document") or _word("doc"):
             return cls.DOCUMENT
-        if "inference" in text or "deduction" in text or "analysis" in text:
+        if _word("inference") or _word("deduction") or _word("analysis"):
             return cls.INFERENCE
         return cls.UNKNOWN
 
 
 #: Correspondance exhaustive outil -> régime (Story 014-1, décision 4).
 TOOL_TO_REGIME: dict = {
+    # Alias directs et redirigés (Story 014-1, patch) : tous les outils qui
+    # produisent du matériau de graphe sont rattachés à GRAPH, y compris les
+    # alias historiques qui redirigent vers quick_search / insight_forge.
     "interview_agents": ProvenanceRegime.INTERVIEW,
     "insight_forge": ProvenanceRegime.GRAPH,
     "panorama_search": ProvenanceRegime.GRAPH,
     "quick_search": ProvenanceRegime.GRAPH,
+    "search_graph": ProvenanceRegime.GRAPH,
+    "get_simulation_context": ProvenanceRegime.GRAPH,
+    "get_graph_statistics": ProvenanceRegime.GRAPH,
+    "get_entity_summary": ProvenanceRegime.GRAPH,
+    "get_entities_by_type": ProvenanceRegime.GRAPH,
     "get_edge_provenance": ProvenanceRegime.GRAPH,
     "get_applied_ontology": ProvenanceRegime.GRAPH,
     "query_simulation_events": ProvenanceRegime.EVENT,
@@ -116,7 +128,10 @@ def _normalize_text(text: Any) -> str:
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
     # Tout le reste qui n'est pas alphanumérique (ponctuation, espaces) devient
     # une espace.
-    normalized = re.sub(r"[^A-Za-z0-9]+", " ", normalized)
+    # Conserver tout caractère de mot Unicode (accents, ligatures, CJK, …) au
+    # lieu de ne garder que l'ASCII : sinon les fragments en chinois ou avec
+    # des ligatures françaises (œ) sont vidés et toujours inconnus.
+    normalized = re.sub(r"[^\w]+", " ", normalized, flags=re.UNICODE)
     return " ".join(normalized.lower().split())
 
 
@@ -129,7 +144,10 @@ def _ngrams(text: str, n: int = 8) -> set:
 
 def _source_tool(source: Any) -> Optional[str]:
     if isinstance(source, dict):
-        for key in ("tool", "tool_name", "name", "source", "toolname"):
+        # Ne lire que les clés explicitement désignant un outil : la clé "name"
+        # peut porter un nom d'agent, de document ou de fichier et serait alors
+        # confondue avec un nom d'outil (Story 014-1, patch).
+        for key in ("tool", "tool_name", "toolname", "source"):
             val = source.get(key)
             if val:
                 return str(val)
@@ -182,7 +200,11 @@ def attribute_provenance_regime(fragment: Any, sources: Any = None) -> Provenanc
         sources = []
     if isinstance(sources, dict):
         sources = [sources]
-    if not isinstance(sources, (list, tuple, set)):
+    if isinstance(sources, (list, tuple, set)):
+        pass
+    elif hasattr(sources, "__iter__") and not isinstance(sources, (str, bytes)):
+        sources = list(sources)
+    elif not isinstance(sources, (list, tuple, set)):
         sources = [sources]
 
     candidates: List[ProvenanceRegime] = []
