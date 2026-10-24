@@ -1,0 +1,15 @@
+{
+  "simulation_requirement": "# Simulation Brief — Découverte de l'Offre Keova Essentiel\n\nÉmilie est une praticienne échaudée ayant perdu 1 500 € en agence WordPress.\nNathalie est une débutante en lancement craignant la technique.\nChristine est une ancienne soignante réticente au paiement en ligne.\n",
+  "profiles": [
+    {
+      "name": "Nathalie",
+      "bio": "Nathalie, praticienne débutante.",
+      "persona": "Après avoir perdu 1 500 € en agence WordPress l'an dernier, elle hésite face aux 29 €."
+    },
+    {
+      "name": "Christine",
+      "bio": "Christine, ancienne soignante.",
+      "persona": "Praticienne installée ayant des scrupules à faire payer en ligne."
+    }
+  ]
+}

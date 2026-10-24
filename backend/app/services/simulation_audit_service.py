@@ -419,6 +419,18 @@ class SimulationAuditService:
         except Exception:
             files["claims_index.json"] = json.dumps(None, ensure_ascii=False, indent=2).encode("utf-8")
 
+        # 9 bis. brief_consistency.json (Story 014-4, FR-07, AC6)
+        bc_path = os.path.join(sim_dir, "brief_consistency.json")
+        if os.path.exists(bc_path):
+            with open(bc_path, "rb") as f_bc:
+                files["brief_consistency.json"] = f_bc.read()
+        else:
+            files["brief_consistency.json"] = json.dumps(
+                {"is_consistent": True, "contradictions": [], "diagnostics": {"note": "non_audit_ou_historique"}},
+                ensure_ascii=False,
+                indent=2,
+            ).encode("utf-8")
+
         # 10. checksums.sha256
         checksum_lines = []
         for filename in sorted(files.keys()):

@@ -199,6 +199,25 @@ def generate_report():
                 "success": False,
                 "error": t('api.missingSimRequirement')
             }), 400
+
+        # Filtrage du contexte de rédaction : exclure les personas non admis (Story 014-4, FR-07, AC5)
+        get_actor_sel = getattr(manager, "get_actor_selection", None)
+        actor_selection = get_actor_sel(simulation_id) if callable(get_actor_sel) else None
+        if actor_selection and actor_selection.actors:
+            from ..services.brief_consistency import filter_non_admitted_personas_from_text
+            admitted_names = [
+                a.entity_name for a in actor_selection.actors
+                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) == "eligible"
+            ]
+            excluded_names = [
+                a.entity_name for a in actor_selection.actors
+                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) in ("review", "ineligible")
+            ]
+            simulation_requirement = filter_non_admitted_personas_from_text(
+                simulation_requirement,
+                admitted_names=admitted_names,
+                excluded_names=excluded_names,
+            )
         
         # 提前生成 report_id，以便立即返回给前端
         import uuid
@@ -722,6 +741,23 @@ def chat_with_report_agent():
             }), 400
         
         simulation_requirement = project.simulation_requirement or ""
+        get_actor_sel = getattr(manager, "get_actor_selection", None)
+        actor_selection = get_actor_sel(simulation_id) if callable(get_actor_sel) else None
+        if actor_selection and actor_selection.actors:
+            from ..services.brief_consistency import filter_non_admitted_personas_from_text
+            admitted_names = [
+                a.entity_name for a in actor_selection.actors
+                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) == "eligible"
+            ]
+            excluded_names = [
+                a.entity_name for a in actor_selection.actors
+                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) in ("review", "ineligible")
+            ]
+            simulation_requirement = filter_non_admitted_personas_from_text(
+                simulation_requirement,
+                admitted_names=admitted_names,
+                excluded_names=excluded_names,
+            )
         
         # 创建Agent并进行对话
         agent = ReportAgent(

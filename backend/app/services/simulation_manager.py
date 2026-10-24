@@ -826,6 +826,33 @@ class SimulationManager:
                 simulation_brief=simulation_brief,
             )
             
+            # Audit de cohérence biographique brief/fiches persona (Story 014-4, FR-07, AC1-AC4)
+            from .brief_consistency import (
+                audit_brief_persona_consistency,
+                BriefPersonaContradictionError,
+            )
+            consistency_result = audit_brief_persona_consistency(
+                brief_text=simulation_requirement or (simulation_brief.advanced_text() if simulation_brief else ""),
+                profiles=profiles,
+            )
+
+            # Persistance atomique de brief_consistency.json dans sim_dir (AC6)
+            brief_consistency_path = os.path.join(sim_dir, "brief_consistency.json")
+            tmp_bc_path = f"{brief_consistency_path}.tmp.{os.getpid()}"
+            with open(tmp_bc_path, "w", encoding="utf-8") as f_bc:
+                json.dump(consistency_result.to_dict(), f_bc, ensure_ascii=False, indent=2)
+                f_bc.flush()
+                os.fsync(f_bc.fileno())
+            os.replace(tmp_bc_path, brief_consistency_path)
+
+            if not consistency_result.is_consistent:
+                # Échec Fail-Closed immédiat à la construction (AC4) :
+                # Aucun profil n'est persisté et l'erreur est levée
+                reasons = [c.reason for c in consistency_result.contradictions]
+                raise BriefPersonaContradictionError(
+                    f"Contradiction biographique détectée entre le brief et les fiches persona: {'; '.join(reasons)}"
+                )
+
             state.profiles_count = len(profiles)
             state.profiles_generated = len(profiles) > 0
             self._save_simulation_state(state)
