@@ -2,7 +2,7 @@
 id: "015-2"
 epic: "015"
 titre: "Journal d'entretiens structuré par répondant et authentification des citations d'entretien"
-statut: in-progress
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -235,43 +235,97 @@ ou le littéral résiduel de `report_agent.py:3211` (`015-3`), modifier `ActorCl
 
 ## Définition de fini
 
-- [ ] `backend/app/models/report_interviews.py` : dataclasses `InterviewQuoteSpan`, `InterviewTurn`, `InterviewSession` et `ReportInterviewsPayload` (`schema_version: "2.0"`), identifiants déterministes `ivw_<NN>_<sha8>` et `ivw_<NN>_<sha8>_t<MM>`, extracteur de tranches exactes `answer_text[char_start:char_end] == quote`, assainissement anti-secret (`NFR-4`), écriture atomique sur disque et lecteur rétrocompatible `v1` / tolérant aux fichiers corrompus.
-- [ ] `backend/app/services/zep_tools.py` : champ optionnel `agent_id: Optional[int] = None` sur `AgentInterview` sans casser `key_quotes: List[str]`, résolution de nom `realname -> name -> entity_name -> username`, distinction honnête du mode effectif (`live`, `offline_archive`, `replay_frozen`) dans `InterviewResult` et `to_text()`, et découpe propre des phrases FR/EN/CJK sans ajout de `"。"` artificiel sur texte latin.
-- [ ] `backend/app/services/report_agent.py` : construction des `InterviewSession` v2 par tour et répondant canonisé via `AgentIdentityResolver` dans `_execute_tool_impl`, écriture atomique systématique de `report_interviews.json` v2 (y compris `sessions: []` si `0` entretien) **avant** `audit_and_save_report_claims`, détection des références explicites `ivw_*` dans `extract_claims_from_content`, et transmission de `report_interviews` à `SimulationActionVerifier.verify_report_claim`.
-- [ ] `backend/app/services/simulation_action_verifier.py` : méthode `verify_interview_citation` et branche d'authentification d'entretien dans `verify_report_claim(..., report_interviews=None)` validant l'appartenance au répondant (`VERIFIED` + `turn_id` vs `CONTRADICTED` sur autre répondant vs `UNSUPPORTED` sur citation altérée/fabriquée/`ivw_*` invalide) sans jamais promouvoir en `OBSERVED_SOCIAL_ACTION` ni blanchir `was_asserted_action == True`.
-- [ ] `backend/app/services/simulation_audit_service.py` : enveloppe de repli `report_interviews.json` alignée sur `schema_version: "2.0"` (`sessions: []`) dans `gather_audit_files`, avec maintien strict de `EvidenceSnapshotService.CANONICAL_AUDIT_FILES` inchangé.
-- [ ] `backend/tests/test_story_015_2_interview_ledger.py` : `9` tests hermétiques nommés couvrant `AC1` à `AC9` verts.
-- [ ] Non-régression complète validée : `cd backend && uv run pytest tests/ -q` (`>= 2 118` tests verts, `0` échec), `pnpm --dir frontend test` (`43` tests verts, `0` échec), et `ruff check` propre sur tous les fichiers touchés.
-- [ ] Validation documentaire : `cd backend && uv run python scripts/validate_plans.py` retourne `0`.
-- [ ] Contrôle de diagnostic en lecture seule exécuté en mémoire sur `report_934d3254004b` (si présent localement, sans écriture dans `backend/uploads/`) attestant la relecture `v1` sans erreur.
-- [ ] Hors périmètre explicitement respecté : aucune modification de `report_quality_gate.py` ni du littéral de `report_agent.py:3211` (`015-3`), de `actor_classifier.py` / `cohort_coverage.py` / `api/report.py` (`015-4`), de `frontend/**` (`015-5`), de `brief_consistency.py` pour l'audit aval (`015-6`), de `EvidenceSnapshotService.CANONICAL_AUDIT_FILES`, ni de `backend/app/utils/report_benchmark_score.py` (`1.1.0`).
+- [x] `backend/app/models/report_interviews.py` : dataclasses `InterviewQuoteSpan`, `InterviewTurn`, `InterviewSession` et `ReportInterviewsPayload` (`schema_version: "2.0"`), identifiants déterministes `ivw_<NN>_<sha8>` et `ivw_<NN>_<sha8>_t<MM>`, extracteur de tranches exactes `answer_text[char_start:char_end] == quote`, assainissement anti-secret (`NFR-4`), écriture atomique sur disque et lecteur rétrocompatible `v1` / tolérant aux fichiers corrompus.
+- [x] `backend/app/services/zep_tools.py` : champ optionnel `agent_id: Optional[int] = None` sur `AgentInterview` sans casser `key_quotes: List[str]`, résolution de nom `realname -> name -> entity_name -> username`, distinction honnête du mode effectif (`live`, `offline_archive`, `replay_frozen`) dans `InterviewResult` et `to_text()`, et découpe propre des phrases FR/EN/CJK sans ajout de `"。"` artificiel sur texte latin.
+- [x] `backend/app/services/report_agent.py` : construction des `InterviewSession` v2 par tour et répondant canonisé via `AgentIdentityResolver` dans `_execute_tool_impl`, écriture atomique systématique de `report_interviews.json` v2 (y compris `sessions: []` si `0` entretien) **avant** `audit_and_save_report_claims`, détection des références explicites `ivw_*` dans `extract_claims_from_content`, et transmission de `report_interviews` à `SimulationActionVerifier.verify_report_claim`.
+- [x] `backend/app/services/simulation_action_verifier.py` : méthode `verify_interview_citation` et branche d'authentification d'entretien dans `verify_report_claim(..., report_interviews=None)` validant l'appartenance au répondant (`VERIFIED` + `turn_id` vs `CONTRADICTED` sur autre répondant vs `UNSUPPORTED` sur citation altérée/fabriquée/`ivw_*` invalide) sans jamais promouvoir en `OBSERVED_SOCIAL_ACTION` ni blanchir `was_asserted_action == True`.
+- [x] `backend/app/services/simulation_audit_service.py` : enveloppe de repli `report_interviews.json` alignée sur `schema_version: "2.0"` (`sessions: []`) dans `gather_audit_files`, avec maintien strict de `EvidenceSnapshotService.CANONICAL_AUDIT_FILES` inchangé.
+- [x] `backend/tests/test_story_015_2_interview_ledger.py` : `9` tests hermétiques nommés couvrant `AC1` à `AC9` verts.
+- [x] Non-régression complète validée : `cd backend && uv run pytest tests/ -q` (`2 118` tests verts, `0` échec), `pnpm --dir frontend test` (`43` tests verts, `0` échec), et `ruff check` propre sur tous les fichiers touchés.
+- [x] Validation documentaire : `cd backend && uv run python scripts/validate_plans.py` retourne `0`.
+- [x] Contrôle de diagnostic en lecture seule exécuté en mémoire sur `report_934d3254004b` (sans écriture dans `backend/uploads/`) attestant la relecture `v1` sans erreur (4 sessions, 21 répondants, 63 citations).
+- [x] Hors périmètre explicitement respecté : aucune modification de `report_quality_gate.py` ni du littéral de `report_agent.py:3211` (`015-3`), de `actor_classifier.py` / `cohort_coverage.py` / `api/report.py` (`015-4`), de `frontend/**` (`015-5`), de `brief_consistency.py` pour l'audit aval (`015-6`), de `EvidenceSnapshotService.CANONICAL_AUDIT_FILES`, ni de `backend/app/utils/report_benchmark_score.py` (`1.1.0`).
 
 ---
 
 ## Tâches
 
-- [ ] 1. Créer le module `backend/app/models/report_interviews.py` implémentant `InterviewQuoteSpan`, `InterviewTurn`, `InterviewSession` et `ReportInterviewsPayload` (`schema_version: "2.0"`), le calcul déterministe des `interview_id` / `turn_id`, l'extracteur d'offsets exacts `extract_quote_spans_from_answer` (`answer_text[char_start:char_end] == quote`), l'assainissement anti-secret `sanitize_interview_text`, la sauvegarde atomique `save_to_file` et la relecture rétrocompatible `from_raw` / `load_from_file` (`v2`, liste plate `v1`, enveloppe `interviews`, format ad-hoc de test et JSON corrompu). *(AC1, AC3, AC9)*
-- [ ] 2. Mettre à jour `backend/app/services/zep_tools.py` (`AgentInterview`, `InterviewResult`, `interview_agents`, `_synthesize_offline_interviews`, `_load_agent_profiles`, `_select_agents_for_interview`) pour conserver `agent_id: Optional[int] = None`, résoudre les noms via `realname -> name -> entity_name -> username`, tracer fidèlement le mode effectif (`live`, `offline_archive`, `replay_frozen`) jusque dans `to_text()`, et extraire des `key_quotes: List[str]` propres sur textes FR/EN/CJK sans ajout de `"。"` artificiel sur un texte latin ni fuite de prompt système. *(AC1, AC2, AC9)*
-- [ ] 3. Étendre `backend/app/services/simulation_action_verifier.py` avec `verify_interview_citation` (projection bijective vers une tranche contiguë exacte de `turn.answer_text`, contrôle des 8-grammes par répondant, contrôle strict des `ivw_*` explicites sans repli silencieux) et câbler `verify_report_claim(..., report_interviews: Optional[Any] = None)` pour produire `VERIFIED` (+ `turn_id`), `CONTRADICTED` (mauvais répondant) ou `UNSUPPORTED` (altération entre guillemets, fabrication, résumé global non attribué) tout en interdisant `OBSERVED_SOCIAL_ACTION` et le blanchiment de `was_asserted_action == True`. *(AC4, AC5, AC6, AC7)*
-- [ ] 4. Mettre à jour `backend/app/services/report_agent.py` (`__init__`, `generate_report`, `_execute_tool_impl`, `extract_claims_from_content`, `audit_and_save_report_claims`) pour enregistrer chaque session d'entretien en `InterviewSession` v2 avec `persona_name` canonisé par `AgentIdentityResolver`, détecter les références `ivw_*` à l'extraction, persister atomiquement `report_interviews.json` v2 avant `audit_and_save_report_claims` (y compris avec `sessions: []` en l'absence d'entretien), et transmettre `report_interviews` à `verify_report_claim` en direct comme en ré-audit depuis le disque. *(AC1, AC2, AC4, AC8)*
-- [ ] 5. Aligner le repli de `SimulationAuditService.gather_audit_files` (`backend/app/services/simulation_audit_service.py:346-358`) sur l'enveloppe `v2` (`schema_version: "2.0"`, `simulation_id`, `report_id`, `sessions: []`) sans modifier `EvidenceSnapshotService.CANONICAL_AUDIT_FILES`. *(AC8, AC9)*
-- [ ] 6. Créer la suite hermétique `backend/tests/test_story_015_2_interview_ledger.py` couvrant les `9` tests nommés dans `AC1` à `AC9` (schéma `v2` et offsets exacts, 3 modes et résolution `reddit_profiles.json`, rétrocompatibilité `v1` et résilience JSON corrompu, `VERIFIED` + `turn_id`, `CONTRADICTED` mauvais répondant, `UNSUPPORTED` citation altérée/fabriquée, non-promotion et non-blanchiment d'action, ordre de persistance + `0` entretien + isolation `EvidenceSnapshotService` + archive `SimulationAuditService`, étanchéité anti-secret `NFR-4`). *(AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9)*
-- [ ] 7. Exécuter les suites ciblées puis la suite complète backend (`cd backend && uv run pytest tests/ -q`), la suite Node frontend (`pnpm --dir frontend test`), `ruff check`, `validate_plans.py` et un diagnostic non destructif en mémoire sur R8, puis mettre à jour la story et les agrégats de suivi pour passage en `review`. *(AC3, AC10)*
+- [x] 1. Créer le module `backend/app/models/report_interviews.py` implémentant `InterviewQuoteSpan`, `InterviewTurn`, `InterviewSession` et `ReportInterviewsPayload` (`schema_version: "2.0"`), le calcul déterministe des `interview_id` / `turn_id`, l'extracteur d'offsets exacts `extract_quote_spans_from_answer` (`answer_text[char_start:char_end] == quote`), l'assainissement anti-secret `sanitize_interview_text`, la sauvegarde atomique `save_to_file` et la relecture rétrocompatible `from_raw` / `load_from_file` (`v2`, liste plate `v1`, enveloppe `interviews`, format ad-hoc de test et JSON corrompu). *(AC1, AC3, AC9)*
+- [x] 2. Mettre à jour `backend/app/services/zep_tools.py` (`AgentInterview`, `InterviewResult`, `interview_agents`, `_synthesize_offline_interviews`, `_load_agent_profiles`, `_select_agents_for_interview`) pour conserver `agent_id: Optional[int] = None`, résoudre les noms via `realname -> name -> entity_name -> username`, tracer fidèlement le mode effectif (`live`, `offline_archive`, `replay_frozen`) jusque dans `to_text()`, et extraire des `key_quotes: List[str]` propres sur textes FR/EN/CJK sans ajout de `"。"` artificiel sur un texte latin ni fuite de prompt système. *(AC1, AC2, AC9)*
+- [x] 3. Étendre `backend/app/services/simulation_action_verifier.py` avec `verify_interview_citation` (projection bijective vers une tranche contiguë exacte de `turn.answer_text`, contrôle des 8-grammes par répondant, contrôle strict des `ivw_*` explicites sans repli silencieux) et câbler `verify_report_claim(..., report_interviews: Optional[Any] = None)` pour produire `VERIFIED` (+ `turn_id`), `CONTRADICTED` (mauvais répondant) ou `UNSUPPORTED` (altération entre guillemets, fabrication, résumé global non attribué) tout en interdisant `OBSERVED_SOCIAL_ACTION` et le blanchiment de `was_asserted_action == True`. *(AC4, AC5, AC6, AC7)*
+- [x] 4. Mettre à jour `backend/app/services/report_agent.py` (`__init__`, `generate_report`, `_execute_tool_impl`, `extract_claims_from_content`, `audit_and_save_report_claims`) pour enregistrer chaque session d'entretien en `InterviewSession` v2 avec `persona_name` canonisé par `AgentIdentityResolver`, détecter les références `ivw_*` à l'extraction, persister atomiquement `report_interviews.json` v2 avant `audit_and_save_report_claims` (y compris avec `sessions: []` en l'absence d'entretien), et transmettre `report_interviews` à `verify_report_claim` en direct comme en ré-audit depuis le disque. *(AC1, AC2, AC4, AC8)*
+- [x] 5. Aligner le repli de `SimulationAuditService.gather_audit_files` (`backend/app/services/simulation_audit_service.py:346-358`) sur l'enveloppe `v2` (`schema_version: "2.0"`, `simulation_id`, `report_id`, `sessions: []`) sans modifier `EvidenceSnapshotService.CANONICAL_AUDIT_FILES`. *(AC8, AC9)*
+- [x] 6. Créer la suite hermétique `backend/tests/test_story_015_2_interview_ledger.py` couvrant les `9` tests nommés dans `AC1` à `AC9` (schéma `v2` et offsets exacts, 3 modes et résolution `reddit_profiles.json`, rétrocompatibilité `v1` et résilience JSON corrompu, `VERIFIED` + `turn_id`, `CONTRADICTED` mauvais répondant, `UNSUPPORTED` citation altérée/fabriquée, non-promotion et non-blanchiment d'action, ordre de persistance + `0` entretien + isolation `EvidenceSnapshotService` + archive `SimulationAuditService`, étanchéité anti-secret `NFR-4`). *(AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9)*
+- [x] 7. Exécuter les suites ciblées puis la suite complète backend (`cd backend && uv run pytest tests/ -q`), la suite Node frontend (`pnpm --dir frontend test`), `ruff check`, `validate_plans.py` et un diagnostic non destructif en mémoire sur R8, puis mettre à jour la story et les agrégats de suivi pour passage en `review`. *(AC3, AC10)*
+
+### Review Findings
+
+- [x] [Review][Patch] Assainissement des secrets à la construction et synchronisation des offsets de citations [backend/app/models/report_interviews.py:158]
+- [x] [Review][Patch] Recherche de répondant sur l'ensemble des tours de la session lors d'une référence ivw_* de niveau session [backend/app/services/simulation_action_verifier.py:887]
+- [x] [Review][Patch] Priorité de vérification aux événements simulés réels avant le rattrapage d'entretien sauf régime INTERVIEW explicite [backend/app/services/simulation_action_verifier.py:1671]
+- [x] [Review][Patch] Préservation de asserted_as_action sur les claims affirmant une action sociale même porteuses d'un token ivw_* [backend/app/services/report_agent.py:3798]
+- [x] [Review][Patch] Initialisation précoce de self._current_report_id dès la génération du report_id [backend/app/services/report_agent.py:2575]
+- [x] [Review][Patch] Prise en charge des guillemets typographiques asymétriques (« », “ ”, 「 」) par paires [backend/app/models/report_interviews.py:58]
+- [x] [Review][Patch] Robustesse de la recherche de citations et 8-grammes : ancrage \b, repli sans ponctuation finale et tokenisation 8-grammes sans ponctuation [backend/app/services/simulation_action_verifier.py:940]
+- [x] [Review][Patch] Résilience de save_to_file sans répertoire parent, nom temporaire thread-safe et alias parse_payload [backend/app/models/report_interviews.py:265]
+- [x] [Review][Patch] Robustesse du chargement pour audit : tolérance sessions [], repli _interview_records, questions de session et suppression point synthétique hors-ligne [backend/app/services/report_agent.py:4034]
+- [x] [Review][Patch] Comblement des 4 angles morts de test : pré-persistance 0 entretien, test de roundtrip secrets avec quotes, capture en mémoire dans _execute_tool et extraction ivw_* [backend/tests/test_story_015_2_interview_ledger.py:530]
+
+#### Rejected
+
+- [Review][Rejected] Citation sans texte validée si turn_id présent [backend/app/services/simulation_action_verifier.py:795] — false: un turn_id cité sans extrait ni 8-gramme textuel n'a aucune preuve matérielle et doit rester UNSUPPORTED conformément à AC6.
+- [Review][Rejected] Absence du champ citation_offsets sur ReportClaim [backend/app/services/simulation_action_verifier.py:917] — false: le modèle ReportClaim ne comporte pas de champ citation_offsets ; le contrat AC1-AC10 exige uniquement l'ajout du turn_id dans evidence_refs, les offsets vivant dans InterviewQuoteSpan.
 
 ---
 
 ## Notes de développement
 
-*(À renseigner lors de l'implémentation de la story.)*
+- **29 octobre 2026** : Implémentation complète de la Story 015-2.
+  - Création du modèle pur `backend/app/models/report_interviews.py` avec dataclasses `InterviewQuoteSpan`, `InterviewTurn`, `InterviewSession`, `ReportInterviewsPayload` (`schema_version: "2.0"`), `sanitize_interview_text` (masquage Bearer/sk-/urls/passwords), projection bijective `extract_quote_spans_from_answer` (`answer_text[char_start:char_end] == quote`), sauvegarde atomique (`.tmp` + `os.replace`) et lecture rétrocompatible `v1` tolérant l'absence ou la corruption JSON.
+  - Mise à jour de `backend/app/services/zep_tools.py` : champ optionnel `agent_id: Optional[int] = None` sur `AgentInterview`, lecture `realname -> name -> entity_name -> username -> Agent_idx`, capture des 3 modes effectifs (`live`, `offline_archive` sur `ValueError`, `replay_frozen`) et émission honnête de `[[PROVENANCE:interview;mode:...]]`, découpe propre des phrases sans ajout de `"。"` artificiel.
+  - Mise à jour de `backend/app/services/simulation_action_verifier.py` : méthode `verify_interview_citation` et câblage dans `verify_report_claim(..., report_interviews=None)` :
+    - `VERIFIED` avec `turn_id` (`ivw_..._tXX`) pour une citation ou déclaration 8-grammes appartenant au bon répondant résolu, `origin = INFERENCE`, `claim_kind = REPORTED_INTENTION`, `provenance_regime = INTERVIEW`, `asserted_as_action = False`.
+    - `CONTRADICTED` (`confidence = 0.0`, `evidence_refs = []`) si citation ou 8-gramme attribué au mauvais répondant ou si référence `ivw_*` étrangère.
+    - `UNSUPPORTED` si citation altérée/fabriquée ou référence `ivw_*` inexistante.
+    - Maintien catégorique de `was_asserted_action = True` en `UNSUPPORTED` (zéro blanchiment d'action par un entretien).
+  - Mise à jour de `backend/app/services/report_agent.py` :
+    - Structuration en `_interview_sessions` v2 avec répondant canonisé par `AgentIdentityResolver`.
+    - Détection des références `ivw_*` dans `extract_claims_from_content` forçant `ProvenanceRegime.INTERVIEW`.
+    - Persistance atomique de `report_interviews.json` v2 **avant** `audit_and_save_report_claims` (avec `sessions: []` si aucun entretien).
+    - Transmission de `report_interviews` à `verify_report_claim` en direct ou rechargé depuis le disque.
+  - Mise à jour de `backend/app/services/simulation_audit_service.py` : repli de `gather_audit_files` aligné sur `schema_version: "2.0"` (`sessions: []`), avec maintien strict de `EvidenceSnapshotService.CANONICAL_AUDIT_FILES` inchangé.
+  - Suite de tests hermétiques dédiée créée : `backend/tests/test_story_015_2_interview_ledger.py` (9 tests couvrant AC1 à AC9, tous passants).
+  - Filet global porté à **2 118 tests backend au vert sur l'hôte** (0 échec, 1 warning tiers) + **43 tests Node frontend** au vert.
+  - Relecture diagnostique en mémoire de `report_interviews.json` de R8 (`report_934d3254004b`) validée sans modification du disque (4 sessions rechargées, 21 répondants, 63 citations).
+  - Passage de la story en statut `review`.
 
 ---
 
 ## Revue
 
-*(À renseigner lors de la revue contradictoire BMAD.)*
+- **29 octobre 2026** : Revue de code contradictoire BMAD à 4 couches en parallèle (Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor).
+  - 10 patches appliqués et vérifiés :
+    1. Assainissement des secrets dès `InterviewTurn.__post_init__` avec resynchronisation exacte des offsets et masquage dans `InterviewQuoteSpan.to_dict()` (AC1, AC9, NFR-4).
+    2. Recherche multi-tours pour les références de session `ivw_NN_hash` dans `SimulationActionVerifier.verify_interview_citation` éliminant les faux `CONTRADICTED` pour les répondants ultérieurs (AC5).
+    3. Priorité de vérification aux événements observés réels dans `evidence_pack` avant le rattrapage d'entretien (sauf régime explicite `INTERVIEW` ou référence `ivw_*`), évitant le détournement de citations simulées en inférences (D7).
+    4. Maintien de `asserted_as_action = True` dans `ReportAgent.extract_claims_from_content` pour les phrases affirmant textuellement une action sociale exécutée même porteuses d'un token `ivw_*`, garantissant l'anti-blanchiment (AC7).
+    5. Initialisation précoce de `self._current_report_id = report_id` dès sa génération au début de `ReportAgent._generate_report_internal`, évitant le hachage d'un `report_id` vide dans `interview_id` pendant la phase 2 d'exécution des outils (AC1, D1).
+    6. Prise en charge des guillemets typographiques asymétriques (`« »`, `“ ”`, `「 」`) par paires dans `extract_quote_spans_from_answer` (AC1).
+    7. Robustesse de la détection de citations : ancrage mot entier `\b` pour les citations courtes (< 8 car.), repli après décapage de la ponctuation finale à l'intérieur des guillemets, tokenisation 8-grammes sans ponctuation et restriction aux tours autorisés sous `turn_id` explicite (AC4, AC6).
+    8. Résilience de `ReportInterviewsPayload.save_to_file` sans composante de répertoire (`os.path.dirname`), suffixe temporaire thread-safe par UUID, tolérance aux listes non typées et alias de classe `parse_payload = from_raw` (AC1, AC3).
+    9. Persistance de l'enveloppe `sessions: []` avant audit dans `audit_and_save_report_claims`, repli sur `_interview_records`, capture des questions réelles dans `InterviewSession.questions`, et découpe par lookbehind `(?<=[。！？\.\n])` dans la synthèse hors-ligne préservant la ponctuation native (AC2, AC8).
+    10. Comblement des 4 angles morts de test dans `test_story_015_2_interview_ledger.py` : test d'écriture automatique 0 entretien via l'agent, test de cycle complet `to_dict` / `from_dict` avec secrets et quotes, test de peuplement `_interview_sessions` via `_execute_tool_impl`, et test d'extraction d'affirmation avec référence explicite `ivw_*` (12 tests hermétiques dédiés au total).
+  - 2 rejets motivés :
+    1. Validation d'un `turn_id` sans correspondance textuelle rejetée (`false` : une référence sans preuve matérielle doit rester `UNSUPPORTED`).
+    2. Absence de champ `citation_offsets` sur `ReportClaim` rejetée (`false` : le contrat ne définit pas ce champ, les offsets résidant dans `InterviewQuoteSpan`).
+  - Filet global : **2 121 tests backend au vert sur l'hôte** (0 échec, 1 warning tiers) + **43 tests Node frontend** au vert. `ruff check` propre, `validate_plans.py` valide.
 
 ---
 
 ## Notes de complétion
 
-*(À renseigner à la clôture de la story.)*
+- **29 octobre 2026** : Clôture définitive de la Story 015-2 (`done`).
+  - Tous les critères d'acceptation AC1 à AC10 sont vérifiés et conformes.
+  - Artefact `report_interviews.json` v2 opérationnel avec sessions, tours, répondants canonisés et offsets exacts.
+  - Authentification des citations et déclarations d'entretien par répondant active dans `SimulationActionVerifier` sans promotion en action OASIS ni blanchiment d'action affirmée non exécutée.
+  - La story passe à l'état `done` ; l'agrégat `docs/sprint-status.yaml`, `docs/STATUS.md` et `AGENTS.md` sont synchronisés.

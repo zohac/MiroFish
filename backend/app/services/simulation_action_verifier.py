@@ -832,6 +832,379 @@ class SimulationActionVerifier:
         return " ".join(cleaned.lower().split())
 
     @classmethod
+    def verify_interview_citation(
+        cls,
+        claim: ReportClaim,
+        report_interviews: Any,
+        resolver: Optional[Any] = None,
+    ) -> Optional[ReportClaim]:
+        """Authentifie une citation ou déclaration d'entretien par répondant (Story 015-2).
+
+        Garanties strictes :
+          - Jamais de promotion en ClaimKind.OBSERVED_SOCIAL_ACTION ni en InformationOrigin.SIMULATION.
+          - Jamais asserted_as_action = True.
+          - VERIFIED (+ turn_id) si la citation/8-gramme appartient au bon répondant résolu.
+          - CONTRADICTED (confidence=0.0, evidence_refs=[]) si la citation/8-gramme appartient à un autre répondant.
+          - UNSUPPORTED si citation entre guillemets altérée/fabriquée, référence ivw_* inexistante,
+            ou déclaration non rattachable à un tour individuel.
+        """
+        from dataclasses import replace
+        from ..models.cohort_coverage import normalize_agent_name
+        from ..models.report_interviews import ReportInterviewsPayload
+
+        payload = report_interviews
+        if not isinstance(payload, ReportInterviewsPayload):
+            try:
+                payload = ReportInterviewsPayload.from_raw(payload)
+            except Exception:
+                return None
+
+        if payload is None:
+            return None
+
+        claim_agent = claim.agent_name
+        active_resolver = resolver
+        resolved_claim_agent = (
+            active_resolver.resolve_name(claim_agent)
+            if active_resolver and claim_agent
+            else claim_agent
+        ) or claim_agent
+        norm_claim_agent = normalize_agent_name(resolved_claim_agent) if resolved_claim_agent else None
+
+        all_turns = payload.get_all_turns()
+
+        # Extraire les références ivw_* explicites présentes dans claim.evidence_refs ou claim.text
+        explicit_ivw_refs: List[str] = []
+        for ref in claim.evidence_refs:
+            if ref.startswith("ivw_"):
+                explicit_ivw_refs.append(ref)
+        for m in re.finditer(r"\b(ivw_[a-z0-9_]+)\b", claim.text):
+            r = m.group(1)
+            if r not in explicit_ivw_refs:
+                explicit_ivw_refs.append(r)
+
+        # 1. Contrôle des références explicites ivw_*
+        explicit_turn_constraint: Optional[str] = None
+        if explicit_ivw_refs:
+            for ivw_ref in explicit_ivw_refs:
+                found_match = None
+                is_turn_ref = "_t" in ivw_ref
+                if is_turn_ref:
+                    explicit_turn_constraint = ivw_ref
+
+                for sess, t in all_turns:
+                    if t.turn_id == ivw_ref:
+                        found_match = (sess, t)
+                        break
+                    elif sess.interview_id == ivw_ref:
+                        # Pour une référence de session, chercher en priorité le tour du répondant ciblé
+                        t_agent = (
+                            active_resolver.resolve_name(t.persona_name)
+                            if active_resolver
+                            else t.persona_name
+                        ) or t.persona_name
+                        norm_t_agent = normalize_agent_name(t_agent)
+                        if norm_claim_agent and norm_t_agent == norm_claim_agent:
+                            found_match = (sess, t)
+                            break
+                        elif found_match is None:
+                            found_match = (sess, t)
+
+                if found_match:
+                    sess, t = found_match
+                    t_agent = (
+                        active_resolver.resolve_name(t.persona_name)
+                        if active_resolver
+                        else t.persona_name
+                    ) or t.persona_name
+                    norm_t_agent = normalize_agent_name(t_agent)
+
+                    # Si attribué à un autre répondant
+                    if norm_claim_agent and norm_t_agent and norm_claim_agent != norm_t_agent:
+                        limitations = list(claim.limitations)
+                        limitations.append(
+                            f"Contradiction d'attribution d'entretien (Story 015-2) : la référence "
+                            f"'{ivw_ref}' appartient à '{t.persona_name}' (turn_id '{t.turn_id}'), "
+                            f"non à '{resolved_claim_agent}'."
+                        )
+                        return replace(
+                            claim,
+                            claim_kind=ClaimKind.REPORTED_INTENTION,
+                            origin=InformationOrigin.INFERENCE,
+                            evidence_refs=[],
+                            verification_status=VerificationStatus.CONTRADICTED,
+                            confidence=0.0,
+                            limitations=limitations,
+                            provenance_regime=ProvenanceRegime.INTERVIEW,
+                            asserted_as_action=False,
+                        )
+                else:
+                    # Référence ivw_* inexistante dans le registre
+                    limitations = list(claim.limitations)
+                    limitations.append(
+                        f"Référence d'entretien introuvable (Story 015-2) : '{ivw_ref}' "
+                        f"n'existe pas dans le journal des entretiens de rédaction."
+                    )
+                    return replace(
+                        claim,
+                        claim_kind=ClaimKind.REPORTED_INTENTION,
+                        origin=InformationOrigin.INFERENCE,
+                        evidence_refs=[],
+                        verification_status=VerificationStatus.UNSUPPORTED,
+                        confidence=min(claim.confidence, 0.5),
+                        limitations=limitations,
+                        provenance_regime=ProvenanceRegime.INTERVIEW,
+                        asserted_as_action=False,
+                    )
+
+        # Extraire les citations entre guillemets
+        raw_quotes: List[str] = []
+        for q_m in re.finditer(r'[«“"「]([^»”"」]{4,})[»”"」]', claim.text):
+            q_clean = q_m.group(1).strip()
+            if q_clean:
+                raw_quotes.append(q_clean)
+
+        # Déterminer si ce claim est sous régime INTERVIEW ou éligible au rattrapage
+        is_interview_regime = (
+            claim.provenance_regime == ProvenanceRegime.INTERVIEW
+            or str(getattr(claim.provenance_regime, "value", claim.provenance_regime)) == "interview"
+            or bool(explicit_ivw_refs)
+        )
+
+        def normalize_exact_slice(s: str) -> str:
+            # Normalisation typographique bijective pour recherche contiguë
+            s = s.replace("’", "'").replace("\u00a0", " ").replace("“", '"').replace("”", '"')
+            return " ".join(s.split()).lower()
+
+        # Helper pour tester la présence en tranche exacte avec repli ponctuation
+        def find_exact_in_text(quote_str: str, full_text: str) -> bool:
+            if not quote_str or not full_text:
+                return False
+            q_norm = normalize_exact_slice(quote_str)
+            t_norm = normalize_exact_slice(full_text)
+            if not q_norm or not t_norm:
+                return False
+
+            def matches(q: str, t: str) -> bool:
+                if len(q) < 8:
+                    return bool(re.search(rf"\b{re.escape(q)}\b", t, flags=re.IGNORECASE))
+                return q in t
+
+            if matches(q_norm, t_norm):
+                return True
+
+            q_stripped = q_norm.rstrip(".!?,;:。！？，；：")
+            if q_stripped and q_stripped != q_norm:
+                if matches(q_stripped, t_norm):
+                    return True
+
+            return False
+
+        # Helper pour 8-grammes (tokenisation sans ponctuation)
+        def get_8grams(text_str: str) -> set:
+            cleaned = re.sub(r"[^\w\s]", " ", text_str.lower(), flags=re.UNICODE)
+            words = cleaned.split()
+            if len(words) < 8:
+                return set()
+            return {" ".join(words[i:i + 8]) for i in range(len(words) - 7)}
+
+        claim_8grams = get_8grams(claim.text)
+        searchable_turns = (
+            [(sess, t) for sess, t in all_turns if t.turn_id == explicit_turn_constraint]
+            if explicit_turn_constraint
+            else all_turns
+        )
+
+        # Cas A : Présence de citations entre guillemets
+        if raw_quotes:
+            matched_own_turn_ids: List[str] = []
+            quote_found_on_other: Optional[Tuple[str, str]] = None
+            all_quotes_valid_for_own = True
+
+            for quote in raw_quotes:
+                # Filtrer les guillemets courts hors régime interview
+                if not is_interview_regime and (len(quote) < 12 or len(quote.split()) < 3):
+                    continue
+
+                quote_matched_own = False
+                for sess, t in searchable_turns:
+                    t_agent = (
+                        active_resolver.resolve_name(t.persona_name)
+                        if active_resolver
+                        else t.persona_name
+                    ) or t.persona_name
+                    norm_t_agent = normalize_agent_name(t_agent)
+
+                    is_own = (norm_claim_agent is None) or (norm_t_agent == norm_claim_agent)
+
+                    if find_exact_in_text(quote, t.answer_text):
+                        if is_own:
+                            quote_matched_own = True
+                            if t.turn_id not in matched_own_turn_ids:
+                                matched_own_turn_ids.append(t.turn_id)
+
+                if not quote_matched_own:
+                    all_quotes_valid_for_own = False
+                    for sess, t in all_turns:
+                        t_agent = (
+                            active_resolver.resolve_name(t.persona_name)
+                            if active_resolver
+                            else t.persona_name
+                        ) or t.persona_name
+                        norm_t_agent = normalize_agent_name(t_agent)
+                        is_own = (norm_claim_agent is None) or (norm_t_agent == norm_claim_agent)
+                        if not is_own and find_exact_in_text(quote, t.answer_text):
+                            if quote_found_on_other is None:
+                                quote_found_on_other = (t.persona_name, t.turn_id)
+
+            # Si toutes les citations ont été validées chez le bon répondant
+            if matched_own_turn_ids and all_quotes_valid_for_own:
+                clean_refs = [r for r in claim.evidence_refs if not r.startswith("evt_")]
+                for tid in matched_own_turn_ids:
+                    if tid not in clean_refs:
+                        clean_refs.append(tid)
+                return replace(
+                    claim,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=InformationOrigin.INFERENCE,
+                    evidence_refs=clean_refs,
+                    verification_status=VerificationStatus.VERIFIED,
+                    limitations=list(claim.limitations),
+                    provenance_regime=ProvenanceRegime.INTERVIEW,
+                    asserted_as_action=False,
+                )
+
+            # Si une citation appartient en réalité à un autre répondant
+            if quote_found_on_other and norm_claim_agent:
+                other_name, other_turn_id = quote_found_on_other
+                limitations = list(claim.limitations)
+                limitations.append(
+                    f"Contradiction d'attribution d'entretien (Story 015-2) : la citation entre guillemets "
+                    f"appartient en réalité à '{other_name}' (turn_id '{other_turn_id}'), non à '{resolved_claim_agent}'."
+                )
+                return replace(
+                    claim,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=InformationOrigin.INFERENCE,
+                    evidence_refs=[],
+                    verification_status=VerificationStatus.CONTRADICTED,
+                    confidence=0.0,
+                    limitations=limitations,
+                    provenance_regime=ProvenanceRegime.INTERVIEW,
+                    asserted_as_action=False,
+                )
+
+            # Si régime interview ou tentative de citation d'entretien infructueuse
+            if is_interview_regime:
+                limitations = list(claim.limitations)
+                limitations.append(
+                    "Citation d'entretien non conforme (Story 015-2) : l'extrait entre guillemets "
+                    "n'a pas été retrouvé en tranche exacte dans les réponses d'entretien "
+                    f"attribuées à '{resolved_claim_agent}' (altération lexicale/numérique ou propos non tenu)."
+                )
+                return replace(
+                    claim,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=InformationOrigin.INFERENCE,
+                    evidence_refs=[],
+                    verification_status=VerificationStatus.UNSUPPORTED,
+                    confidence=min(claim.confidence, 0.5),
+                    limitations=limitations,
+                    provenance_regime=ProvenanceRegime.INTERVIEW,
+                    asserted_as_action=False,
+                )
+
+        # Cas B : Déclarations d'entretien sans guillemets sous régime INTERVIEW (8-grammes)
+        if is_interview_regime:
+            matched_own_turn_ids = []
+            matched_other_turn: Optional[Tuple[str, str]] = None
+
+            if claim_8grams:
+                for sess, t in searchable_turns:
+                    t_agent = (
+                        active_resolver.resolve_name(t.persona_name)
+                        if active_resolver
+                        else t.persona_name
+                    ) or t.persona_name
+                    norm_t_agent = normalize_agent_name(t_agent)
+                    is_own = (norm_claim_agent is None) or (norm_t_agent == norm_claim_agent)
+
+                    t_8grams = get_8grams(t.answer_text)
+                    if claim_8grams & t_8grams and is_own:
+                        if t.turn_id not in matched_own_turn_ids:
+                            matched_own_turn_ids.append(t.turn_id)
+
+                if not matched_own_turn_ids:
+                    for sess, t in all_turns:
+                        t_agent = (
+                            active_resolver.resolve_name(t.persona_name)
+                            if active_resolver
+                            else t.persona_name
+                        ) or t.persona_name
+                        norm_t_agent = normalize_agent_name(t_agent)
+                        is_own = (norm_claim_agent is None) or (norm_t_agent == norm_claim_agent)
+                        t_8grams = get_8grams(t.answer_text)
+                        if claim_8grams & t_8grams and not is_own:
+                            if matched_other_turn is None:
+                                matched_other_turn = (t.persona_name, t.turn_id)
+
+            if matched_own_turn_ids:
+                clean_refs = [r for r in claim.evidence_refs if not r.startswith("evt_")]
+                for tid in matched_own_turn_ids:
+                    if tid not in clean_refs:
+                        clean_refs.append(tid)
+                return replace(
+                    claim,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=InformationOrigin.INFERENCE,
+                    evidence_refs=clean_refs,
+                    verification_status=VerificationStatus.VERIFIED,
+                    limitations=list(claim.limitations),
+                    provenance_regime=ProvenanceRegime.INTERVIEW,
+                    asserted_as_action=False,
+                )
+
+            if matched_other_turn and norm_claim_agent:
+                other_name, other_turn_id = matched_other_turn
+                limitations = list(claim.limitations)
+                limitations.append(
+                    f"Contradiction d'attribution d'entretien (Story 015-2) : les propos tenus "
+                    f"correspondent au tour de parole de '{other_name}' (turn_id '{other_turn_id}'), non à '{resolved_claim_agent}'."
+                )
+                return replace(
+                    claim,
+                    claim_kind=ClaimKind.REPORTED_INTENTION,
+                    origin=InformationOrigin.INFERENCE,
+                    evidence_refs=[],
+                    verification_status=VerificationStatus.CONTRADICTED,
+                    confidence=0.0,
+                    limitations=limitations,
+                    provenance_regime=ProvenanceRegime.INTERVIEW,
+                    asserted_as_action=False,
+                )
+
+            # Déclaration d'entretien sans tour de parole individuel vérifié (ou issue du résumé global)
+            limitations = list(claim.limitations)
+            limitations.append(
+                "Entretien non vérifiable par tour individuel (Story 015-2) : aucun tour de parole "
+                f"correspondant n'a été validé pour '{resolved_claim_agent}'."
+            )
+            return replace(
+                claim,
+                claim_kind=ClaimKind.REPORTED_INTENTION,
+                origin=InformationOrigin.INFERENCE,
+                evidence_refs=[],
+                verification_status=VerificationStatus.UNSUPPORTED,
+                confidence=min(claim.confidence, 0.5),
+                limitations=limitations,
+                provenance_regime=ProvenanceRegime.INTERVIEW,
+                asserted_as_action=False,
+            )
+
+        return None
+
+
+    @classmethod
     def verify_simulated_citation(
         cls,
         agent_name: str,
@@ -937,6 +1310,7 @@ class SimulationActionVerifier:
         cohort_table: Optional[Any] = None,
         horizon_hours: Optional[float] = None,
         resolver: Optional[Any] = None,
+        report_interviews: Optional[Any] = None,
     ) -> ReportClaim:
         """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critères C4, C5, C7, C8).
 
@@ -1350,7 +1724,26 @@ class SimulationActionVerifier:
                     asserted_as_action=was_asserted_action,
                 )
 
-        # Si la claim est de type REPORTED_INTENTION
+        # Traitement des claims d'entretien ou d'intention (Story 015-2, D7) :
+        has_explicit_interview = (
+            claim.provenance_regime == ProvenanceRegime.INTERVIEW
+            or str(getattr(claim.provenance_regime, "value", claim.provenance_regime)) == "interview"
+            or any(r.startswith("ivw_") for r in claim.evidence_refs)
+            or bool(re.search(r"\b(ivw_[a-z0-9_]+)\b", claim.text))
+        )
+
+        # Si la claim cible explicitement un entretien, priorité à l'authentification d'entretien
+        if has_explicit_interview and report_interviews is not None and not was_asserted_action:
+            ivw_verified = cls.verify_interview_citation(
+                claim=claim,
+                report_interviews=report_interviews,
+                resolver=resolver,
+            )
+            if ivw_verified is not None:
+                return ivw_verified
+
+        # Si la claim est de type REPORTED_INTENTION :
+        # Priorité de vérification aux événements simulés réels dans evidence_pack (D7)
         if claim.claim_kind == ClaimKind.REPORTED_INTENTION:
             if claim.agent_name and evidence_pack:
                 # Vérifier si l'agent a au moins émis un message
@@ -1373,6 +1766,17 @@ class SimulationActionVerifier:
                         limitations=list(claim.limitations),
                         asserted_as_action=was_asserted_action,
                     )
+
+            # Rattrapage d'entretien (Story 015-2, D7) : si la déclaration n'a pas été trouvée
+            # dans evidence_pack, vérifier si elle provient d'une réponse d'entretien.
+            if report_interviews is not None and not was_asserted_action:
+                ivw_verified = cls.verify_interview_citation(
+                    claim=claim,
+                    report_interviews=report_interviews,
+                    resolver=resolver,
+                )
+                if ivw_verified is not None:
+                    return ivw_verified
 
             # Intention sans citation vérifiable
             limitations = list(claim.limitations)

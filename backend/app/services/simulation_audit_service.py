@@ -343,8 +343,8 @@ class SimulationAuditService:
         else:
             files["report_claims.json"] = json.dumps({"simulation_id": self.simulation_id, "claims": []}, indent=2).encode("utf-8")
 
-        # 7 bis. report_interviews.json (entretiens de rédaction, Story 014-1) —
-        # hors du paquet figé, mais présent dans le dossier du rapport.
+        # 7 bis. report_interviews.json (entretiens de rédaction, Story 014-1 ; Story 015-2 v2) —
+        # hors du paquet figé, mais présent dans le dossier du rapport et dans checksums.sha256.
         interviews_path = ""
         if rep_dir:
             interviews_path = os.path.join(rep_dir, "report_interviews.json")
@@ -353,7 +353,13 @@ class SimulationAuditService:
                 files["report_interviews.json"] = f.read()
         else:
             files["report_interviews.json"] = json.dumps(
-                {"report_id": self.report_id or "", "interviews": []}, indent=2
+                {
+                    "schema_version": "2.0",
+                    "simulation_id": self.simulation_id,
+                    "report_id": self.report_id or "",
+                    "sessions": [],
+                },
+                indent=2,
             ).encode("utf-8")
 
         # 8. quality_checks.json (priorité rep_dir)

@@ -1256,8 +1256,9 @@ class ReportAgent:
         # Observations d'outils conservées en mémoire pour l'attribution du régime
         # de provenance (Story 014-1, T4, décision 8).
         self._tool_observations = []
-        # Entretiens de rédaction collectés pour report_interviews.json (T7).
+        # Entretiens de rédaction collectés pour report_interviews.json (T7, Story 015-2).
         self._interview_records = []
+        self._interview_sessions = []
         
         # 工具定义
         self.tools = self._define_tools()
@@ -1669,17 +1670,106 @@ class ReportAgent:
                 try:
                     if not hasattr(self, "_interview_records"):
                         self._interview_records = []
-                    agents = []
-                    for a in getattr(result, "selected_agents", []) or []:
-                        if isinstance(a, dict):
-                            agents.append(str(a.get("realname") or a.get("username") or ""))
+                    if not hasattr(self, "_interview_sessions"):
+                        self._interview_sessions = []
+
+                    from datetime import datetime, timezone
+                    import hashlib
+                    from ..models.cohort_coverage import AgentIdentityResolver
+                    from ..models.report_interviews import (
+                        InterviewQuoteSpan,
+                        InterviewSession,
+                        InterviewTurn,
+                        extract_quote_spans_from_answer,
+                    )
+                    from .simulation_manager import SimulationManager
+
+                    # Résolveur d'identité canonique pour les répondants
+                    resolver = None
+                    try:
+                        sim_mgr = SimulationManager()
+                        act_sel = sim_mgr.get_actor_selection(self.simulation_id)
+                        resolver = AgentIdentityResolver(
+                            simulation_id=self.simulation_id,
+                            actor_selection=act_sel,
+                        )
+                    except Exception:
+                        resolver = None
+
+                    session_index = len(self._interview_sessions) + 1
+                    effective_mode = str(
+                        getattr(result, "replay_mode", None)
+                        or getattr(self, "replay_mode", None)
+                        or "live"
+                    ).strip().lower()
+                    if effective_mode not in ("live", "offline_archive", "replay_frozen"):
+                        effective_mode = "live"
+
+                    subject_clean = str(interview_topic or f"Session {session_index}").strip()
+                    h_8 = hashlib.sha256(
+                        f"{self.simulation_id}|{getattr(self, '_current_report_id', '')}|{session_index}|{subject_clean}".encode("utf-8")
+                    ).hexdigest()[:8]
+                    interview_id = f"ivw_{session_index:02d}_{h_8}"
+                    recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    turns: List[InterviewTurn] = []
+                    raw_interviews = getattr(result, "interviews", []) or []
+
+                    for t_idx, iv in enumerate(raw_interviews, 1):
+                        turn_id = f"{interview_id}_t{t_idx:02d}"
+                        raw_aid = getattr(iv, "agent_id", None)
+                        try:
+                            turn_agent_id = int(raw_aid) if raw_aid is not None else None
+                        except (ValueError, TypeError):
+                            turn_agent_id = None
+
+                        raw_pname = str(getattr(iv, "agent_name", "") or f"Agent_{t_idx}").strip()
+                        canonical_pname = raw_pname
+                        if resolver:
+                            if turn_agent_id is not None and turn_agent_id in resolver.id_to_name:
+                                canonical_pname = resolver.id_to_name[turn_agent_id]
+                            else:
+                                resolved = resolver.resolve_name(raw_pname)
+                                if resolved:
+                                    canonical_pname = resolved
+
+                        q_text = str(getattr(iv, "question", "") or interview_topic or "")
+                        a_text = str(getattr(iv, "response", "") or "")
+                        candidate_quotes = list(getattr(iv, "key_quotes", []) or [])
+
+                        spans = extract_quote_spans_from_answer(a_text, candidate_quotes)
+                        turn = InterviewTurn(
+                            turn_id=turn_id,
+                            turn_index=t_idx,
+                            agent_id=turn_agent_id,
+                            persona_name=canonical_pname,
+                            question=q_text,
+                            answer_text=a_text,
+                            key_quotes=spans,
+                        )
+                        turns.append(turn)
+
+                    session_questions = list(getattr(result, "interview_questions", []) or ([subject_clean] if subject_clean else []))
+                    session = InterviewSession(
+                        interview_id=interview_id,
+                        session_index=session_index,
+                        subject=subject_clean,
+                        questions=session_questions,
+                        mode=effective_mode,
+                        recorded_at=recorded_at,
+                        turns=turns,
+                    )
+                    self._interview_sessions.append(session)
+
+                    # Maintenir _interview_records pour compatibilité ascendante v1
+                    agents = [item_turn.persona_name for item_turn in turns]
                     citations = []
-                    for iv in getattr(result, "interviews", []) or []:
-                        citations.extend(list(getattr(iv, "key_quotes", []) or []))
+                    for item_turn in turns:
+                        citations.extend([q.quote for q in item_turn.key_quotes])
                     self._interview_records.append({
-                        "subject": interview_topic,
+                        "subject": subject_clean,
                         "agents": [a for a in agents if a],
-                        "mode": str(getattr(result, "replay_mode", None) or getattr(self, "replay_mode", None) or "live"),
+                        "mode": effective_mode,
                         "citations": citations,
                     })
                 except Exception as _iv_err:
@@ -2485,12 +2575,14 @@ class ReportAgent:
         # 如果没有传入 report_id，则自动生成
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
+        self._current_report_id = report_id
         start_time = datetime.now()
         # Réinitialiser les observations et entretiens de la génération précédente
         # (Story 014-1, P3) : un ReportAgent réutilisé ne doit pas polluer
         # l'attribution du régime ni l'artefact report_interviews.json.
         self._tool_observations = []
         self._interview_records = []
+        self._interview_sessions = []
         profile_obj = self._resolve_effective_profile(self.profile)
         profile_id = str(profile_obj.profile_id) if hasattr(profile_obj, "profile_id") and isinstance(getattr(profile_obj, "profile_id"), (str, int)) else None
         llm_profile_dict = profile_obj.to_dict() if hasattr(profile_obj, "to_dict") and callable(profile_obj.to_dict) and isinstance(profile_obj.to_dict(), dict) else None
@@ -2722,6 +2814,23 @@ class ReportAgent:
             except Exception as cohort_err:
                 logger.warning(f"Avertissement lors de la génération du tableau de cohorte : {cohort_err}")
 
+            # Artefact report_interviews.json v2 écrit AVANT l'audit des claims (Story 015-2, D6, AC8)
+            # Permet à audit_and_save_report_claims d'accéder au journal structuré et d'authentifier les entretiens.
+            try:
+                from ..models.report_interviews import ReportInterviewsPayload
+                sessions = list(getattr(self, "_interview_sessions", []) or [])
+                interviews_payload = ReportInterviewsPayload(
+                    simulation_id=self.simulation_id,
+                    report_id=report_id,
+                    sessions=sessions,
+                    schema_version="2.0",
+                )
+                ReportManager._ensure_report_folder(report_id)
+                interviews_path = ReportManager._get_report_interviews_path(report_id)
+                interviews_payload.save_to_file(interviews_path)
+            except Exception as interviews_err:
+                logger.warning(f"Avertissement lors de l'écriture pré-audit de report_interviews.json : {interviews_err}")
+
             # Audit, vérification et persistance de report_claims.json (Story 011-3, Story 011-4 ; Story 013-3)
             claims_registry = None
             self.usage_tracker.set_phase("claims_reconciliation")
@@ -2807,20 +2916,21 @@ class ReportAgent:
             except Exception as banner_err:
                 logger.warning(f"Avertissement lors de l'écriture de la bannière de provenance : {banner_err}")
 
-            # Artefact report_interviews.json hors du paquet figé (Story 014-1, AC8).
+            # Artefact report_interviews.json v2 finalisé (Story 015-2) : synchronisation miroir
             try:
-                if getattr(self, "_interview_records", None):
-                    ReportManager._ensure_report_folder(report_id)
-                    interviews_path = ReportManager._get_report_interviews_path(report_id)
-                    with open(interviews_path, "w", encoding="utf-8") as f:
-                        json.dump(
-                            self._interview_records,
-                            f,
-                            ensure_ascii=False,
-                            indent=2,
-                        )
+                from ..models.report_interviews import ReportInterviewsPayload
+                sessions = list(getattr(self, "_interview_sessions", []) or [])
+                interviews_payload = ReportInterviewsPayload(
+                    simulation_id=self.simulation_id,
+                    report_id=report_id,
+                    sessions=sessions,
+                    schema_version="2.0",
+                )
+                ReportManager._ensure_report_folder(report_id)
+                interviews_path = ReportManager._get_report_interviews_path(report_id)
+                interviews_payload.save_to_file(interviews_path)
             except Exception as interviews_err:
-                logger.warning(f"Avertissement lors de l'écriture de report_interviews.json : {interviews_err}")
+                logger.warning(f"Avertissement lors de la synchronisation de report_interviews.json : {interviews_err}")
 
             # Barrière de publication ReportQualityGate (Story 011-5, FR-09, C9 ; Story 012-4, Fail-Closed)
             from ..models.report_quality import PublicationStatus, QualityStatus
@@ -3503,6 +3613,7 @@ class ReportAgent:
         )
         round_pattern = re.compile(r"(?:Round|Tour)\s*(\d+)", re.IGNORECASE)
         event_ref_pattern = re.compile(r"\b(evt_[a-z0-9_]+)\b")
+        interview_ref_pattern = re.compile(r"\b(ivw_[a-z0-9_]+)\b")
         doc_ref_pattern = re.compile(r"`([^`]+\.(?:md|txt|pdf|json))`")
 
         current_section = ""
@@ -3541,8 +3652,9 @@ class ReportAgent:
             # qu'il ne pollue ni le texte publié, ni l'attribution.
             clean_text = re.sub(r"\[\[PROVENANCE:[^\]]*\]\]", " ", clean_text).strip()
 
-            # Détecter références d'événements et de documents
+            # Détecter références d'événements, d'entretiens et de documents
             ev_refs = event_ref_pattern.findall(clean_text)
+            ivw_refs = interview_ref_pattern.findall(clean_text)
             doc_refs = doc_ref_pattern.findall(clean_text)
 
             # Retirer les segments entre crochets avant la résolution de nom :
@@ -3663,15 +3775,19 @@ class ReportAgent:
                 claim_kind = ClaimKind.ANALYST_INFERENCE
                 origin = InformationOrigin.INFERENCE
 
-            # Régime de provenance (Story 014-1, T5) : attribution pure, sans LLM.
+            # Régime de provenance (Story 014-1, T5 ; Story 015-2) : attribution pure, sans LLM.
             try:
                 from ..models.provenance_regime import attribute_provenance_regime, ProvenanceRegime
-                regime = attribute_provenance_regime(clean_text, _obs_sources)
+                if ivw_refs:
+                    regime = ProvenanceRegime.INTERVIEW
+                else:
+                    regime = attribute_provenance_regime(clean_text, _obs_sources)
             except Exception:
                 from ..models.provenance_regime import ProvenanceRegime
-                regime = ProvenanceRegime.UNKNOWN
+                regime = ProvenanceRegime.INTERVIEW if ivw_refs else ProvenanceRegime.UNKNOWN
 
             # Une citation d'entretien n'est jamais une action observée.
+            was_asserted_social_action = (claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION)
             is_interview_regime = (
                 regime == ProvenanceRegime.INTERVIEW
                 or str(getattr(regime, "value", regime)) == "interview"
@@ -3680,9 +3796,11 @@ class ReportAgent:
                 claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.INFERENCE
 
-            # Traçabilité d'action affirmée (Story 015-1, D6) :
-            # Capturée APRÈS le filtre d'entretien et AVANT l'inhibition des silencieux.
-            asserted_action_flag = (not is_interview_regime) and (claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION)
+            # Traçabilité d'action affirmée (Story 015-1, D6 ; Story 015-2, AC7) :
+            # Capturée avant l'inhibition des silencieux. Si une action sociale avait été affirmée
+            # dans la formulation textuelle, elle conserve son empreinte asserted_as_action pour
+            # interdire tout blanchiment d'action sociale non observée par une simple citation d'entretien.
+            asserted_action_flag = was_asserted_social_action
 
             # Règle de silence (Story 014-3, AC1, AC4) : un persona silencieux
             # (is_silent == True) ne peut se voir attribuer ni parole, ni décision,
@@ -3716,7 +3834,7 @@ class ReportAgent:
                 except Exception:
                     pass
 
-            all_refs = list(ev_refs) + list(doc_refs)
+            all_refs = list(ev_refs) + list(ivw_refs) + list(doc_refs)
 
             limitations: List[str] = []
             if regime == ProvenanceRegime.UNKNOWN or str(getattr(regime, "value", regime)) == "unknown":
@@ -3914,6 +4032,57 @@ class ReportAgent:
                         doc_dict["text"] = extracted_text
                 canonical_docs.append(doc_dict)
 
+        # Résoudre et persister le journal d'entretiens (Story 015-2) : mémoire ou fichier disque
+        report_interviews_payload = None
+        try:
+            from ..models.report_interviews import ReportInterviewsPayload
+            if rep_id:
+                disk_path = ReportManager._get_report_interviews_path(rep_id)
+                # Si non encore présent sur disque, persister l'enveloppe mémoire (y compris sessions: [])
+                if not os.path.exists(disk_path):
+                    ReportManager._ensure_report_folder(rep_id)
+                    sessions_to_save = list(getattr(self, "_interview_sessions", []) or [])
+                    pre_payload = ReportInterviewsPayload(
+                        simulation_id=self.simulation_id,
+                        report_id=rep_id,
+                        sessions=sessions_to_save,
+                        schema_version="2.0",
+                    )
+                    pre_payload.save_to_file(disk_path)
+                    report_interviews_payload = pre_payload
+
+            if report_interviews_payload is None:
+                if getattr(self, "_interview_sessions", None) is not None:
+                    report_interviews_payload = ReportInterviewsPayload(
+                        simulation_id=self.simulation_id,
+                        report_id=rep_id or "",
+                        sessions=list(self._interview_sessions),
+                        schema_version="2.0",
+                    )
+                elif getattr(self, "_interview_records", None):
+                    report_interviews_payload = ReportInterviewsPayload.from_raw(
+                        self._interview_records,
+                        simulation_id=self.simulation_id,
+                        report_id=rep_id or "",
+                    )
+                elif rep_id:
+                    disk_path = ReportManager._get_report_interviews_path(rep_id)
+                    report_interviews_payload = ReportInterviewsPayload.load_from_file(
+                        disk_path,
+                        simulation_id=self.simulation_id,
+                        report_id=rep_id,
+                    )
+            if report_interviews_payload is None:
+                report_interviews_payload = ReportInterviewsPayload(
+                    simulation_id=self.simulation_id,
+                    report_id=rep_id or "",
+                    sessions=[],
+                    schema_version="2.0",
+                )
+        except Exception as _iv_load_err:
+            logger.debug(f"Journal d'entretiens non chargé pour l'audit des claims : {_iv_load_err}")
+            report_interviews_payload = None
+
         for claim in raw_claims:
             verified = SimulationActionVerifier.verify_report_claim(
                 claim=claim,
@@ -3922,6 +4091,7 @@ class ReportAgent:
                 cohort_table=cohort_table,
                 horizon_hours=horizon_hours,
                 resolver=resolver,
+                report_interviews=report_interviews_payload,
             )
             registry.add_claim(verified)
 

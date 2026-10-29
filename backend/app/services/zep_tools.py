@@ -352,6 +352,7 @@ class AgentInterview:
     question: str  # 采访问题
     response: str  # 采访回答
     key_quotes: List[str] = field(default_factory=list)  # 关键引言
+    agent_id: Optional[int] = None  # Identifiant canonique (Story 015-2)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -360,7 +361,8 @@ class AgentInterview:
             "agent_bio": self.agent_bio,
             "question": self.question,
             "response": self.response,
-            "key_quotes": self.key_quotes
+            "key_quotes": self.key_quotes,
+            "agent_id": self.agent_id,
         }
     
     def to_text(self) -> str:
@@ -440,7 +442,7 @@ class InterviewResult:
     def to_text(self) -> str:
         """转换为详细的文本格式，供LLM理解和报告引用"""
         mode = str(self.replay_mode or "live").strip().lower()
-        if mode not in ("live", "replay_frozen"):
+        if mode not in ("live", "offline_archive", "replay_frozen"):
             mode = "live"
         regime_token = f"[[PROVENANCE:interview;mode:{mode}]]"
         text_parts = [
@@ -1631,7 +1633,19 @@ class ZepToolsService:
                 
                 for i, agent_idx in enumerate(selected_indices):
                     agent = selected_agents[i]
-                    agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
+                    effective_agent_id = agent.get("agent_id") if agent.get("agent_id") is not None else agent.get("user_id", agent_idx)
+                    try:
+                        effective_agent_id = int(effective_agent_id)
+                    except (ValueError, TypeError):
+                        effective_agent_id = agent_idx
+                    raw_name = (
+                        agent.get("realname")
+                        or agent.get("name")
+                        or agent.get("entity_name")
+                        or agent.get("username")
+                        or f"Agent_{effective_agent_id}"
+                    )
+                    agent_name = str(raw_name).strip()
                     agent_role = agent.get("profession", "未知")
                     agent_bio = agent.get("bio", "")
                     
@@ -1662,22 +1676,23 @@ class ZepToolsService:
                     clean_text = re.sub(r'问题\d+[：:]\s*', '', clean_text)
                     clean_text = re.sub(r'【[^】]+】', '', clean_text)
     
-                    # 策略1（主）: 提取完整的有实质内容的句子
-                    sentences = re.split(r'[。！？]', clean_text)
+                    # 策略1（主）: 提取完整的有实质内容的句子（support FR/EN/CJK）
+                    sentences = re.split(r'[。！？\.\n]', clean_text)
                     meaningful = [
                         s.strip() for s in sentences
-                        if 20 <= len(s.strip()) <= 150
+                        if 15 <= len(s.strip()) <= 150
                         and not re.match(r'^[\s\W，,；;：:、]+', s.strip())
-                        and not s.strip().startswith(('{', '问题'))
+                        and not s.strip().startswith(('{', '问题', '【', '['))
                     ]
                     meaningful.sort(key=len, reverse=True)
-                    key_quotes = [s + "。" for s in meaningful[:3]]
-    
-                    # 策略2（补充）: 正确配对的中文引号「」内长文本
+                    key_quotes = [s for s in meaningful[:3] if s in clean_text]
+
+                    # 策略2（补充）: 正确配对的中文引号「」或 “ ” 内长文本
                     if not key_quotes:
                         paired = re.findall(r'\u201c([^\u201c\u201d]{15,100})\u201d', clean_text)
                         paired += re.findall(r'\u300c([^\u300c\u300d]{15,100})\u300d', clean_text)
-                        key_quotes = [q for q in paired if not re.match(r'^[，,；;：:、]', q)][:3]
+                        paired += re.findall(r'«([^»]{15,100})»', clean_text)
+                        key_quotes = [q.strip() for q in paired if not re.match(r'^[，,；;：:、]', q.strip())][:3]
                     
                     interview = AgentInterview(
                         agent_name=agent_name,
@@ -1685,7 +1700,8 @@ class ZepToolsService:
                         agent_bio=agent_bio[:1000],  # 扩大bio长度限制
                         question=combined_prompt,
                         response=response_text,
-                        key_quotes=key_quotes[:5]
+                        key_quotes=key_quotes[:5],
+                        agent_id=effective_agent_id,
                     )
                     result.interviews.append(interview)
                 
@@ -1696,6 +1712,8 @@ class ZepToolsService:
                 logger.info(
                     f"Environnement OASIS non actif ({e}) : bascule vers le repli d'interview hors-ligne contextuel (Story 011-1, AC4)"
                 )
+                if result.replay_mode != "replay_frozen":
+                    result.replay_mode = "offline_archive"
                 self._synthesize_offline_interviews(
                     simulation_id=simulation_id,
                     selected_agents=selected_agents,
@@ -1764,7 +1782,19 @@ class ZepToolsService:
 
         for i, agent_idx in enumerate(selected_indices):
             agent = selected_agents[i] if i < len(selected_agents) else {}
-            agent_name = agent.get("realname", agent.get("username", f"Agent_{agent_idx}"))
+            effective_agent_id = agent.get("agent_id") if agent.get("agent_id") is not None else agent.get("user_id", agent_idx)
+            try:
+                effective_agent_id = int(effective_agent_id)
+            except (ValueError, TypeError):
+                effective_agent_id = agent_idx
+            raw_name = (
+                agent.get("realname")
+                or agent.get("name")
+                or agent.get("entity_name")
+                or agent.get("username")
+                or f"Agent_{effective_agent_id}"
+            )
+            agent_name = str(raw_name).strip()
             agent_role = agent.get("profession") or "Non spécifié"
             agent_bio = agent.get("bio", "")
             agent_persona = agent.get("persona", "")
@@ -1819,8 +1849,8 @@ class ZepToolsService:
                 f"【Reddit - Mode archives / Hors-ligne】\n{offline_reddit_resp}"
             )
 
-            # Extraire key_quotes en préservant une ponctuation propre
-            sentences = re.split(r'[。！？\.\n]', offline_twitter_resp)
+            # Extraire key_quotes en préservant une ponctuation propre et exacte
+            sentences = re.split(r'(?<=[。！？\.\n])\s*', offline_twitter_resp)
             key_quotes = []
             for s in sentences:
                 clean_s = s.strip()
@@ -1838,6 +1868,7 @@ class ZepToolsService:
                 question=combined_prompt,
                 response=response_text,
                 key_quotes=key_quotes,
+                agent_id=effective_agent_id,
             )
             result.interviews.append(interview)
 
@@ -1910,9 +1941,16 @@ class ZepToolsService:
         # 构建Agent摘要列表
         agent_summaries = []
         for i, profile in enumerate(profiles):
+            raw_name = (
+                profile.get("realname")
+                or profile.get("name")
+                or profile.get("entity_name")
+                or profile.get("username")
+                or f"Agent_{i}"
+            )
             summary = {
                 "index": i,
-                "name": profile.get("realname", profile.get("username", f"Agent_{i}")),
+                "name": str(raw_name).strip(),
                 "profession": profile.get("profession", "未知"),
                 "bio": profile.get("bio", "")[:200],
                 "interested_topics": profile.get("interested_topics", [])
