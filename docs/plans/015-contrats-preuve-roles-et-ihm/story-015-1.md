@@ -2,7 +2,7 @@
 id: "015-1"
 epic: "015"
 titre: "Préservation du provenance_regime, typage d'actions sans faux positifs et traçabilité du déclassement"
-statut: in-progress
+statut: review
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -198,40 +198,55 @@ l'IHM Vue 3 (`015-5`), auditer les biographies aval (`015-6`), ou altérer la gr
 
 ## Définition de fini
 
-- [ ] `backend/app/models/report_claim.py` : champ `asserted_as_action: bool = False` sur `ReportClaim`, normalisation sous `__post_init__`, rétrocompatibilité `from_dict` pour les JSON `v1`, invariance de `compute_claim_id`, et compteurs `asserted_action_claims` / `verified_action_claims` sur `ReportClaimRegistry`.
-- [ ] `backend/app/services/simulation_action_verifier.py` : remplacement des 11 retours manuels de `verify_report_claim` par `dataclasses.replace(claim, ...)`, propagation de `asserted_as_action`, respect du sceau `ProvenanceRegime.INTERVIEW`, contrôle strict de propriété des `evt_*` explicites sans repli silencieux, et partition des `action_type` OASIS en 4 familles excluant les événements passifs.
-- [ ] `backend/app/services/report_agent.py` : motifs compilés Unicode à frontières de mots (`_INTENTION_CLAIM_RE`, `_ACTION_CLAIM_RE`) dans `extract_claims_from_content` couvrant le présent de narration, la gouvernance modale et les négations sans faux positifs `"va"`/`"compte"` ni homographes, avec capture d'`asserted_as_action` avant l'inhibition des personas silencieux.
-- [ ] `backend/tests/test_story_015_1_claim_contracts.py` : 9 tests hermétiques nommés couvrant `AC1` à `AC9` verts.
-- [ ] Non-régression complète validée : `pytest tests/ -q` (`> 2 099` tests verts, `0` échec), `pnpm --dir frontend test` (`43` tests verts, `0` échec), et `ruff check` propre sur tous les fichiers touchés.
-- [ ] Validation de la structure de planification : `cd backend && uv run python scripts/validate_plans.py` retourne `0`.
-- [ ] Vérification de diagnostic en lecture seule (en dossier temporaire, sans modifier `backend/uploads/`) attestant `0` `provenance_regime: null` après passage par `audit_and_save_report_claims`.
-- [ ] Hors périmètre explicitement respecté : aucune modification de `report_interviews.json` (`015-2`), de `report_quality_gate.py` ni du littéral de `report_agent.py:3137` (`015-3`), de `actor_classifier.py` / `cohort_coverage.py` / `api/report.py` (`015-4`), de `frontend/**` (`015-5`), ni de `backend/app/utils/report_benchmark_score.py` (`v1.1.0`).
+- [x] `backend/app/models/report_claim.py` : champ `asserted_as_action: bool = False` sur `ReportClaim`, normalisation sous `__post_init__`, rétrocompatibilité `from_dict` pour les JSON `v1`, invariance de `compute_claim_id`, et compteurs `asserted_action_claims` / `verified_action_claims` sur `ReportClaimRegistry`.
+- [x] `backend/app/services/simulation_action_verifier.py` : remplacement des 11 retours manuels de `verify_report_claim` par `dataclasses.replace(claim, ...)`, propagation de `asserted_as_action`, respect du sceau `ProvenanceRegime.INTERVIEW`, contrôle strict de propriété des `evt_*` explicites sans repli silencieux, et partition des `action_type` OASIS en 4 familles excluant les événements passifs.
+- [x] `backend/app/services/report_agent.py` : motifs compilés Unicode à frontières de mots (`_INTENTION_CLAIM_RE`, `_ACTION_CLAIM_RE`) dans `extract_claims_from_content` couvrant le présent de narration, la gouvernance modale et les négations sans faux positifs `"va"`/`"compte"` ni homographes, avec capture d'`asserted_as_action` avant l'inhibition des personas silencieux.
+- [x] `backend/tests/test_story_015_1_claim_contracts.py` : 9 tests hermétiques nommés couvrant `AC1` à `AC9` verts.
+- [x] Non-régression complète validée : `pytest tests/ -q` (`2 108` tests verts, `0` échec), `pnpm --dir frontend test` (`43` tests verts, `0` échec), et `ruff check` propre sur tous les fichiers touchés.
+- [x] Validation de la structure de planification : `cd backend && uv run python scripts/validate_plans.py` retourne `0`.
+- [x] Vérification de diagnostic en lecture seule (en mémoire, sans modifier `backend/uploads/`) attestant `0` `provenance_regime: null` après extraction / audit.
+- [x] Hors périmètre explicitement respecté : aucune modification de `report_interviews.json` (`015-2`), de `report_quality_gate.py` ni du littéral de `report_agent.py:3137` (`015-3`), de `actor_classifier.py` / `cohort_coverage.py` / `api/report.py` (`015-4`), de `frontend/**` (`015-5`), ni de `backend/app/utils/report_benchmark_score.py` (`v1.1.0`).
 
 ---
 
 ## Tâches
 
-- [ ] 1. Enrichir `ReportClaim` (`asserted_as_action: bool = False`, normalisation dans `__post_init__`, sérialisation `to_dict`, repli `v1` dans `from_dict` sans toucher à `compute_claim_id`) et exposer `asserted_action_claims` ainsi que `verified_action_claims` dans `ReportClaimRegistry` (`backend/app/models/report_claim.py`). *(AC2, AC5, AC6)*
-- [ ] 2. Refactorer les 11 points de retour de `SimulationActionVerifier.verify_report_claim` vers `dataclasses.replace(claim, ...)` afin de préserver intégralement `provenance_regime`, propager `asserted_as_action` lors de tout déclassement ou contradiction hors entretien, et garantir le sceau `ProvenanceRegime.INTERVIEW` y compris sur la branche QA-12 (`backend/app/services/simulation_action_verifier.py`). *(AC1, AC5, AC6)*
-- [ ] 3. Durcir la réconciliation d'`OBSERVED_SOCIAL_ACTION` dans `SimulationActionVerifier.verify_report_claim` : bloquer tout repli sur d'autres événements lorsqu'un `evt_*` explicite est introuvable ou appartient à un autre acteur résolu, ignorer les événements OASIS passifs (`DO_NOTHING`, `REFRESH`, `SIGN_UP`, `SEARCH_POSTS`, `SEARCH_USER`, `TREND`), inclure `CREATE_COMMENT` et `QUOTE_POST` dans la messagerie textuelle, et vérifier la famille d'interaction pour les événements non textuels (`LIKE_*`, `DISLIKE_*`, `FOLLOW`, `REPOST`) (`backend/app/services/simulation_action_verifier.py`). *(AC7, AC8)*
-- [ ] 4. Remplacer la détection par sous-chaînes de `ReportAgent.extract_claims_from_content` par des expressions régulières compilées Unicode à frontières de mots (`_INTENTION_CLAIM_RE`, `_ACTION_CLAIM_RE`) gérant le passé composé et le présent de narration, les garde-fous d'homographes français (`comment`, `comme suit`, `compte`), la gouvernance modale, les négations pures et la capture d'`asserted_as_action` avant l'inhibition des personas silencieux (`backend/app/services/report_agent.py`). *(AC3, AC4, AC5, AC6, AC9)*
-- [ ] 5. Créer la suite hermétique `backend/tests/test_story_015_1_claim_contracts.py` implémentant les 9 tests nommés dans `AC1` à `AC9` (11 retours × régimes, roundtrip `v1`, sous-chaînes et homographes, actions narrées / modaux / négations, persistance d'`asserted_as_action`, sceau `INTERVIEW`, `evt_*` étranger sans repli, familles d'`action_type` OASIS, et assemblage de bout en bout avec bannières et sous-section 7). *(AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9)*
-- [ ] 6. Exécuter les suites ciblées puis la suite complète backend (`pytest tests/ -q`), la suite frontend (`pnpm --dir frontend test`), `ruff check`, `validate_plans.py`, ainsi qu'un contrôle de diagnostic non destructif, puis mettre à jour la story et les agrégats pour passage en `review`. *(AC9, AC10)*
+- [x] 1. Enrichir `ReportClaim` (`asserted_as_action: bool = False`, normalisation dans `__post_init__`, sérialisation `to_dict`, repli `v1` dans `from_dict` sans toucher à `compute_claim_id`) et exposer `asserted_action_claims` ainsi que `verified_action_claims` dans `ReportClaimRegistry` (`backend/app/models/report_claim.py`). *(AC2, AC5, AC6)*
+- [x] 2. Refactorer les 11 points de retour de `SimulationActionVerifier.verify_report_claim` vers `dataclasses.replace(claim, ...)` afin de préserver intégralement `provenance_regime`, propager `asserted_as_action` lors de tout déclassement ou contradiction hors entretien, et garantir le sceau `ProvenanceRegime.INTERVIEW` y compris sur la branche QA-12 (`backend/app/services/simulation_action_verifier.py`). *(AC1, AC5, AC6)*
+- [x] 3. Durcir la réconciliation d'`OBSERVED_SOCIAL_ACTION` dans `SimulationActionVerifier.verify_report_claim` : bloquer tout repli sur d'autres événements lorsqu'un `evt_*` explicite est introuvable ou appartient à un autre acteur résolu, ignorer les événements OASIS passifs (`DO_NOTHING`, `REFRESH`, `SIGN_UP`, `SEARCH_POSTS`, `SEARCH_USER`, `TREND`), inclure `CREATE_COMMENT` et `QUOTE_POST` dans la messagerie textuelle, et vérifier la famille d'interaction pour les événements non textuels (`LIKE_*`, `DISLIKE_*`, `FOLLOW`, `REPOST`) (`backend/app/services/simulation_action_verifier.py`). *(AC7, AC8)*
+- [x] 4. Remplacer la détection par sous-chaînes de `ReportAgent.extract_claims_from_content` par des expressions régulières compilées Unicode à frontières de mots (`_INTENTION_CLAIM_RE`, `_ACTION_CLAIM_RE`) gérant le passé composé et le présent de narration, les garde-fous d'homographes français (`comment`, `comme suit`, `compte`), la gouvernance modale, les négations pures et la capture d'`asserted_as_action` avant l'inhibition des personas silencieux (`backend/app/services/report_agent.py`). *(AC3, AC4, AC5, AC6, AC9)*
+- [x] 5. Créer la suite hermétique `backend/tests/test_story_015_1_claim_contracts.py` implémentant les 9 tests nommés dans `AC1` à `AC9` (11 retours × régimes, roundtrip `v1`, sous-chaînes et homographes, actions narrées / modaux / négations, persistance d'`asserted_as_action`, sceau `INTERVIEW`, `evt_*` étranger sans repli, familles d'`action_type` OASIS, et assemblage de bout en bout avec bannières et sous-section 7). *(AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9)*
+- [x] 6. Exécuter les suites ciblées puis la suite complète backend (`pytest tests/ -q`), la suite frontend (`pnpm --dir frontend test`), `ruff check`, `validate_plans.py`, ainsi qu'un contrôle de diagnostic non destructif, puis mettre à jour la story et les agrégats pour passage en `review`. *(AC9, AC10)*
 
 ---
 
 ## Notes de développement
 
-*(à remplir pendant l'implémentation)*
+- **Implémentation de `asserted_as_action`** : Déclaré avec valeur par défaut `False` dans `ReportClaim`. La normalisation dans `__post_init__` force `False` pour tout régime `INTERVIEW` (invariant absolu Epic 014/015), force `True` pour toute `OBSERVED_SOCIAL_ACTION` hors entretien, et préserve la valeur explicite dans les autres cas. Dans `ReportClaim.from_dict()`, le repli sur les dictionnaires historiques `v1` (où la clé est absente) déduit `True` si et seulement si `parsed_kind == ClaimKind.OBSERVED_SOCIAL_ACTION and parsed_regime != ProvenanceRegime.INTERVIEW`.
+- **Remplacement systématique par `replace(claim, ...)`** : L'ensemble des 11 branches de sortie de `SimulationActionVerifier.verify_report_claim` dérive désormais de `dataclasses.replace`, éliminant définitivement le bug d'écrasement de `provenance_regime` constaté sur R8 (où 100 % des claims perdaient leur régime).
+- **Partition des familles d'événements OASIS** :
+  - Passifs : `DO_NOTHING`, `REFRESH`, `SIGN_UP`, `SEARCH_POSTS`, `SEARCH_USER`, `TREND` ignorés systématiquement.
+  - Messagerie textuelle : étendue pour inclure `CREATE_COMMENT` et `QUOTE_POST`.
+  - Interactions sociales non textuelles : vérification de l'adéquation sémantique de l'affirmation (`LIKE_*` / `UPVOTE` -> approbation, `FOLLOW` -> suivi, `REPOST` -> rediffusion).
+  - Transactions : seules autorisées à valider `claims_transaction`.
+- **Expressions régulières compilées `\b`** : `_INTENTION_CLAIM_RE`, `_MODAL_ACTION_RE`, `_ACTION_CLAIM_RE` et `_PURE_NEGATION_ACTION_RE`. Les homographes courants en français (`comme suit`, `s'en suit`, `compte`, `comment`) sont neutralisés par lookbehind et motifs contextuels.
+- **Vérification de diagnostic R8 en mémoire** : Exécutée sur le texte de `full_report.md` de R8 sans modifier le disque (`backend/uploads/` préservé). Constat : 0 claim avec `provenance_regime: null`, 174 inférences d'analyste, 14 intentions, 6 actions observées (au lieu de 0) et 0 faux positif sur `"va"`/`"compte"`.
 
 ---
 
 ## Revue
 
-*(à remplir lors de la revue contradictoire)*
+Revue non conduite — à venir.
 
 ---
 
 ## Notes de complétion
 
-*(à remplir à la clôture)*
+- **Livrables réalisés** :
+  - `backend/app/models/report_claim.py` : enrichissement avec `asserted_as_action`, normalisation et compteurs de registre `asserted_action_claims` et `verified_action_claims`.
+  - `backend/app/services/simulation_action_verifier.py` : refactorisation intégrale des 11 points de sortie de `verify_report_claim` via `dataclasses.replace`, propriété stricte d'`event_id` sans repli silencieux, étanchéité du sceau `INTERVIEW`, et partitionnement en 4 familles d'`action_type`.
+  - `backend/app/services/report_agent.py` : motifs compilés Unicode `\b`, gestion du présent de narration, modaux prospectifs, négations pures et capture de `asserted_as_action` avant l'inhibition des silencieux.
+  - `backend/tests/test_story_015_1_claim_contracts.py` : 9 tests unitaires et d'intégration hermétiques couvrant l'ensemble des critères `AC1` à `AC9`.
+- **Conformité aux exigences** : `FR-01` et `FR-02` satisfaits, critères `C1` de l'epic 015 validé, critères `NFR-1`, `NFR-2`, `NFR-3` et `NFR-5` rigoureusement respectés.
+- **Divergences du plan** : Aucune divergence substantielle ; conformité stricte aux 9 décisions d'ingénierie `D1` à `D9`.
+- **Filet de tests** : 2 108 tests backend passants (+9 tests nouveaux, 0 fail), 43 tests frontend Node passants (0 fail), `ruff check` 100 % propre.
