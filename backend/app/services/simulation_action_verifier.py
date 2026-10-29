@@ -258,6 +258,28 @@ class SimulationActionVerifier:
         ),
     ]
 
+    # Motifs compilés Unicode pour la concordance des familles d'interaction (Story 015-1, D8 / BMAD)
+    APPROVAL_CLAIM_RE = re.compile(
+        r"\b(?<!n['’])(?<!ne\s)(?:aime|aiment|aimé|liké|like|upvote|approuve|approuvé|likes|liked|upvoted|approved)\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+    DISAPPROVAL_CLAIM_RE = re.compile(
+        r"\b(?:désapprouve|désapprouvent|downvote|downvotes|downvoted|dislike|dislikes|disliked|n['’]aime\s+pas|n['’]aiment\s+pas|n['’]a\s+pas\s+aimé|n['’]ont\s+pas\s+aimé)\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+    FOLLOW_CLAIM_RE = re.compile(
+        r"\b(?<!comme\s)(?<!s['’]en\s)(?<!ce qui\s)(?<!qui\s)(?:(?:le|la|les)\s+suit|(?:suit|suivent)\s+(?:le\s+compte|la\s+page|[A-ZÀ-ÖØ-ß][\wÀ-ÿ'-]+)|suivi|s['’]abonne|s['’]abonnent|abonné|abonnée|abonnés|abonnées|follows?|followed)\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+    UNFOLLOW_CLAIM_RE = re.compile(
+        r"\b(?:ne\s+suit\s+plus|ne\s+suivent\s+plus|n['’]a\s+pas\s+suivi|n['’]ont\s+pas\s+suivi|s['’]est\s+désabonné|s['’]est\s+désabonnée|se\s+sont\s+désabonnés|se\s+désabonne|se\s+désabonnent|désabonné|désabonnée|désabonnés|unfollows?|unfollowed|mutes?|muted)\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+    REPOST_CLAIM_RE = re.compile(
+        r"\b(?:republie|republient|republié|repost|reposts|reposté|retweet|retweets|retweeté|partage|partagent|partagé)\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+
     def __init__(self, simulation_id: Optional[str] = None):
         self.simulation_id = simulation_id or "default"
         self._action_cache: Dict[str, List[ActionEventRecord]] = {}
@@ -1182,22 +1204,16 @@ class SimulationActionVerifier:
             messaging_event_types = {"CREATE_POST", "POST", "TWEET", "COMMENT", "CREATE_COMMENT", "QUOTE_POST", "MESSAGE"}
             approval_event_types = {"LIKE_POST", "LIKE_COMMENT", "UPVOTE", "UPVOTE_POST", "UPVOTE_COMMENT"}
             disapproval_event_types = {"DISLIKE_POST", "DISLIKE_COMMENT", "DOWNVOTE", "DOWNVOTE_POST", "DOWNVOTE_COMMENT"}
-            follow_event_types = {"FOLLOW", "UNFOLLOW", "MUTE"}
+            follow_event_types = {"FOLLOW"}
+            unfollow_event_types = {"UNFOLLOW", "MUTE"}
             repost_event_types = {"REPOST", "RETWEET"}
             transaction_event_types = {"SUBSCRIBE", "BUY", "PURCHASE", "ORDER", "PAY"}
 
-            claim_expresses_approval = any(k in claim_text_lower for k in (
-                "aime", "aiment", "aimé", "liké", "like", "upvote", "approuve", "approuvé"
-            ))
-            claim_expresses_disapproval = any(k in claim_text_lower for k in (
-                "désapprouve", "downvote", "dislike", "n'aime pas"
-            ))
-            claim_expresses_follow = any(k in claim_text_lower for k in (
-                "suit", "suivi", "s'abonne", "abonné", "follow", "followed"
-            )) and not any(k in claim_text_lower for k in ("comme suit", "s'en suit", "s’en suit"))
-            claim_expresses_repost = any(k in claim_text_lower for k in (
-                "republie", "republié", "repost", "reposté", "retweet", "retweeté", "partage", "partagé"
-            ))
+            claim_expresses_disapproval = bool(cls.DISAPPROVAL_CLAIM_RE.search(claim.text))
+            claim_expresses_approval = bool(cls.APPROVAL_CLAIM_RE.search(claim.text)) and not claim_expresses_disapproval
+            claim_expresses_unfollow = bool(cls.UNFOLLOW_CLAIM_RE.search(claim.text))
+            claim_expresses_follow = bool(cls.FOLLOW_CLAIM_RE.search(claim.text)) and not claim_expresses_unfollow
+            claim_expresses_repost = bool(cls.REPOST_CLAIM_RE.search(claim.text))
 
             for ev in candidate_events:
                 ev_type = ev.action_type.upper()
@@ -1273,24 +1289,30 @@ class SimulationActionVerifier:
                 elif ev_type in follow_event_types:
                     if claims_transaction or not claim_expresses_follow:
                         continue
+                elif ev_type in unfollow_event_types:
+                    if claims_transaction or not claim_expresses_unfollow:
+                        continue
                 elif ev_type in repost_event_types:
                     if claims_transaction or not claim_expresses_repost:
                         continue
 
                 # 4. Transactions métier dédiées (D8.4)
                 elif ev_type in transaction_event_types:
-                    # Une transaction valide claims_transaction ou une action générique compatible
-                    pass
-                else:
-                    # Événement inconnu non-messaging : ne valide pas une transaction
-                    if claims_transaction:
+                    if not claims_transaction:
                         continue
+                else:
+                    # Événement inconnu ou non supporté : rejet strict fail-closed (D8)
+                    continue
 
                 has_valid_event = True
                 matching_events.append(ev)
 
             if has_valid_event:
-                new_refs = list(valid_evidence_refs) if evidence_pack else list(claim.evidence_refs)
+                clean_refs = [r for r in claim.evidence_refs if not str(r).startswith("evt_")]
+                new_refs = list(clean_refs)
+                for ref in valid_evidence_refs:
+                    if ref not in new_refs:
+                        new_refs.append(ref)
                 for ev in matching_events:
                     if ev.event_id not in new_refs:
                         new_refs.append(ev.event_id)

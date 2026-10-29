@@ -2,7 +2,7 @@
 id: "015-1"
 epic: "015"
 titre: "Préservation du provenance_regime, typage d'actions sans faux positifs et traçabilité du déclassement"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -236,7 +236,28 @@ l'IHM Vue 3 (`015-5`), auditer les biographies aval (`015-6`), ou altérer la gr
 
 ## Revue
 
-Revue non conduite — à venir.
+### Review Findings
+
+- [x] [Review][Patch] Utiliser des expressions régulières compilées \b au lieu de sous-chaînes brutes pour les familles d'interaction OASIS [backend/app/services/simulation_action_verifier.py:1189-1200]
+- [x] [Review][Patch] Dissocier UNFOLLOW et MUTE de FOLLOW dans follow_event_types [backend/app/services/simulation_action_verifier.py:1185,1273]
+- [x] [Review][Patch] Fermer la faille fail-open else: pour les événements OASIS inconnus [backend/app/services/simulation_action_verifier.py:1284-1288]
+- [x] [Review][Patch] Exiger claims_transaction pour les événements transaction_event_types [backend/app/services/simulation_action_verifier.py:1281-1283]
+- [x] [Review][Patch] Prioriser has_action_match sur has_modal_action lors d'actions accomplies introduisant un modal [backend/app/services/report_agent.py:3636-3642]
+- [x] [Review][Patch] Couvrir les négations au présent de narration dans _PURE_NEGATION_ACTION_RE [backend/app/services/report_agent.py:110-123]
+- [x] [Review][Patch] Ajouter les formes plurielles de narration (citent, aiment, suivent) dans _ACTION_CLAIM_RE [backend/app/services/report_agent.py:98-102]
+- [x] [Review][Patch] Étendre les particules de négation (plus, rien, guère) et verbes sociaux dans _PURE_NEGATION_ACTION_RE [backend/app/services/report_agent.py:110-123]
+- [x] [Review][Patch] Ajouter le contrôle de l'insertion de la bannière dans le test d'assemblage e2e [backend/tests/test_story_015_1_claim_contracts.py:586-637]
+- [x] [Review][Patch] Relâcher le seuil de longueur de verbe dans _INTENTION_CLAIM_RE pour les verbes courts (dire, voir, lire, agir) [backend/app/services/report_agent.py:61,67]
+- [x] [Review][Patch] Neutraliser le lookbehind 'qui suit' et l'insensibilité à la casse sur [A-Z] dans _ACTION_CLAIM_RE [backend/app/services/report_agent.py:102]
+- [x] [Review][Patch] Préserver les références non-evt_* (sources documentaires, entretiens) dans new_refs de verify_report_claim [backend/app/services/simulation_action_verifier.py:1293]
+- [x] [Review][Patch] Forcer claim_kind = REPORTED_INTENTION si provenance_regime == INTERVIEW dans ReportClaim.__post_init__ [backend/app/models/report_claim.py:161-163]
+- [x] [Review][Defer] Résolution et validation du ciblage (target user / post ID) des événements sociaux non-textuels (LIKE_POST, FOLLOW) [backend/app/services/simulation_action_verifier.py:1267] — deferred: architecture préexistante d'OASIS, hors du périmètre strict de Story 015-1 qui se concentre sur les 4 familles d'interactions et l'exclusion des passifs.
+
+#### Rejected
+
+- Rejet `low` : Narration anglaise au présent dans `_ACTION_CLAIM_RE` (BH-14) — le corpus analytique et les récits de simulation en anglais emploient quasi-exclusivement le prétérit (`posted`, `tweeted`, `subscribed`), déjà couvert.
+- Rejet `low` : Assertion redondante sur `provenance_regime` étranger (BH-17) — la préservation du régime sur les 11 sorties est déjà prouvée de façon exhaustive et paramétrée dans `test_verify_report_claim_preserves_provenance_regime_on_all_11_returns`.
+- Rejet de conformité : Propositions de réécriture de la spec elle-même formulées hors code — rejetées en application des règles de triage BMad.
 
 ---
 
@@ -244,9 +265,9 @@ Revue non conduite — à venir.
 
 - **Livrables réalisés** :
   - `backend/app/models/report_claim.py` : enrichissement avec `asserted_as_action`, normalisation et compteurs de registre `asserted_action_claims` et `verified_action_claims`.
-  - `backend/app/services/simulation_action_verifier.py` : refactorisation intégrale des 11 points de sortie de `verify_report_claim` via `dataclasses.replace`, propriété stricte d'`event_id` sans repli silencieux, étanchéité du sceau `INTERVIEW`, et partitionnement en 4 familles d'`action_type`.
-  - `backend/app/services/report_agent.py` : motifs compilés Unicode `\b`, gestion du présent de narration, modaux prospectifs, négations pures et capture de `asserted_as_action` avant l'inhibition des silencieux.
-  - `backend/tests/test_story_015_1_claim_contracts.py` : 9 tests unitaires et d'intégration hermétiques couvrant l'ensemble des critères `AC1` à `AC9`.
+  - `backend/app/services/simulation_action_verifier.py` : refactorisation intégrale des 11 points de sortie de `verify_report_claim` via `dataclasses.replace`, propriété stricte d'`event_id` sans repli silencieux, étanchéité du sceau `INTERVIEW`, partitionnement en 4 familles d'`action_type`, et validation par regex compilées Unicode `\b` sans sous-chaînes brutes.
+  - `backend/app/services/report_agent.py` : motifs compilés Unicode `\b`, gestion du présent de narration, formes plurielles, pronominaux, modaux prospectifs, négations pures et capture de `asserted_as_action` avant l'inhibition des silencieux.
+  - `backend/tests/test_story_015_1_claim_contracts.py` : 10 tests unitaires et d'intégration hermétiques couvrant l'ensemble des critères `AC1` à `AC9` et les cas limites issus de la revue BMAD.
 - **Conformité aux exigences** : `FR-01` et `FR-02` satisfaits, critères `C1` de l'epic 015 validé, critères `NFR-1`, `NFR-2`, `NFR-3` et `NFR-5` rigoureusement respectés.
-- **Divergences du plan** : Aucune divergence substantielle ; conformité stricte aux 9 décisions d'ingénierie `D1` à `D9`.
-- **Filet de tests** : 2 108 tests backend passants (+9 tests nouveaux, 0 fail), 43 tests frontend Node passants (0 fail), `ruff check` 100 % propre.
+- **Divergences du plan** : Aucune divergence substantielle ; 13 correctifs appliqués suite à la revue contradictoire BMAD à 4 couches.
+- **Filet de tests** : 2 109 tests backend passants (+10 tests nouveaux, 0 fail), 43 tests frontend Node passants (0 fail), `ruff check` 100 % propre.

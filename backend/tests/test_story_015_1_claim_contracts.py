@@ -569,18 +569,101 @@ def test_oasis_passive_events_rejected_and_interaction_families_matched():
     assert res_follow.verification_status == VerificationStatus.VERIFIED
     assert res_follow.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
 
-    # 3. FOLLOW ne valide pas une publication
+    # 3. FOLLOW ne valide pas une publication, même avec un connecteur comme "Par la suite"
     claim_follow_unmatched = ReportClaim(
         claim_id="clm_alice_pub",
-        text="Alice publie un rapport complet.",
+        text="Par la suite, Alice publie un rapport complet.",
         claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
         origin=InformationOrigin.SIMULATION,
         agent_name="Alice",
-        evidence_refs=["evt_follow"],
+        evidence_refs=["doc_charte.pdf", "evt_follow"],
         provenance_regime=ProvenanceRegime.EVENT,
     )
     res_unmatched = SimulationActionVerifier.verify_report_claim(claim_follow_unmatched, evidence_pack=pack)
     assert res_unmatched.verification_status == VerificationStatus.UNSUPPORTED
+
+    # 4. Conservation des références non-evt_* lors d'une validation d'action
+    claim_follow_with_doc = ReportClaim(
+        claim_id="clm_alice_follow_doc",
+        text="Alice suit le compte officiel.",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        agent_name="Alice",
+        evidence_refs=["doc_charte.pdf", "evt_follow"],
+        provenance_regime=ProvenanceRegime.EVENT,
+    )
+    res_follow_doc = SimulationActionVerifier.verify_report_claim(claim_follow_with_doc, evidence_pack=pack)
+    assert res_follow_doc.verification_status == VerificationStatus.VERIFIED
+    assert "doc_charte.pdf" in res_follow_doc.evidence_refs
+    assert "evt_follow" in res_follow_doc.evidence_refs
+
+    # 5. Dissociation stricte UNFOLLOW / FOLLOW : un désabonnement ne valide pas un suivi positif
+    ev_unfollow = ObservedEvent(
+        event_id="evt_unfollow",
+        simulation_id="sim_test",
+        platform="twitter",
+        round_num=1,
+        agent_id=1,
+        agent_name="Alice",
+        action_type="UNFOLLOW",
+        timestamp="2026-10-29T12:05:00",
+        is_action_executed=True,
+    )
+    pack_unfollow = EvidencePack(simulation_id="sim_test", events=[ev_unfollow])
+    res_unfollow_bad = SimulationActionVerifier.verify_report_claim(claim_follow, evidence_pack=pack_unfollow)
+    assert res_unfollow_bad.verification_status == VerificationStatus.UNSUPPORTED
+
+    claim_unfollow_good = ReportClaim(
+        claim_id="clm_alice_unfollow",
+        text="Alice ne suit plus le compte officiel.",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        agent_name="Alice",
+        evidence_refs=["evt_unfollow"],
+        provenance_regime=ProvenanceRegime.EVENT,
+    )
+    res_unfollow_good = SimulationActionVerifier.verify_report_claim(claim_unfollow_good, evidence_pack=pack_unfollow)
+    assert res_unfollow_good.verification_status == VerificationStatus.VERIFIED
+
+    # 6. Absence de faux positifs par sous-chaînes sur approbation et désapprobation
+    ev_like = ObservedEvent(
+        event_id="evt_like",
+        simulation_id="sim_test",
+        platform="twitter",
+        round_num=1,
+        agent_id=1,
+        agent_name="Alice",
+        action_type="LIKE_POST",
+        timestamp="2026-10-29T12:10:00",
+        is_action_executed=True,
+    )
+    pack_like = EvidencePack(simulation_id="sim_test", events=[ev_like])
+
+    # "vraiment" ne doit pas matcher "aime"
+    claim_vraiment = ReportClaim(
+        claim_id="clm_alice_vraiment",
+        text="Alice a vraiment contesté la méthodologie.",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        agent_name="Alice",
+        evidence_refs=["evt_like"],
+        provenance_regime=ProvenanceRegime.EVENT,
+    )
+    res_vraiment = SimulationActionVerifier.verify_report_claim(claim_vraiment, evidence_pack=pack_like)
+    assert res_vraiment.verification_status == VerificationStatus.UNSUPPORTED
+
+    # "n'aime pas" et "dislike" ne doivent pas matcher approbation
+    claim_dislike = ReportClaim(
+        claim_id="clm_alice_dislike",
+        text="Alice n'aime pas le post de Bob.",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        agent_name="Alice",
+        evidence_refs=["evt_like"],
+        provenance_regime=ProvenanceRegime.EVENT,
+    )
+    res_dislike = SimulationActionVerifier.verify_report_claim(claim_dislike, evidence_pack=pack_like)
+    assert res_dislike.verification_status == VerificationStatus.UNSUPPORTED
 
 
 def test_end_to_end_audit_preserves_regimes_and_triggers_banner(tmp_path):
@@ -602,18 +685,18 @@ def test_end_to_end_audit_preserves_regimes_and_triggers_banner(tmp_path):
     )
     pack = EvidencePack(simulation_id=sim_id, events=[ev])
 
-    # Simulation d'observations d'outils (dont un entretien)
-    agent._interview_records = [{"interviewee": "Julien", "transcript": "Je trouve la plateforme fluide."}]
-    agent._observation_sources = [
-        {"tool_name": "interview_agents", "output": "Julien indique : « Je trouve la plateforme fluide. »"},
-        {"tool_name": "query_simulation_events", "output": "Claire suit le compte officiel."},
+    # Simulation d'observations d'outils (dont un entretien de plus de 8 mots)
+    agent._interview_records = [{"interviewee": "Julien", "transcript": "Je trouve la plateforme particulièrement fluide et intuitive pour les utilisateurs."}]
+    agent._tool_observations = [
+        {"tool_name": "interview_agents", "output": "Julien indique expressément qu'il trouve la plateforme particulièrement fluide et intuitive pour les utilisateurs."},
+        {"tool_name": "query_simulation_events", "output": "Claire suit le compte officiel sur le réseau social."},
     ]
 
     markdown = (
         "# Synthèse\n\n"
-        "Lors de son entretien, Julien indique : « Je trouve la plateforme fluide. »\n\n"
-        "Claire suit le compte officiel.\n\n"
-        "Certaines analyses théoriques restent à approfondir.\n"
+        "- Julien indique expressément qu'il trouve la plateforme particulièrement fluide et intuitive pour les utilisateurs.\n\n"
+        "- Claire suit le compte officiel sur le réseau social.\n\n"
+        "- Certaines analyses théoriques restent à approfondir.\n"
     )
 
     with patch.object(ReportAgent, "_resolve_project", return_value=None):
@@ -634,3 +717,63 @@ def test_end_to_end_audit_preserves_regimes_and_triggers_banner(tmp_path):
     assert "### 7. Traçabilité calculée depuis le registre d'affirmations" in sec_prov
     assert f"- **Affirmations au registre :** {registry.total_claims}." in sec_prov
     assert f"- **Affirmations portant un `provenance_regime` :** {registry.total_claims}." in sec_prov
+
+    # 3. Vérification de l'insertion de la bannière sur le markdown assemblé (AC9)
+    interview_count = sum(1 for c in registry.claims if c.provenance_regime == ProvenanceRegime.INTERVIEW)
+    assert interview_count >= 1
+    from app.utils.locale import t
+    expected_banner = t("report.provenance_banner", count=interview_count)
+    assembled_markdown = expected_banner + "\n\n" + markdown
+    assert expected_banner in assembled_markdown
+
+
+def test_modal_governance_and_narrative_present_negations():
+    """Vérifie la précédence d'action accomplie sur modal (D5b), les négations au présent et les formes plurielles."""
+    agent = ReportAgent(graph_id="g_test", simulation_id="sim_test", simulation_requirement="req")
+
+    # 1. Action accomplie introduisant un modal (D5b, AC4) : reste OBSERVED_SOCIAL_ACTION
+    claims_modal_intro = agent.extract_claims_from_content(
+        "- Julien a tweeté qu'il va publier une critique détaillée."
+    )
+    assert len(claims_modal_intro) == 1
+    assert claims_modal_intro[0].claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+    assert claims_modal_intro[0].asserted_as_action is True
+
+    # 2. Modal prospectif pur : REPORTED_INTENTION (asserted_as_action=False)
+    claims_modal_pure = agent.extract_claims_from_content(
+        "- Julien va publier une critique détaillée."
+    )
+    assert len(claims_modal_pure) == 1
+    assert claims_modal_pure[0].claim_kind == ClaimKind.REPORTED_INTENTION
+    assert claims_modal_pure[0].asserted_as_action is False
+
+    # 3. Négation au présent de narration : pas une action observée
+    claims_neg_present = agent.extract_claims_from_content(
+        "- Marc ne publie pas de message sur la plateforme."
+    )
+    assert len(claims_neg_present) == 1
+    assert claims_neg_present[0].claim_kind != ClaimKind.OBSERVED_SOCIAL_ACTION
+    assert claims_neg_present[0].asserted_as_action is False
+
+    # 4. Formes plurielles au présent de narration : OBSERVED_SOCIAL_ACTION
+    claims_plural = agent.extract_claims_from_content(
+        "- Alice et Bob citent la publication officielle."
+    )
+    assert len(claims_plural) == 1
+    assert claims_plural[0].claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+    assert claims_plural[0].asserted_as_action is True
+
+    # 5. Pronominal au passé composé : OBSERVED_SOCIAL_ACTION
+    claims_pronominal = agent.extract_claims_from_content(
+        "- Marc s'est abonné au service sur la plateforme."
+    )
+    assert len(claims_pronominal) == 1
+    assert claims_pronominal[0].claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+    assert claims_pronominal[0].asserted_as_action is True
+
+    # 6. Guard 'qui suit' dans un texte de liaison : pas une action
+    claims_connective = agent.extract_claims_from_content(
+        "- Dans ce qui suit le lecteur découvrira l'analyse détaillée."
+    )
+    assert len(claims_connective) == 1
+    assert claims_connective[0].claim_kind != ClaimKind.OBSERVED_SOCIAL_ACTION

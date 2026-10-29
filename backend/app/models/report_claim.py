@@ -160,6 +160,8 @@ class ReportClaim:
         )
         if is_interview:
             object.__setattr__(self, "asserted_as_action", False)
+            if self.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+                object.__setattr__(self, "claim_kind", ClaimKind.REPORTED_INTENTION)
         elif self.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
             object.__setattr__(self, "asserted_as_action", True)
         else:

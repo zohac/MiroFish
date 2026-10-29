@@ -3,6 +3,12 @@
 Choses réelles, mais hors du périmètre de la revue en cours. Chaque entrée dit
 pourquoi elle est différée et ce qui la déclencherait.
 
+## Deferred from: code review of story-015-1.md (2026-10-29)
+
+Revue BMAD de la story 015-1 (« Préservation du provenance_regime, typage d'actions sans faux positifs et traçabilité du déclassement »).
+
+- **Résolution et validation du ciblage (target user / post ID) des événements sociaux non-textuels (`LIKE_POST`, `FOLLOW`, `REPOST`)** — `backend/app/services/simulation_action_verifier.py:1267`. Contrairement aux événements de messagerie qui vérifient les citations ou les mots-clés du message, les interactions non textuelles vérifient l'adéquation de la famille d'interaction (`LIKE_*`, `FOLLOW`, `REPOST`), mais n'inspectent pas encore si l'affirmation vise un message ou un utilisateur spécifique dans le graphe d'événements. *Différé : architecture préexistante d'OASIS, hors du périmètre strict de Story 015-1 (D8) qui se concentre sur les 4 familles d'interactions et le rejet des passifs.*
+
 ## Deferred from: code review of story-001-1.md (2026-10-03)
 
 Revue des commits `c1e17e0` + `0cdf1c0` (`ad4ef4c..HEAD`), le 3 octobre 2026.
