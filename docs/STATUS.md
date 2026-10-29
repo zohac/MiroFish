@@ -4,13 +4,18 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas une seconde saisie.
 
-> Dernière mise à jour : **24 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **29 octobre 2026** · branche `local-first`
 
 ---
 
 ## Où on en est
 
-L'**Epic 014 (« Intégrité des preuves de rédaction ») est en phase finale (4/4 stories terminées et validées — 2 099 tests verts sur l'hôte + 43 tests Node frontend)** :
+L'**Epic 015 (« Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 ») est en cours (`in-progress` — 1 story démarrée : `015-1`, 5 en `backlog`)** :
+- Dossier de plan : [`docs/plans/015-contrats-preuve-roles-et-ihm/`](plans/015-contrats-preuve-roles-et-ihm/epic-015.md) (`prd.md`, `architecture.md`, `epic-015.md`, [`story-015-1.md`](plans/015-contrats-preuve-roles-et-ihm/story-015-1.md)).
+- **Story 015-1 (in-progress, rédigée au 29 octobre 2026)** : Préservation de `provenance_regime` sur les 11 retours de `SimulationActionVerifier.verify_report_claim` (`dataclasses.replace`), séparation lexicale compilée `\b` actions/intentions (passé composé + présent de narration sans faux positifs `"va"`/`"compte"` ni homographes), booléen `asserted_as_action` conservé après déclassement (`ReportClaim` + compteurs `ReportClaimRegistry`), rejet sans repli silencieux d'`evt_*` étrangers à l'acteur résolu et filtrage par famille des `action_type` OASIS excluant les événements passifs (`SIGN_UP`, `REFRESH`, `DO_NOTHING`, `SEARCH_POSTS`, `TREND`). 10 AC, 6 tâches.
+- **Reste du backlog Epic 015** : journal structuré `report_interviews.json` v2 par répondant et authentification des citations d'entretien sans promotion OASIS (`015-2`) ; barrière `ReportQualityGate` refusant en `FAILED` un rapport avec actions affirmées et `0` vérifiée, contrat structurel `section_role="limitations"` et suppression du dernier littéral statique dans « Sources & Provenance » (`015-3`) ; politique de participation par rôle (`ScenarioParticipationPolicy`), dénominateur d'adoption en inclusion positive et restriction chirurgicale du filtre `[persona non admis]` aux personnes refusées afin de ne plus corrompre les offres/domaines/outils dans le brief (`015-4`) ; refonte responsive des 3 cartes de statut Step 3 (`Step3Simulation.vue`) et télémétrie incrémentale/temps réel Step 4 (`Step4Report.vue` + `usage.json`) (`015-5`) ; contrôle biographique aval de la prose, `GIT_COMMIT` Docker et banc de qualification R8 (`015-6`).
+
+L'**Epic 014 (« Intégrité des preuves de rédaction ») est intégralement clos avec succès (`done`, 4/4 stories terminées et validées — 2 099 tests verts sur l'hôte + 43 tests Node frontend)** :
 - **Story 014-1 (done au 22 octobre 2026)** : Régime de preuve des entretiens de rédaction (`ProvenanceRegime`, jeton `INTERVIEW`, attribution pure par 8-grammes, interdiction formelle d'attribuer `OBSERVED_SOCIAL_ACTION` à un entretien).
 - **Story 014-2 (done au 22 octobre 2026)** : Section « Sources & Provenance » honnête et confrontation des populations (produite après le registre, affirmations calculées sans littéraux en dur, confrontation `actions.jsonl` vs `observed_events.jsonl`, `ProjectManager.get_project` résilient aux `project.json` corrompus).
 - **Story 014-3 (done au 24 octobre 2026)** : La règle de silence monte jusqu'à la prose et jusqu'à la barrière (inhibition des passages attribués à un silencieux, déclassement `REPORTED_INTENTION`/`UNSUPPORTED`, contradiction de silence critique pour la barrière `ReportQualityGate`).
@@ -420,8 +425,12 @@ sont versionnées dans [`mesures-001-1b.md`](plans/001-epreuve-graphiti-local/me
 | 009 | Éligibilité des acteurs et fiabilisation des sources (clos, 1157 tests verts) | 004, 005 |
 | 007 | Ontologie dynamique (v2) — clos (1550 tests verts, Verdict GO) | 003, 004, 005, 009 |
 | 010 | Fiabilisation du cycle de vie et complétion des simulations (clos, 1580 tests verts) | 005, 007, 009 |
-| 011 | Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports | 005, 007, 009, 010 |
-| 008 | Support complet de la langue française (Localisation FR) | 005 |
+| 011 | Preuve par les faits simulés, traçabilité épistémique et intégrité des rapports (clos, 1751 tests verts) | 005, 007, 009, 010 |
+| 008 | Support complet de la langue française (Localisation FR — clos, 1649 tests verts) | 005 |
+| 012 | Fiabilité des acteurs, intégrité des preuves et publication stricte (clos, 1842 tests verts) | 009, 011 |
+| 013 | Benchmark LLM du ReportAgent et régénération non destructive (clos, 2067 tests verts) | 011, 012 |
+| 014 | Intégrité des preuves de rédaction (clos, 2099 tests verts) | 011, 012, 013 |
+| **015** | **Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 (en cours)** | **012, 013, 014** |
 
 ---
 
@@ -484,7 +493,7 @@ l'interface `GraphStore` (Epic 002, désormais achevé).
 
 | | |
 |---|---|
-| Tests | **2067 tests collectés et réussis sur l'hôte** (**1968 réussis + 3 ignorés sous Docker**), mesure du 20 octobre 2026, + **43 tests Node frontend**. Epics 007 à 012 clos, Epic 013 en cours (stories 013-1 à 013-5 closes, 013-6 en revue). |
+| Tests | **2 099 tests collectés et réussis sur l'hôte** + **43 tests Node frontend** (mesure au 24 octobre 2026). Epics 001 à 014 clos, Epic 015 en cours (6 stories en backlog). |
 | Lint | ruff, règles volontairement étroites (amont) |
 | Amont | `666ghj/MiroFish` — AGPL-3.0, très actif |
 | ADR | 17 acceptés, 0 supersédé |

@@ -1,6 +1,6 @@
 # Epic 014 : Intégrité des preuves de rédaction
 
-> **Statut** : Rédigé le 21 octobre 2026.
+> **Statut** : Clos (`done`, 4/4 stories validées au 24 octobre 2026 ; audit post-run R8 du 29 octobre 2026 pris en relais par l'Epic 015).
 > **Dossier de plan** : `docs/plans/014-integrite-preuves-redaction/`
 > **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
 > **Épic amont** : 013 (clos) — la campagne A/B a produit l'appareil de mesure ;
@@ -68,18 +68,14 @@ S'y ajoute un cinquième défaut, trouvé en relevant le code : **un seul
 
 ## 4. Découpage en Stories
 
-Les quatre stories sont listées ici avec leurs critères résumés. **Le fichier
-de story n'est créé qu'au démarrage de la story** (AGENTS.md §2.8 : un fichier
-par story réellement démarrée, pas imaginée). La 014-1 est démarrée : son
-fichier est [`story-014-1.md`](story-014-1.md), avec 11 critères d'acceptation
-falsifiables.
+Les quatre stories de l'Epic 014 sont intégralement livrées, revues à 4 couches BMAD et validées (`done`).
 
 | Story | Titre | Statut | Contenu |
 |---|---|---|---|
 | 014-1 | [Régime de preuve des entretiens de rédaction](story-014-1.md) | `done` | Un entretien de rédaction devient un régime typé et distinct ; son contenu sort du paquet de preuves figé ; le rapport l'étiquette ; l'étiquette `[Événements simulés réels]` cesse d'être une invention du LLM. **Critère central** : 100 % des passages issus d'un entretien portent leur régime, et aucun ne peut être compté comme un événement observé. |
-| 014-2 | La section « Sources & Provenance » ne certifie que ce qu'elle prouve | `done` | La section est produite après le registre, ou par un second passage ; les deux littéraux litigieux deviennent calculés ; les deux populations d'événements sont confrontées et nommées ; un `project.json` corrompu n'affecte que son projet ; l'archive d'audit porte l'index d'attribution. **Critère central** : la section ne contient plus d'affirmation de traçabilité non calculée, et un test le prouve sur un registre réel. |
-| 014-3 | La règle de silence monte jusqu'à la prose et jusqu'à la barrière | `done` | Un persona silencieux ou non admis ne peut se voir attribuer ni parole, ni décision, ni section ; ses fiches sont hors du contexte de rédaction ; la contradiction « silence ↔ action affirmée » devient un **échec** de la barrière, et non un avertissement. **Critère central** : une campagne sur R7 ne produit plus de contradiction `CONTRADICTED` sur un persona silencieux qui n'ait pas d'action. |
-| 014-4 | [Le brief et les fiches persona ne font plus diverger deux biographies](story-014-4.md) | `review` | La construction du brief **échoue** quand deux fiches se contredisent au lieu de propager la contradiction ; l'épisode « 1 500 € / WordPress » n'est plus attribué à deux personas ; les fiches des personas non admis sont retirées du contexte et des artefacts. **Critère central** : la contradiction du brief est détectée à la construction, et aucun persona non admis n'apparaît dans le contexte de rédaction. |
+| 014-2 | [La section « Sources & Provenance » ne certifie que ce qu'elle prouve](story-014-2.md) | `done` | La section est produite après le registre, ou par un second passage ; les deux littéraux litigieux deviennent calculés ; les deux populations d'événements sont confrontées et nommées ; un `project.json` corrompu n'affecte que son projet ; l'archive d'audit porte l'index d'attribution. **Critère central** : la section ne contient plus d'affirmation de traçabilité non calculée, et un test le prouve sur un registre réel. |
+| 014-3 | [La règle de silence monte jusqu'à la prose et jusqu'à la barrière](story-014-3.md) | `done` | Un persona silencieux ou non admis ne peut se voir attribuer ni parole, ni décision, ni section ; ses fiches sont hors du contexte de rédaction ; la contradiction « silence ↔ action affirmée » devient un **échec** de la barrière, et non un avertissement. **Critère central** : une campagne sur R7 ne produit plus de contradiction `CONTRADICTED` sur un persona silencieux qui n'ait pas d'action. |
+| 014-4 | [Le brief et les fiches persona ne font plus diverger deux biographies](story-014-4.md) | `done` | La construction du brief **échoue** quand deux fiches se contredisent au lieu de propager la contradiction ; l'épisode « 1 500 € / WordPress » n'est plus attribué à deux personas ; les fiches des personas non admis sont retirées du contexte et des artefacts. **Critère central** : la contradiction du brief est détectée à la construction, et aucun persona non admis n'apparaît dans le contexte de rédaction. |
 
 ### 4.1 Dépendances
 
