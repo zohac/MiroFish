@@ -310,6 +310,62 @@ def test_ac4_report_section_role_serialization_and_plan_outline_assignment():
         assert restored.outline.sections[0].section_role == "limitations"
         assert restored.outline.sections[1].section_role is None
 
+    # 4. Attribution de section_role="limitations" par plan_outline sur marqueur fort sans doublon
+    agent = ReportAgent.__new__(ReportAgent)
+    agent.simulation_id = "sim_test_plan"
+    agent.graph_id = "graph_test"
+    agent.simulation_requirement = "Tester l'offre"
+    agent.locale = "fr"
+    agent.zep_tools = MagicMock()
+    agent.zep_tools.get_simulation_context.return_value = {
+        "graph_statistics": {"total_nodes": 5, "total_edges": 4, "entity_types": {"Person": 3}},
+        "total_entities": 5,
+        "related_facts": [],
+    }
+    agent._resolve_project = MagicMock(return_value=None)
+
+    class MockLLM:
+        def __init__(self, sections_data):
+            self.sections_data = sections_data
+
+        def chat_json(self, *args, **kwargs):
+            return {
+                "title": "Rapport Test",
+                "summary": "Résumé Test",
+                "sections": self.sections_data,
+            }
+
+    # Cohorte avec un refus
+    flo = CohortMemberStatus(
+        persona_name="Florence",
+        action_count=1,
+        observed_event_ids=["evt_flo"],
+        objections=["Prix trop élevé"],
+        decision_status=DecisionStatus.REJECTED,
+    )
+    fake_cohort = CohortCoverageTable(simulation_id="sim_test_plan", members=[flo])
+
+    with patch("app.models.cohort_coverage.CohortCoverageTable.build_from_simulation", return_value=fake_cohort):
+        # Cas A : section 3 a le titre avec marqueur fort "Les verrous réels..." sans rôle explicite
+        agent.llm = MockLLM([
+            {"title": "1. Synthèse globale", "description": "Intro"},
+            {"title": "2. Analyse détaillée", "description": "Analyse"},
+            {"title": "3. Les verrous réels et leviers qui fonctionnent", "description": "Verrous"},
+        ])
+        outline_assigned = agent.plan_outline()
+        assert len(outline_assigned.sections) == 3
+        assert outline_assigned.sections[2].section_role == "limitations"
+
+        # Cas B : aucune section n'a de marqueur de limites -> injection du repli canonique avec section_role="limitations"
+        agent.llm = MockLLM([
+            {"title": "1. Synthèse globale", "description": "Intro"},
+            {"title": "2. Analyse détaillée", "description": "Analyse"},
+        ])
+        outline_injected = agent.plan_outline()
+        assert len(outline_injected.sections) == 3
+        assert outline_injected.sections[2].section_role == "limitations"
+        assert "Objections non levées" in outline_injected.sections[2].title
+
 
 def test_ac5_limitations_section_validated_by_role_and_v1_fallback(
     minimal_cohort_table: CohortCoverageTable,
@@ -383,27 +439,16 @@ def test_ac5_limitations_section_validated_by_role_and_v1_fallback(
     )
     assert c_short.status == QualityStatus.FAILED
 
-    # 4. Échec si la section taguée limitations ne contient aucun lexique d'objections/limites/refus/verrous
+    # 4. Échec si la section taguée limitations ne contient aucun lexique d'objections/limites/refus/verrous dans son corps
+    # Même avec un titre explicite "Les verrous réels...", le corps doit traiter des limites (invariant AC5)
     md_no_lexicon = (
         "## Les verrous réels et les leviers observés\n\n"
         "Tout le monde est extrêmement heureux, le produit est parfait, la conversion est totale et sans accroc.\n\n"
         "## Sources & Provenance\n\nAudit."
     )
-    # Si le titre lui-même contient "verrous", il satisfait _LIMITATIONS_CONTENT_RE.
-    # Créons une section au titre neutre mais taguée "limitations"
-    outline_neutral = ReportOutline(
-        title="T",
-        summary="S",
-        sections=[ReportSection(title="Section Trois", section_role="limitations")],
-    )
-    md_neutral_no_lex = (
-        "## Section Trois\n\n"
-        "Tout le monde est extrêmement heureux, le produit est parfait, la conversion est totale et sans accroc.\n\n"
-        "## Sources & Provenance\n\nAudit."
-    )
     res_no_lex = gate.evaluate_report(
-        outline=outline_neutral,
-        report_markdown=md_neutral_no_lex,
+        outline=outline_role,
+        report_markdown=md_no_lexicon,
         cohort_table=minimal_cohort_table,
     )
     c_no_lex = next(
@@ -412,6 +457,32 @@ def test_ac5_limitations_section_validated_by_role_and_v1_fallback(
         if c.category == QualityCategory.LIMITATIONS_SECTION
     )
     assert c_no_lex.status == QualityStatus.FAILED
+
+    # 5. Support de la locale chinoise zh avec idéogrammes d'objections/limites
+    gate_zh = ReportQualityGate("sim_ac5_zh", "rep_ac5_zh", locale="zh")
+    outline_zh = {
+        "title": "测试报告",
+        "sections": [
+            {"title": "概述", "content": "内容", "section_role": "overview"},
+            {"title": "分析", "content": "内容", "section_role": "analysis"},
+            {"title": "趋势展望与风险提示", "content": "详细内容", "section_role": "limitations"},
+        ],
+    }
+    md_zh = (
+        "## 概述\n\n正常概述内容。\n\n"
+        "## 趋势展望与风险提示\n\n在本模拟中，我们观察到多重显著风险与异议，部分用户明确拒绝采纳并提出了实质性阻碍，需要深入跟进与解决。\n\n"
+        "## 数据来源与证明\n\n审计。"
+    )
+    res_zh = gate_zh.evaluate_report(
+        outline=outline_zh,
+        report_markdown=md_zh,
+        cohort_table=minimal_cohort_table,
+    )
+    lim_zh = next(
+        c for c in res_zh.checks if c.category == QualityCategory.LIMITATIONS_SECTION
+    )
+    assert lim_zh.status == QualityStatus.PASSED
+    assert lim_zh.details["limitations_role_matched"] is True
 
 
 def test_ac6_adoption_detection_word_boundaries_and_negation_guard():
@@ -484,6 +555,55 @@ def test_ac6_adoption_detection_word_boundaries_and_negation_guard():
     )
     assert claim_check_fail.status == QualityStatus.FAILED
     assert claim_check_fail.details.get("unverified_adoptions") is True
+
+    # 3. Test positif : claim d'adoption VERIFIED avec evt_* et agent_name correspondant à un persona adopté (persona_name)
+    c_valid_adopt = ReportClaim(
+        claim_id="clm_adopt_valid",
+        text="Chloé a souscrit à l'offre Keova après son analyse",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        verification_status=VerificationStatus.VERIFIED,
+        evidence_refs=["evt_chloe_1"],
+        agent_name="Chloé",
+        asserted_as_action=True,
+    )
+    registry_valid = ReportClaimRegistry(simulation_id="sim_ac6_ok", claims=[c_valid_adopt])
+    res_adopt_pass = gate.evaluate_report(
+        outline=None,
+        report_markdown=md,
+        cohort_table=cohort_with_adopted,
+        claims_registry=registry_valid,
+    )
+    claim_check_pass = next(
+        c for c in res_adopt_pass.checks if c.category == QualityCategory.CLAIM_VERIFICATION
+    )
+    assert "unverified_adoptions" not in claim_check_pass.details
+    assert claim_check_pass.status == QualityStatus.PASSED
+
+    # 4. Test affabulation : si adopted_count == 0 mais qu'un claim affirme que Chloé a souscrit (AC6)
+    c_false_adopt = ReportClaim(
+        claim_id="clm_adopt_fraud",
+        text="Chloé a souscrit à l'offre Keova au round 2",
+        claim_kind=ClaimKind.OBSERVED_SOCIAL_ACTION,
+        origin=InformationOrigin.SIMULATION,
+        verification_status=VerificationStatus.VERIFIED,
+        evidence_refs=["evt_chloe_fake"],
+        agent_name="Chloé",
+        asserted_as_action=True,
+    )
+    registry_false = ReportClaimRegistry(simulation_id="sim_ac6_zero", claims=[c_false_adopt])
+    res_adopt_zero = gate.evaluate_report(
+        outline=None,
+        report_markdown=md,
+        cohort_table=cohort,  # adopted_count == 0
+        claims_registry=registry_false,
+    )
+    claim_check_zero = next(
+        c for c in res_adopt_zero.checks if c.category == QualityCategory.CLAIM_VERIFICATION
+    )
+    assert claim_check_zero.status == QualityStatus.FAILED
+    assert claim_check_zero.details.get("unverified_adoptions") is True
+    assert claim_check_zero.details.get("adoption_affabulation") is True
 
 
 def test_ac7_sources_provenance_subsection3_is_fully_computed_and_matches_subsection7():
@@ -602,14 +722,24 @@ def test_ac7_sources_provenance_subsection3_is_fully_computed_and_matches_subsec
         in sec4
     )
 
+    # 5. Test direct de la fonction pure _format_anti_affabulation_status
+    from app.services.report_agent import _format_anti_affabulation_status
+    assert "Traçabilité non établie" in _format_anti_affabulation_status(None)
+    assert "0 action affirmée, 0 action vérifiée" in _format_anti_affabulation_status(ReportClaimRegistry(simulation_id="s", claims=[]))
+    assert "100.0 % vérifiées" in _format_anti_affabulation_status(reg_full)
+    assert "Couverture partielle" in _format_anti_affabulation_status(reg_part)
+
 
 def test_ac8_r8_report_934d3254004b_exact_regression_verification():
     """AC8 : Vérification de non-régression directe sur les artefacts exacts de R8 (report_934d3254004b)."""
-    base_dir = os.path.join(
+    fixture_dir = os.path.join(
+        os.path.dirname(__file__), "fixtures", "r8_report_934d3254004b"
+    )
+    upload_dir = os.path.join(
         os.path.dirname(__file__), "..", "uploads", "reports", "report_934d3254004b"
     )
-    if not os.path.exists(base_dir):
-        pytest.skip("Artefacts de rapport R8 non disponibles en local")
+    base_dir = fixture_dir if os.path.exists(fixture_dir) else upload_dir
+    assert os.path.exists(base_dir), f"Le dossier d'artefacts R8 {base_dir} doit exister pour garantir l'herméticité de l'audit."
 
     with open(os.path.join(base_dir, "full_report.md"), "r", encoding="utf-8") as f:
         report_md = f.read()
@@ -665,8 +795,11 @@ def test_ac8_r8_report_934d3254004b_exact_regression_verification():
     assert "Toute affirmation qualifiée d'action observée est reliée" not in sec
 
 
-def test_ac9_report_history_counts_only_verified_social_actions(tmp_path):
+def test_ac9_report_history_counts_only_verified_social_actions(tmp_path, monkeypatch):
     """AC9 : report_history.json n'enregistre en verified_action_claims_count que les actions sociales vérifiées."""
+    from app.config import Config
+    monkeypatch.setattr(Config, "UPLOAD_FOLDER", str(tmp_path))
+
     # Simulation d'un registre contenant 3 claims SCENARIO_HYPOTHESIS vérifiés et 2 actions affirmées mais UNSUPPORTED
     c_hyp = [
         ReportClaim(
@@ -699,7 +832,7 @@ def test_ac9_report_history_counts_only_verified_social_actions(tmp_path):
     # Simuler la construction de hist_entry comme dans ReportAgent.generate_report
     hist_entry = {
         "report_id": "rep_test_hist",
-        "simulation_id": "sim_test_hist",
+        "simulation_id": "sim_ac9",
         "total_claims": registry.total_claims,
         "supported_claims": registry.verified_claims,
         "asserted_action_claims_count": getattr(
@@ -710,6 +843,13 @@ def test_ac9_report_history_counts_only_verified_social_actions(tmp_path):
         ),
     }
 
-    assert hist_entry["supported_claims"] == 3
-    assert hist_entry["asserted_action_claims_count"] == 2
-    assert hist_entry["verified_action_claims_count"] == 0
+    # Persister réellement via ReportManager._append_to_history
+    ReportManager._append_to_history("sim_ac9", hist_entry)
+
+    # Relire depuis le disque via ReportManager._load_history
+    history = ReportManager._load_history("sim_ac9")
+    reports = history.get("reports", [])
+    assert len(reports) == 1
+    assert reports[0]["supported_claims"] == 3
+    assert reports[0]["asserted_action_claims_count"] == 2
+    assert reports[0]["verified_action_claims_count"] == 0

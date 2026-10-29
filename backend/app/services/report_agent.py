@@ -504,7 +504,10 @@ class ReportSection:
     def __post_init__(self):
         if isinstance(self.section_role, str):
             cleaned = self.section_role.strip().lower()
-            self.section_role = cleaned if cleaned else None
+            if cleaned in ("limites", "limite", "limitation", "objections", "objection"):
+                self.section_role = "limitations"
+            else:
+                self.section_role = cleaned if cleaned else None
         elif self.section_role is not None:
             self.section_role = None
 
@@ -548,6 +551,22 @@ class ReportOutline:
             "summary": self.summary,
             "sections": [s.to_dict() for s in self.sections]
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReportOutline":
+        if not isinstance(data, dict):
+            return cls(title="", summary="", sections=[])
+        raw_sections = data.get("sections") or []
+        sections = [
+            s if isinstance(s, ReportSection) else ReportSection.from_dict(s)
+            for s in raw_sections
+            if isinstance(s, (dict, ReportSection))
+        ]
+        return cls(
+            title=str(data.get("title") or ""),
+            summary=str(data.get("summary") or ""),
+            sections=sections,
+        )
     
     def to_markdown(self) -> str:
         """转换为Markdown格式"""
@@ -1186,6 +1205,46 @@ CHAT_OBSERVATION_SUFFIX = "\n\n请简洁回答问题。"
 # ═══════════════════════════════════════════════════════════════
 # ReportAgent 主类
 # ═══════════════════════════════════════════════════════════════
+
+
+def _format_anti_affabulation_status(registry: Optional[Any]) -> str:
+    """Libellé 100 % calculé de la règle anti-affabulation depuis le registre d'audit (Story 015-3, FR-04, C3, AT-14)."""
+    if registry is None:
+        return (
+            "- **Règle anti-affabulation :** Traçabilité non établie (registre d'affirmations absent ou illisible — "
+            "aucune affirmation d'action observée n'est certifiée)."
+        )
+    asserted_cnt = getattr(registry, "asserted_action_claims", 0)
+    verified_cnt = getattr(registry, "verified_action_claims", 0)
+    # Défense en profondeur contre un registre externe/hérité où asserted_as_action n'aurait pas été positionné
+    asserted_cnt = max(asserted_cnt, verified_cnt)
+
+    if asserted_cnt == 0:
+        return (
+            "- **Règle anti-affabulation :** Aucune affirmation d'action sociale exécutée n'est revendiquée au "
+            "registre (0 action affirmée, 0 action vérifiée). Les simples déclarations d'intention ou d'entretien "
+            "restent classées hors actions observées."
+        )
+    elif verified_cnt == asserted_cnt:
+        return (
+            f"- **Règle anti-affabulation :** Les {verified_cnt}/{asserted_cnt} affirmation(s) d'action observée "
+            "du registre sont reliées à un événement horodaté du run (100.0 % vérifiées). "
+            "Les simples déclarations d'intention simulées n'ont pas été promues en actions observées."
+        )
+    elif verified_cnt > 0:
+        rate = (verified_cnt / max(1, asserted_cnt)) * 100.0
+        unverified_cnt = max(0, asserted_cnt - verified_cnt)
+        return (
+            f"- **Règle anti-affabulation :** Couverture partielle des preuves d'action — {verified_cnt}/{asserted_cnt} "
+            f"affirmation(s) d'action affirmée sont reliées à un événement horodaté du run ({rate:.1f} %) ; "
+            f"{unverified_cnt} affirmation(s) non prouvée(s) ont été déclassées ou écartées."
+        )
+    else:
+        return (
+            f"- **Règle anti-affabulation :** Aucune affirmation d'action sociale n'a pu être certifiée "
+            f"(0/{asserted_cnt} vérifiée(s) par un événement horodaté du run) ; "
+            f"les {asserted_cnt} allégation(s) d'action non prouvées ont été déclassées ou marquées en échec de vérification."
+        )
 
 
 class ReportAgent:
@@ -2102,6 +2161,7 @@ class ReportAgent:
                 f"{PLAN_SYSTEM_PROMPT}{NFR5_DATA_NOT_INSTRUCTION_SUFFIX}\n\n"
                 f"{get_language_instruction()}\n"
                 "IMPORTANT: The JSON keys ('title', 'summary', 'sections', 'description') MUST remain in English. "
+                "The optional key 'section_role' must also remain in English if specified. "
                 "Only natural language text values must use the specified language."
             )
             user_prompt = PLAN_USER_PROMPT_TEMPLATE.format(
@@ -2185,9 +2245,10 @@ class ReportAgent:
                                 "objection", "limite", "contradiction", "reserve", "réserve",
                                 "verrou", "blocage", "frein", "réticence", "reticence", "refus",
                                 "obstacle", "limit", "caveat", "drawback", "concern", "barrier",
-                                "blocker", "friction", "rejection", "refusal", "hesitation"
+                                "blocker", "friction", "rejection", "refusal", "hesitation",
+                                "异议", "局限", "阻碍", "拒绝", "障碍",
                             )
-                            secondary_markers = ("risque", "risk")
+                            secondary_markers = ("risque", "risk", "风险", "迟疑", "挑战")
                             matched_sec = None
                             for s in sections:
                                 st_lower = s.title.lower()
@@ -3396,40 +3457,7 @@ class ReportAgent:
         )
 
         # Libellé 100 % calculé de la règle anti-affabulation depuis le registre d'audit (Story 015-3, FR-04, C3, AT-14)
-        if not registry_loaded or registry is None:
-            anti_affabulation_bullet = (
-                "- **Règle anti-affabulation :** Traçabilité non établie (registre d'affirmations absent ou illisible — "
-                "aucune affirmation d'action observée n'est certifiée)."
-            )
-        else:
-            asserted_cnt = getattr(registry, "asserted_action_claims", 0)
-            verified_cnt = getattr(registry, "verified_action_claims", 0)
-            if asserted_cnt == 0:
-                anti_affabulation_bullet = (
-                    "- **Règle anti-affabulation :** Aucune affirmation d'action sociale exécutée n'est revendiquée au "
-                    "registre (0 action affirmée, 0 action vérifiée). Les simples déclarations d'intention ou d'entretien "
-                    "restent classées hors actions observées."
-                )
-            elif verified_cnt == asserted_cnt:
-                anti_affabulation_bullet = (
-                    f"- **Règle anti-affabulation :** Les {verified_cnt}/{asserted_cnt} affirmation(s) d'action observée "
-                    "du registre sont reliées à un événement horodaté du run (100.0 % vérifiées). "
-                    "Les simples déclarations d'intention simulées n'ont pas été promues en actions observées."
-                )
-            elif verified_cnt > 0:
-                rate = (verified_cnt / asserted_cnt) * 100.0
-                unverified_cnt = asserted_cnt - verified_cnt
-                anti_affabulation_bullet = (
-                    f"- **Règle anti-affabulation :** Couverture partielle des preuves d'action — {verified_cnt}/{asserted_cnt} "
-                    f"affirmation(s) d'action affirmée sont reliées à un événement horodaté du run ({rate:.1f} %) ; "
-                    f"{unverified_cnt} affirmation(s) non prouvée(s) ont été déclassées ou écartées."
-                )
-            else:
-                anti_affabulation_bullet = (
-                    f"- **Règle anti-affabulation :** Aucune affirmation d'action sociale n'a pu être certifiée "
-                    f"(0/{asserted_cnt} vérifiée(s) par un événement horodaté du run) ; "
-                    f"les {asserted_cnt} allégation(s) d'action non prouvées ont été déclassées ou marquées en échec de vérification."
-                )
+        anti_affabulation_bullet = _format_anti_affabulation_status(registry if registry_loaded else None)
         lines.append(anti_affabulation_bullet)
 
         if intentions:
@@ -5135,18 +5163,7 @@ class ReportManager:
         outline = None
         try:
             if data.get('outline'):
-                outline_data = data['outline']
-                sections = []
-                for s in outline_data.get('sections', []):
-                    if isinstance(s, dict):
-                        sections.append(ReportSection.from_dict(s))
-                    elif isinstance(s, ReportSection):
-                        sections.append(s)
-                outline = ReportOutline(
-                    title=outline_data['title'],
-                    summary=outline_data['summary'],
-                    sections=sections
-                )
+                outline = ReportOutline.from_dict(data['outline'])
         except (AttributeError, KeyError, TypeError) as outline_err:
             # Un plan illisible ne doit pas faire perdre le rapport : son
             # Markdown est intact sur disque et sert la comparaison. On
@@ -5157,9 +5174,10 @@ class ReportManager:
                 f"retenu, le rapport reste consultable ({outline_err})"
             )
             try:
+                raw_outline = data.get('outline') if isinstance(data, dict) else {}
                 outline = ReportOutline(
-                    title=str((outline_data or {}).get('title') or ''),
-                    summary=str((outline_data or {}).get('summary') or ''),
+                    title=str((raw_outline or {}).get('title') or ''),
+                    summary=str((raw_outline or {}).get('summary') or ''),
                     sections=[],
                 )
             except (AttributeError, TypeError):

@@ -24,7 +24,7 @@ from ..models.report_quality import (
     QualityStatus,
 )
 from ..models.report_claim import ReportClaimRegistry, ClaimKind, VerificationStatus
-from ..models.cohort_coverage import CohortCoverageTable, DecisionStatus
+from ..models.cohort_coverage import CohortCoverageTable, DecisionStatus, normalize_agent_name
 from ..models.simulation_brief import SimulationBrief
 from ..utils.logger import get_logger
 
@@ -32,11 +32,13 @@ logger = get_logger("mirofish.report_quality_gate")
 
 # Expressions régulières pour la validation structurelle et sémantique des sections de limites/objections (Story 015-3)
 _LIMITATIONS_HEADING_RE = re.compile(
-    r"\b(objections?|limites?|contradictions?|r[ée]serves?|verrous?|blocages?|freins?|r[ée]ticences?|refus|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|barriers?|blockers?|risks?)\b",
+    r"(?:\b(objections?|limites?|contradictions?|r[ée]serves?|verrous?|blocages?|freins?|r[ée]ticences?|refus|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|barriers?|blockers?|risks?)\b"
+    r"|(?:异议|局限|风险|拒绝|阻碍|障碍|迟疑|反思|缺点|挑战|反向))",
     re.IGNORECASE,
 )
 _LIMITATIONS_CONTENT_RE = re.compile(
-    r"\b(objections?|limites?|contradictions?|r[ée]serves?|refus|rejets?|verrous?|blocages?|freins?|r[ée]ticences?|non[- ]adoptions?|abstentions?|ajournements?|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|rejections?|refusals?|barriers?|blockers?|hesitations?)\b",
+    r"(?:\b(objections?|limites?|contradictions?|r[ée]serves?|refus|rejets?|verrous?|blocages?|freins?|r[ée]ticences?|non[- ]adoptions?|abstentions?|ajournements?|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|rejections?|refusals?|barriers?|blockers?|hesitations?)\b"
+    r"|(?:异议|局限|风险|拒绝|阻碍|障碍|迟疑|反思|缺点|挑战|反向))",
     re.IGNORECASE,
 )
 
@@ -52,11 +54,11 @@ _NEGATION_GUARD_RE = re.compile(
 
 # Helper pour vérifier si la prose d'un rapport prétend narrer des actions simulées exécutées (Story 015-3, D4)
 _SIMULATED_ACTION_NARRATIVE_RE = re.compile(
-    r"\b(?:round\s+\d+|durant\s+la\s+simulation|pendant\s+la\s+simulation|during\s+(?:the\s+)?simulation|sur\s+reddit|sur\s+twitter|on\s+reddit|on\s+twitter|dans\s+la\s+simulation|sur\s+les\s+(?:deux\s+)?plateformes?|dans\s+les\s+(?:premières\s+)?heures|dans\s+le\s+run)\b",
+    r"\b(?:round\s+\d+|durant\s+la\s+simulation|pendant\s+la\s+simulation|au\s+cours\s+de\s+la\s+simulation|lors\s+de\s+la\s+simulation|during\s+(?:the\s+)?simulation|sur\s+reddit|sur\s+twitter|on\s+reddit|on\s+twitter|dans\s+la\s+simulation|sur\s+les\s+(?:deux\s+)?plateformes?|dans\s+les\s+(?:premières\s+)?heures|dans\s+le\s+run)\b",
     re.IGNORECASE,
 )
 _ACTION_EXECUTION_MARKERS_RE = re.compile(
-    r"\b(?:a\s+publi[ée]|a\s+tweet[ée]|a\s+comment[ée]|a\s+r[ée]agi|a\s+r[ée]pondu|a\s+post[ée]|a\s+souscrit|a\s+adopt[ée]|a\s+achet[ée]|a\s+pay[ée]|a\s+command[ée]|a\s+partag[ée]|un\s+même\s+post\s+publi[ée]|post\s+publi[ée]|posted|tweeted|commented|reacted|responded|subscribed|adopted|purchased|ordered)\b",
+    r"\b(?:(?:a|ont)\s+(?:publi[ée]e?s?|tweet[ée]e?s?|comment[ée]e?s?|r[ée]agi|r[ée]pondu|post[ée]e?s?|souscrit|adopt[ée]e?s?|achet[ée]e?s?|pay[ée]e?s?|command[ée]e?s?|partag[ée]e?s?)|un\s+même\s+post\s+publi[ée]|post\s+publi[ée]|posted|tweeted|commented|reacted|responded|subscribed|adopted|purchased|ordered)\b",
     re.IGNORECASE,
 )
 _PURE_NEGATION_SENTENCE_RE = re.compile(
@@ -73,22 +75,34 @@ def _markdown_alleges_simulated_actions(report_markdown: str) -> bool:
     parts = re.split(r"^##\s+.*sources.*provenance.*$", report_markdown, flags=re.IGNORECASE | re.MULTILINE)
     body = parts[0] if parts else report_markdown
 
-    # Examiner ligne par ligne en ignorant les citations d'entretien (> ...)
-    for line in body.splitlines():
-        line_clean = line.strip()
-        if not line_clean or line_clean.startswith(">"):
+    # Traiter par paragraphes puis découper en phrases en ignorant les citations d'entretien (> ...)
+    paragraphs = re.split(r"\n\s*\n", body)
+    for p in paragraphs:
+        p_clean = p.strip()
+        if not p_clean or p_clean.startswith(">"):
             continue
-        if _PURE_NEGATION_SENTENCE_RE.search(line_clean):
+        # Ignorer les lignes de citation au sein du paragraphe
+        non_quote_lines = [l.strip() for l in p_clean.splitlines() if not l.strip().startswith(">")]
+        p_text = " ".join(non_quote_lines)
+        if not p_text:
             continue
         # Détection d'un événement OASIS explicite (evt_...)
-        if "evt_" in line_clean:
+        if "evt_" in p_text:
             return True
-        # Couplage d'un marqueur de simulation et d'un verbe d'action exécutée
-        if _SIMULATED_ACTION_NARRATIVE_RE.search(line_clean) and _ACTION_EXECUTION_MARKERS_RE.search(line_clean):
-            return True
-        # Mention explicite d'agent avec verbe d'action exécutée (ex. @ Claire_Dumont a publié / agent_1 posted)
-        if re.search(r"(?:@\s*\w+|agent_\d+)", line_clean, re.IGNORECASE) and _ACTION_EXECUTION_MARKERS_RE.search(line_clean):
-            return True
+        # Examiner phrase par phrase pour isoler les négations locales
+        sentences = re.split(r"[.!?]\s+", p_text)
+        for sent in sentences:
+            sent_clean = sent.strip()
+            if not sent_clean:
+                continue
+            if _PURE_NEGATION_SENTENCE_RE.search(sent_clean):
+                continue
+            # Couplage d'un marqueur de simulation et d'un verbe d'action exécutée
+            if _SIMULATED_ACTION_NARRATIVE_RE.search(sent_clean) and _ACTION_EXECUTION_MARKERS_RE.search(sent_clean):
+                return True
+            # Mention explicite d'agent avec verbe d'action exécutée (ex. @ Claire_Dumont a publié / agent_1 posted)
+            if re.search(r"(?:@\s*\w+|agent_\d+)", sent_clean, re.IGNORECASE) and _ACTION_EXECUTION_MARKERS_RE.search(sent_clean):
+                return True
     return False
 
 
@@ -489,7 +503,7 @@ class ReportQualityGate:
 
         # Helper pour extraire le corps d'une section Markdown de niveau 2 (## <title>)
         def _extract_markdown_section_body(title: str, full_md: str) -> Optional[str]:
-            if not title or not full_md:
+            if not title or not title.strip() or not full_md:
                 return None
             # Recherche de ## <title> (insensible à la casse, espaces tolérés)
             escaped_title = re.escape(title.strip())
@@ -502,8 +516,8 @@ class ReportQualityGate:
             if not m:
                 return None
             start_pos = m.end()
-            # Chercher le début du prochain titre ## ou fin du texte
-            next_heading = re.search(r"^##\s+", full_md[start_pos:], re.MULTILINE)
+            # Chercher le début du prochain titre # ou ## ou fin du texte
+            next_heading = re.search(r"^#{1,2}\s+", full_md[start_pos:], re.MULTILINE)
             if next_heading:
                 end_pos = start_pos + next_heading.start()
                 return full_md[start_pos:end_pos]
@@ -519,15 +533,17 @@ class ReportQualityGate:
 
         for sec in outline_sections:
             sec_role = getattr(sec, "section_role", None) if hasattr(sec, "section_role") else (sec.get("section_role") if isinstance(sec, dict) else None)
+            if isinstance(sec_role, str):
+                sec_role = sec_role.strip().lower()
             sec_title = getattr(sec, "title", None) if hasattr(sec, "title") else (sec.get("title") if isinstance(sec, dict) else "")
-            if sec_role == "limitations" and sec_title:
-                body = _extract_markdown_section_body(sec_title, report_markdown)
+            if sec_role == "limitations" and sec_title and str(sec_title).strip():
+                body = _extract_markdown_section_body(str(sec_title), report_markdown)
                 if body is not None and len(body.strip()) >= 50:
-                    # Garde de pertinence sémantique (D3) : le titre ou le corps doit traiter des objections/limites/refus/verrous
-                    if _LIMITATIONS_CONTENT_RE.search(sec_title) or _LIMITATIONS_CONTENT_RE.search(body):
+                    # Garde de pertinence sémantique (D3, invariant AC5) : le corps doit traiter des objections/limites/refus/verrous
+                    if _LIMITATIONS_CONTENT_RE.search(body):
                         limitations_role_matched = True
                         limitations_heading_present = True
-                        matched_section_title = sec_title
+                        matched_section_title = str(sec_title)
                         break
 
         # 2. Voie de repli rétrocompatible (v1 ou outline sans section_role=="limitations")
@@ -658,8 +674,9 @@ class ReportQualityGate:
             verified_action_claims = []
             action_ratio = 1.0
 
-        # 2. Vérification d'affabulation commerciale d'adoption non sourcée (AC5, Story 015-3, D5)
+        # 2. Vérification d'affabulation commerciale d'adoption non sourcée (AC5/AC6, Story 015-3, D5)
         unverified_adoptions_detected = False
+        adoption_affabulation_message = ""
         adopted_members: List[Any] = []
         if cohort_table and getattr(cohort_table, "members", None):
             for m in cohort_table.members:
@@ -669,12 +686,25 @@ class ReportQualityGate:
                     adopted_members.append(m)
 
             if adopted_members:
-                # Vérifier si au moins une preuve d'action ou claim vérifié soutient ces adoptions
-                # Utiliser l'expression régulière stricte à frontières de mots (_ADOPTION_CLAIM_RE)
+                # Cas 1 : La cohorte annonce des adoptions (adopted_count > 0).
+                # Vérifier si au moins une preuve d'action ou claim vérifié soutient ces adoptions (D5).
                 has_substantiating_action = False
                 if claims_registry and claims_registry.claims:
+                    member_names = {
+                        normalize_agent_name(str(getattr(m, "persona_name", getattr(m, "name", ""))))
+                        for m in adopted_members
+                    }
                     for c in claims_registry.claims:
-                        if c.verification_status == VerificationStatus.VERIFIED and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+                        if (
+                            c.verification_status == VerificationStatus.VERIFIED
+                            and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+                        ):
+                            # Exiger au moins une référence d'événement simulation evt_* (D5 condition 3)
+                            has_evt = any(str(ref).startswith("evt_") for ref in (c.evidence_refs or [])) or (
+                                not c.evidence_refs and any(getattr(m, "observed_event_ids", None) for m in adopted_members)
+                            )
+                            if not has_evt:
+                                continue
                             c_text = c.text or ""
                             # Garde de négation : ne pas compter "n'a pas adopté"
                             if _NEGATION_GUARD_RE.search(c_text):
@@ -682,8 +712,7 @@ class ReportQualityGate:
                             if _ADOPTION_CLAIM_RE.search(c_text):
                                 # Contrôle supplémentaire : si agent_name est présent, il doit figurer dans les membres adoptés
                                 if c.agent_name:
-                                    member_names = {getattr(m, "name", "") for m in adopted_members}
-                                    if c.agent_name in member_names:
+                                    if normalize_agent_name(c.agent_name) in member_names:
                                         has_substantiating_action = True
                                         break
                                 else:
@@ -691,6 +720,27 @@ class ReportQualityGate:
                                     break
                 if not has_substantiating_action:
                     unverified_adoptions_detected = True
+                    adoption_affabulation_message = (
+                        "Affabulation d'adoption détectée : des conversions (ADOPTED_VERIFIED) sont proclamées "
+                        "sans aucune preuve d'action probante dans le registre."
+                    )
+            else:
+                # Cas 2 : La cohorte n'annonce aucune conversion (adopted_count == 0).
+                # Vérifier si des affirmations positives prétendent frauduleusement une adoption vérifiée (AC6).
+                if claims_registry and claims_registry.claims:
+                    for c in claims_registry.claims:
+                        if c.verification_status == VerificationStatus.VERIFIED and (
+                            c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+                            or getattr(c, "asserted_as_action", False)
+                        ):
+                            c_text = c.text or ""
+                            if not _NEGATION_GUARD_RE.search(c_text) and _ADOPTION_CLAIM_RE.search(c_text):
+                                unverified_adoptions_detected = True
+                                adoption_affabulation_message = (
+                                    "Affabulation d'adoption détectée : des conversions ou souscriptions sont affirmées "
+                                    "alors qu'aucun persona n'a adopté dans la cohorte (adopted_count == 0)."
+                                )
+                                break
 
         if unverified_adoptions_detected:
             checks.append(
@@ -698,9 +748,10 @@ class ReportQualityGate:
                     category=QualityCategory.CLAIM_VERIFICATION,
                     title="Intégrité des affirmations d'actions simulées",
                     status=QualityStatus.FAILED,
-                    message="Affabulation d'adoption détectée : des conversions (ADOPTED_VERIFIED) sont proclamées sans aucune preuve d'action probante dans le registre.",
+                    message=adoption_affabulation_message,
                     details={
                         "unverified_adoptions": True,
+                        "adoption_affabulation": True,
                         "adopted_count": len(adopted_members),
                         "total_claims": total_claims,
                         "action_claims": len(asserted_actions),

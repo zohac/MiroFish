@@ -1,6 +1,6 @@
 # Epic 015 : Contrats de preuve de bout en bout, pertinence des rôles et ergonomie IHM de suivi
 
-> **Statut** : `in-progress` (2/6 stories validées : `015-1` `done`, `015-2` `done`, 1 en cours : `015-3` `in-progress`, 3 en `backlog`).
+> **Statut** : `in-progress` (2/6 stories validées : `015-1` `done`, `015-2` `done`, 1 en review : `015-3` `review`, 3 en `backlog`).
 > **Dossier de plan** : `docs/plans/015-contrats-preuve-roles-et-ihm/`
 > **PRD** : [`prd.md`](prd.md) · **Architecture** : [`architecture.md`](architecture.md)
 > **Épic amont** : 014 (clos, 4/4 stories validées — 2 099 tests hôte + 43 tests Node frontend).

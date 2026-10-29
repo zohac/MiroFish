@@ -2,7 +2,7 @@
 id: "015-3"
 epic: "015"
 titre: "Barrière ReportQualityGate sans angle mort conceptuel, section limitations contractuelle et provenance 100 % calculée"
-statut: review
+statut: done
 created: 2026-10-29
 updated: 2026-10-29
 auteur: "Antigravity & Équipe MiroFish"
@@ -343,22 +343,36 @@ format: "2"
 
 ## Revue
 
-*(À remplir lors de la revue contradictoire `/bmad-code-review`.)*
+### Review Findings
+
+- [x] [Review][Patch] Utiliser persona_name au lieu de name, exiger le préfixe evt_* dans evidence_refs et détecter l'affabulation d'adoption quand adopted_count == 0 [backend/app/services/report_quality_gate.py:664-692]
+- [x] [Review][Patch] Exiger le lexique de limites sur le corps de section dans la voie de validation par rôle et intégrer la locale chinoise zh (_LIMITATIONS_HEADING_RE, _LIMITATIONS_CONTENT_RE et plan_outline) [backend/app/services/report_quality_gate.py:34-41,527, backend/app/services/report_agent.py:2184-2195]
+- [x] [Review][Patch] Assainir _extract_markdown_section_body sur les titres vides ou d'espaces et borner sur les titres Markdown # et ## [backend/app/services/report_quality_gate.py:491-510]
+- [x] [Review][Patch] Durcir _markdown_alleges_simulated_actions face aux retours à la ligne, aux verbes pluriels ont et aux marqueurs temporels français [backend/app/services/report_quality_gate.py:58-92]
+- [x] [Review][Patch] Extraire la fonction pure contractuelle _format_anti_affabulation_status et fiabiliser les décomptes contre les taux négatifs [backend/app/services/report_agent.py:3398-3434]
+- [x] [Review][Patch] Documenter section_role parmi les clés JSON anglaises de plan_outline, normaliser les synonymes de rôles et doter ReportOutline de from_dict [backend/app/services/report_agent.py:538-550,2104]
+- [x] [Review][Patch] Combler les angles morts de tests : test unitaire réel de plan_outline, persistance effective de report_history.json, test positif d'adoption vérifiée et fixture hermétique autonome R8 sans skip [backend/tests/test_story_015_3_quality_gate_and_provenance.py]
+- [x] [Review][Patch] Nettoyer la duplication des sections de fin de story et synchroniser l'en-tête de epic-015.md [docs/plans/015-contrats-preuve-roles-et-ihm/story-015-3.md, docs/plans/015-contrats-preuve-roles-et-ihm/epic-015.md:3]
 
 ---
 
 ## Notes de complétion
 
-*(À remplir à la clôture `done` de la story.)*
+### 29 octobre 2026 — Clôture de la Story 015-3 après revue BMAD
 
----
+La story 015-3 a été validée à l'issue de la revue contradictoire BMAD à 4 couches (*Blind Hunter*, *Edge Case Hunter*, *Verification Gap Reviewer*, *Acceptance Auditor*).
+Les 8 groupes de patchs identifiés ont été intégralement implémentés, testés et vérifiés :
+1. **Correction d'adoption dans `ReportQualityGate`** : utilisation de `persona_name` (au lieu de l'attribut inexistant `name`), contrôle de présence d'un identifiant `evt_*` dans `evidence_refs` (D5) avec repli sur `m.observed_event_ids`, et détection d'affabulation d'adoption lorsque `adopted_count == 0` sur toute affirmation d'adoption vérifiée.
+2. **Contrôle strict et support de la locale chinoise (`zh`) pour `LIMITATIONS_SECTION`** : exigence stricte du lexique de limites sur le corps de section (`_LIMITATIONS_CONTENT_RE.search(body)`), intégration des idéogrammes et racines chinoises (异议, 局限, 风险, 阻碍, 拒绝, 障碍) dans `_LIMITATIONS_HEADING_RE`, `_LIMITATIONS_CONTENT_RE` et `plan_outline`.
+3. **Assainissement Markdown** : garde `title.strip()` et délimitation sur les titres de niveau 1 et 2 (`#` et `##`) dans `_extract_markdown_section_body`.
+4. **Analyse narrative robuste** : intégration de l'auxiliaire pluriel français `ont`, des marqueurs temporels (« au cours de la simulation »), et tolérance aux paragraphes multi-lignes sans interférence des négations locales.
+5. **Extraction pure de `_format_anti_affabulation_status`** : fonction pure de module avec protection contre tout taux négatif ou division par zéro.
+6. **Contrat `section_role` et factory `ReportOutline`** : conservation des clés JSON obligatoirement en anglais avec `'section_role'`, normalisation des synonymes (`limites` $\to$ `limitations`) et implémentation de `ReportOutline.from_dict`.
+7. **Comblement des angles morts de tests** : test unitaire réel de `agent.plan_outline` (attribution de rôle et anti-doublon), persistance effective de `report_history.json` via `ReportManager._append_to_history` et `_load_history`, test nominal d'adoption vérifiée par persona, et fixture autonome R8 sous `backend/tests/fixtures/r8_report_934d3254004b/` éliminant tout `pytest.skip` en CI.
+8. **Documentation et agrégats** : nettoyage des sections dupliquées et alignement des statuts sur `done`.
 
-## Revue
-
-*(À remplir lors de la revue contradictoire `/bmad-code-review`.)*
-
----
-
-## Notes de complétion
-
-*(À remplir à la clôture `done` de la story.)*
+**Résultats de qualification finale** :
+- Backend : **2 130 tests passants** (0 échec, 1 warning tiers Pydantic)
+- Frontend : **43 tests Node passants** (0 échec)
+- Linter : `ruff check` 100 % propre
+- Validation des plans : `validate_plans.py` valide (15 epics, 73 stories)
