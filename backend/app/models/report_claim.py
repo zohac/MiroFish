@@ -112,6 +112,7 @@ class ReportClaim:
     confidence: float = 1.0
     limitations: List[str] = field(default_factory=list)
     provenance_regime: Optional[ProvenanceRegime] = None
+    asserted_as_action: bool = False
 
     def __post_init__(self) -> None:
         if not self.text or not str(self.text).strip():
@@ -148,6 +149,22 @@ class ReportClaim:
             object.__setattr__(
                 self, "provenance_regime", ProvenanceRegime.from_str(self.provenance_regime)
             )
+
+        # Traçabilité d'action affirmée (Story 015-1, D1) :
+        # - Un entretien (ProvenanceRegime.INTERVIEW) ne peut jamais être une action affirmée.
+        # - Une OBSERVED_SOCIAL_ACTION hors entretien est toujours une action affirmée (True).
+        # - Pour les autres types (déclassement ultérieur), la valeur transmise est préservée.
+        is_interview = (
+            self.provenance_regime == ProvenanceRegime.INTERVIEW
+            or str(getattr(self.provenance_regime, "value", self.provenance_regime)) == "interview"
+        )
+        if is_interview:
+            object.__setattr__(self, "asserted_as_action", False)
+        elif self.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
+            object.__setattr__(self, "asserted_as_action", True)
+        else:
+            object.__setattr__(self, "asserted_as_action", bool(self.asserted_as_action))
+
         confidence_val = float(self.confidence) if self.confidence is not None else 1.0
         confidence_val = max(0.0, min(1.0, confidence_val))
         object.__setattr__(self, "confidence", confidence_val)
@@ -168,6 +185,7 @@ class ReportClaim:
             "provenance_regime": (
                 self.provenance_regime.value if self.provenance_regime is not None else None
             ),
+            "asserted_as_action": self.asserted_as_action,
         }
 
     @classmethod
@@ -176,10 +194,25 @@ class ReportClaim:
         if not isinstance(data, dict):
             raise ValueError("Données dictionnaire requises pour ReportClaim.from_dict")
 
+        parsed_kind = ClaimKind.from_str(data.get("claim_kind"))
+        raw_regime = data.get("provenance_regime")
+        parsed_regime = ProvenanceRegime.from_str(raw_regime) if raw_regime is not None else None
+
+        # Rétrocompatibilité ascendante v1 (Story 015-1, D1) :
+        # Si la clé asserted_as_action est présente, on l'utilise.
+        # Si elle est absente (artefacts v1 historiques), déduction: OBSERVED_SOCIAL_ACTION hors INTERVIEW -> True.
+        if "asserted_as_action" in data:
+            asserted_as_action_val = bool(data["asserted_as_action"])
+        else:
+            asserted_as_action_val = (
+                parsed_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+                and parsed_regime != ProvenanceRegime.INTERVIEW
+            )
+
         return cls(
             claim_id=str(data.get("claim_id") or ""),
             text=str(data.get("text", "")),
-            claim_kind=ClaimKind.from_str(data.get("claim_kind")),
+            claim_kind=parsed_kind,
             origin=InformationOrigin.from_str(data.get("origin")),
             evidence_refs=list(data.get("evidence_refs") or []),
             verification_status=VerificationStatus.from_str(data.get("verification_status")),
@@ -187,7 +220,8 @@ class ReportClaim:
             round_num=data.get("round_num"),
             confidence=float(data.get("confidence", 1.0)),
             limitations=list(data.get("limitations") or []),
-            provenance_regime=data.get("provenance_regime"),
+            provenance_regime=parsed_regime,
+            asserted_as_action=asserted_as_action_val,
         )
 
 
@@ -213,6 +247,20 @@ class ReportClaimRegistry:
     @property
     def contradicted_claims(self) -> int:
         return sum(1 for c in self.claims if c.verification_status == VerificationStatus.CONTRADICTED)
+
+    @property
+    def asserted_action_claims(self) -> int:
+        """Nombre d'affirmations ayant prétendu une action exécutée (Story 015-1, D2)."""
+        return sum(1 for c in self.claims if getattr(c, "asserted_as_action", False))
+
+    @property
+    def verified_action_claims(self) -> int:
+        """Nombre d'affirmations d'action observée effectivement vérifiées dans le run (Story 015-1, D2)."""
+        return sum(
+            1 for c in self.claims
+            if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+            and c.verification_status == VerificationStatus.VERIFIED
+        )
 
     @property
     def verification_ratio(self) -> float:
@@ -247,6 +295,8 @@ class ReportClaimRegistry:
             "verified_claims": self.verified_claims,
             "unsupported_claims": self.unsupported_claims,
             "contradicted_claims": self.contradicted_claims,
+            "asserted_action_claims": self.asserted_action_claims,
+            "verified_action_claims": self.verified_action_claims,
             "verification_ratio": self.verification_ratio,
             "claims": [c.to_dict() for c in self.claims],
         }

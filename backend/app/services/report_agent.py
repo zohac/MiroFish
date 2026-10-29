@@ -54,6 +54,74 @@ from .report_usage_tracker import (
     ReportUsageTracker,
 )
 
+# Motifs compilés Unicode pour la distinction d'intentions vs actions narrées (Story 015-1, D5)
+_INTENTION_CLAIM_RE = re.compile(
+    r"\b(?:"
+    # Semi-auxiliaire aller + infinitif (avec négation ou pronoms intercalés optionnels)
+    r"(?:va|vont)\s+(?:ne\s+pas\s+|pas\s+)?(?:se\s+|s['’]|y\s+|en\s+|le\s+|la\s+|les\s+|lui\s+|leur\s+)?[a-zàâäéèêëîïôöùûüç]{3,}(?:er|ir|re|oir)"
+    r"|"
+    # Verbes modaux ou prospectifs entiers
+    r"(?:veut|veulent|souhaite|souhaitent|prévoit|prévoient|envisage|envisagent|songe|songent|espère|espèrent|hésite|hésitent)"
+    r"|"
+    # Compter + infinitif
+    r"(?:compte|comptent)\s+(?:ne\s+pas\s+|pas\s+)?(?:se\s+|s['’]|y\s+|en\s+)?[a-zàâäéèêëîïôöùûüç]{3,}(?:er|ir|re|oir)"
+    r"|"
+    # Locutions d'intention FR et EN
+    r"(?:a\s+l['’]intention\s+de|ont\s+l['’]intention\s+de|plans?\s+to|intends?\s+to|wants?\s+to|is\s+going\s+to|are\s+going\s+to)"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+_MODAL_ACTION_RE = re.compile(
+    r"\b(?:"
+    r"(?:va|vont|compte|comptent)\s+(?:ne\s+pas\s+|pas\s+)?(?:se\s+|s['’]|y\s+|en\s+)?"
+    r"(?:publier|poster|tweeter|commenter|répondre|reagir|réagir|partager|republier|aimer|liker|suivre|souscrire|acheter|payer|commander|résilier|voter|boycotter)"
+    r"|"
+    r"(?:veut|veulent|souhaite|souhaitent|prévoit|prévoient|envisage|envisagent|songe|songent|espère|espèrent)\s+"
+    r"(?:publier|poster|tweeter|commenter|répondre|reagir|réagir|partager|republier|aimer|liker|suivre|souscrire|acheter|payer|commander|résilier|voter|boycotter)"
+    r"|"
+    r"(?:plans?\s+to|intends?\s+to|wants?\s+to|is\s+going\s+to|are\s+going\s+to)\s+"
+    r"(?:post|tweet|comment|reply|react|share|repost|like|follow|subscribe|buy|purchase|pay|order)"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+_ACTION_CLAIM_RE = re.compile(
+    r"\b(?:"
+    # Passé composé FR : a/ont + adverbe optionnel + participe passé d'action
+    r"(?:a|ont)\s+(?:(?:vivement|fermement|explicitement|directement|publiquement|rapidement|aussi|déjà|enfin)\s+)?"
+    r"(?:publié|posté|tweeté|commenté|répondu|réagi|partagé|cité|republié|aimé|liké|suivi|souscrit|acheté|payé|commandé|résilié|voté|boycotté|déclaré|formulé|interrogé|critiqué|salué|souligné|manifesté|rejeté)"
+    r"|"
+    # Présent de narration FR
+    r"(?:publie|publient|poste|postent|tweete|tweetent|commente|commentent|répond|répondent|réagit|réagissent|partage|partagent|republie|republient)"
+    r"|"
+    r"(?:(?:le|la|les|l['’])\s+cite\b|\bcite\s+(?:le|la|les|ce|cet|cette|son|sa|ses)\s+(?:post|publication|message|tweet|commentaire|réponse)\b)"
+    r"|"
+    r"(?:\baime\s+(?:le|la|les|ce|cet|cette|son|sa|ses)\s+(?:post|publication|message|tweet|commentaire|réponse)\b)"
+    r"|"
+    r"(?:(?:le|la|les)\s+suit\b|\b(?<!comme\s)(?<!comme\s\s)(?<!s['’]en\s)suit\s+(?:le\s+compte|la\s+page|[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ][\wÀ-ÿ'-]+))"
+    r"|"
+    # Prétérit EN
+    r"(?:posted|tweeted|commented|replied|reacted|shared|liked|followed|quoted|reposted|retweeted|subscribed|purchased|bought)"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+_PURE_NEGATION_ACTION_RE = re.compile(
+    r"\b(?:"
+    r"(?:aucun|aucune|personne|nul)\b[^.!?\n]*?\b(?:n['’]a|n['’]ont)\s+(?:pas\s+)?(?:souscrit|acheté|payé|commandé|publié|posté|tweeté|commenté|répondu|réagi)"
+    r"|"
+    r"\b(?:n['’]a|n['’]ont)\s+(?:pas|point|jamais)\s+(?:souscrit|acheté|payé|commandé|publié|posté|tweeté|commenté|répondu|réagi)"
+    r"|"
+    r"\bsans\s+(?:souscrire|acheter|payer|commander|publier|poster|tweeter|commenter|répondre|réagir)"
+    r"|"
+    r"\b(?:did|does)\s+not\s+(?:subscribe|buy|purchase|pay|order|post|tweet|comment|reply|react)"
+    r"|"
+    r"\bwithout\s+(?:subscribing|buying|purchasing|paying|ordering|posting|tweeting|commenting|replying|reacting)"
+    r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
 logger = get_logger('mirofish.report_agent')
 
 
@@ -3552,23 +3620,28 @@ class ReportAgent:
                 except ValueError:
                     pass
 
-            # Déterminer claim_kind (AC3 : extraction d'actions sans dépendance d'evt_*)
+            # Déterminer claim_kind (Story 015-1, D5 : expressions régulières \b, gouvernance modale et homographes)
             sec_lower = current_section.lower()
             text_lower = clean_text.lower()
+
+            # Guard contre homographes français : "comme suit", "s'en suit", "comment", "rendre compte", etc.
+            has_action_match = bool(_ACTION_CLAIM_RE.search(clean_text))
+            has_intention_match = bool(_INTENTION_CLAIM_RE.search(clean_text))
+            has_modal_action = bool(_MODAL_ACTION_RE.search(clean_text))
+            has_pure_negation = bool(_PURE_NEGATION_ACTION_RE.search(clean_text))
 
             if "source" in sec_lower or "provenance" in sec_lower or "contexte documentaire" in sec_lower or doc_refs:
                 claim_kind = ClaimKind.SOURCE_FACT
                 origin = InformationOrigin.DOCUMENTARY
-            elif any(k in text_lower for k in ("va", "veut", "compte", "prévoit", "songe", "intention", "plans to", "intends to", "souhaite")):
+            elif has_modal_action:
+                # Une action régie par un modal prospectif ("va publier", "compte souscrire") est une intention
                 claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.SIMULATION
-            elif ev_refs or any(k in text_lower for k in (
-                "a publié", "a tweeté", "a posté", "a commenté", "a réagi", "a acheté", "a souscrit",
-                "exprimé", "a formulé", "a déclaré", "a répondu", "a interrogé", "a partagé",
-                "a vivement critiqué", "a salué", "a souligné", "a manifesté", "a rejeté",
-                "posted", "tweeted", "commented", "replied", "reacted", "shared"
-            )):
+            elif (ev_refs or has_action_match) and not has_pure_negation:
                 claim_kind = ClaimKind.OBSERVED_SOCIAL_ACTION
+                origin = InformationOrigin.SIMULATION
+            elif has_intention_match:
+                claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.SIMULATION
             elif any(k in text_lower for k in ("hypothèse", "scénario", "consigne", "brief", "hypothesis")):
                 claim_kind = ClaimKind.SCENARIO_HYPOTHESIS
@@ -3589,9 +3662,17 @@ class ReportAgent:
                 regime = ProvenanceRegime.UNKNOWN
 
             # Une citation d'entretien n'est jamais une action observée.
-            if regime == ProvenanceRegime.INTERVIEW or str(regime) == "interview":
+            is_interview_regime = (
+                regime == ProvenanceRegime.INTERVIEW
+                or str(getattr(regime, "value", regime)) == "interview"
+            )
+            if is_interview_regime:
                 claim_kind = ClaimKind.REPORTED_INTENTION
                 origin = InformationOrigin.INFERENCE
+
+            # Traçabilité d'action affirmée (Story 015-1, D6) :
+            # Capturée APRÈS le filtre d'entretien et AVANT l'inhibition des silencieux.
+            asserted_action_flag = (not is_interview_regime) and (claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION)
 
             # Règle de silence (Story 014-3, AC1, AC4) : un persona silencieux
             # (is_silent == True) ne peut se voir attribuer ni parole, ni décision,
@@ -3651,6 +3732,7 @@ class ReportAgent:
                 confidence=1.0,
                 limitations=limitations,
                 provenance_regime=regime,
+                asserted_as_action=asserted_action_flag,
             )
             claims.append(claim)
 
