@@ -7,6 +7,7 @@ import json
 import os
 import traceback
 import threading
+from typing import Any
 from flask import request, jsonify, send_file
 
 from . import report_bp
@@ -26,6 +27,37 @@ from ..utils.zep_lifecycle import (
 )
 
 logger = get_logger('mirofish.api.report')
+
+
+def _filter_simulation_requirement_for_report(
+    simulation_id: str,
+    simulation_requirement: str,
+    manager: Any = None,
+) -> str:
+    """Filtre le simulation_requirement pour exclure les personas non admis (Story 014-4, FR-07, AC5)."""
+    if not simulation_requirement:
+        return ""
+    if manager is None:
+        from ..services.simulation_manager import SimulationManager
+        manager = SimulationManager()
+    get_actor_sel = getattr(manager, "get_actor_selection", None)
+    actor_selection = get_actor_sel(simulation_id) if callable(get_actor_sel) else None
+    if actor_selection and actor_selection.actors:
+        from ..services.brief_consistency import filter_non_admitted_personas_from_text
+        admitted_names = [
+            a.entity_name for a in actor_selection.actors
+            if getattr(a.eligibility_status, "value", str(a.eligibility_status)).lower() == "eligible"
+        ]
+        excluded_names = [
+            a.entity_name for a in actor_selection.actors
+            if getattr(a.eligibility_status, "value", str(a.eligibility_status)).lower() != "eligible"
+        ]
+        return filter_non_admitted_personas_from_text(
+            simulation_requirement,
+            admitted_names=admitted_names,
+            excluded_names=excluded_names,
+        )
+    return simulation_requirement
 
 
 # ============== 报告生成接口 ==============
@@ -201,23 +233,11 @@ def generate_report():
             }), 400
 
         # Filtrage du contexte de rédaction : exclure les personas non admis (Story 014-4, FR-07, AC5)
-        get_actor_sel = getattr(manager, "get_actor_selection", None)
-        actor_selection = get_actor_sel(simulation_id) if callable(get_actor_sel) else None
-        if actor_selection and actor_selection.actors:
-            from ..services.brief_consistency import filter_non_admitted_personas_from_text
-            admitted_names = [
-                a.entity_name for a in actor_selection.actors
-                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) == "eligible"
-            ]
-            excluded_names = [
-                a.entity_name for a in actor_selection.actors
-                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) in ("review", "ineligible")
-            ]
-            simulation_requirement = filter_non_admitted_personas_from_text(
-                simulation_requirement,
-                admitted_names=admitted_names,
-                excluded_names=excluded_names,
-            )
+        simulation_requirement = _filter_simulation_requirement_for_report(
+            simulation_id=simulation_id,
+            simulation_requirement=simulation_requirement,
+            manager=manager,
+        )
         
         # 提前生成 report_id，以便立即返回给前端
         import uuid
@@ -740,24 +760,11 @@ def chat_with_report_agent():
                 "error": t('api.missingGraphId')
             }), 400
         
-        simulation_requirement = project.simulation_requirement or ""
-        get_actor_sel = getattr(manager, "get_actor_selection", None)
-        actor_selection = get_actor_sel(simulation_id) if callable(get_actor_sel) else None
-        if actor_selection and actor_selection.actors:
-            from ..services.brief_consistency import filter_non_admitted_personas_from_text
-            admitted_names = [
-                a.entity_name for a in actor_selection.actors
-                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) == "eligible"
-            ]
-            excluded_names = [
-                a.entity_name for a in actor_selection.actors
-                if getattr(a.eligibility_status, "value", str(a.eligibility_status)) in ("review", "ineligible")
-            ]
-            simulation_requirement = filter_non_admitted_personas_from_text(
-                simulation_requirement,
-                admitted_names=admitted_names,
-                excluded_names=excluded_names,
-            )
+        simulation_requirement = _filter_simulation_requirement_for_report(
+            simulation_id=simulation_id,
+            simulation_requirement=project.simulation_requirement or "",
+            manager=manager,
+        )
         
         # 创建Agent并进行对话
         agent = ReportAgent(

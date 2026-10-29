@@ -4,11 +4,17 @@ Une page, mise à jour à chaque changement d'epic. La source de vérité est
 [`sprint-status.yaml`](sprint-status.yaml) — ce fichier en est la **vue
 humaine**, pas une seconde saisie.
 
-> Dernière mise à jour : **22 octobre 2026** · branche `local-first`
+> Dernière mise à jour : **24 octobre 2026** · branche `local-first`
 
 ---
 
 ## Où on en est
+
+L'**Epic 014 (« Intégrité des preuves de rédaction ») est en phase finale (4/4 stories terminées et validées — 2 099 tests verts sur l'hôte + 43 tests Node frontend)** :
+- **Story 014-1 (done au 22 octobre 2026)** : Régime de preuve des entretiens de rédaction (`ProvenanceRegime`, jeton `INTERVIEW`, attribution pure par 8-grammes, interdiction formelle d'attribuer `OBSERVED_SOCIAL_ACTION` à un entretien).
+- **Story 014-2 (done au 22 octobre 2026)** : Section « Sources & Provenance » honnête et confrontation des populations (produite après le registre, affirmations calculées sans littéraux en dur, confrontation `actions.jsonl` vs `observed_events.jsonl`, `ProjectManager.get_project` résilient aux `project.json` corrompus).
+- **Story 014-3 (done au 24 octobre 2026)** : La règle de silence monte jusqu'à la prose et jusqu'à la barrière (inhibition des passages attribués à un silencieux, déclassement `REPORTED_INTENTION`/`UNSUPPORTED`, contradiction de silence critique pour la barrière `ReportQualityGate`).
+- **Story 014-4 (done au 24 octobre 2026)** : Le brief et les fiches persona ne font plus diverger deux biographies (`brief_consistency.py`, audit déterministe brief vs fiches sans LLM, échec immédiat `BriefPersonaContradictionError` et `SimulationStatus.FAILED` dans `prepare_simulation` avec nettoyage Fail-Closed des profils partiels, filtrage des personas non admis dans `api/report.py`, persistance atomique `brief_consistency.json` et inclusion dans l'archive d'audit ZIP). Revue BMAD 4 couches validée avec 7 patches appliqués. 16 tests unitaires dédiés.
 
 L'**Epic 013 (« Benchmark LLM du ReportAgent et régénération non destructive sur simulation existante ») est intégralement clos avec succès (7/7 stories validées — 2 067 tests verts sur l'hôte + 43 tests Node frontend)** :
 - **Story 013-1 (done au 19 octobre 2026)** : Configuration LLM dédiée au ReportAgent et support effectif de l'effort. Modèle `ReportLLMProfile` immuable avec masquage systématique des secrets (`to_dict(expose_secrets=False)`), transmission par requête de `reasoning_effort` dans `create_chat_completion` et `LLMClient` sans mutation d'`os.environ`, adaptation de la passerelle Antigravity locale (`antigravity_proxy.py`) pour mapper l'effort en `thinkingConfig` Gemini effectif (`gemini-3.8-flash` testé et gradué : low 0 token thinking, med 453, high 569), intégration dans `ReportAgent`, `meta.json` et l'API `POST /api/report/generate`. 10 tests hermétiques dédiés (`test_report_llm_profile.py`). Revue contradictoire BMAD 4 couches validée avec 2 patches appliqués. Filet global porté à **1 852 tests passants sur l'hôte** (0 échec) + **9 tests Node frontend**.

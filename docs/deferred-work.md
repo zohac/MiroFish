@@ -561,3 +561,9 @@ Revue contradictoire BMAD 4 couches sur le diff `cce6087..HEAD` (code pertinent)
 - Chemin de `get_project` sur fichier JSON valide mais schéma invalide non testé. [backend/app/models/project.py] — deferred: test coverage gap.
 - Le commit mélange des préoccupations de la story 014-1 (realname/username, repli replay-mode, jeton de régime, i18n des limitations, bannière unknown). [commit 83a7a9e] — deferred: scope/hygiène, pas un défaut runtime.
 - Le chemin de l'index d'attribution dans `run_manifest.json` est un chemin absolu serveur, moins portable pour un tiers. [backend/app/services/simulation_audit_service.py] — deferred: low, la spec demande seulement « le chemin ».
+
+## Deferred from: code review of story-014-4.md (2026-10-24)
+
+Revue BMAD du commit `f7590d4` (« feat(brief): audit de cohérence biographique et filtrage des non-admis (Story 014-4) »).
+
+- **`backend/scripts/verifier_benchmark_epic_013.py:675,734` — absence de filtrage des personas non admis dans le banc de benchmark.** Le script hérité de l'Epic 013 injecte directement le texte brut de `simulation_requirement` dans `generer_variante` sans appliquer `filter_non_admitted_personas_from_text`. Sur un rejeu benchmark ciblant une simulation comme R7, les personas non admis peuvent fuiter dans le prompt de la variante. *Différé : script de banc benchmark issu de l'Epic 013, non modifié par la Story 014-4.*

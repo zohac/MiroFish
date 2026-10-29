@@ -2,7 +2,7 @@
 id: "014-4"
 epic: "014"
 titre: "Le brief et les fiches persona ne font plus diverger deux biographies"
-statut: review
+statut: done
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -268,19 +268,33 @@ fiches non admises.
 
 ## Revue
 
-*(Revue contradictoire BMAD 4 couches à venir)*
+### Review Findings
+
+- [x] [Review][Patch] Nettoyage Fail-Closed des fichiers de profils persistés en streaming lors d'une contradiction biographique [backend/app/services/simulation_manager.py:848]
+- [x] [Review][Patch] Injection des personas connus dans l'audit et restriction de l'extraction heuristique des noms dans le brief [backend/app/services/brief_consistency.py:343, backend/app/services/simulation_manager.py:834]
+- [x] [Review][Patch] Normalisation Unicode NFC et tolérance aux majuscules non accentuées dans le filtrage des personas non admis [backend/app/services/brief_consistency.py:473, backend/app/api/report.py:210]
+- [x] [Review][Patch] Préservation des sauts de ligne lors du réassemblage des listes Markdown dans le filtrage des non-admis [backend/app/services/brief_consistency.py:553]
+- [x] [Review][Patch] Robustesse de l'extraction des épisodes (déduplication commentée, distance exacte, fallback sans personas, normalisation décimale) [backend/app/services/brief_consistency.py:104,240,247,429]
+- [x] [Review][Patch] Remplacement du test fantôme de persistance et couverture d'intégration du filtrage à la route [backend/tests/test_brief_persona_consistency.py:899]
+- [x] [Review][Patch] Factorisation de l'extraction et du filtrage des personas non admis dans l'API de rapport [backend/app/api/report.py:204,741]
+- [x] [Review][Defer] Absence de filtrage du brief dans le banc de benchmark hors-API [backend/scripts/verifier_benchmark_epic_013.py:675] — deferred: script d'orchestration de benchmark hors-périmètre de la story 014-4 issu de l'Epic 013
+
+#### Rejected Findings
+
+- `low` [backend/app/services/brief_consistency.py:124] — Prise en charge des devises autres que l'euro ($2000) mentionnée en note de dev : rejeté car le critère contractuel de la story et du PRD restreint explicitement les épisodes à l'euro.
 
 ---
 
 ## Notes de complétion
 
-- **Statut final** : `review`
+- **Statut final** : `done`
+- **Revue BMAD** : revue contradictoire 4 couches menée à terme (24 octobre 2026). 7 patches de robustesse et sécurité appliqués, 1 point différé consigné dans `docs/deferred-work.md`, 1 rejet motivé.
 - **Tests exécutés** :
-  - Tests unitaires dédiés : `uv run pytest tests/test_brief_persona_consistency.py` : 10 passed en 0.30s.
-  - Tests barrière & régression ciblés : `uv run pytest tests/test_brief_persona_consistency.py tests/test_zep_report_barrier.py` : 14 passed en 0.32s.
-  - Suite complète backend hôte : `uv run pytest tests/ -q` : **2 093 passed**, 1 warning en 330.81s (filet préservé, baseline 2 083 + 10 = 2 093).
-  - Suite frontend Node : `pnpm --dir frontend test` : **43 passed** en 155ms.
+  - Tests unitaires dédiés : `uv run pytest tests/test_brief_persona_consistency.py` : **16 passed** en 0.33s.
+  - Tests barrière & régression ciblés : `uv run pytest tests/test_brief_persona_consistency.py tests/test_zep_report_barrier.py` : **20 passed** en 0.40s.
+  - Suite complète backend hôte : `uv run pytest tests/ -q` : **2 099 passed**, 1 warning en 330.22s (0 échec, régression 0, couverture complète).
+  - Suite frontend Node : `pnpm --dir frontend test` : **43 passed** en 142ms.
 - **Lint** : `uv run ruff check .` : All checks passed!
 - **Validation de plan** : `uv run python scripts/validate_plans.py` : structure valide (14 epics, 70 stories).
-- **Écarts avec le plan** : aucun écart fonctionnel ; ajustement défensif dans `report.py` pour supporter les test doubles sans casser l'isolation.
+- **Écarts avec le plan** : aucun écart fonctionnel ; renforcement de la détection de personas externes et robustesse aux montants décimaux et listes markdown.
 - **Ce que la story ne fait pas** : ne modifie pas les générateurs d'entretiens (014-1), ni la section de provenance (014-2), ni les règles de silence textuelles (014-3).

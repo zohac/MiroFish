@@ -831,9 +831,19 @@ class SimulationManager:
                 audit_brief_persona_consistency,
                 BriefPersonaContradictionError,
             )
+            person_actors = [
+                a.entity_name for a in selection.actors
+                if getattr(a, "qualified_role", None) in (ActorRole.PERSON, "person")
+            ]
+            org_actors = [
+                a.entity_name for a in selection.actors
+                if getattr(a, "qualified_role", None) not in (ActorRole.PERSON, "person")
+            ]
             consistency_result = audit_brief_persona_consistency(
                 brief_text=simulation_requirement or (simulation_brief.advanced_text() if simulation_brief else ""),
                 profiles=profiles,
+                known_personas=person_actors or [a.entity_name for a in selection.actors],
+                known_organizations=org_actors,
             )
 
             # Persistance atomique de brief_consistency.json dans sim_dir (AC6)
@@ -847,7 +857,14 @@ class SimulationManager:
 
             if not consistency_result.is_consistent:
                 # Échec Fail-Closed immédiat à la construction (AC4) :
-                # Aucun profil n'est persisté et l'erreur est levée
+                # Aucun profil ne doit rester persisté si l'audit échoue
+                for profile_file in ("reddit_profiles.json", "twitter_profiles.csv"):
+                    p_path = os.path.join(sim_dir, profile_file)
+                    if os.path.exists(p_path):
+                        try:
+                            os.remove(p_path)
+                        except OSError:
+                            pass
                 reasons = [c.reason for c in consistency_result.contradictions]
                 raise BriefPersonaContradictionError(
                     f"Contradiction biographique détectée entre le brief et les fiches persona: {'; '.join(reasons)}"

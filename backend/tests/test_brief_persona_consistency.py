@@ -5,14 +5,20 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import unicodedata
 import zipfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from flask import Flask
 
+from app.api.report import _filter_simulation_requirement_for_report, report_bp
 from app.models.actor_eligibility import ActorRole, EligibilityStatus
 from app.models.actor_selection import ACTOR_SELECTION_FILENAME, ActorItem, ActorSelection
+from app.models.project import ProjectStatus
 from app.services.simulation_manager import SimulationState, SimulationStatus
+from app.services.simulation_runner import RunnerStatus
 from app.services.brief_consistency import (
     BriefPersonaContradictionError,
     ConsistencyResult,
@@ -151,7 +157,7 @@ def test_prepare_simulation_fails_on_contradiction():
             with patch.object(manager, "preview_actors", return_value=(mock_selection, {})), \
                  patch.object(manager, "get_actor_selection", return_value=mock_selection), \
                  patch("app.services.simulation_manager.fingerprint_qualification_inputs", return_value="fp_test"), \
-                 patch("app.services.simulation_manager.ProjectManager.get_project", return_value=MagicMock(graph_id="graph_test", source_documents=[], applied_ontology_id=None)), \
+                 patch("app.services.simulation_manager.ProjectManager.get_project", return_value=MagicMock(graph_id="graph_test", source_documents=[], applied_ontology_id=None, get_brief=lambda: None, get_source_conflicts=lambda: [])), \
                  patch("app.services.simulation_manager.ZepEntityReader.filter_defined_entities", return_value=mock_filtered), \
                  patch("app.services.simulation_manager.OasisProfileGenerator.generate_profiles_from_entities", return_value=[contradictory_profile]), \
                  patch("app.services.simulation_manager.OasisProfileGenerator.save_profiles") as mock_save_profiles:
@@ -225,24 +231,74 @@ def test_eligible_persona_is_preserved():
 
 
 def test_consistency_audit_persisted():
-    """AC6 : brief_consistency.json est persisté dans le répertoire de simulation."""
-    brief_text = "Brief simple."
-    profiles = [
-        {"name": "Alice", "bio": "Bio Alice", "persona": "Persona Alice"}
-    ]
-    res = audit_brief_persona_consistency(brief_text, profiles)
-
+    """AC6 : SimulationManager.prepare_simulation persiste brief_consistency.json avec is_consistent=True."""
+    sim_id = "sim_test_consistency_persisted"
     with tempfile.TemporaryDirectory() as tmpdir:
-        bc_path = os.path.join(tmpdir, "brief_consistency.json")
-        with open(bc_path, "w", encoding="utf-8") as f:
-            json.dump(res.to_dict(), f)
+        manager = SimulationManager()
+        with patch.object(manager, "_get_simulation_dir", return_value=tmpdir):
+            state = SimulationState(
+                simulation_id=sim_id,
+                project_id="proj_test",
+                graph_id="graph_test",
+                status=SimulationStatus.CREATED,
+            )
+            manager._save_simulation_state(state)
 
-        with open(bc_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            mock_selection = ActorSelection(
+                simulation_id=sim_id,
+                project_id="proj_test",
+                graph_id="graph_test",
+                input_fingerprint="fp_test",
+                policy_version="1.0.0",
+                actors=[
+                    ActorItem(
+                        entity_uuid="uuid_nathalie",
+                        entity_name="Nathalie",
+                        qualified_role=ActorRole.PERSON,
+                        eligibility_status=EligibilityStatus.ELIGIBLE,
+                        reasoning="Persona de test",
+                    )
+                ],
+            )
+            mock_filtered = MagicMock()
+            mock_filtered.filtered_count = 1
+            mock_filtered.entity_types = ["person"]
+            mock_filtered.entities = [
+                MagicMock(uuid="uuid_nathalie", name="Nathalie", entity_type="person")
+            ]
 
-        assert data["is_consistent"] is True
-        assert data["contradictions"] == []
-        assert "total_profiles" in data["diagnostics"]
+            consistent_brief = "Nathalie est une débutante en création d'entreprise."
+            consistent_profile = OasisAgentProfile(
+                user_id=1,
+                user_name="nathalie_test",
+                name="Nathalie",
+                bio="Bio de Nathalie",
+                persona="Débute en création d'entreprise.",
+            )
+
+            with patch.object(manager, "preview_actors", return_value=(mock_selection, {})), \
+                 patch.object(manager, "get_actor_selection", return_value=mock_selection), \
+                 patch("app.services.simulation_manager.fingerprint_qualification_inputs", return_value="fp_test"), \
+                 patch("app.services.simulation_manager.ProjectManager.get_project", return_value=MagicMock(graph_id="graph_test", source_documents=[], applied_ontology_id=None, get_brief=lambda: None, get_source_conflicts=lambda: [])), \
+                 patch("app.services.simulation_manager.ZepEntityReader.filter_defined_entities", return_value=mock_filtered), \
+                 patch("app.services.simulation_manager.OasisProfileGenerator.generate_profiles_from_entities", return_value=[consistent_profile]), \
+                 patch("app.services.simulation_manager.OasisProfileGenerator.save_profiles"), \
+                 patch("app.services.simulation_manager.SimulationConfigGenerator.generate_config", return_value=MagicMock(to_json=lambda: "{}", generation_reasoning="ok")):
+
+                manager.prepare_simulation(
+                    simulation_id=sim_id,
+                    simulation_requirement=consistent_brief,
+                    document_text="Contenu doc",
+                )
+
+            bc_path = os.path.join(tmpdir, "brief_consistency.json")
+            assert os.path.exists(bc_path)
+            with open(bc_path, "r", encoding="utf-8") as f_bc:
+                data = json.load(f_bc)
+
+            assert data["is_consistent"] is True
+            assert data["contradictions"] == []
+            assert "total_profiles" in data["diagnostics"]
 
 
 def test_consistency_audit_in_archive():
@@ -343,3 +399,204 @@ def test_r7_episode_leak_detected():
     assert len(r7_contradiction) == 1
     assert "Émilie" in r7_contradiction[0].reason
     assert "Nathalie" in r7_contradiction[0].reason
+
+
+def test_filter_non_admitted_personas_accent_and_nfd_normalization():
+    """AC5 : filter_non_admitted_personas_from_text gère les formes sans accent et l'Unicode NFD."""
+    nfd_name = unicodedata.normalize("NFD", "Émilie")
+    text = (
+        f"{nfd_name} refuse l'offre à cause de sa mauvaise expérience.\n\n"
+        "Emilie (sans accent) est également citée.\n\n"
+        "Nathalie reste satisfaite."
+    )
+    filtered = filter_non_admitted_personas_from_text(
+        text,
+        admitted_names=["Nathalie"],
+        excluded_names=["Émilie"],
+    )
+    assert "Émilie" not in filtered
+    assert "Emilie" not in filtered
+    assert "Nathalie reste satisfaite." in filtered
+
+
+def test_filter_non_admitted_personas_multiline_list_preserved():
+    """AC5 : Une liste markdown avec puces conserve ses retours à la ligne lorsqu'un persona est caviardé."""
+    text = (
+        "- Point 1 : Nathalie est présente.\n"
+        "- Point 2 : Christine hésite encore.\n"
+        "- Point 3 : Sophie confirme son inscription."
+    )
+    filtered = filter_non_admitted_personas_from_text(
+        text,
+        admitted_names=["Nathalie", "Sophie"],
+        excluded_names=["Christine"],
+    )
+    assert "- Point 1 : Nathalie est présente." in filtered
+    assert "- Point 2 : [persona non admis] hésite encore." in filtered
+    assert "- Point 3 : Sophie confirme son inscription." in filtered
+    assert "\n- Point 2 :" in filtered
+    assert "\n- Point 3 :" in filtered
+
+
+def test_audit_amount_with_decimals_and_commas():
+    """AC1/AC2 : Les montants formatés avec virgules ou décimales (.00, ,00) sont extraits avec succès."""
+    brief_text = "Émilie a perdu 1 500,00 € en agence WordPress."
+    profiles = [
+        {
+            "name": "Nathalie",
+            "bio": "Bio",
+            "persona": "A perdu 1500.00 EUR en agence WordPress.",
+        }
+    ]
+    res = audit_brief_persona_consistency(brief_text, profiles)
+    assert res.is_consistent is False
+    assert len(res.contradictions) == 1
+    assert res.contradictions[0].owner == "Émilie"
+    assert res.contradictions[0].carrier == "Nathalie"
+
+
+def test_filter_simulation_requirement_for_report_uses_actor_selection():
+    """AC5 : _filter_simulation_requirement_for_report filtre les personas exclus ou non_actor."""
+    sim_id = "sim_test_report_filter"
+    raw_req = "Nathalie adore l'outil. Émilie refuse l'offre à 1500 euros."
+
+    mock_selection = ActorSelection(
+        simulation_id=sim_id,
+        project_id="p1",
+        graph_id="g1",
+        input_fingerprint="fp1",
+        policy_version="1.0.0",
+        actors=[
+            ActorItem(
+                entity_uuid="u1",
+                entity_name="Nathalie",
+                qualified_role=ActorRole.PERSON,
+                eligibility_status=EligibilityStatus.ELIGIBLE,
+                reasoning="Eligible",
+            ),
+            ActorItem(
+                entity_uuid="u2",
+                entity_name="Émilie",
+                qualified_role=ActorRole.PERSON,
+                eligibility_status=EligibilityStatus.INELIGIBLE,
+                reasoning="Non acteur",
+            ),
+        ],
+    )
+
+    with patch.object(SimulationManager, "get_actor_selection", return_value=mock_selection):
+        filtered = _filter_simulation_requirement_for_report(sim_id, raw_req)
+        assert "Émilie" not in filtered
+        assert "Nathalie adore l'outil." in filtered
+
+
+def test_filter_simulation_requirement_for_report_fallback_when_no_selection():
+    """AC5 : En l'absence d'actor_selection, le texte brut est préservé sans altération."""
+    sim_id = "sim_test_no_selection"
+    raw_req = "Texte brut sans sélection."
+    with patch.object(SimulationManager, "get_actor_selection", return_value=None):
+        filtered = _filter_simulation_requirement_for_report(sim_id, raw_req)
+        assert filtered == raw_req
+
+
+def test_generate_report_route_filters_brief_before_agent(monkeypatch):
+    """AC5 : La route POST /api/report/generate passe le brief filtré au ReportAgent."""
+    sim_id = "sim_route_test"
+    raw_brief = "Nathalie participe activement. Émilie n'a pas voulu souscrire."
+    mock_sim = SimpleNamespace(
+        project_id="proj_1",
+        graph_id="graph_1",
+        status=SimulationStatus.COMPLETED,
+        locale="fr",
+        simulation_requirement=raw_brief,
+    )
+    mock_project = SimpleNamespace(
+        status=ProjectStatus.GRAPH_COMPLETED,
+        graph_id="graph_1",
+        simulation_requirement=raw_brief,
+        simulation_brief={"content": raw_brief},
+    )
+
+    mock_selection = ActorSelection(
+        simulation_id=sim_id,
+        project_id="proj_1",
+        graph_id="graph_1",
+        input_fingerprint="fp_route",
+        policy_version="1.0.0",
+        actors=[
+            ActorItem(
+                entity_uuid="u1",
+                entity_name="Nathalie",
+                qualified_role=ActorRole.PERSON,
+                eligibility_status=EligibilityStatus.ELIGIBLE,
+                reasoning="Eligible",
+            ),
+            ActorItem(
+                entity_uuid="u2",
+                entity_name="Émilie",
+                qualified_role=ActorRole.PERSON,
+                eligibility_status=EligibilityStatus.INELIGIBLE,
+                reasoning="Non acteur",
+            ),
+        ],
+    )
+
+    app = Flask(__name__)
+    app.register_blueprint(report_bp, url_prefix="/api/report")
+
+    import threading
+    received_briefs = []
+    done_event = threading.Event()
+
+    def fake_agent_init(self, *args, **kwargs):
+        received_briefs.append(kwargs.get("simulation_requirement"))
+        self.simulation_id = kwargs.get("simulation_id")
+        self.graph_id = kwargs.get("graph_id")
+        self.locale = kwargs.get("locale")
+
+    def fake_generate_report(self, *args, **kwargs):
+        done_event.set()
+        return SimpleNamespace(
+            status=SimpleNamespace(value="completed"),
+            report_id="rep_test",
+            to_dict=lambda: {"report_id": "rep_test"},
+        )
+
+    monkeypatch.setattr(
+        "app.api.report.SimulationManager",
+        lambda: SimpleNamespace(
+            get_simulation=lambda _sid: mock_sim,
+            get_actor_selection=lambda _sid: mock_selection,
+        ),
+    )
+    monkeypatch.setattr(
+        "app.api.report.ProjectManager",
+        SimpleNamespace(get_project=lambda _pid: mock_project),
+    )
+    monkeypatch.setattr(
+        "app.api.report.ReportManager.get_report_by_simulation",
+        classmethod(lambda cls, _sid: None),
+    )
+    monkeypatch.setattr(
+        "app.api.report.ReportManager.save_report",
+        classmethod(lambda cls, _r: None),
+    )
+    monkeypatch.setattr(
+        "app.api.report.SimulationRunner.get_run_state",
+        classmethod(lambda cls, _sid: SimpleNamespace(runner_status=RunnerStatus.COMPLETED)),
+    )
+    monkeypatch.setattr(
+        "app.api.report.ZepGraphMemoryManager.get_updater",
+        classmethod(lambda cls, _sid: None),
+    )
+    monkeypatch.setattr("app.api.report.ReportAgent.__init__", fake_agent_init)
+    monkeypatch.setattr("app.api.report.ReportAgent.generate_report", fake_generate_report)
+
+    with app.test_client() as client:
+        resp = client.post("/api/report/generate", json={"simulation_id": sim_id})
+        assert resp.status_code == 200
+        assert done_event.wait(timeout=5.0)
+        assert len(received_briefs) == 1
+        filtered_brief = received_briefs[0]
+        assert "Émilie" not in filtered_brief
+        assert "Nathalie participe activement." in filtered_brief

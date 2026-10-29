@@ -43,7 +43,11 @@ def _normalize_word_ascii(word: str) -> str:
 
 def _extract_amount_token(raw_amount: str) -> str:
     """Normalise un montant en jeton déterministe (chiffres + 'eur')."""
-    digits = re.sub(r"[^\d]", "", raw_amount)
+    if not raw_amount:
+        return ""
+    # Gérer les décimales superflues comme ,00 ou .00 (ex: 15,00 € -> 15eur, 29.00 € -> 29eur)
+    clean_amount = re.sub(r"[,.]00(?=\s*(?:€|euros?|EUR))", "", raw_amount, flags=re.IGNORECASE)
+    digits = re.sub(r"[^\d]", "", clean_amount)
     return f"{digits}eur" if digits else ""
 
 
@@ -56,8 +60,14 @@ STOPWORDS_CAPITALIZED = frozenset({
     "CE", "CET", "CETTE", "CES", "MON", "TON", "SON", "NOTRE", "VOTRE", "LEUR",
     "IL", "ELLE", "ILS", "ELLES", "ON", "NOUS", "VOUS", "JE", "TU",
     "QUI", "QUE", "QUOI", "DONT", "OU", "QUAND", "COMMENT", "POURQUOI",
+    "QUEL", "QUELLE", "QUELS", "QUELLES", "LEQUEL", "LAQUELLE", "LESQUELS", "LESQUELLES",
     "THE", "A", "AN", "AND", "OR", "BUT", "FOR", "WITH", "WITHOUT", "IN", "ON", "AT", "TO", "FROM",
     "AFTER", "BEFORE", "DURING", "SINCE",
+    "EUR", "EURO", "EUROS", "TTC", "HT", "TVA", "USD", "DOLLAR", "DOLLARS", "GBP",
+    "MOIS", "MENSUEL", "MENSUELLE", "MENSUELS", "MENSUELLES", "AN", "ANNEE", "ANNUEL", "ANNUELLE", "ANNUELS", "ANNUELLES",
+    "SEANCE", "CONSULTATION", "SESSION", "TARIF", "TARIFS", "PRIX", "ABONNEMENT", "ABONNEMENTS",
+    "FORFAIT", "FORFAITS", "OFFRE", "OFFRES", "FORMULE", "FORMULES", "PACK", "PACKS",
+    "COUT", "COUTS", "CHARGE", "CHARGES", "FRAIS", "TOTAL", "NET", "BRUT",
 })
 
 # Motif d'extraction des montants monétaires : chiffres avec séparateurs éventuels suivis de €, euro(s) ou EUR
@@ -66,8 +76,11 @@ AMOUNT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Motif de découpage en phrases
-SENTENCE_SPLIT_PATTERN = re.compile(r"[.!?\n\r]+", re.UNICODE)
+# Motif de découpage en phrases (ne découpe pas sur les décimales des nombres ex: 1500.00)
+SENTENCE_SPLIT_PATTERN = re.compile(
+    r"(?<!\d)\.+(?:\s+|$)|(?<=\d)\.(?!\d)(?:\s+|$)|[!?;]+(?:\s+|$)|[\n\r]+",
+    re.UNICODE,
+)
 
 
 @dataclass(frozen=True)
@@ -161,41 +174,51 @@ def extract_episodes(
                 continue
 
             match_start = match.start()
-            words_in_sentence = re.findall(r"\b[A-Za-zÀ-ÿ0-9_-]+\b", s)
+            match_end = match.end()
+            token_matches = list(re.finditer(r"\b[A-Za-zÀ-ÿ0-9_-]+\b", s))
 
-            # Recherche des mots capitalisés dans la phrase
+            # Recherche des mots capitalisés dans la phrase (en excluant les tokens du montant lui-même)
             capitalized_candidates = []
-            for w in words_in_sentence:
+            for tm in token_matches:
+                if match_start <= tm.start() < match_end:
+                    continue
+                w = tm.group(0)
                 if len(w) >= 3 and (w[0].isupper() or any(c.isupper() for c in w)):
                     norm_upper = _normalize_word_ascii(w)
                     if norm_upper not in STOPWORDS_CAPITALIZED and norm_upper not in excluded_kw_upper:
-                        capitalized_candidates.append(w)
+                        capitalized_candidates.append((w, tm.start()))
 
             chosen_keyword = ""
             if capitalized_candidates:
                 # Choisir le mot capitalisé le plus proche du montant
-                # Calcul de distance d'index dans la phrase
                 best_dist = float("inf")
-                for cand in capitalized_candidates:
-                    idx = s.find(cand)
-                    dist = abs(idx - match_start)
+                for cand_word, cand_pos in capitalized_candidates:
+                    dist = abs(cand_pos - match_start)
                     if dist < best_dist:
                         best_dist = dist
-                        chosen_keyword = cand
+                        chosen_keyword = cand_word
             else:
-                # Repli sur les mots alphabétiques ≥ 4 caractères hors stopwords
-                fallback_candidates = [
-                    w for w in words_in_sentence
-                    if len(w) >= 4 and _normalize_word_ascii(w) not in STOPWORDS_CAPITALIZED
-                ]
+                # Repli sur les mots alphabétiques ≥ 4 caractères hors stopwords et personas
+                fallback_candidates = []
+                for tm in token_matches:
+                    if match_start <= tm.start() < match_end:
+                        continue
+                    w = tm.group(0)
+                    norm_upper = _normalize_word_ascii(w)
+                    if (
+                        len(w) >= 4
+                        and norm_upper not in STOPWORDS_CAPITALIZED
+                        and norm_upper not in excluded_kw_upper
+                    ):
+                        fallback_candidates.append((w, tm.start()))
+
                 if fallback_candidates:
                     best_dist = float("inf")
-                    for cand in fallback_candidates:
-                        idx = s.find(cand)
-                        dist = abs(idx - match_start)
+                    for cand_word, cand_pos in fallback_candidates:
+                        dist = abs(cand_pos - match_start)
                         if dist < best_dist:
                             best_dist = dist
-                            chosen_keyword = cand
+                            chosen_keyword = cand_word
 
             if not chosen_keyword:
                 chosen_keyword = "general"
@@ -257,6 +280,8 @@ def _extract_brief_attributed_episodes(brief_text: str, persona_names: List[str]
 def audit_brief_persona_consistency(
     brief_text: str,
     profiles: List[Any],
+    known_personas: Optional[List[str]] = None,
+    known_organizations: Optional[List[str]] = None,
 ) -> ConsistencyResult:
     """Audite la cohérence biographique entre un brief et une liste de profils persona.
 
@@ -265,11 +290,13 @@ def audit_brief_persona_consistency(
 
     Règles d'audit :
     1. AC1 — Épisode partagé par deux personas :
-       Quand un même épisode (signature montant:mot-clé) apparaît dans les fiches
-       de deux personas distincts, une contradiction est signalée.
+       Quand un même épisode biographique privé (signature montant:mot-clé) apparaît
+       dans les fiches de deux personas distincts, une contradiction est signalée.
+       Les montants généraux de contexte de scénario (tarifs d'offre évalués par la cohorte)
+       et les entités organisationnelles ne sont pas des biographies humaines privées.
     2. AC2 / AC8 — Décalage d'attribution (owner mismatch) :
-       Quand le brief attribue un épisode au persona A et que la fiche du persona B
-       le contient (avec B != A), une contradiction est signalée.
+       Quand le brief attribue un épisode biographique au persona A et que la fiche du
+       persona B le contient (avec B != A), une contradiction est signalée.
     3. AC3 — Un brief cohérent renvoie `is_consistent=True` et `contradictions=[]`.
     4. AC7 — Déterminisme strict : tri stable par signature puis porteur.
     """
@@ -280,8 +307,19 @@ def audit_brief_persona_consistency(
         "episodes_by_profile": {},
     }
 
-    # 1. Détecter d'abord tous les noms de personas candidats (fiches + brief)
-    all_candidate_names = set()
+    org_set = {
+        unicodedata.normalize("NFKD", o).lower()
+        for o in (known_organizations or set())
+        if o and str(o).strip()
+    }
+
+    # 1. Identifier les personas candidats (connus en amont, ou fiches + corps du brief)
+    all_candidate_names: Set[str] = set()
+    if known_personas:
+        for kp in known_personas:
+            if kp and str(kp).strip():
+                all_candidate_names.add(str(kp).strip())
+
     for p in profiles:
         if isinstance(p, dict):
             name = str(p.get("name") or p.get("username") or p.get("user_name") or "")
@@ -290,10 +328,33 @@ def audit_brief_persona_consistency(
         if name.strip():
             all_candidate_names.add(name.strip())
 
-    for s in SENTENCE_SPLIT_PATTERN.split(brief_text or ""):
-        for w in re.findall(r"\b[A-Za-zÀ-ÿ][a-zà-ÿ]{2,}\b", s):
-            if w[0].isupper() and _normalize_word_ascii(w) not in STOPWORDS_CAPITALIZED:
-                all_candidate_names.add(w)
+    # Extraction prudente depuis le corps du brief
+    # (permet de découvrir les personas nommés dans le brief même s'ils ne sont pas admis dans known_personas, ex: AC4)
+    if brief_text:
+        body_lines = [
+            line.strip() for line in brief_text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        body_text = "\n".join(body_lines)
+        # Détecter les personas introduits sous forme de liste: - **Nom** (...)
+        for match in re.finditer(r"[-*]\s*\*\*([A-Za-zÀ-ÿ0-9_\s-]+?)\*\*", body_text):
+            candidate = match.group(1).strip()
+            # Un nom de persona comporte généralement 1 à 3 mots et moins de 40 caractères
+            if (
+                candidate
+                and len(candidate) <= 40
+                and len(candidate.split()) <= 3
+                and _normalize_word_ascii(candidate) not in STOPWORDS_CAPITALIZED
+            ):
+                all_candidate_names.add(candidate)
+        for s in SENTENCE_SPLIT_PATTERN.split(body_text):
+            for match in re.finditer(
+                r"\b([A-ZÀ-ÿ][a-zà-ÿ]{2,})\s+(?:a|est|avait|était|refuse|hesite|craint|redoute|depense|paye|perd)\b",
+                s,
+            ):
+                w = match.group(1)
+                if _normalize_word_ascii(w) not in STOPWORDS_CAPITALIZED:
+                    all_candidate_names.add(w)
 
     # 2. Extraire les fiches persona en excluant les noms de personas comme mot-clé d'épisode
     profile_episodes: Dict[str, List[BiographicalEpisode]] = {}
@@ -330,19 +391,51 @@ def audit_brief_persona_consistency(
     # Mapper chaque signature d'épisode dans le brief vers son ou ses propriétaires (owners)
     brief_signature_to_owners: Dict[str, Set[str]] = {}
     for owner_name, sigs in brief_attributed.items():
+        # Une organisation (Keova, Stripe...) n'a pas de biographie personnelle privée
+        if org_set and unicodedata.normalize("NFKD", owner_name).lower() in org_set:
+            continue
         for sig in sigs:
             brief_signature_to_owners.setdefault(sig, set()).add(owner_name)
 
-    # 3. Analyser la répartition des signatures d'épisodes dans les fiches
+    # Montants attribués spécifiquement à un persona dans le brief
+    brief_persona_attributed_amounts = {
+        sig.split(":")[0] for sig in brief_signature_to_owners.keys()
+    }
+    # Montants de contexte général du scénario (non attribués à un persona individuel)
+    scenario_amounts = {
+        ep.signature.split(":")[0] for ep in brief_all_episodes
+        if ep.signature.split(":")[0] not in brief_persona_attributed_amounts
+    }
+
+    # 4. Analyser la répartition des signatures d'épisodes dans les fiches
     signature_to_carriers: Dict[str, List[str]] = {}
     for p_name, eps in profile_episodes.items():
         for ep in eps:
             signature_to_carriers.setdefault(ep.signature, []).append(p_name)
 
+    seen_contradiction_keys: Set[Tuple[str, Optional[str], str]] = set()
+
     # Détection AC1 : Épisode partagé entre deux personas distincts
     for sig, carriers in sorted(signature_to_carriers.items()):
+        amt_prefix = sig.split(":")[0]
+        # Un montant issu du contexte général du scénario (ex: tarif d'offre évalué par la cohorte)
+        # est un fait public du scénario qui peut être cité par plusieurs personas sans contradiction.
+        if amt_prefix in scenario_amounts:
+            continue
+
         unique_carriers = sorted(set(carriers))
+        # Si une organisation partage son offre avec son fondateur ou ses usagers, pas de contradiction
+        if org_set:
+            human_carriers = [
+                c for c in unique_carriers
+                if unicodedata.normalize("NFKD", c).lower() not in org_set
+            ]
+            if len(human_carriers) <= 1:
+                continue
+
         if len(unique_carriers) > 1:
+            key = (sig, None, unique_carriers[0])
+            seen_contradiction_keys.add(key)
             contradictions.append(
                 PersonaContradiction(
                     signature=sig,
@@ -358,6 +451,9 @@ def audit_brief_persona_consistency(
 
     # Détection AC2 / AC8 : Épisode attribué dans le brief à un persona et porté par un autre
     for sig, carriers in sorted(signature_to_carriers.items()):
+        amt_prefix = sig.split(":")[0]
+        if amt_prefix in scenario_amounts:
+            continue
         owners = brief_signature_to_owners.get(sig, set())
         for owner in sorted(owners):
             for carrier in sorted(set(carriers)):
@@ -365,20 +461,21 @@ def audit_brief_persona_consistency(
                 norm_owner = unicodedata.normalize("NFKD", owner).lower()
                 norm_carrier = unicodedata.normalize("NFKD", carrier).lower()
                 if norm_owner != norm_carrier:
-                    # Contradiction d'attribution
-                    # Éviter les doublons stricts avec la détection de partage si déjà loguée
-                    contradictions.append(
-                        PersonaContradiction(
-                            signature=sig,
-                            owner=owner,
-                            carrier=carrier,
-                            other_carriers=[],
-                            reason=(
-                                f"Épisode attribué par le brief à '{owner}' "
-                                f"mais retrouvé dans la fiche de '{carrier}'"
-                            ),
+                    key = (sig, owner, carrier)
+                    if key not in seen_contradiction_keys:
+                        seen_contradiction_keys.add(key)
+                        contradictions.append(
+                            PersonaContradiction(
+                                signature=sig,
+                                owner=owner,
+                                carrier=carrier,
+                                other_carriers=[],
+                                reason=(
+                                    f"Épisode attribué par le brief à '{owner}' "
+                                    f"mais retrouvé dans la fiche de '{carrier}'"
+                                ),
+                            )
                         )
-                    )
 
     # Tri déterministe strict (AC7) par signature, puis owner (ou ""), puis carrier
     contradictions.sort(
@@ -391,6 +488,35 @@ def audit_brief_persona_consistency(
         contradictions=contradictions,
         diagnostics=diagnostics,
     )
+
+
+def _make_name_regex(name: str) -> str:
+    """Construit un motif regex tolérant aux variantes d'accents fréquentes (ex: Emilie / Émilie)."""
+    norm_nfc = unicodedata.normalize("NFC", name)
+    parts = []
+    for c in norm_nfc:
+        base = "".join(
+            ch for ch in unicodedata.normalize("NFD", c) if not unicodedata.combining(ch)
+        )
+        if base.isalpha():
+            b_low = base.lower()
+            if b_low == "e":
+                parts.append(r"[eéèêë]")
+            elif b_low == "a":
+                parts.append(r"[aàáâãäå]")
+            elif b_low == "i":
+                parts.append(r"[iìíîï]")
+            elif b_low == "o":
+                parts.append(r"[oòóôõö]")
+            elif b_low == "u":
+                parts.append(r"[uùúûü]")
+            elif b_low == "c":
+                parts.append(r"[cç]")
+            else:
+                parts.append(re.escape(b_low))
+        else:
+            parts.append(re.escape(c))
+    return r"\b" + "".join(parts) + r"\b"
 
 
 def filter_non_admitted_personas_from_text(
@@ -413,12 +539,17 @@ def filter_non_admitted_personas_from_text(
     if not text or not excluded_names:
         return text or ""
 
-    # Nettoyage et déduplication des listes de noms
+    # Normalisation préalable en NFC pour neutraliser les décompositions Unicode NFD
+    text_nfc = unicodedata.normalize("NFC", text)
+
+    # Nettoyage et déduplication des listes de noms en NFC
     admitted_clean = {
-        name.strip() for name in admitted_names if name and name.strip()
+        unicodedata.normalize("NFC", name.strip())
+        for name in admitted_names if name and name.strip()
     }
     excluded_clean = {
-        name.strip() for name in excluded_names if name and name.strip()
+        unicodedata.normalize("NFC", name.strip())
+        for name in excluded_names if name and name.strip()
     }
 
     # Sécurité : aucun admis ne doit être compté parmi les exclus
@@ -426,10 +557,13 @@ def filter_non_admitted_personas_from_text(
         name for name in excluded_clean if name not in admitted_clean
     ]
     if not excluded_effective:
-        return text
+        return text_nfc
+
+    admitted_patterns = [_make_name_regex(adm) for adm in admitted_clean]
+    excluded_patterns = [(exc, _make_name_regex(exc)) for exc in excluded_effective]
 
     # Découpage par paragraphes pour préserver la structure markdown
-    paragraphs = text.split("\n\n")
+    paragraphs = text_nfc.split("\n\n")
     cleaned_paragraphs: List[str] = []
 
     for para in paragraphs:
@@ -449,23 +583,23 @@ def filter_non_admitted_personas_from_text(
 
             # Vérifier quels personas sont présents dans la phrase
             has_admitted = any(
-                re.search(r"\b" + re.escape(adm) + r"\b", s, re.IGNORECASE)
-                for adm in admitted_clean
+                re.search(adm_pat, s, re.IGNORECASE)
+                for adm_pat in admitted_patterns
             )
-            found_excluded = [
-                exc for exc in excluded_effective
-                if re.search(r"\b" + re.escape(exc) + r"\b", s, re.IGNORECASE)
+            found_excluded_patterns = [
+                (exc, exc_pat) for exc, exc_pat in excluded_patterns
+                if re.search(exc_pat, s, re.IGNORECASE)
             ]
 
-            if not found_excluded:
+            if not found_excluded_patterns:
                 # Phrase intacte
                 kept_sentences.append(sentence)
             elif has_admitted:
                 # Phrase partagée : on ne supprime pas la phrase, on caviarde le non-admis
                 redacted_sentence = sentence
-                for exc in found_excluded:
+                for _exc, exc_pat in found_excluded_patterns:
                     redacted_sentence = re.sub(
-                        r"\b" + re.escape(exc) + r"\b",
+                        exc_pat,
                         redaction_token,
                         redacted_sentence,
                         flags=re.IGNORECASE,
@@ -477,9 +611,9 @@ def filter_non_admitted_personas_from_text(
                 # on remplace par le jeton pour préserver la validité structurelle
                 if s.startswith("- ") or s.startswith("* ") or re.match(r"^\d+\.", s):
                     redacted_sentence = sentence
-                    for exc in found_excluded:
+                    for _exc, exc_pat in found_excluded_patterns:
                         redacted_sentence = re.sub(
-                            r"\b" + re.escape(exc) + r"\b",
+                            exc_pat,
                             redaction_token,
                             redacted_sentence,
                             flags=re.IGNORECASE,
@@ -490,7 +624,9 @@ def filter_non_admitted_personas_from_text(
                     continue
 
         if kept_sentences:
-            cleaned_paragraphs.append(" ".join(kept_sentences))
+            # Préserver le saut de ligne si le paragraphe source était une liste multi-lignes
+            separator = "\n" if "\n" in para else " "
+            cleaned_paragraphs.append(separator.join(kept_sentences))
         else:
             # Si le paragraphe entier est vidé, on ne l'injecte pas
             pass
