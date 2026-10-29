@@ -30,6 +30,68 @@ from ..utils.logger import get_logger
 
 logger = get_logger("mirofish.report_quality_gate")
 
+# Expressions régulières pour la validation structurelle et sémantique des sections de limites/objections (Story 015-3)
+_LIMITATIONS_HEADING_RE = re.compile(
+    r"\b(objections?|limites?|contradictions?|r[ée]serves?|verrous?|blocages?|freins?|r[ée]ticences?|refus|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|barriers?|blockers?|risks?)\b",
+    re.IGNORECASE,
+)
+_LIMITATIONS_CONTENT_RE = re.compile(
+    r"\b(objections?|limites?|contradictions?|r[ée]serves?|refus|rejets?|verrous?|blocages?|freins?|r[ée]ticences?|non[- ]adoptions?|abstentions?|ajournements?|obstacles?|risques?|limits?|caveats?|drawbacks?|concerns?|rejections?|refusals?|barriers?|blockers?|hesitations?)\b",
+    re.IGNORECASE,
+)
+
+# Expression régulière robuste à frontières de mots pour la détection d'affirmation d'adoption (Story 015-3, D5)
+_ADOPTION_CLAIM_RE = re.compile(
+    r"\b(?:a\s+adopt[ée]|adopt[ée]s?|adopte|a\s+souscrit|souscrit|s['’]est\s+abonn[ée]e?s?|a\s+achet[ée]|achet[ée]s?|ach[èe]te|a\s+pay[ée]|pay[ée]s?|a\s+command[ée]|command[ée]s?|a\s+sign[ée]\s+(?:le\s+contrat|l['’]abonnement|l['’]offre|un\s+contrat)|adopted|subscribed|subscribes|purchased|bought|paid|ordered)\b",
+    re.IGNORECASE,
+)
+_NEGATION_GUARD_RE = re.compile(
+    r"\b(?:sans|aucun[e]?|pas|jamais|ni|refus[ée]?|rejet[ée]?|not|never|no|without)\b",
+    re.IGNORECASE,
+)
+
+# Helper pour vérifier si la prose d'un rapport prétend narrer des actions simulées exécutées (Story 015-3, D4)
+_SIMULATED_ACTION_NARRATIVE_RE = re.compile(
+    r"\b(?:round\s+\d+|durant\s+la\s+simulation|pendant\s+la\s+simulation|during\s+(?:the\s+)?simulation|sur\s+reddit|sur\s+twitter|on\s+reddit|on\s+twitter|dans\s+la\s+simulation|sur\s+les\s+(?:deux\s+)?plateformes?|dans\s+les\s+(?:premières\s+)?heures|dans\s+le\s+run)\b",
+    re.IGNORECASE,
+)
+_ACTION_EXECUTION_MARKERS_RE = re.compile(
+    r"\b(?:a\s+publi[ée]|a\s+tweet[ée]|a\s+comment[ée]|a\s+r[ée]agi|a\s+r[ée]pondu|a\s+post[ée]|a\s+souscrit|a\s+adopt[ée]|a\s+achet[ée]|a\s+pay[ée]|a\s+command[ée]|a\s+partag[ée]|un\s+même\s+post\s+publi[ée]|post\s+publi[ée]|posted|tweeted|commented|reacted|responded|subscribed|adopted|purchased|ordered)\b",
+    re.IGNORECASE,
+)
+_PURE_NEGATION_SENTENCE_RE = re.compile(
+    r"\b(?:sans\s+actions?\s+simul[ée]es?|aucune\s+action(?:\s+simul[ée]e)?|without\s+simulated\s+actions?|no\s+simulated\s+actions?)\b",
+    re.IGNORECASE,
+)
+
+
+def _markdown_alleges_simulated_actions(report_markdown: str) -> bool:
+    """Détecte si le corps Markdown (hors Sources & Provenance et hors citations) narre des actions simulées."""
+    if not report_markdown:
+        return False
+    # Retirer la section ## Sources & Provenance pour éviter les auto-citations
+    parts = re.split(r"^##\s+.*sources.*provenance.*$", report_markdown, flags=re.IGNORECASE | re.MULTILINE)
+    body = parts[0] if parts else report_markdown
+
+    # Examiner ligne par ligne en ignorant les citations d'entretien (> ...)
+    for line in body.splitlines():
+        line_clean = line.strip()
+        if not line_clean or line_clean.startswith(">"):
+            continue
+        if _PURE_NEGATION_SENTENCE_RE.search(line_clean):
+            continue
+        # Détection d'un événement OASIS explicite (evt_...)
+        if "evt_" in line_clean:
+            return True
+        # Couplage d'un marqueur de simulation et d'un verbe d'action exécutée
+        if _SIMULATED_ACTION_NARRATIVE_RE.search(line_clean) and _ACTION_EXECUTION_MARKERS_RE.search(line_clean):
+            return True
+        # Mention explicite d'agent avec verbe d'action exécutée (ex. @ Claire_Dumont a publié / agent_1 posted)
+        if re.search(r"(?:@\s*\w+|agent_\d+)", line_clean, re.IGNORECASE) and _ACTION_EXECUTION_MARKERS_RE.search(line_clean):
+            return True
+    return False
+
+
 # Ponctuations et clôtures finales acceptées indiquant qu'un paragraphe/section est achevé
 _CANONICAL_TERMINAL_PUNCTUATION = (
     ".",
@@ -410,7 +472,7 @@ class ReportQualityGate:
             )
 
         # -------------------------------------------------------------
-        # Contrôle 4 : Présence obligatoire de la section d'objections et limites
+        # Contrôle 4 : Présence obligatoire de la section d'objections et limites (Story 015-3, FR-04, C3)
         # -------------------------------------------------------------
         has_rejections_or_objections = False
         if cohort_table:
@@ -421,13 +483,78 @@ class ReportQualityGate:
             if hesitant > 0 or rejected > 0 or objections_count > 0:
                 has_rejections_or_objections = True
 
-        md_lower = report_markdown.lower()
-        limitations_heading_present = (
-            "objections non levées, contradictions et limites" in md_lower
-            or "objections et limites" in md_lower
-            or "unresolved objections, contradictions, and limitations" in md_lower
-            or "limitations and objections" in md_lower
-        )
+        limitations_heading_present = False
+        limitations_role_matched = False
+        matched_section_title = None
+
+        # Helper pour extraire le corps d'une section Markdown de niveau 2 (## <title>)
+        def _extract_markdown_section_body(title: str, full_md: str) -> Optional[str]:
+            if not title or not full_md:
+                return None
+            # Recherche de ## <title> (insensible à la casse, espaces tolérés)
+            escaped_title = re.escape(title.strip())
+            pattern = re.compile(rf"^##\s+{escaped_title}\s*$", re.IGNORECASE | re.MULTILINE)
+            m = pattern.search(full_md)
+            if not m:
+                # Essai par sous-chaîne dans l'en-tête ##
+                pattern_sub = re.compile(rf"^##\s+[^\n]*{escaped_title}[^\n]*$", re.IGNORECASE | re.MULTILINE)
+                m = pattern_sub.search(full_md)
+            if not m:
+                return None
+            start_pos = m.end()
+            # Chercher le début du prochain titre ## ou fin du texte
+            next_heading = re.search(r"^##\s+", full_md[start_pos:], re.MULTILINE)
+            if next_heading:
+                end_pos = start_pos + next_heading.start()
+                return full_md[start_pos:end_pos]
+            return full_md[start_pos:]
+
+        # 1. Voie primaire contractuelle : outline avec section_role == "limitations"
+        outline_sections = []
+        if outline:
+            if hasattr(outline, "sections"):
+                outline_sections = getattr(outline, "sections") or []
+            elif isinstance(outline, dict):
+                outline_sections = outline.get("sections") or []
+
+        for sec in outline_sections:
+            sec_role = getattr(sec, "section_role", None) if hasattr(sec, "section_role") else (sec.get("section_role") if isinstance(sec, dict) else None)
+            sec_title = getattr(sec, "title", None) if hasattr(sec, "title") else (sec.get("title") if isinstance(sec, dict) else "")
+            if sec_role == "limitations" and sec_title:
+                body = _extract_markdown_section_body(sec_title, report_markdown)
+                if body is not None and len(body.strip()) >= 50:
+                    # Garde de pertinence sémantique (D3) : le titre ou le corps doit traiter des objections/limites/refus/verrous
+                    if _LIMITATIONS_CONTENT_RE.search(sec_title) or _LIMITATIONS_CONTENT_RE.search(body):
+                        limitations_role_matched = True
+                        limitations_heading_present = True
+                        matched_section_title = sec_title
+                        break
+
+        # 2. Voie de repli rétrocompatible (v1 ou outline sans section_role=="limitations")
+        if not limitations_heading_present:
+            # Scanner tous les titres ## du Markdown (en excluant ## Sources & Provenance)
+            headings_matches = list(re.finditer(r"^##\s+([^\n]+)$", report_markdown, re.MULTILINE))
+            for i, hm in enumerate(headings_matches):
+                heading_text = hm.group(1).strip()
+                heading_lower = heading_text.lower()
+                if "sources" in heading_lower and "provenance" in heading_lower:
+                    continue
+
+                is_historical_candidate = (
+                    "objections non levées, contradictions et limites" in heading_lower
+                    or "objections et limites" in heading_lower
+                    or "unresolved objections, contradictions, and limitations" in heading_lower
+                    or "limitations and objections" in heading_lower
+                    or bool(_LIMITATIONS_HEADING_RE.search(heading_text))
+                )
+                if is_historical_candidate:
+                    start_pos = hm.end()
+                    end_pos = headings_matches[i + 1].start() if i + 1 < len(headings_matches) else len(report_markdown)
+                    body = report_markdown[start_pos:end_pos]
+                    if len(body.strip()) >= 50 and _LIMITATIONS_CONTENT_RE.search(body):
+                        limitations_heading_present = True
+                        matched_section_title = heading_text
+                        break
 
         if has_rejections_or_objections and not limitations_heading_present:
             checks.append(
@@ -435,10 +562,12 @@ class ReportQualityGate:
                     category=QualityCategory.LIMITATIONS_SECTION,
                     title="Section d'objections et limites",
                     status=QualityStatus.FAILED,
-                    message="Des réticences ou refus ont été observés dans la cohorte, mais la section obligatoire d'objections et limites est absente.",
+                    message="Des réticences ou refus ont été observés dans la cohorte, mais la section obligatoire d'objections et limites est absente ou non conforme.",
                     details={
                         "has_rejections_or_objections": True,
                         "limitations_heading_present": False,
+                        "limitations_role_matched": limitations_role_matched,
+                        "matched_section_title": matched_section_title,
                     },
                 )
             )
@@ -452,13 +581,15 @@ class ReportQualityGate:
                     details={
                         "has_rejections_or_objections": has_rejections_or_objections,
                         "limitations_heading_present": limitations_heading_present,
+                        "limitations_role_matched": limitations_role_matched,
+                        "matched_section_title": matched_section_title,
                     },
                 )
             )
 
         # -------------------------------------------------------------
         # -------------------------------------------------------------
-        # Contrôle 5 : Vérification des claims, preuves et absence d'affabulation (Story 012-4, FR-05, C5)
+        # Contrôle 5 : Vérification des claims, preuves et absence d'affabulation (Story 012-4, Story 015-3, FR-04, C3, C5)
         # -------------------------------------------------------------
         # 1. Préparation des métriques de claims si disponibles
         if claims_registry and claims_registry.claims:
@@ -491,26 +622,43 @@ class ReportQualityGate:
                     if member is not None and getattr(member, "is_silent", False):
                         silence_contradictions.append(c)
 
-            action_claims = [
+            # Traçabilité complète des actions affirmées (Story 015-1 & Story 015-3, FR-04, D4) :
+            # asserted_actions inclut les claims de type OBSERVED_SOCIAL_ACTION ainsi que
+            # toute affirmation initialement émise comme action mais déclassée (asserted_as_action=True).
+            asserted_actions = [
+                c for c in claims_registry.claims
+                if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+                or getattr(c, "asserted_as_action", False)
+            ]
+            strict_action_claims = [
                 c for c in claims_registry.claims
                 if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
             ]
-            verified_action_claims = [
-                c for c in action_claims
-                if c.verification_status == VerificationStatus.VERIFIED
+            downgraded_action_claims = [
+                c for c in asserted_actions
+                if c.claim_kind != ClaimKind.OBSERVED_SOCIAL_ACTION
             ]
-            action_ratio = (len(verified_action_claims) / len(action_claims)) if action_claims else 1.0
+            verified_action_claims = [
+                c for c in asserted_actions
+                if c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION
+                and c.verification_status == VerificationStatus.VERIFIED
+            ]
+            action_ratio = (len(verified_action_claims) / len(asserted_actions)) if asserted_actions else 1.0
+            action_claims = asserted_actions
         else:
             total_claims = 0
             contradicted = 0
             verified = 0
             ratio = 0.0
             critical_contradictions = []
+            asserted_actions = []
+            strict_action_claims = []
+            downgraded_action_claims = []
             action_claims = []
             verified_action_claims = []
             action_ratio = 1.0
 
-        # 2. Vérification d'affabulation commerciale d'adoption non sourcée (AC5)
+        # 2. Vérification d'affabulation commerciale d'adoption non sourcée (AC5, Story 015-3, D5)
         unverified_adoptions_detected = False
         adopted_members: List[Any] = []
         if cohort_table and getattr(cohort_table, "members", None):
@@ -522,15 +670,25 @@ class ReportQualityGate:
 
             if adopted_members:
                 # Vérifier si au moins une preuve d'action ou claim vérifié soutient ces adoptions
+                # Utiliser l'expression régulière stricte à frontières de mots (_ADOPTION_CLAIM_RE)
                 has_substantiating_action = False
                 if claims_registry and claims_registry.claims:
                     for c in claims_registry.claims:
                         if c.verification_status == VerificationStatus.VERIFIED and c.claim_kind == ClaimKind.OBSERVED_SOCIAL_ACTION:
-                            c_text_lower = (c.text or "").lower()
-                            # Support bilingue FR/EN des termes d'adoption/conversion commerciale
-                            if any(k in c_text_lower for k in ("adopt", "souscri", "subscri", "achet", "purchas", "buy", "abonn", "pay", "sign", "convert", "order")):
-                                has_substantiating_action = True
-                                break
+                            c_text = c.text or ""
+                            # Garde de négation : ne pas compter "n'a pas adopté"
+                            if _NEGATION_GUARD_RE.search(c_text):
+                                continue
+                            if _ADOPTION_CLAIM_RE.search(c_text):
+                                # Contrôle supplémentaire : si agent_name est présent, il doit figurer dans les membres adoptés
+                                if c.agent_name:
+                                    member_names = {getattr(m, "name", "") for m in adopted_members}
+                                    if c.agent_name in member_names:
+                                        has_substantiating_action = True
+                                        break
+                                else:
+                                    has_substantiating_action = True
+                                    break
                 if not has_substantiating_action:
                     unverified_adoptions_detected = True
 
@@ -545,7 +703,10 @@ class ReportQualityGate:
                         "unverified_adoptions": True,
                         "adopted_count": len(adopted_members),
                         "total_claims": total_claims,
-                        "action_claims": len(action_claims),
+                        "action_claims": len(asserted_actions),
+                        "asserted_action_claims": len(asserted_actions),
+                        "strict_action_claims": len(strict_action_claims),
+                        "downgraded_action_claims": len(downgraded_action_claims),
                         "verified_action_claims": len(verified_action_claims),
                         "action_verification_ratio": action_ratio,
                         "verification_ratio": ratio,
@@ -602,58 +763,86 @@ class ReportQualityGate:
                         },
                     )
                 )
-            elif action_claims and len(verified_action_claims) == 0:
-                # Anomalie R6 / QA-08 : des actions simulées sont affirmées mais 0 n'est vérifiée
+            elif asserted_actions and len(verified_action_claims) == 0:
+                # Anomalie R6 / QA-08 (Story 015-3, FR-04, C3, AT-12) :
+                # Des actions ont été affirmées (qu'elles soient restées OBSERVED_SOCIAL_ACTION ou déclassées) mais 0 n'est vérifiée
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,
                         title="Intégrité des affirmations d'actions simulées",
                         status=QualityStatus.FAILED,
-                        message=f"Absence totale de preuves authentiques : {len(action_claims)} action(s) simulée(s) affirmée(s), 0 vérifiée(s) par les traces d'exécution.",
+                        message=f"Absence totale de preuves authentiques : {len(asserted_actions)} action(s) simulée(s) affirmée(s), 0 vérifiée(s) par les traces d'exécution.",
                         details={
                             "total_claims": total_claims,
-                            "action_claims": len(action_claims),
+                            "action_claims": len(asserted_actions),
+                            "asserted_action_claims": len(asserted_actions),
+                            "strict_action_claims": len(strict_action_claims),
+                            "downgraded_action_claims": len(downgraded_action_claims),
                             "verified_action_claims": 0,
+                            "action_verification_ratio": 0.0,
                             "verification_ratio": ratio,
                             "r6_anomaly_detected": True,
                         },
                     )
                 )
-            elif action_claims and action_ratio < 0.50:
-                # Taux de vérification d'actions insuffisant (< 50%) -> FAILED
+            elif asserted_actions and action_ratio < 0.50:
+                # Taux de vérification d'actions insuffisant (< 50%) -> FAILED (Story 015-3, FR-04, C3)
                 checks.append(
                     QualityCheckItem(
                         category=QualityCategory.CLAIM_VERIFICATION,
                         title="Intégrité des affirmations d'actions simulées",
                         status=QualityStatus.FAILED,
-                        message=f"Taux de vérification des actions simulées insuffisant ({action_ratio*100:.1f}% < 50%) : seulement {len(verified_action_claims)}/{len(action_claims)} prouvées.",
+                        message=f"Taux de vérification des actions simulées insuffisant ({action_ratio*100:.1f}% < 50%) : seulement {len(verified_action_claims)}/{len(asserted_actions)} prouvées.",
                         details={
                             "total_claims": total_claims,
-                            "action_claims": len(action_claims),
+                            "action_claims": len(asserted_actions),
+                            "asserted_action_claims": len(asserted_actions),
+                            "strict_action_claims": len(strict_action_claims),
+                            "downgraded_action_claims": len(downgraded_action_claims),
                             "verified_action_claims": len(verified_action_claims),
                             "action_verification_ratio": action_ratio,
                             "verification_ratio": ratio,
                         },
                     )
                 )
-            elif not action_claims:
-                # Rapport avec registre mais 0 assertion d'action observée (conceptuel / théorique) -> WARNING (needs_review)
-                checks.append(
-                    QualityCheckItem(
-                        category=QualityCategory.CLAIM_VERIFICATION,
-                        title="Intégrité des affirmations d'actions simulées",
-                        status=QualityStatus.WARNING,
-                        message=f"Rapport conceptuel sans allégation d'actions observées : {total_claims} assertion(s) analysée(s), 0 action simulée. À réviser avant publication.",
-                        details={
-                            "total_claims": total_claims,
-                            "action_claims": 0,
-                            "verified_action_claims": 0,
-                            "action_verification_ratio": 0.0,
-                            "verification_ratio": ratio,
-                            "contradicted": contradicted,
-                        },
+            elif not asserted_actions:
+                # Aucun claim d'action observée au registre : vérifier si le Markdown narre frauduleusement des actions simulées (AC3)
+                if _markdown_alleges_simulated_actions(report_markdown):
+                    checks.append(
+                        QualityCheckItem(
+                            category=QualityCategory.CLAIM_VERIFICATION,
+                            title="Intégrité des affirmations d'actions simulées",
+                            status=QualityStatus.FAILED,
+                            message="Contournement de traçabilité détecté : le rapport narre des actions simulées alors qu'aucune action sociale n'est tracée au registre.",
+                            details={
+                                "total_claims": total_claims,
+                                "action_claims": 0,
+                                "asserted_action_claims": 0,
+                                "unparseable_action_claims": True,
+                                "r6_anomaly_detected": True,
+                                "verification_ratio": ratio,
+                            },
+                        )
                     )
-                )
+                else:
+                    # Rapport avec registre mais véritablement sans allégation d'actions (conceptuel / théorique) -> WARNING (needs_review)
+                    checks.append(
+                        QualityCheckItem(
+                            category=QualityCategory.CLAIM_VERIFICATION,
+                            title="Intégrité des affirmations d'actions simulées",
+                            status=QualityStatus.WARNING,
+                            message=f"Rapport conceptuel sans allégation d'actions observées : {total_claims} assertion(s) analysée(s), 0 action simulée. À réviser avant publication.",
+                            details={
+                                "total_claims": total_claims,
+                                "action_claims": 0,
+                                "asserted_action_claims": 0,
+                                "verified_action_claims": 0,
+                                "action_verification_ratio": 0.0,
+                                "verification_ratio": ratio,
+                                "contradicted": contradicted,
+                            },
+                        )
+                    )
             elif action_ratio < 0.80 or contradicted > 0:
                 # Taux intermédiaire (50% <= action_ratio < 80%) ou contradictions secondaires -> WARNING (NEEDS_REVIEW)
                 warning_reasons = []
@@ -669,7 +858,10 @@ class ReportQualityGate:
                         message=f"Preuves partielles : {', '.join(warning_reasons)} répertoriée(s) dans le registre d'audit.",
                         details={
                             "total_claims": total_claims,
-                            "action_claims": len(action_claims),
+                            "action_claims": len(asserted_actions),
+                            "asserted_action_claims": len(asserted_actions),
+                            "strict_action_claims": len(strict_action_claims),
+                            "downgraded_action_claims": len(downgraded_action_claims),
                             "verified_action_claims": len(verified_action_claims),
                             "action_verification_ratio": action_ratio,
                             "contradicted": contradicted,
@@ -684,10 +876,13 @@ class ReportQualityGate:
                         category=QualityCategory.CLAIM_VERIFICATION,
                         title="Intégrité des affirmations d'actions simulées",
                         status=QualityStatus.PASSED,
-                        message=f"Validation rigoureuse : {len(verified_action_claims)}/{len(action_claims)} actions vérifiées ({action_ratio*100:.1f}%), 0 contradiction critique sur {total_claims} assertions.",
+                        message=f"Validation rigoureuse : {len(verified_action_claims)}/{len(asserted_actions)} actions vérifiées ({action_ratio*100:.1f}%), 0 contradiction critique sur {total_claims} assertions.",
                         details={
                             "total_claims": total_claims,
-                            "action_claims": len(action_claims),
+                            "action_claims": len(asserted_actions),
+                            "asserted_action_claims": len(asserted_actions),
+                            "strict_action_claims": len(strict_action_claims),
+                            "downgraded_action_claims": len(downgraded_action_claims),
                             "verified_action_claims": len(verified_action_claims),
                             "action_verification_ratio": action_ratio,
                             "verified_claims": verified,
@@ -698,14 +893,7 @@ class ReportQualityGate:
         else:
             # Absence de registre de claims ou registre vide (QA-09)
             # Détecter si le rapport prétend relater des actions simulées ou des rounds
-            md_lower = (report_markdown or "").lower()
-            mentions_simulated_actions = bool(
-                re.search(r"\bround\s+\d+\b", md_lower)
-                or re.search(r"\b(agent_\d+)\b", md_lower)
-                or re.search(r"\b(a publié|a tweeté|a commenté|a réagi|a répondu|posted|tweeted|commented)\b", md_lower)
-            )
-
-            if mentions_simulated_actions:
+            if _markdown_alleges_simulated_actions(report_markdown):
                 # Des actions simulées sont revendiquées mais le registre d'audit est absent -> FAILED (QA-09)
                 checks.append(
                     QualityCheckItem(

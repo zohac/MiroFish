@@ -499,12 +499,33 @@ class ReportSection:
     """报告章节"""
     title: str
     content: str = ""
+    section_role: Optional[str] = None
+
+    def __post_init__(self):
+        if isinstance(self.section_role, str):
+            cleaned = self.section_role.strip().lower()
+            self.section_role = cleaned if cleaned else None
+        elif self.section_role is not None:
+            self.section_role = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data: Dict[str, Any] = {
             "title": self.title,
             "content": self.content
         }
+        if self.section_role is not None:
+            data["section_role"] = self.section_role
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReportSection":
+        if not isinstance(data, dict):
+            return cls(title="")
+        return cls(
+            title=str(data.get("title") or ""),
+            content=str(data.get("content") or ""),
+            section_role=data.get("section_role")
+        )
 
     def to_markdown(self, level: int = 2) -> str:
         """转换为Markdown格式"""
@@ -704,12 +725,13 @@ PLAN_SYSTEM_PROMPT = """\
     "sections": [
         {
             "title": "章节标题",
-            "description": "章节内容描述"
+            "description": "章节内容描述",
+            "section_role": "overview | analysis | limitations | recommendations"
         }
     ]
 }
 
-注意：sections数组最少2个，最多5个元素！"""
+注意：sections数组最少2个，最多5个元素！如果模拟中存在异议、拒绝、迟疑、阻碍或局限性，必须确保至少有一个章节的 section_role 为 "limitations"！"""
 
 PLAN_USER_PROMPT_TEMPLATE = """\
 【预测场景设定】
@@ -1102,9 +1124,9 @@ def _get_default_outline() -> ReportOutline:
             title="Rapport de prédiction et simulation",
             summary="Analyse des tendances émergentes et des risques basée sur la simulation",
             sections=[
-                ReportSection(title="Scénario simulé et constats fondamentaux"),
-                ReportSection(title="Analyse comportementale des populations d'agents"),
-                ReportSection(title="Perspectives d'évolution et signaux d'alerte"),
+                ReportSection(title="Scénario simulé et constats fondamentaux", section_role="overview"),
+                ReportSection(title="Analyse comportementale des populations d'agents", section_role="analysis"),
+                ReportSection(title="Perspectives d'évolution et signaux d'alerte", section_role="limitations"),
             ]
         )
     elif loc == "en":
@@ -1112,9 +1134,9 @@ def _get_default_outline() -> ReportOutline:
             title="Simulation Prediction Report",
             summary="Analysis of emerging trends and risks based on simulation",
             sections=[
-                ReportSection(title="Simulation Scenario and Core Findings"),
-                ReportSection(title="Population Behavioral Analysis"),
-                ReportSection(title="Trend Outlook and Risk Alerts"),
+                ReportSection(title="Simulation Scenario and Core Findings", section_role="overview"),
+                ReportSection(title="Population Behavioral Analysis", section_role="analysis"),
+                ReportSection(title="Trend Outlook and Risk Alerts", section_role="limitations"),
             ]
         )
     else:
@@ -1122,9 +1144,9 @@ def _get_default_outline() -> ReportOutline:
             title="未来预测报告",
             summary="基于模拟预测的未来趋势与风险分析",
             sections=[
-                ReportSection(title="预测场景与核心发现"),
-                ReportSection(title="人群行为预测分析"),
-                ReportSection(title="趋势展望与风险提示"),
+                ReportSection(title="预测场景与核心发现", section_role="overview"),
+                ReportSection(title="人群行为预测分析", section_role="analysis"),
+                ReportSection(title="趋势展望与风险提示", section_role="limitations"),
             ]
         )
 
@@ -2116,9 +2138,11 @@ class ReportAgent:
                     if isinstance(section_data, dict):
                         sec_title = section_data.get("title") or section_data.get("titre") or ""
                         if sec_title:
+                            sec_role = section_data.get("section_role") or section_data.get("role")
                             sections.append(ReportSection(
                                 title=sec_title,
-                                content=""
+                                content="",
+                                section_role=sec_role
                             ))
                 
                 if not sections:
@@ -2127,9 +2151,9 @@ class ReportAgent:
                 outline_title = response.get("title") or response.get("titre") or default_title
                 outline_summary = response.get("summary") or response.get("resume") or response.get("résumé") or default_outline.summary
 
-                # RÈGLE OBLIGATOIRE OBJECTIONS ET LIMITES (Story 011-4, T4, Critère C7) :
+                # RÈGLE OBLIGATOIRE OBJECTIONS ET LIMITES (Story 011-4, Story 015-3, FR-04, C3) :
                 # Si la cohorte comprend au moins une objection ou un membre REJECTED / HESITANT,
-                # garantir qu'une section dédiée figure dans l'outline.
+                # garantir qu'une section dédiée avec section_role="limitations" figure dans l'outline.
                 try:
                     from .simulation_manager import SimulationManager
                     from .oasis_log_reader import OasisLogReaderService
@@ -2152,16 +2176,42 @@ class ReportAgent:
                         or status_dict.get("hesitant", 0) > 0
                     )
                     if has_objections:
-                        sec_titles_lower = [s.title.lower() for s in sections]
-                        objection_keywords = [
-                            "objection", "limite", "contradiction", "reserve", "réserves", "risques",
-                            "limit", "risk", "caveat", "drawback", "concern",
-                        ]
-                        has_obj_section = any(any(k in st for k in objection_keywords) for st in sec_titles_lower)
-                        if not has_obj_section:
-                            target_title = "Objections non levées, contradictions et limites" if self.locale.startswith("fr") else "Unresolved Objections, Contradictions, and Limitations"
-                            sections.append(ReportSection(title=target_title, content=""))
-                            logger.info(f"Injection obligatoire de la section '{target_title}' (Critère C7)")
+                        # 1. Vérifier si une section a déjà le rôle structurel "limitations"
+                        has_limitations_role = any(s.section_role == "limitations" for s in sections)
+                        if not has_limitations_role:
+                            # 2. Chercher dans les titres existants avec marqueurs structurels élargis (D2)
+                            # Privilégier les marqueurs forts de verrous/objections/limites/freins avant les risques
+                            strong_markers = (
+                                "objection", "limite", "contradiction", "reserve", "réserve",
+                                "verrou", "blocage", "frein", "réticence", "reticence", "refus",
+                                "obstacle", "limit", "caveat", "drawback", "concern", "barrier",
+                                "blocker", "friction", "rejection", "refusal", "hesitation"
+                            )
+                            secondary_markers = ("risque", "risk")
+                            matched_sec = None
+                            for s in sections:
+                                st_lower = s.title.lower()
+                                if any(m in st_lower for m in strong_markers):
+                                    matched_sec = s
+                                    break
+                            if matched_sec is None:
+                                for s in sections:
+                                    st_lower = s.title.lower()
+                                    if any(m in st_lower for m in secondary_markers):
+                                        matched_sec = s
+                                        break
+
+                            if matched_sec is not None:
+                                matched_sec.section_role = "limitations"
+                                logger.info(f"Attribution du rôle structurel 'limitations' à la section existante '{matched_sec.title}' (Story 015-3)")
+                            else:
+                                target_title = (
+                                    "Objections non levées, contradictions et limites"
+                                    if self.locale.startswith("fr")
+                                    else "Unresolved Objections, Contradictions, and Limitations"
+                                )
+                                sections.append(ReportSection(title=target_title, content="", section_role="limitations"))
+                                logger.info(f"Injection obligatoire de la section '{target_title}' avec section_role='limitations' (Critère C3, C7)")
                 except Exception as ex_coh:
                     logger.warning(f"Vérification d'outline cohorte ignorée: {ex_coh}")
 
@@ -3010,6 +3060,8 @@ class ReportAgent:
                     "supported_claims": (claims_registry.verified_claims if claims_registry else 0),
                     "unsupported_claims": (claims_registry.unsupported_claims if claims_registry else 0),
                     "contradicted_claims": (claims_registry.contradicted_claims if claims_registry else 0),
+                    "asserted_action_claims_count": getattr(claims_registry, "asserted_action_claims", 0) if claims_registry else 0,
+                    "verified_action_claims_count": getattr(claims_registry, "verified_action_claims", 0) if claims_registry else 0,
                     "adoption_rate": adoption_rate,
                     "usage_summary": usage_summary,
                 }
@@ -3297,6 +3349,30 @@ class ReportAgent:
         actions = self.action_verifier.load_simulation_actions(self.simulation_id)
         intentions = self.action_verifier.analyze_intentions(self.simulation_id)
 
+        # Résolution unique du registre d'affirmations pour les sous-sections 3 et 7 (Story 015-3, FR-04, D6)
+        registry = claims_registry
+        registry_loaded = False
+        if registry is None:
+            candidate_paths = []
+            if self.simulation_id:
+                sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+                candidate_paths.append(os.path.join(sim_dir, "report_claims.json"))
+            rep_id = getattr(self, "_current_report_id", None)
+            if rep_id:
+                candidate_paths.insert(0, os.path.join(Config.UPLOAD_FOLDER, "reports", rep_id, "report_claims.json"))
+            for cand in candidate_paths:
+                if cand and os.path.exists(cand):
+                    try:
+                        from ..models.report_claim import ReportClaimRegistry
+                        registry = ReportClaimRegistry.load_from_file(cand)
+                        registry_loaded = True
+                        break
+                    except Exception:
+                        registry = None
+                        registry_loaded = False
+        else:
+            registry_loaded = True
+
         lines.append(f"- **Événements d'actions effectifs authentifiés :** {len(actions)} action(s) enregistrée(s) dans `actions.jsonl`.")
 
         # Confrontation des deux populations d'événements (Story 014-2, AC3 / FR-04)
@@ -3318,7 +3394,43 @@ class ReportAgent:
             "- **Réconciliation des affirmations :** elle s'effectue sur les actions effectives de `actions.jsonl` "
             f"({len(actions)}), et non sur les {evidence_pack_count if evidence_pack_count is not None else 'non établi'} événements consolidés de l'`EvidencePack`."
         )
-        lines.append("- **Règle anti-affabulation :** Toute affirmation qualifiée d'action observée est reliée à un événement horodaté du run. Les simples déclarations d'intention simulées n'ont pas été promues en actions observées.")
+
+        # Libellé 100 % calculé de la règle anti-affabulation depuis le registre d'audit (Story 015-3, FR-04, C3, AT-14)
+        if not registry_loaded or registry is None:
+            anti_affabulation_bullet = (
+                "- **Règle anti-affabulation :** Traçabilité non établie (registre d'affirmations absent ou illisible — "
+                "aucune affirmation d'action observée n'est certifiée)."
+            )
+        else:
+            asserted_cnt = getattr(registry, "asserted_action_claims", 0)
+            verified_cnt = getattr(registry, "verified_action_claims", 0)
+            if asserted_cnt == 0:
+                anti_affabulation_bullet = (
+                    "- **Règle anti-affabulation :** Aucune affirmation d'action sociale exécutée n'est revendiquée au "
+                    "registre (0 action affirmée, 0 action vérifiée). Les simples déclarations d'intention ou d'entretien "
+                    "restent classées hors actions observées."
+                )
+            elif verified_cnt == asserted_cnt:
+                anti_affabulation_bullet = (
+                    f"- **Règle anti-affabulation :** Les {verified_cnt}/{asserted_cnt} affirmation(s) d'action observée "
+                    "du registre sont reliées à un événement horodaté du run (100.0 % vérifiées). "
+                    "Les simples déclarations d'intention simulées n'ont pas été promues en actions observées."
+                )
+            elif verified_cnt > 0:
+                rate = (verified_cnt / asserted_cnt) * 100.0
+                unverified_cnt = asserted_cnt - verified_cnt
+                anti_affabulation_bullet = (
+                    f"- **Règle anti-affabulation :** Couverture partielle des preuves d'action — {verified_cnt}/{asserted_cnt} "
+                    f"affirmation(s) d'action affirmée sont reliées à un événement horodaté du run ({rate:.1f} %) ; "
+                    f"{unverified_cnt} affirmation(s) non prouvée(s) ont été déclassées ou écartées."
+                )
+            else:
+                anti_affabulation_bullet = (
+                    f"- **Règle anti-affabulation :** Aucune affirmation d'action sociale n'a pu être certifiée "
+                    f"(0/{asserted_cnt} vérifiée(s) par un événement horodaté du run) ; "
+                    f"les {asserted_cnt} allégation(s) d'action non prouvées ont été déclassées ou marquées en échec de vérification."
+                )
+        lines.append(anti_affabulation_bullet)
 
         if intentions:
             lines.append("\n**Intentions simulées analysées (statut intention vs action) :**")
@@ -3396,37 +3508,9 @@ class ReportAgent:
                     logger.debug(f"Erreur lors de la lecture des warnings d'ontologie: {e}")
                 lines.append(f"**Politique de validation** : {policy_desc}. {warnings_count} avertissement(s) actif(s).")
 
-        # Traçabilité calculée depuis le registre d'affirmations (Story 014-2, AC1/AC2/AC4)
+        # Traçabilité calculée depuis le registre d'affirmations (Story 014-2, Story 015-3, AC1/AC2/AC4/AC7)
         lines.append("")
         lines.append("### 7. Traçabilité calculée depuis le registre d'affirmations")
-        registry = claims_registry
-        registry_loaded = False
-        if registry is None:
-            # Relire le registre déjà persisté (simulations/<sim_id>/report_claims.json
-            # puis reports/<report_id>/report_claims.json).
-            candidate_paths = []
-            if not self.simulation_id:
-                # Pas de simulation associée : impossible de relire un registre.
-                registry_loaded = False
-                registry = None
-            else:
-                sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
-                candidate_paths.append(os.path.join(sim_dir, "report_claims.json"))
-            rep_id = getattr(self, "_current_report_id", None)
-            if rep_id:
-                candidate_paths.insert(0, os.path.join(Config.UPLOAD_FOLDER, "reports", rep_id, "report_claims.json"))
-            for cand in candidate_paths:
-                if cand and os.path.exists(cand):
-                    try:
-                        from ..models.report_claim import ReportClaimRegistry
-                        registry = ReportClaimRegistry.load_from_file(cand)
-                        registry_loaded = True
-                        break
-                    except Exception:
-                        registry = None
-                        registry_loaded = False
-        else:
-            registry_loaded = True
 
         if not registry_loaded or registry is None:
             lines.append("- **Traçabilité non établie** : registre d'affirmations absent ou illisible.")
@@ -3438,9 +3522,14 @@ class ReportAgent:
                 with_regime = sum(1 for c in claims_list if getattr(c, "provenance_regime", None) is not None)
                 ratio = getattr(registry, "verification_ratio", None)
                 verified = getattr(registry, "verified_claims", None)
+                asserted_actions_cnt = getattr(registry, "asserted_action_claims", 0)
+                verified_actions_cnt = getattr(registry, "verified_action_claims", 0)
+
                 lines.append(f"- **Affirmations au registre :** {total}.")
                 lines.append(f"- **Affirmations portant un `evidence_refs` non vide :** {with_refs}.")
                 lines.append(f"- **Affirmations portant un `provenance_regime` :** {with_regime}.")
+                lines.append(f"- **Actions sociales affirmées (`asserted_as_action`) :** {asserted_actions_cnt}.")
+                lines.append(f"- **Actions sociales vérifiées (`OBSERVED_SOCIAL_ACTION` + `VERIFIED`) :** {verified_actions_cnt}.")
                 if verified is not None:
                     lines.append(f"- **Affirmations vérifiées :** {verified}.")
                 if ratio is not None:
@@ -5049,10 +5138,10 @@ class ReportManager:
                 outline_data = data['outline']
                 sections = []
                 for s in outline_data.get('sections', []):
-                    sections.append(ReportSection(
-                        title=s['title'],
-                        content=s.get('content', '')
-                    ))
+                    if isinstance(s, dict):
+                        sections.append(ReportSection.from_dict(s))
+                    elif isinstance(s, ReportSection):
+                        sections.append(s)
                 outline = ReportOutline(
                     title=outline_data['title'],
                     summary=outline_data['summary'],
