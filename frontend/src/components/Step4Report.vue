@@ -538,7 +538,7 @@ import ReportRegenerateDialog from './ReportRegenerateDialog.vue'
 import ReportComparisonPanel from './ReportComparisonPanel.vue'
 import {
   buildComparisonVersion, describeStopReason, evaluateComparability, isRunningReport,
-  shortReportId, sortReportHistory, summarizeUsage
+  resolveLiveTelemetryDisplay, shortReportId, sortReportHistory, summarizeUsage
 } from '../utils/reportComparison.js'
 
 const router = useRouter()
@@ -572,6 +572,7 @@ const expandedContent = ref(new Set())
 const expandedLogs = ref(new Set())
 const collapsedSections = ref(new Set())
 const isComplete = ref(false)
+const isFailed = ref(false)
 const startTime = ref(null)
 const leftPanel = ref(null)
 const rightPanel = ref(null)
@@ -647,35 +648,62 @@ const currentProfileId = computed(() => {
 // jamais une valeur inventée.
 const telemetryUnavailable = computed(() => t('step4.metricUnavailable'))
 
+// État d'avancement du rapport pour la télémétrie vivante (Story 015-5, AC5, AC6)
+const isActivelyGenerating = computed(() => {
+  if (isComplete.value) return false
+  if (isFailed.value) return false
+  if (reportOutline.value && reportOutline.value.status && !isRunningReport(reportOutline.value)) {
+    return false
+  }
+  return true
+})
+
+const liveTelemetry = computed(() => {
+  const lastLog = agentLogs.value[agentLogs.value.length - 1]
+  const elapsed = typeof lastLog?.elapsed_seconds === 'number' ? lastLog.elapsed_seconds : null
+  return resolveLiveTelemetryDisplay({
+    usage: currentUsage.value,
+    claims: currentClaims.value,
+    isGenerating: isActivelyGenerating.value,
+    fallbackElapsedSeconds: elapsed,
+  })
+})
+
 const currentTokens = computed(() => {
-  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
-  const tokens = currentUsage.value.totalTokens
-  return tokens === null ? telemetryUnavailable.value : formatNumber(tokens)
+  const item = liveTelemetry.value.tokens
+  if (item.state === 'ready') return formatNumber(item.value)
+  if (item.state === 'pending') return t('step4.metricPending')
+  return t('step4.metricUnavailable')
 })
 
 const currentInferenceDuration = computed(() => {
-  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
-  const seconds = currentUsage.value.durationSeconds
-  if (seconds === null) return telemetryUnavailable.value
-  return `${formatNumber(seconds, { maximumFractionDigits: 1 })} s`
+  const item = liveTelemetry.value.inferenceDuration
+  if (item.state === 'ready') return `${formatNumber(item.value, { maximumFractionDigits: 1 })} s`
+  if (item.state === 'pending') return t('step4.metricPending')
+  return t('step4.metricUnavailable')
 })
 
 const currentWallDuration = computed(() => {
-  if (!currentUsage.value || !currentUsage.value.usageAvailable) return telemetryUnavailable.value
-  const seconds = currentUsage.value.wallSeconds
-  if (seconds === null) return telemetryUnavailable.value
-  return `${formatNumber(seconds, { maximumFractionDigits: 1 })} s`
+  const item = liveTelemetry.value.wallDuration
+  if (item.state === 'ready') return `${formatNumber(item.value, { maximumFractionDigits: 1 })} s`
+  if (item.state === 'pending') return t('step4.metricPending')
+  return t('step4.metricUnavailable')
 })
 
 const currentCost = computed(() => {
-  if (!currentUsage.value || !currentUsage.value.costAvailable) return telemetryUnavailable.value
-  const amount = formatNumber(currentUsage.value.estimatedCostUsd, {
-    style: 'currency',
-    currency: currentUsage.value.currency || 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  })
-  return `${amount} · ${t('step4.costIsEstimate')}`
+  const item = liveTelemetry.value.cost
+  if (item.state === 'ready') {
+    const amount = formatNumber(item.value, {
+      style: 'currency',
+      currency: item.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    })
+    return `${amount} · ${t('step4.costIsEstimate')}`
+  }
+  if (item.state === 'unpriced') return t('step4.metricUnpriced')
+  if (item.state === 'pending') return t('step4.metricPending')
+  return t('step4.metricUnavailable')
 })
 
 const currentStopReason = computed(() => {
@@ -692,13 +720,12 @@ const currentStopMessage = computed(() => {
 })
 
 const currentClaimsLabel = computed(() => {
-  if (!currentClaims.value) return telemetryUnavailable.value
-  const total = currentClaims.value.total_claims
-  const verified = currentClaims.value.verified_claims
-  if (total === null || total === undefined || verified === null || verified === undefined) {
-    return telemetryUnavailable.value
+  const item = liveTelemetry.value.claims
+  if (item.state === 'ready') {
+    return `${formatNumber(item.verified)} / ${formatNumber(item.total)}`
   }
-  return `${formatNumber(verified)} / ${formatNumber(total)}`
+  if (item.state === 'pending') return t('step4.metricPending')
+  return t('step4.metricUnavailable')
 })
 
 // L'historique serveur est la seule source de vérité : la liste n'est jamais
@@ -2536,6 +2563,8 @@ const fetchAgentLog = async () => {
       const newLogs = res.data.logs || []
       
       if (newLogs.length > 0) {
+        let shouldRefreshTelemetry = false
+
         newLogs.forEach(log => {
           agentLogs.value.push(log)
           
@@ -2568,6 +2597,23 @@ const fetchAgentLog = async () => {
             loadHistory()
             // 滚动逻辑统一在循环结束后的 nextTick 中处理
           }
+
+          if (log.action === 'error') {
+            isFailed.value = true
+            currentSectionIndex.value = null
+            if (reportOutline.value && isRunningReport(reportOutline.value)) {
+              reportOutline.value.status = 'failed'
+            }
+            emit('update-status', 'error')
+            stopPolling()
+            fetchQualityResult()
+            loadCurrentTelemetry(props.reportId)
+            loadHistory()
+          }
+
+          if (['planning_complete', 'section_complete', 'tool_result'].includes(log.action)) {
+            shouldRefreshTelemetry = true
+          }
           
           if (log.action === 'report_start') {
             startTime.value = new Date(log.timestamp)
@@ -2575,6 +2621,10 @@ const fetchAgentLog = async () => {
         })
         
         agentLogLine.value = res.data.from_line + newLogs.length
+
+        if (shouldRefreshTelemetry && !isComplete.value && !isFailed.value) {
+          loadCurrentTelemetry(props.reportId)
+        }
         
         nextTick(() => {
           if (rightPanel.value) {
@@ -2721,6 +2771,7 @@ watch(() => props.reportId, (newId) => {
     expandedLogs.value = new Set()
     collapsedSections.value = new Set()
     isComplete.value = false
+    isFailed.value = false
     startTime.value = null
     // Le changement de version referme la comparaison : elle porte sur deux
     // versions nommées, pas sur « la version courante » au sens vague.

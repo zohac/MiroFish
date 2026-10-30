@@ -828,18 +828,25 @@ onUnmounted(() => {
 /* --- Control Bar --- */
 .control-bar {
   background: #FFF;
-  padding: 12px 24px;
+  padding: 10px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #EAEAEA;
   z-index: 10;
-  height: 64px;
+  min-height: 64px;
+  height: auto;
+  flex-wrap: wrap;
+  gap: 12px 16px;
 }
 
 .status-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: stretch;
 }
 
 /* Platform Status Cards */
@@ -854,6 +861,9 @@ onUnmounted(() => {
   opacity: 0.7;
   transition: all 0.3s;
   min-width: 140px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
   position: relative;
   cursor: pointer;
 }
@@ -951,13 +961,16 @@ onUnmounted(() => {
 
 .platform-stats {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: baseline;
 }
 
 .stat {
   display: flex;
   align-items: baseline;
   gap: 3px;
+  white-space: nowrap;
 }
 
 .stat-label {
@@ -985,6 +998,13 @@ onUnmounted(() => {
   color: #1A936F;
   display: flex;
   align-items: center;
+}
+
+.action-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Action Button */

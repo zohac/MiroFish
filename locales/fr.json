@@ -367,6 +367,8 @@
     "diffStatusChanged": "Modifiée",
     "diffStatusSame": "Identique",
     "metricUnavailable": "indisponible",
+    "metricPending": "en cours…",
+    "metricUnpriced": "non tarifé",
     "costIsEstimate": "estimation",
     "metricModel": "Modèle",
     "metricEffortRequested": "Effort demandé",

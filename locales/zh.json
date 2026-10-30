@@ -361,6 +361,8 @@
     "diffStatusChanged": "修改",
     "diffStatusSame": "相同",
     "metricUnavailable": "不可用",
+    "metricPending": "计算中…",
+    "metricUnpriced": "未定价",
     "costIsEstimate": "估算值",
     "metricModel": "模型",
     "metricEffortRequested": "请求的推理强度",

@@ -12,6 +12,7 @@ import {
   isRunningReport,
   parseMarkdownSections,
   readEvidenceFingerprint,
+  resolveLiveTelemetryDisplay,
   shortReportId,
   sortReportHistory,
   summarizeUsage,
@@ -387,4 +388,94 @@ test('a version without quality result leaves publishability unknown', () => {
   })
   assert.equal(version.isPublishable, null)
   assert.equal(version.auditAvailable, false)
+})
+
+test('live telemetry resolves pending states during active generation without usage', () => {
+  const display = resolveLiveTelemetryDisplay({
+    usage: null,
+    claims: null,
+    isGenerating: true,
+    fallbackElapsedSeconds: 12.5,
+  })
+  assert.equal(display.tokens.state, 'pending')
+  assert.equal(display.tokens.value, null)
+  assert.equal(display.inferenceDuration.state, 'pending')
+  assert.equal(display.inferenceDuration.value, null)
+  assert.equal(display.wallDuration.state, 'ready')
+  assert.equal(display.wallDuration.value, 12.5)
+  assert.equal(display.cost.state, 'pending')
+  assert.equal(display.cost.value, null)
+  assert.equal(display.claims.state, 'pending')
+  assert.equal(display.claims.total, null)
+})
+
+test('live telemetry resolves unpriced state when tokens are known but pricing is absent', () => {
+  const usage = summarizeUsage({
+    usage_available: true,
+    pricing_available: false,
+    total_tokens: 15420,
+    duration_seconds: 18.2,
+    wall_seconds: 24.1,
+    estimated_cost_usd: null,
+  })
+  const display = resolveLiveTelemetryDisplay({
+    usage,
+    claims: null,
+    isGenerating: true,
+  })
+  assert.equal(display.tokens.state, 'ready')
+  assert.equal(display.tokens.value, 15420)
+  assert.equal(display.inferenceDuration.state, 'ready')
+  assert.equal(display.inferenceDuration.value, 18.2)
+  assert.equal(display.wallDuration.state, 'ready')
+  assert.equal(display.wallDuration.value, 24.1)
+  assert.equal(display.cost.state, 'unpriced')
+  assert.equal(display.cost.value, null)
+  assert.equal(display.claims.state, 'pending')
+})
+
+test('live telemetry resolves ready state when usage and claims are fully measured', () => {
+  const usage = summarizeUsage({
+    usage_available: true,
+    pricing_available: true,
+    total_tokens: 42100,
+    duration_seconds: 35.4,
+    wall_seconds: 40.0,
+    estimated_cost_usd: 0.052,
+    currency: 'USD',
+  })
+  const claims = {
+    total_claims: 25,
+    verified_claims: 20,
+  }
+  const display = resolveLiveTelemetryDisplay({
+    usage,
+    claims,
+    isGenerating: false,
+  })
+  assert.equal(display.tokens.state, 'ready')
+  assert.equal(display.tokens.value, 42100)
+  assert.equal(display.inferenceDuration.state, 'ready')
+  assert.equal(display.inferenceDuration.value, 35.4)
+  assert.equal(display.wallDuration.state, 'ready')
+  assert.equal(display.wallDuration.value, 40.0)
+  assert.equal(display.cost.state, 'ready')
+  assert.equal(display.cost.value, 0.052)
+  assert.equal(display.claims.state, 'ready')
+  assert.equal(display.claims.total, 25)
+  assert.equal(display.claims.verified, 20)
+})
+
+test('live telemetry resolves unavailable state when completed without artifacts', () => {
+  const display = resolveLiveTelemetryDisplay({
+    usage: null,
+    claims: null,
+    isGenerating: false,
+    fallbackElapsedSeconds: null,
+  })
+  assert.equal(display.tokens.state, 'unavailable')
+  assert.equal(display.inferenceDuration.state, 'unavailable')
+  assert.equal(display.wallDuration.state, 'unavailable')
+  assert.equal(display.cost.state, 'unavailable')
+  assert.equal(display.claims.state, 'unavailable')
 })

@@ -1531,15 +1531,17 @@ class ReportAgent:
             guard.check(phase=phase)
 
     def _persist_usage_metrics(
-        self, report_id: str, report: Optional["Report"] = None
+        self, report_id: str, report: Optional["Report"] = None, *, final: bool = True
     ) -> ReportUsageMetrics:
         """Persiste atomiquement ``reports/<report_id>/usage.json``.
 
         Retourne les métriques agrégées et les attache au rapport pour que
         ``meta.json`` expose le même état. Les métriques ne contiennent jamais
         de prompt, message ou clé d'API (NFR-4). Une fois scellées avant
-        l'archive d'audit, elles ne sont pas réécrites : le ZIP et le fichier
-        disque doivent rester identiques.
+        l'archive d'audit (final=True), elles ne sont pas réécrites : le ZIP
+        et le fichier disque doivent rester identiques.
+        Lorsque ``final=False`` (jalon intermédiaire), le fichier est mis à jour
+        sans sceller l'état ni figer définitivement le chronomètre de fin.
         """
         tracker = getattr(self, "usage_tracker", None)
         if tracker is None:
@@ -1550,11 +1552,20 @@ class ReportAgent:
                 if report is not None:
                     report.usage_metrics = persisted.to_dict()
                 return persisted
+
+        prev_completed = getattr(tracker, "_completed_at", None)
         metrics = tracker.build_metrics()
+        if not final:
+            # Restaurer _completed_at pour que les prochains jalons puissent
+            # continuer d'avancer la durée et l'horodatage d'achèvement.
+            tracker._completed_at = prev_completed
+            metrics.completed_at = prev_completed
+
         try:
             path = ReportManager._get_usage_path(report_id)
             metrics.save_to_file(path)
-            self._usage_persisted = True
+            if final:
+                self._usage_persisted = True
         except Exception as usage_err:
             logger.warning(
                 f"Impossible de persister usage.json pour {report_id}: {usage_err}"
@@ -1624,6 +1635,16 @@ class ReportAgent:
             self._tool_observations.append((str(tool_name), str(result)))
         except Exception:
             pass
+
+        # Persistance incrémentale de la télémétrie sur outil d'entretien (Story 015-5, AC3)
+        if tool_name in {"interview_agents", "interview_agents_batch"}:
+            current_rep_id = getattr(self, "_current_report_id", None)
+            if current_rep_id:
+                try:
+                    self._persist_usage_metrics(current_rep_id, final=False)
+                except Exception:
+                    pass
+
         return result
 
     def _execute_tool_impl(self, tool_name: str, parameters: Dict[str, Any], report_context: str = "") -> str:
@@ -2790,6 +2811,9 @@ class ReportAgent:
                 completed_sections=[]
             )
             ReportManager.save_report(report)
+
+            # Persistance incrémentale de la télémétrie post-planification (Story 015-5, AC3)
+            self._persist_usage_metrics(report_id, report, final=False)
             
             logger.info(t('report.outlineSavedToFile', reportId=report_id))
             
@@ -2882,6 +2906,9 @@ class ReportAgent:
                         section_index=section_num,
                         full_content=full_section_content.strip()
                     )
+
+                # Persistance incrémentale de la télémétrie post-section (Story 015-5, AC3)
+                self._persist_usage_metrics(report_id, report, final=False)
 
                 logger.info(t('report.sectionSaved', reportId=report_id, sectionNum=f"{section_num:02d}"))
                 
@@ -3087,7 +3114,7 @@ class ReportAgent:
             report.completed_at = datetime.now().isoformat()
 
             # Persistance de la télémétrie avant le dossier d'audit (Story 013-4, AC5)
-            usage_metrics = self._persist_usage_metrics(report_id, report)
+            usage_metrics = self._persist_usage_metrics(report_id, report, final=True)
             usage_summary = usage_metrics.summary()
             
             # Génération et sauvegarde de run_manifest.json et du zip d'audit per-report (Story 013-3, AC1, AC5)
@@ -3130,17 +3157,7 @@ class ReportAgent:
             except Exception as hist_err:
                 logger.warning(f"Avertissement lors de la mise à jour de report_history.json ({report_id}): {hist_err}")
 
-            # 计算总耗时
-            total_time_seconds = (datetime.now() - start_time).total_seconds()
-            
-            # 记录报告完成日志
-            if self.report_logger:
-                self.report_logger.log_report_complete(
-                    total_sections=total_sections,
-                    total_time_seconds=total_time_seconds
-                )
-            
-            # 保存最终报告
+            # 保存最终报告 (avant émission de l'événement terminal agent_log pour éliminer la condition de course)
             ReportManager.save_report(report)
             status_progress_label = "completed" if report.status == ReportStatus.COMPLETED else "failed_validation"
             ReportManager.update_progress(
@@ -3148,6 +3165,16 @@ class ReportAgent:
                 t('progress.reportComplete') if report.status == ReportStatus.COMPLETED else f"Échec validation qualité: {quality_result.summary}",
                 completed_sections=completed_section_titles
             )
+
+            # 计算总耗时
+            total_time_seconds = (datetime.now() - start_time).total_seconds()
+            
+            # 记录报告完成日志 (après écriture complète des artefacts sur disque, Story 015-5 AC4)
+            if self.report_logger:
+                self.report_logger.log_report_complete(
+                    total_sections=total_sections,
+                    total_time_seconds=total_time_seconds
+                )
             
             if progress_callback:
                 progress_callback(status_progress_label, 100, t('progress.reportComplete') if report.status == ReportStatus.COMPLETED else f"Échec validation: {quality_result.summary}")
@@ -3170,9 +3197,6 @@ class ReportAgent:
             report.error = str(limit_error)
             report.completed_at = datetime.now().isoformat()
 
-            if self.report_logger:
-                self.report_logger.log_error(str(limit_error), "failed")
-
             # Sauvegarde partielle : assembler les sections déjà écrites sur
             # disque pour qu'un arrêt contrôlé ne rende pas un rapport vide.
             if report.outline:
@@ -3186,7 +3210,7 @@ class ReportAgent:
                         f"Assemblage partiel impossible pour {report_id}: {assemble_err}"
                     )
 
-            limit_metrics = self._persist_usage_metrics(report_id, report)
+            limit_metrics = self._persist_usage_metrics(report_id, report, final=True)
             limit_summary = limit_metrics.summary()
 
             try:
@@ -3233,6 +3257,10 @@ class ReportAgent:
                     f"pour un arrêt contrôlé ({report_id}): {audit_pkg_err}"
                 )
 
+            # Émission de l'erreur dans le journal après persistance des artefacts (Story 015-5, AC4)
+            if self.report_logger:
+                self.report_logger.log_error(str(limit_error), "failed")
+
             if self.console_logger:
                 self.console_logger.close()
                 self.console_logger = None
@@ -3244,12 +3272,8 @@ class ReportAgent:
             report.status = ReportStatus.FAILED
             report.error = str(e)
             report.completed_at = datetime.now().isoformat()
-            
-            # 记录错误日志
-            if self.report_logger:
-                self.report_logger.log_error(str(e), "failed")
 
-            failure_metrics = self._persist_usage_metrics(report_id, report)
+            failure_metrics = self._persist_usage_metrics(report_id, report, final=True)
             failure_summary = failure_metrics.summary()
             
             # Enregistrer l'échec dans l'historique (Story 013-3, AC2)
@@ -3282,6 +3306,10 @@ class ReportAgent:
                 )
             except Exception:
                 pass  # 忽略保存失败的错误
+
+            # 记录错误日志 (après persistance complète, Story 015-5, AC4)
+            if self.report_logger:
+                self.report_logger.log_error(str(e), "failed")
             
             # 关闭控制台日志记录器
             if self.console_logger:

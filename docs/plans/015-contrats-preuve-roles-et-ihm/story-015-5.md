@@ -2,7 +2,7 @@
 id: "015-5"
 epic: "015"
 titre: "Ergonomie IHM Step 3 (cartes de statut sans débordement) et télémétrie vivante Step 4"
-statut: in-progress
+statut: review
 created: 2026-10-30
 updated: 2026-10-30
 auteur: "Antigravity & Équipe MiroFish"
@@ -53,7 +53,7 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
 
 ## Critères d'acceptation
 
-- [ ] **AC1 — Barre `.control-bar` et cartes `.platform-status` extensibles sans débordement à l'étape 3 (FR-15, C9)** :
+- [x] **AC1 — Barre `.control-bar` et cartes `.platform-status` extensibles sans débordement à l'étape 3 (FR-15, C9)** :
   - **Given** le composant [`frontend/src/components/Step3Simulation.vue`](../../../frontend/src/components/Step3Simulation.vue) affiché en locale `fr`, `en` ou `zh`, avec des valeurs longues (`ROUND 144 / 144`, `TEMPS 48 h 0 min`, `ACTES 669`, `ÉTAT Drain en cours...`, `INGESTÉES 120`, `ATTENTE 366`),
   - **When** la barre `.control-bar` est rendue en mode `Graphe`, `Scindé` (`50 %` d'une fenêtre `1280×800`, soit `640px`, et `1440×900`, soit `720px`) ou `Banc d'essai`,
   - **Then** :
@@ -62,35 +62,35 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
     3. chaque `.platform-status` utilise `min-width: 140px; max-width: 100%; box-sizing: border-box; overflow: visible;` (afin que chaque `.stat` reste dans le cadre de la carte tout en préservant l'affichage au survol de l'infobulle absolue `.actions-tooltip` positionnée à `top: 100%`) ;
     4. `.platform-stats` utilise `display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;` et chaque `.stat` utilise `white-space: nowrap;` pour interdire toute coupure interne d'un couple label/valeur (ex. `TEMPS 48 h 0 min` ou `ATTENTE 366` ne se coupe jamais au milieu de `0 min`).
 
-- [ ] **AC2 — Séparation garantie entre `.status-group` et `.action-controls` (FR-15, C9)** :
+- [x] **AC2 — Séparation garantie entre `.status-group` et `.action-controls` (FR-15, C9)** :
   - **Given** la barre `.control-bar` de `Step3Simulation.vue` contenant `.status-group` et `.action-controls`,
   - **When** le conteneur est affiché en vue large ou en vue `Scindé` (`640px` / `720px`),
   - **Then** `.action-controls` possède une règle CSS explicite (`display: flex; align-items: center; flex-shrink: 0; margin-left: auto;`) et le `gap: 12px 16px` de `.control-bar` garantit un espacement minimal de `12px` (horizontal côte à côte ou vertical après retour à la ligne propre) entre la dernière carte `.platform-status` (`Mémoire du Graphe`) et le bouton `.action-btn` (`Générer le rapport` / `Synchronisation du graphe...`), sans aucun chevauchement (`0px`).
 
-- [ ] **AC3 — Persistance incrémentale de `usage.json` sans scellement prématuré de `_usage_persisted` (FR-16, C10)** :
+- [x] **AC3 — Persistance incrémentale de `usage.json` sans scellement prématuré de `_usage_persisted` (FR-16, C10)** :
   - **Given** une génération de rapport en cours dans [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py),
   - **When** `_persist_usage_metrics(report_id, report, final=False)` est appelé aux jalons intermédiaires :
     1. immédiatement après `self.plan_outline(...)` ;
     2. après la génération de chaque section dans la boucle de rédaction ;
     3. après chaque exécution d'outil d'entretien (`interview_agents` / `interview_agents_batch`) dans `_execute_tool` ;
   - **Then** :
-    1. `usage.json` est écrit atomiquement sur disque à chaque jalon avec les totaux cumulés courants (`total_calls`, `total_prompt_tokens`, `total_completion_tokens`, `total_tokens`, `total_Wall_seconds`, `total_inference_seconds`, `calls_by_phase`, `estimated_cost_usd`, `pricing_available`) ;
+    1. `usage.json` est écrit atomiquement sur disque à chaque jalon avec les totaux cumulés courants (`total_calls`, `total_prompt_tokens`, `total_completion_tokens`, `total_tokens`, `total_wall_seconds`, `total_inference_seconds`, `calls_by_phase`, `estimated_cost_usd`, `pricing_available`) ;
     2. tant que `final=False`, l'attribut `self._usage_persisted` reste `False` et `self._usage_tracker._completed_at` n'est pas figé définitivement, de sorte que les jalons suivants continuent d'actualiser `usage.json` ;
     3. lors de l'appel final `_persist_usage_metrics(report_id, report, final=True)` (avant `build_audit_package()` et dans les blocs d'arrêt/erreur/finally), `usage.json` est figé et `self._usage_persisted` passe à `True`, garantissant que le `usage.json` sur disque et celui embarqué dans `simulation_audit_<report_id>.zip` restent **octet pour octet identiques**.
 
-- [ ] **AC4 — Élimination de la condition de course terminale entre `agent_log.jsonl` et la persistance du rapport (FR-16, C10)** :
+- [x] **AC4 — Élimination de la condition de course terminale entre `agent_log.jsonl` et la persistance du rapport (FR-16, C10)** :
   - **Given** la fin d'exécution de `ReportAgent._generate_report_internal` (succès nominal, arrêt contrôlé `ReportGenerationStopped`, ou exception générale),
   - **When** le backend finalise les artefacts (`usage.json` final, `report_history.json`, `ReportManager.save_report(report)` écrivant `meta.json` et `full_report.md`, `ReportManager.update_progress(...)`),
   - **Then** toutes ces écritures sur disque sont exécutées **avant** l'émission de l'événement terminal dans `agent_log.jsonl` (`self.report_logger.log_report_complete(...)` ou `self.report_logger.log_error(...)`), de sorte qu'un client qui détecte `report_complete` ou `error` au polling lit immédiatement les fichiers finaux cohérents sur `/usage`, `/quality`, `/claims` et `/history`.
 
-- [ ] **AC5 — Rafraîchissement temps réel de la télémétrie dans `Step4Report.vue` aux jalons de polling et sur erreur (FR-16, FR-17, C10)** :
+- [x] **AC5 — Rafraîchissement temps réel de la télémétrie dans `Step4Report.vue` aux jalons de polling et sur erreur (FR-16, FR-17, C10)** :
   - **Given** [`frontend/src/components/Step4Report.vue`](../../../frontend/src/components/Step4Report.vue) en cours de polling via `fetchAgentLog`,
   - **When** un lot `newLogs` contient au moins une entrée dont `action` appartient à `['planning_complete', 'section_complete', 'tool_result', 'report_complete', 'error']`,
   - **Then** :
     1. `loadCurrentTelemetry(props.reportId)` est invoqué pour rafraîchir `currentUsage` (et `currentClaims` dès qu'il est disponible) sans attendre la fin complète du rapport ;
     2. si un log porte `action === 'error'` (échec ou arrêt contrôlé de génération), `Step4Report.vue` met à jour l'état du rapport (`reportOutline.value.status = 'failed'` s'il était encore en cours), appelle `stopPolling()`, puis déclenche `loadCurrentTelemetry(props.reportId)`, `fetchQualityResult()` et `loadHistory()` afin que le bandeau reflète immédiatement le motif d'arrêt (`stop_reason`), les tokens consommés avant l'arrêt et le statut terminal.
 
-- [ ] **AC6 — Distinction sémantique honnête entre « en cours… », « non tarifé » et « indisponible » (FR-17, C10)** :
+- [x] **AC6 — Distinction sémantique honnête entre « en cours… », « non tarifé » et « indisponible » (FR-17, C10)** :
   - **Given** le bandeau de télémétrie de `Step4Report.vue` et les helpers purs de [`frontend/src/utils/reportComparison.js`](../../../frontend/src/utils/reportComparison.js),
   - **When** les métriques sont formatées pour l'affichage :
     1. **Pendant la génération active** (`isActivelyGenerating === true`, c'est-à-dire rapport ni terminé ni en échec) :
@@ -102,12 +102,12 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
     3. **Une fois le rapport terminé ou échoué** (`isActivelyGenerating === false`) :
        - toute métrique dont l'artefact sous-jacent est réellement absent (`usageAvailable === false` ou `currentClaims === null`) affiche `t('step4.metricUnavailable')` (`"indisponible"` / `"unavailable"` / `"不可用"`).
 
-- [ ] **AC7 — Parité i18n trilingue stricte (`fr.json`, `en.json`, `zh.json`) (NFR-5)** :
+- [x] **AC7 — Parité i18n trilingue stricte (`fr.json`, `en.json`, `zh.json`) (NFR-5)** :
   - **Given** les fichiers [`locales/fr.json`](../../../locales/fr.json), [`locales/en.json`](../../../locales/en.json) et [`locales/zh.json`](../../../locales/zh.json),
   - **When** les nouvelles clés `step4.metricPending` et `step4.metricUnpriced` sont ajoutées dans les trois dictionnaires,
   - **Then** `backend/.venv/bin/pytest backend/tests/test_i18n_parity.py -v` passe à 100 % (parité stricte des clés et des placeholders `{var}` entre `fr`, `en` et `zh`).
 
-- [ ] **AC8 — Tests hermétiques backend et frontend et zéro régression (NFR-3, NFR-4)** :
+- [x] **AC8 — Tests hermétiques backend et frontend et zéro régression (NFR-3, NFR-4)** :
   - **Given** la suite de tests unitaires du dépôt,
   - **When** on exécute `backend/.venv/bin/pytest backend/tests/test_story_015_5_live_telemetry.py backend/tests/test_i18n_parity.py -v` et `pnpm --dir frontend test`,
   - **Then** tous les nouveaux tests unitaires backend et frontend passent en moins de 5 secondes et l'ensemble de la suite (`backend/.venv/bin/pytest backend/tests/ -q` et `pnpm --dir frontend test`) reste 100 % vert avec `ruff check` propre.
@@ -116,51 +116,51 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
 
 ## Définition de fini
 
-- [ ] Le CSS de [`frontend/src/components/Step3Simulation.vue`](../../../frontend/src/components/Step3Simulation.vue) est mis à jour pour `.control-bar`, `.status-group`, `.platform-status`, `.platform-stats`, `.stat` et `.action-controls` sans casser `.actions-tooltip`.
-- [ ] [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py) persiste `usage.json` de manière incrémentale (`final=False`) après `plan_outline`, après chaque section et après chaque appel d'outil d'entretien, et persiste tous les artefacts finaux avant d'émettre `log_report_complete` ou `log_error`.
-- [ ] [`frontend/src/utils/reportComparison.js`](../../../frontend/src/utils/reportComparison.js) et [`frontend/src/components/Step4Report.vue`](../../../frontend/src/components/Step4Report.vue) rafraîchissent la télémétrie aux jalons de polling et sur erreur, et distinguent `metricPending` (`en cours…`), `metricUnpriced` (`non tarifé`) et `metricUnavailable` (`indisponible`).
-- [ ] Les dictionnaires [`locales/fr.json`](../../../locales/fr.json), [`locales/en.json`](../../../locales/en.json) et [`locales/zh.json`](../../../locales/zh.json) contiennent `step4.metricPending` et `step4.metricUnpriced` avec parité trilingue validée par `test_i18n_parity.py`.
-- [ ] Les tests unitaires [`backend/tests/test_story_015_5_live_telemetry.py`](../../../backend/tests/test_story_015_5_live_telemetry.py) et [`frontend/tests/reportComparison.test.js`](../../../frontend/tests/reportComparison.test.js) couvrent les critères AC1 à AC7.
-- [ ] Le build Vite (`pnpm --dir frontend build`) et les suites de tests backend et frontend passent sans erreur.
-- [ ] Les fichiers de suivi (`story-015-5.md`, `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`) sont à jour et validés par `backend/.venv/bin/python backend/scripts/validate_plans.py`.
+- [x] Le CSS de [`frontend/src/components/Step3Simulation.vue`](../../../frontend/src/components/Step3Simulation.vue) est mis à jour pour `.control-bar`, `.status-group`, `.platform-status`, `.platform-stats`, `.stat` et `.action-controls` sans casser `.actions-tooltip`.
+- [x] [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py) persiste `usage.json` de manière incrémentale (`final=False`) après `plan_outline`, après chaque section et après chaque appel d'outil d'entretien, et persiste tous les artefacts finaux avant d'émettre `log_report_complete` ou `log_error`.
+- [x] [`frontend/src/utils/reportComparison.js`](../../../frontend/src/utils/reportComparison.js) et [`frontend/src/components/Step4Report.vue`](../../../frontend/src/components/Step4Report.vue) rafraîchissent la télémétrie aux jalons de polling et sur erreur, et distinguent `metricPending` (`en cours…`), `metricUnpriced` (`non tarifé`) et `metricUnavailable` (`indisponible`).
+- [x] Les dictionnaires [`locales/fr.json`](../../../locales/fr.json), [`locales/en.json`](../../../locales/en.json) et [`locales/zh.json`](../../../locales/zh.json) contiennent `step4.metricPending` et `step4.metricUnpriced` avec parité trilingue validée par `test_i18n_parity.py`.
+- [x] Les tests unitaires [`backend/tests/test_story_015_5_live_telemetry.py`](../../../backend/tests/test_story_015_5_live_telemetry.py) et [`frontend/tests/reportComparison.test.js`](../../../frontend/tests/reportComparison.test.js) couvrent les critères AC1 à AC7.
+- [x] Le build Vite (`pnpm --dir frontend build`) et les suites de tests backend et frontend passent sans erreur.
+- [x] Les fichiers de suivi (`story-015-5.md`, `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`) sont à jour et validés par `backend/.venv/bin/python backend/scripts/validate_plans.py`.
 
 ---
 
 ## Tâches
 
-- [ ] **Tâche 1 — Mise en page responsive sans débordement de `.control-bar` à l'étape 3 (`Step3Simulation.vue`)**
-  - [ ] Dans [`frontend/src/components/Step3Simulation.vue`](../../../frontend/src/components/Step3Simulation.vue) (`:829-965`), remplacer `height: 64px` sur `.control-bar` par `min-height: 64px; height: auto; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;`.
-  - [ ] Sur `.status-group` (`:840-843`), ajouter `flex-wrap: wrap; flex: 1 1 auto; min-width: 0; align-items: stretch;`.
-  - [ ] Sur `.platform-status` (`:846-859`), ajouter `max-width: 100%; box-sizing: border-box; overflow: visible;` (conserver `position: relative` et `overflow: visible` pour que `.actions-tooltip` reste visible au survol).
-  - [ ] Sur `.platform-stats` (`:952-955`), ajouter `flex-wrap: wrap; gap: 6px 12px; align-items: baseline;` et sur `.stat` (`:957-961`), ajouter `white-space: nowrap;`.
-  - [ ] Ajouter la règle `.action-controls { display: flex; align-items: center; flex-shrink: 0; margin-left: auto; }` pour garantir un espacement d'au moins `12px` avec `.status-group` en mode `Graphe`, `Scindé` et `Banc d'essai`.
+- [x] **Tâche 1 — Mise en page responsive sans débordement de `.control-bar` à l'étape 3 (`Step3Simulation.vue`)**
+  - [x] Dans [`frontend/src/components/Step3Simulation.vue`](../../../frontend/src/components/Step3Simulation.vue) (`:829-965`), remplacer `height: 64px` sur `.control-bar` par `min-height: 64px; height: auto; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;`.
+  - [x] Sur `.status-group` (`:840-843`), ajouter `flex-wrap: wrap; flex: 1 1 auto; min-width: 0; align-items: stretch;`.
+  - [x] Sur `.platform-status` (`:846-859`), ajouter `max-width: 100%; box-sizing: border-box; overflow: visible;` (conserver `position: relative` et `overflow: visible` pour que `.actions-tooltip` reste visible au survol).
+  - [x] Sur `.platform-stats` (`:952-955`), ajouter `flex-wrap: wrap; gap: 6px 12px; align-items: baseline;` et sur `.stat` (`:957-961`), ajouter `white-space: nowrap;`.
+  - [x] Ajouter la règle `.action-controls { display: flex; align-items: center; flex-shrink: 0; margin-left: auto; }` pour garantir un espacement d'au moins `12px` avec `.status-group` en mode `Graphe`, `Scindé` et `Banc d'essai`.
 
-- [ ] **Tâche 2 — Persistance incrémentale de `usage.json` et ordre de clôture atomique (`report_agent.py`)**
-  - [ ] Dans [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py), étendre la signature de `_persist_usage_metrics(self, report_id: str, report: Optional["Report"] = None, *, final: bool = True) -> ReportUsageMetrics` (`:1533-1565`) :
+- [x] **Tâche 2 — Persistance incrémentale de `usage.json` et ordre de clôture atomique (`report_agent.py`)**
+  - [x] Dans [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py), étendre la signature de `_persist_usage_metrics(self, report_id: str, report: Optional["Report"] = None, *, final: bool = True) -> ReportUsageMetrics` (`:1533-1565`) :
     - Si `getattr(self, "_usage_persisted", False)` est déjà `True`, retourner les métriques scellées existantes.
     - Si `final=False`, ne pas figer définitivement `_completed_at` sur `self._usage_tracker` (restaurer `self._usage_tracker._completed_at = None` après `build_metrics()` s'il n'était pas déjà fixé), écrire `usage.json` atomiquement via `metrics.save_to_file(self._get_usage_metrics_path(report_id))`, mettre à jour `report.usage_metrics` si `report` est fourni, et laisser `self._usage_persisted = False`.
     - Si `final=True`, écrire `usage.json` final et poser `self._usage_persisted = True`.
-  - [ ] Appeler `self._persist_usage_metrics(report_id, report, final=False)` :
+  - [x] Appeler `self._persist_usage_metrics(report_id, report, final=False)` :
     - juste après `outline = self.plan_outline(...)` et `self.report_logger.log_planning_complete(...)` (`:2792`) ;
     - à la fin de chaque itération de section après `self.report_logger.log_section_complete(...)` (`:2873`) ;
     - dans `_execute_tool` (`:1620`), après l'enregistrement dans le journal d'un appel `interview_agents` ou `interview_agents_batch`.
-  - [ ] Dans `_generate_report_internal`, réordonner la séquence de clôture nominale (`:3135-3150`), d'arrêt contrôlé (`:3170-3218`) et d'erreur (`:3245-3282`) pour que `_persist_usage_metrics(..., final=True)`, `_append_to_history(report)`, `ReportManager.save_report(report)` et `ReportManager.update_progress(...)` soient toujours exécutés **avant** `self.report_logger.log_report_complete(...)` ou `self.report_logger.log_error(...)`.
+  - [x] Dans `_generate_report_internal`, réordonner la séquence de clôture nominale (`:3135-3150`), d'arrêt contrôlé (`:3170-3218`) et d'erreur (`:3245-3282`) pour que `_persist_usage_metrics(..., final=True)`, `_append_to_history(report)`, `ReportManager.save_report(report)` et `ReportManager.update_progress(...)` soient toujours exécutés **avant** `self.report_logger.log_report_complete(...)` ou `self.report_logger.log_error(...)`.
 
-- [ ] **Tâche 3 — Rafraîchissement live et sémantique des métriques à l'étape 4 (`reportComparison.js`, `Step4Report.vue`, `locales/*.json`)**
-  - [ ] Ajouter les clés `step4.metricPending` (`"en cours…"` / `"in progress…"` / `"计算中…"`) et `step4.metricUnpriced` (`"non tarifé"` / `"unpriced"` / `"未定价"`) dans [`locales/fr.json`](../../../locales/fr.json), [`locales/en.json`](../../../locales/en.json) et [`locales/zh.json`](../../../locales/zh.json).
-  - [ ] Dans [`frontend/src/utils/reportComparison.js`](../../../frontend/src/utils/reportComparison.js), ajouter un helper pur exporté `resolveLiveTelemetryDisplay({ usage, claims, isGenerating, fallbackElapsedSeconds })` (ou équivalent testé dans `reportComparison.test.js`) qui détermine de façon déterministe l'état de chaque métrique (`value`, `state`: `'ready' | 'pending' | 'unpriced' | 'unavailable'`) selon que le rapport est en cours de génération (`isGenerating`), que `usage.usageAvailable` / `usage.pricingAvailable` sont vrais ou faux, et que `claims` est disponible ou `null`.
-  - [ ] Dans [`frontend/src/components/Step4Report.vue`](../../../frontend/src/components/Step4Report.vue) :
+- [x] **Tâche 3 — Rafraîchissement live et sémantique des métriques à l'étape 4 (`reportComparison.js`, `Step4Report.vue`, `locales/*.json`)**
+  - [x] Ajouter les clés `step4.metricPending` (`"en cours…"` / `"in progress…"` / `"计算中…"`) et `step4.metricUnpriced` (`"non tarifé"` / `"unpriced"` / `"未定价"`) dans [`locales/fr.json`](../../../locales/fr.json), [`locales/en.json`](../../../locales/en.json) et [`locales/zh.json`](../../../locales/zh.json).
+  - [x] Dans [`frontend/src/utils/reportComparison.js`](../../../frontend/src/utils/reportComparison.js), ajouter un helper pur exporté `resolveLiveTelemetryDisplay({ usage, claims, isGenerating, fallbackElapsedSeconds })` (ou équivalent testé dans `reportComparison.test.js`) qui détermine de façon déterministe l'état de chaque métrique (`value`, `state`: `'ready' | 'pending' | 'unpriced' | 'unavailable'`) selon que le rapport est en cours de génération (`isGenerating`), que `usage.usageAvailable` / `usage.pricingAvailable` sont vrais ou faux, et que `claims` est disponible ou `null`.
+  - [x] Dans [`frontend/src/components/Step4Report.vue`](../../../frontend/src/components/Step4Report.vue) :
     - Dans `fetchAgentLog` (`:2539-2575`), détecter si `newLogs` contient une action parmi `['planning_complete', 'section_complete', 'tool_result', 'report_complete', 'error']` et appeler `loadCurrentTelemetry(props.reportId)`.
     - Si `newLogs` contient `log.action === 'error'`, marquer le rapport en échec si son statut était encore actif (`if (reportOutline.value && isRunningReport(reportOutline.value.status)) reportOutline.value.status = 'failed'`), appeler `stopPolling()`, `loadCurrentTelemetry(props.reportId)`, `fetchQualityResult()` et `loadHistory()`.
     - Brancher `currentTokens`, `currentInferenceDuration`, `currentWallDuration`, `currentCost` et `currentClaimsLabel` (`:648-702`) sur la distinction `metricPending` / `metricUnpriced` / `metricUnavailable`.
 
-- [ ] **Tâche 4 — Tests unitaires hermétiques et validation globale**
-  - [ ] Créer [`backend/tests/test_story_015_5_live_telemetry.py`](../../../backend/tests/test_story_015_5_live_telemetry.py) testant :
+- [x] **Tâche 4 — Tests unitaires hermétiques et validation globale**
+  - [x] Créer [`backend/tests/test_story_015_5_live_telemetry.py`](../../../backend/tests/test_story_015_5_live_telemetry.py) testant :
     - la persistance incrémentale `final=False` suivie de mises à jour additionnelles puis du scellement `final=True` (et l'identité octet pour octet avec l'archive d'audit) ;
     - l'ordre strict de persistance sur disque avant `log_report_complete` et `log_error` ;
     - la présence des règles CSS anti-débordement dans `Step3Simulation.vue` (`min-height: 64px`, `flex-wrap: wrap`, `white-space: nowrap`, `.action-controls`, `overflow: visible`) et des jalons de rafraîchissement dans `Step4Report.vue`.
-  - [ ] Étendre [`frontend/tests/reportComparison.test.js`](../../../frontend/tests/reportComparison.test.js) pour tester tous les cas de `resolveLiveTelemetryDisplay` (génération active sans usage, génération active avec usage mais sans tarification, génération active avec usage et tarification mais sans claims, rapport terminé avec/sans usage et avec/sans tarification).
-  - [ ] Exécuter `backend/.venv/bin/pytest backend/tests/ -q`, `pnpm --dir frontend test`, `pnpm --dir frontend build`, `backend/.venv/bin/ruff check` et `backend/.venv/bin/python backend/scripts/validate_plans.py`.
+  - [x] Étendre [`frontend/tests/reportComparison.test.js`](../../../frontend/tests/reportComparison.test.js) pour tester tous les cas de `resolveLiveTelemetryDisplay` (génération active sans usage, génération active avec usage mais sans tarification, génération active avec usage et tarification mais sans claims, rapport terminé avec/sans usage et avec/sans tarification).
+  - [x] Exécuter `backend/.venv/bin/pytest backend/tests/ -q`, `pnpm --dir frontend test`, `pnpm --dir frontend build`, `backend/.venv/bin/ruff check` et `backend/.venv/bin/python backend/scripts/validate_plans.py`.
 
 ---
 
@@ -207,4 +207,29 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
 
 ## Notes de complétion
 
-*(Section à remplir lors de la clôture de la story.)*
+La story **015-5** a été entièrement développée, intégrée et vérifiée :
+
+1. **Ergonomie responsive de l'étape 3/5 (`Step3Simulation.vue`)** :
+   - Mise à jour de `.control-bar` (`min-height: 64px; height: auto; flex-wrap: wrap; gap: 12px 16px;`).
+   - `.status-group` configuré avec `display: flex; flex-wrap: wrap; gap: 12px; flex: 1 1 auto; min-width: 0; align-items: stretch;`.
+   - `.platform-status` configuré avec `min-width: 140px; max-width: 100%; box-sizing: border-box; overflow: visible;` (préservant la visibilité au survol de `.actions-tooltip`).
+   - `.platform-stats` enveloppant (`flex-wrap: wrap; gap: 6px 12px;`) et `.stat` protégé avec `white-space: nowrap;` empêchant la troncature ou la coupure au milieu de `48 h 0 min` ou `ATTENTE 366`.
+   - Ajout d'une règle CSS explicite pour `.action-controls` (`display: flex; align-items: center; flex-shrink: 0; margin-left: auto;`) éliminant le chevauchement avec les cartes de statut en vue Scindé (50 % de largeur).
+
+2. **Persistance incrémentale de `usage.json` et séquencement de fin (`report_agent.py`)** :
+   - Signature de `_persist_usage_metrics` étendue avec `final: bool = True`. En mode `final=False`, `usage.json` est persisté atomiquement aux jalons intermédiaires (`plan_outline`, après chaque section, après chaque appel d'outil d'entretien) sans sceller `_usage_persisted` et en restaurant `_completed_at` pour laisser progresser le temps mural.
+   - En mode `final=True`, `usage.json` est définitivement scellé (`_usage_persisted = True`), assurant l'identité octet pour octet avec l'archive zip d'audit.
+   - Séquences de clôture (succès, arrêt contrôlé, exception) réordonnées pour persister tous les artefacts (`usage.json`, historique, `ReportManager.save_report`, `update_progress`) **avant** d'émettre `log_report_complete` ou `log_error`.
+
+3. **Rafraîchissement live et sémantique honnête des métriques à l'étape 4/5 (`reportComparison.js`, `Step4Report.vue`, `locales/*.json`)** :
+   - Ajout des clés i18n `step4.metricPending` et `step4.metricUnpriced` dans `fr.json`, `en.json` et `zh.json`.
+   - Helper pur exporté `resolveLiveTelemetryDisplay({ usage, claims, isGenerating, fallbackElapsedSeconds })` dans `reportComparison.js` distinguant les statuts `'ready'`, `'pending'`, `'unpriced'` et `'unavailable'`.
+   - Polling de `Step4Report.vue` branché pour rafraîchir la télémétrie aux jalons intermédiaires et gérer l'interruption immédiate sur événement terminal `error`.
+
+4. **Résultats des vérifications** :
+   - `backend/.venv/bin/pytest backend/tests/test_i18n_parity.py -v` : 7 passed en 0.02s.
+   - `pnpm --dir frontend test` : 47 tests unitaires passés (dont 4 nouveaux pour `resolveLiveTelemetryDisplay`).
+   - `pnpm --dir frontend build` : build Vite réussi sans erreur en 1.00s.
+   - `backend/.venv/bin/pytest backend/tests/test_story_015_5_live_telemetry.py -v` : 5 tests hermétiques passés en 0.48s.
+   - `backend/.venv/bin/pytest backend/tests/ -q` : **2 150 passed**, 1 warning en 284.75s.
+   - `backend/.venv/bin/ruff check backend/app/services/report_agent.py backend/tests/test_story_015_5_live_telemetry.py` : 0 erreur.

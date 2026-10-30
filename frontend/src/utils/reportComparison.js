@@ -542,3 +542,102 @@ export function buildComparisonVersion({
     status: asTrimmedString(details.status) || asTrimmedString(entry.status),
   }
 }
+
+/**
+ * Détermine de façon déterministe l'état d'affichage de chaque métrique
+ * de télémétrie du rapport (Story 015-5, AC6).
+ *
+ * États possibles par métrique :
+ *   - 'ready'       : donnée mesurée et prête à formater
+ *   - 'pending'     : génération en cours, valeur en attente de premier calcul
+ *   - 'unpriced'    : tokens mesurés mais modèle absent de la table de tarification
+ *   - 'unavailable' : donnée non disponible (rapport terminé sans artefact, etc.)
+ *
+ * @param {Object} params
+ * @param {Object|null} params.usage Résumé produit par summarizeUsage()
+ * @param {Object|null} params.claims Registre des claims (report_claims.json)
+ * @param {boolean} params.isGenerating Rapport activement en cours de génération
+ * @param {number|null} [params.fallbackElapsedSeconds] Temps écoulé alternatif
+ * @returns {Object} États et valeurs pour tokens, inference, wall, cost, claims
+ */
+export function resolveLiveTelemetryDisplay({
+  usage = null,
+  claims = null,
+  isGenerating = false,
+  fallbackElapsedSeconds = null,
+} = {}) {
+  const hasUsage = usage && typeof usage === 'object' && usage.usageAvailable === true
+  const totalTokens = hasUsage && typeof usage.totalTokens === 'number' ? usage.totalTokens : null
+  const durationSeconds = hasUsage && typeof usage.durationSeconds === 'number' ? usage.durationSeconds : null
+  const wallSeconds = hasUsage && typeof usage.wallSeconds === 'number'
+    ? usage.wallSeconds
+    : (typeof fallbackElapsedSeconds === 'number' && Number.isFinite(fallbackElapsedSeconds) ? fallbackElapsedSeconds : null)
+
+  // 1. Tokens
+  let tokensState = 'unavailable'
+  if (totalTokens !== null) {
+    tokensState = 'ready'
+  } else if (isGenerating) {
+    tokensState = 'pending'
+  }
+
+  // 2. Durée d'inférence
+  let inferenceState = 'unavailable'
+  if (durationSeconds !== null) {
+    inferenceState = 'ready'
+  } else if (isGenerating) {
+    inferenceState = 'pending'
+  }
+
+  // 3. Temps mural
+  let wallState = 'unavailable'
+  if (wallSeconds !== null) {
+    wallState = 'ready'
+  } else if (isGenerating) {
+    wallState = 'pending'
+  }
+
+  // 4. Coût estimé
+  let costState = 'unavailable'
+  if (hasUsage) {
+    if (usage.costAvailable === true && typeof usage.estimatedCostUsd === 'number') {
+      costState = 'ready'
+    } else if (usage.pricingAvailable === false) {
+      costState = 'unpriced'
+    } else if (isGenerating) {
+      costState = 'pending'
+    }
+  } else if (isGenerating) {
+    costState = 'pending'
+  }
+
+  // 5. Affirmations (claims)
+  let claimsState = 'unavailable'
+  const claimsTotal = claims && typeof claims === 'object' && typeof claims.total_claims === 'number'
+    ? claims.total_claims
+    : null
+  const claimsVerified = claims && typeof claims === 'object' && typeof claims.verified_claims === 'number'
+    ? claims.verified_claims
+    : null
+  if (claimsTotal !== null && claimsVerified !== null) {
+    claimsState = 'ready'
+  } else if (isGenerating) {
+    claimsState = 'pending'
+  }
+
+  return {
+    tokens: { state: tokensState, value: totalTokens },
+    inferenceDuration: { state: inferenceState, value: durationSeconds },
+    wallDuration: { state: wallState, value: wallSeconds },
+    cost: {
+      state: costState,
+      value: costState === 'ready' ? usage.estimatedCostUsd : null,
+      currency: (usage && usage.currency) || 'USD',
+    },
+    claims: {
+      state: claimsState,
+      total: claimsTotal,
+      verified: claimsVerified,
+    },
+  }
+}
