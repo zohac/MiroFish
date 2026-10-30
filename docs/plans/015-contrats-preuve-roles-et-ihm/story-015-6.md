@@ -2,7 +2,7 @@
 id: "015-6"
 epic: "015"
 titre: "Cohérence biographique fiches ↔ prose finale, métadonnées Docker (git_commit, horizon) et qualification multi-domaines"
-statut: in-progress
+statut: done
 created: 2026-10-30
 updated: 2026-10-30
 auteur: "Agent BMAD (rediger-story)"
@@ -261,13 +261,13 @@ Les stories `015-1` à `015-5` ont résolu les ruptures de contrat sur le régim
 
 ## Définition de fini
 
-- [ ] Contrôle biographique aval (`PracticeDurationAttribute`, `extract_practice_durations`, `check_claim_persona_biography`, `audit_prose_persona_consistency`) implémenté dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py) et câblé dans [`SimulationActionVerifier.verify_report_claim()`](../../../backend/app/services/simulation_action_verifier.py) et [`ReportAgent.audit_and_save_report_claims()`](../../../backend/app/services/report_agent.py).
-- [ ] Injection de `GIT_COMMIT` ajoutée dans [`backend/Dockerfile`](../../../backend/Dockerfile) et [`docker-compose.yml`](../../../docker-compose.yml), et résolution durcie dans [`SimulationAuditService._get_git_commit()`](../../../backend/app/services/simulation_audit_service.py).
-- [ ] Résolution en cascade et traçabilité de `time_horizon` (`time_horizon_is_inferred`, `time_horizon_source`) implémentées dans [`SimulationAuditService.build_run_manifest()`](../../../backend/app/services/simulation_audit_service.py) et `gather_audit_files()`, ainsi que l'enrichissement aval de `brief_consistency.json`.
-- [ ] Banc de qualification [`backend/scripts/verifier_qualification_epic_015.py`](../../../backend/scripts/verifier_qualification_epic_015.py) implémenté, exécuté et générant [`docs/plans/015-contrats-preuve-roles-et-ihm/rapport-qualification-epic-015.md`](rapport-qualification-epic-015.md) avec **VERDICT GO** sur C1 à C8 et AT-01 à AT-20.
-- [ ] Suite de tests hermétiques [`backend/tests/test_story_015_6_biography_and_qualification.py`](../../../backend/tests/test_story_015_6_biography_and_qualification.py) créée et passante.
-- [ ] Suite complète pytest backend et suite Node frontend vertes.
-- [ ] `backend/.venv/bin/python backend/scripts/validate_plans.py` vert.
+- [x] Contrôle biographique aval (`PracticeDurationAttribute`, `extract_practice_durations`, `check_claim_persona_biography`, `audit_prose_persona_consistency`) implémenté dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py) et câblé dans [`SimulationActionVerifier.verify_report_claim()`](../../../backend/app/services/simulation_action_verifier.py) et [`ReportAgent.audit_and_save_report_claims()`](../../../backend/app/services/report_agent.py).
+- [x] Injection de `GIT_COMMIT` ajoutée dans [`backend/Dockerfile`](../../../backend/Dockerfile) et [`docker-compose.yml`](../../../docker-compose.yml), et résolution durcie dans [`SimulationAuditService._get_git_commit()`](../../../backend/app/services/simulation_audit_service.py).
+- [x] Résolution en cascade et traçabilité de `time_horizon` (`time_horizon_is_inferred`, `time_horizon_source`) implémentées dans [`SimulationAuditService.build_run_manifest()`](../../../backend/app/services/simulation_audit_service.py) et `gather_audit_files()`, ainsi que l'enrichissement aval de `brief_consistency.json`.
+- [x] Banc de qualification [`backend/scripts/verifier_qualification_epic_015.py`](../../../backend/scripts/verifier_qualification_epic_015.py) implémenté, exécuté et générant [`docs/plans/015-contrats-preuve-roles-et-ihm/rapport-qualification-epic-015.md`](rapport-qualification-epic-015.md) avec **VERDICT GO** sur C1 à C8 et AT-01 à AT-20.
+- [x] Suite de tests hermétiques [`backend/tests/test_story_015_6_biography_and_qualification.py`](../../../backend/tests/test_story_015_6_biography_and_qualification.py) créée et passante.
+- [x] Suite complète pytest backend et suite Node frontend vertes (2 162 tests backend, 50 tests frontend).
+- [x] `backend/.venv/bin/python backend/scripts/validate_plans.py` vert (15 epics, 76 stories).
 
 ---
 
@@ -275,34 +275,34 @@ Les stories `015-1` à `015-5` ont résolu les ruptures de contrat sur le régim
 
 ### T1 — Extraction des durées d'installation et contrôle biographique aval (`FR-07`, C6, `AT-11`)
 
-- [ ] **T1.1** : Dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py), ajouter `PracticeDurationAttribute`, le convertisseur de nombres en lettres FR/EN (incluant `et demi` / `and a half` et la conversion des mois en années), et `extract_practice_durations(text: str) -> List[PracticeDurationAttribute]` en distinguant l'ancienneté d'installation courante (`depuis ...`) des carrières antérieures révolues (`pendant ...`, `ancienne ... pendant ...`, `a passé ...`).
-- [ ] **T1.2** : Dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py), implémenter `check_claim_persona_biography(claim_text, agent_name, profiles_by_name, all_profile_episodes=None)` et `audit_prose_persona_consistency(markdown_content, profiles, allowed_names=None)` retournant les contradictions factuelles `PERSONA_BIOGRAPHY_CONTRADICTION` (durée d'installation contradictoire ou épisode monétaire biographique exclusif attribué au mauvais persona) sans bloquer les divergences d'opinion (`AT-11`).
-- [ ] **T1.3** : Dans [`backend/app/services/simulation_action_verifier.py`](../../../backend/app/services/simulation_action_verifier.py#L1305-L1840), ajouter le paramètre optionnel `persona_profiles` à `verify_report_claim()` et déclencher le marquage `VerificationStatus.CONTRADICTED` (`confidence=0.0`, limitation `PERSONA_BIOGRAPHY_CONTRADICTION`) lorsqu'une contradiction biographique factuelle est détectée, en préservant `provenance_regime`.
-- [ ] **T1.4** : Dans [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py#L4073-L4267) (`audit_and_save_report_claims`), charger les profils personas admis de la simulation, les passer à `verify_report_claim(..., persona_profiles=...)`, et persister `uploads/reports/<report_id>/brief_consistency.json` enrichi de `prose_is_consistent`, `prose_contradictions` et `diagnostics.practice_durations_by_profile`.
+- [x] **T1.1** : Dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py), ajouter `PracticeDurationAttribute`, le convertisseur de nombres en lettres FR/EN (incluant `et demi` / `and a half` et la conversion des mois en années), et `extract_practice_durations(text: str) -> List[PracticeDurationAttribute]` en distinguant l'ancienneté d'installation courante (`depuis ...`) des carrières antérieures révolues (`pendant ...`, `ancienne ... pendant ...`, `a passé ...`).
+- [x] **T1.2** : Dans [`backend/app/services/brief_consistency.py`](../../../backend/app/services/brief_consistency.py), implémenter `check_claim_persona_biography(claim_text, agent_name, profiles_by_name, all_profile_episodes=None)` et `audit_prose_persona_consistency(markdown_content, profiles, allowed_names=None)` retournant les contradictions factuelles `PERSONA_BIOGRAPHY_CONTRADICTION` (durée d'installation contradictoire ou épisode monétaire biographique exclusif attribué au mauvais persona) sans bloquer les divergences d'opinion (`AT-11`).
+- [x] **T1.3** : Dans [`backend/app/services/simulation_action_verifier.py`](../../../backend/app/services/simulation_action_verifier.py#L1305-L1840), ajouter le paramètre optionnel `persona_profiles` à `verify_report_claim()` et déclencher le marquage `VerificationStatus.CONTRADICTED` (`confidence=0.0`, limitation `PERSONA_BIOGRAPHY_CONTRADICTION`) lorsqu'une contradiction biographique factuelle est détectée, en préservant `provenance_regime`.
+- [x] **T1.4** : Dans [`backend/app/services/report_agent.py`](../../../backend/app/services/report_agent.py#L4073-L4267) (`audit_and_save_report_claims`), charger les profils personas admis de la simulation, les passer à `verify_report_claim(..., persona_profiles=...)`, et persister `uploads/reports/<report_id>/brief_consistency.json` enrichi de `prose_is_consistent`, `prose_contradictions` et `diagnostics.practice_durations_by_profile`.
 
 ### T2 — Métadonnées Docker (`GIT_COMMIT`) et horizon temporel (`time_horizon`) dans `SimulationAuditService` (`FR-08`, C7, `AT-15`, `AT-16`)
 
-- [ ] **T2.1** : Ajouter `ARG GIT_COMMIT=unknown-git-commit` et `ENV GIT_COMMIT=${GIT_COMMIT}` dans [`backend/Dockerfile`](../../../backend/Dockerfile), et propager `GIT_COMMIT` dans `build.args` et `environment` du service `backend` dans [`docker-compose.yml`](../../../docker-compose.yml).
-- [ ] **T2.2** : Dans [`backend/app/services/simulation_audit_service.py`](../../../backend/app/services/simulation_audit_service.py#L51-L70), durcir `_get_git_commit()` pour ignorer les valeurs vides ou égales à `"unknown-git-commit"` / `"unknown"` dans les variables d'environnement avant d'exécuter `git rev-parse HEAD`.
-- [ ] **T2.3** : Dans [`backend/app/services/simulation_audit_service.py`](../../../backend/app/services/simulation_audit_service.py#L73-L320), implémenter `_resolve_time_horizon_metadata(sim_id, sim_dir, report_dir=None)` avec résolution en cascade (`simulation_brief.json` $\rightarrow$ brief projet $\rightarrow$ `simulation_requirement` dans `state.json`/`simulation_config.json` $\rightarrow$ titre/chapeau du rapport) et exposer `time_horizon`, `time_horizon_is_inferred` et `time_horizon_source` dans `run_manifest["simulation"]` ainsi que dans le `simulation_brief.json` embarqué par `gather_audit_files()`.
-- [ ] **T2.4** : Dans [`SimulationAuditService.gather_audit_files()`](../../../backend/app/services/simulation_audit_service.py#L254-L263), enrichir le `brief_consistency.json` embarqué dans le paquet d'audit avec les résultats de `audit_prose_persona_consistency()` exécuté sur `full_report.md` du rapport ciblé.
+- [x] **T2.1** : Ajouter `ARG GIT_COMMIT=unknown-git-commit` et `ENV GIT_COMMIT=${GIT_COMMIT}` dans [`backend/Dockerfile`](../../../backend/Dockerfile), et propager `GIT_COMMIT` dans `build.args` et `environment` du service `backend` dans [`docker-compose.yml`](../../../docker-compose.yml).
+- [x] **T2.2** : Dans [`backend/app/services/simulation_audit_service.py`](../../../backend/app/services/simulation_audit_service.py#L51-L70), durcir `_get_git_commit()` pour ignorer les valeurs vides ou égales à `"unknown-git-commit"` / `"unknown"` dans les variables d'environnement avant d'exécuter `git rev-parse HEAD`.
+- [x] **T2.3** : Dans [`backend/app/services/simulation_audit_service.py`](../../../backend/app/services/simulation_audit_service.py#L73-L320), implémenter `_resolve_time_horizon_metadata(sim_id, sim_dir, report_dir=None)` avec résolution en cascade (`simulation_brief.json` $\rightarrow$ brief projet $\rightarrow$ `simulation_requirement` dans `state.json`/`simulation_config.json` $\rightarrow$ titre/chapeau du rapport) et exposer `time_horizon`, `time_horizon_is_inferred` et `time_horizon_source` dans `run_manifest["simulation"]` ainsi que dans le `simulation_brief.json` embarqué par `gather_audit_files()`.
+- [x] **T2.4** : Dans [`SimulationAuditService.gather_audit_files()`](../../../backend/app/services/simulation_audit_service.py#L254-L263), enrichir le `brief_consistency.json` embarqué dans le paquet d'audit avec les résultats de `audit_prose_persona_consistency()` exécuté sur `full_report.md` du rapport ciblé.
 
 ### T3 — Banc de qualification globale `verifier_qualification_epic_015.py` et rapport formel (`C1`–`C8`, `AT-01`–`AT-20`)
 
-- [ ] **T3.1** : Créer [`backend/scripts/verifier_qualification_epic_015.py`](../../../backend/scripts/verifier_qualification_epic_015.py) évaluant de bout en bout les critères **C1 à C8** et les scénarios **AT-01 à AT-20** :
+- [x] **T3.1** : Créer [`backend/scripts/verifier_qualification_epic_015.py`](../../../backend/scripts/verifier_qualification_epic_015.py) évaluant de bout en bout les critères **C1 à C8** et les scénarios **AT-01 à AT-20** :
   - rejeu déterministe (`replay_frozen` sans appel LLM) sur la fixture R8 (`sim_7a1b02b8c092` / `report_934d3254004b`) ;
   - validation sur 3 scénarios synthétiques multi-domaines (lancement logiciel commercial, débat associatif local sans conversion commerciale `AT-19`, grève de transport public avec organisation active `AT-09`) ;
   - scan AST/regex de généricité (`NFR-2`) sur `backend/app/`, `frontend/src/` et `locales/`.
-- [ ] **T3.2** : Exécuter `backend/.venv/bin/python backend/scripts/verifier_qualification_epic_015.py` et générer le rapport formel [`docs/plans/015-contrats-preuve-roles-et-ihm/rapport-qualification-epic-015.md`](rapport-qualification-epic-015.md) avec **VERDICT GO**.
+- [x] **T3.2** : Exécuter `backend/.venv/bin/python backend/scripts/verifier_qualification_epic_015.py` et générer le rapport formel [`docs/plans/015-contrats-preuve-roles-et-ihm/rapport-qualification-epic-015.md`](rapport-qualification-epic-015.md) avec **VERDICT GO**.
 
 ### T4 — Tests unitaires et d'intégration hermétiques (`AC1`–`AC9`)
 
-- [ ] **T4.1** : Créer [`backend/tests/test_story_015_6_biography_and_qualification.py`](../../../backend/tests/test_story_015_6_biography_and_qualification.py) couvrant `AC1` à `AC8` (extraction d'ancienneté FR/EN, contradiction Sylvie R8 `17 ans` vs `2.5 ans`, respect des carrières passées et des divergences d'opinion `AT-11`, épisode monétaire croisé, enrichissement `brief_consistency.json`, `GIT_COMMIT` Docker/service, cascade `time_horizon` sur R8, et exécution de `verifier_qualification_epic_015.py`).
-- [ ] **T4.2** : Exécuter la suite complète pytest backend, la suite Node frontend (`pnpm --dir frontend test`) et `backend/.venv/bin/python backend/scripts/validate_plans.py`.
+- [x] **T4.1** : Créer [`backend/tests/test_story_015_6_biography_and_qualification.py`](../../../backend/tests/test_story_015_6_biography_and_qualification.py) couvrant `AC1` à `AC8` (extraction d'ancienneté FR/EN, contradiction Sylvie R8 `17 ans` vs `2.5 ans`, respect des carrières passées et des divergences d'opinion `AT-11`, épisode monétaire croisé, enrichissement `brief_consistency.json`, `GIT_COMMIT` Docker/service, cascade `time_horizon` sur R8, et exécution de `verifier_qualification_epic_015.py`).
+- [x] **T4.2** : Exécuter la suite complète pytest backend, la suite Node frontend (`pnpm --dir frontend test`) et `backend/.venv/bin/python backend/scripts/validate_plans.py`.
 
 ### T5 — Synchronisation documentaire et préparation à la revue
 
-- [ ] **T5.1** : Mettre à jour cette story (`Notes de complétion`, cases cochées, statut `review`), [`epic-015.md`](epic-015.md), [`docs/sprint-status.yaml`](../../sprint-status.yaml), [`docs/STATUS.md`](../../STATUS.md) et [`AGENTS.md`](../../../AGENTS.md).
+- [x] **T5.1** : Mettre à jour cette story (`Notes de complétion`, cases cochées, statut `review`), [`epic-015.md`](epic-015.md), [`docs/sprint-status.yaml`](../../sprint-status.yaml), [`docs/STATUS.md`](../../STATUS.md) et [`AGENTS.md`](../../../AGENTS.md).
 
 ---
 
@@ -343,10 +343,52 @@ backend/.venv/bin/python backend/scripts/validate_plans.py
 
 ## Revue
 
-*(Section réservée à la revue de code contradictoire BMAD 4 couches une fois l'implémentation terminée.)*
+### Review Findings
+
+- [x] [Review][Patch] Calcul automatique d'all_profile_episodes et résolution d'identité dans verify_report_claim [backend/app/services/simulation_action_verifier.py:1415-1422, backend/app/services/brief_consistency.py:690-713]
+- [x] [Review][Patch] Préservation de la valeur cuite ENV GIT_COMMIT dans docker-compose.yml [docker-compose.yml:65]
+- [x] [Review][Patch] Élimination des constantes tarifaires en dur 29eur/49eur/99eur au profit de l'exclusivité stricte [backend/app/services/brief_consistency.py:695-698]
+- [x] [Review][Patch] Prise en compte des groupes de capture 7 et 8 pour la formation dans pat_past [backend/app/services/brief_consistency.py:594-596]
+- [x] [Review][Patch] Support complet des nombres composés français dans parse_duration_tokens [backend/app/services/brief_consistency.py:511-537]
+- [x] [Review][Patch] Exclusion de l'âge biologique du pool de durées d'exercice dans extract_all_biographical_durations [backend/app/services/brief_consistency.py:615-629]
+- [x] [Review][Patch] Découpage en phrases SENTENCE_SPLIT_PATTERN dans audit_prose_persona_consistency [backend/app/services/brief_consistency.py:753-767]
+- [x] [Review][Patch] Persistance atomique, création de répertoire et mise à jour de is_consistent dans report_agent.py [backend/app/services/report_agent.py:4279-4293]
+- [x] [Review][Patch] Support des profils Twitter description/user_char et agrégation multi-plateformes [backend/app/services/report_agent.py:4241-4251, backend/app/services/simulation_audit_service.py:567-573, backend/app/services/brief_consistency.py:658, 745]
+- [x] [Review][Patch] Résolution canonique resolver.resolve_name et normalisation robuste des accents [backend/app/services/brief_consistency.py:646-653, backend/app/services/simulation_action_verifier.py:1415]
+- [x] [Review][Patch] Test d'exécution de verifier_qualification_epic_015.py et résilience sur environnement sans uploads/ [backend/tests/test_story_015_6_biography_and_qualification.py:1755, backend/scripts/verifier_qualification_epic_015.py:498-508]
+- [x] [Review][Patch] Assertions de persistance disque et packaging dans test_ac4 et test_ac6 [backend/tests/test_story_015_6_biography_and_qualification.py:1645, 1725]
+- [x] [Review][Patch] Complétion du test C3 dans verifier_qualification_epic_015.py pour AT-12, AT-13, AT-14 [backend/scripts/verifier_qualification_epic_015.py:302-337]
+- [x] [Review][Patch] Parsing JSON d'outline.json et synchronisation de brief_consistency.json sur disque dans gather_audit_files [backend/app/services/simulation_audit_service.py:157-172, 595-608]
+
+#### Rejected Findings
+
+- `[Review][Reject]` ECH-4 (Profile dict avec None pour persona/bio) : `profile.get("persona") or ""` protège déjà contre les valeurs None.
+- `[Review][Reject]` AA-6 (Qualification synthétique en mémoire au lieu du rejeu R8) : C7 réutilise la fixture R8 sur disque ; les tests unitaires C1-C6 valident les contrats fonctionnels de manière déterministe et hermétique sans appel réseau, conformément aux bancs Epics 007, 009, 011, 012, 013.
+- `[Review][Reject]` AA-9 (Écart "72h" vs "72 heures") : `extract_inferred_horizon` normalise en `"72h"` depuis l'Epic 009. C7 accepte les deux représentations.
+- `[Review][Reject]` BH-14 (Retenue d'OBSERVED_SOCIAL_ACTION sur claim contredite) : Alignement strict avec la décision D5b d'Epic 015-1 qui préserve `was_asserted_action=True` sur tout déclassement en `CONTRADICTED` pour que `ReportQualityGate` puisse bloquer la publication.
 
 ---
 
 ## Notes de complétion
 
-*(À remplir lors de la finalisation de l'implémentation de la story.)*
+La Story 015-6 a été implémentée et vérifiée avec succès :
+1. **Contrôle biographique aval (`FR-07`, C6, `AT-11`)** :
+   - Dataclass `PracticeDurationAttribute` et fonctions pures `extract_practice_durations`, `extract_all_biographical_durations`, `check_claim_persona_biography` et `audit_prose_persona_consistency` implémentées dans `backend/app/services/brief_consistency.py`.
+   - Distingue rigoureusement l'installation/exercice courant (`depuis ...`) des carrières passées (`pendant ...`), normalise les durées chiffrées et littérales (FR/EN) ainsi que les demi-unités (`et demi`, `and a half`) et mois.
+   - Câblé dans `SimulationActionVerifier.verify_report_claim()` : marque en `VerificationStatus.CONTRADICTED` avec limitation `PERSONA_BIOGRAPHY_CONTRADICTION` toute attribution d'une ancienneté incompatible ou d'un épisode monétaire personnel exclusif appartenant à un autre persona.
+   - Respect strict de la liberté d'opinion, d'attitude et d'intention : les doutes, hésitations ou retraits ne déclenchent aucune contradiction biographique.
+   - Persistance de `prose_consistency` (`prose_is_consistent`, `prose_contradictions`, `practice_durations_by_profile`) dans `brief_consistency.json` côté rapport et paquet d'audit.
+2. **Métadonnées de reproductibilité Docker et horizon temporel (`FR-08`, C7, `AT-15`, `AT-16`)** :
+   - `ARG GIT_COMMIT=unknown-git-commit` et `ENV GIT_COMMIT=${GIT_COMMIT}` déclarés dans `backend/Dockerfile` ; injection `build.args` et `environment` configurée dans `docker-compose.yml`.
+   - Durcissement de `_get_git_commit()` dans `SimulationAuditService` : ignore la sentinelle `unknown-git-commit` et interroge déterministement `git rev-parse HEAD`.
+   - Résolution en cascade `_resolve_time_horizon_metadata()` (`simulation_brief.json` -> brief projet -> `state.json` / `simulation_config.json` -> début du rapport -> non spécifié) avec traçabilité explicite (`time_horizon_is_inferred: bool`, `time_horizon_source: str`).
+3. **Banc de qualification globale Epic 015 (`C1`–`C8`, `AT-01`–`AT-20`)** :
+   - `backend/scripts/verifier_qualification_epic_015.py` créé et exécuté.
+   - Rapport formel généré dans `docs/plans/015-contrats-preuve-roles-et-ihm/rapport-qualification-epic-015.md` avec **VERDICT GO** sur l'ensemble des 8 critères et 20 scénarios.
+   - Scan de généricité AST/regex validé : 0 occurrence de tokens spécifiques à la fixture d'audit dans `backend/app/`, `frontend/src/`, `locales/`.
+4. **Vérification et tests hermétiques** :
+   - 8 tests hermétiques dédiés créés dans `backend/tests/test_story_015_6_biography_and_qualification.py` (tous passants).
+   - 77 tests de l'Epic 015 passants (`tests/test_story_015_*.py`).
+   - Filet global : 2 162 tests backend passants, 50 tests frontend Node passants, 0 régression.
+   - Validateur de plans conforme (15 epics, 76 stories).
+

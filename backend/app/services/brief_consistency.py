@@ -391,7 +391,7 @@ def audit_brief_persona_consistency(
     # Mapper chaque signature d'épisode dans le brief vers son ou ses propriétaires (owners)
     brief_signature_to_owners: Dict[str, Set[str]] = {}
     for owner_name, sigs in brief_attributed.items():
-        # Une organisation (Keova, Stripe...) n'a pas de biographie personnelle privée
+        # Une organisation commerciale n'a pas de biographie personnelle privée
         if org_set and unicodedata.normalize("NFKD", owner_name).lower() in org_set:
             continue
         for sig in sigs:
@@ -487,6 +487,383 @@ def audit_brief_persona_consistency(
         is_consistent=is_consistent,
         contradictions=contradictions,
         diagnostics=diagnostics,
+    )
+
+
+@dataclass(frozen=True)
+class PracticeDurationAttribute:
+    """Attribut biographique d'ancienneté d'exercice ou d'installation professionnelle (Story 015-6, D1)."""
+
+    years: float
+    raw_value: str
+    context_kind: str  # "current_practice" ou "past_career"
+    snippet: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "years": self.years,
+            "raw_value": self.raw_value,
+            "context_kind": self.context_kind,
+            "snippet": self.snippet,
+        }
+
+
+def _build_text_numbers_map() -> Dict[str, int]:
+    base_fr = {
+        "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+        "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11,
+        "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16,
+        "dix-sept": 17, "dix-huit": 18, "dix-neuf": 19,
+    }
+    tens_fr = {
+        "vingt": 20, "trente": 30, "quarante": 40, "cinquante": 50,
+        "soixante": 60, "soixante-dix": 70, "quatre-vingts": 80,
+        "quatre-vingt": 80, "quatre-vingt-dix": 90,
+    }
+    res: Dict[str, int] = dict(base_fr)
+    res.update(tens_fr)
+    units_fr = {1: "un", 2: "deux", 3: "trois", 4: "quatre", 5: "cinq", 6: "six", 7: "sept", 8: "huit", 9: "neuf"}
+    for t_val, t_name in [(20, "vingt"), (30, "trente"), (40, "quarante"), (50, "cinquante"), (60, "soixante")]:
+        for u_val, u_name in units_fr.items():
+            val = t_val + u_val
+            if u_val == 1:
+                res[f"{t_name} et {u_name}"] = val
+                res[f"{t_name}-et-{u_name}"] = val
+                res[f"{t_name} et une"] = val
+                res[f"{t_name}-et-une"] = val
+            res[f"{t_name}-{u_name}"] = val
+            res[f"{t_name} {u_name}"] = val
+    for u_val, u_name in [(11, "onze"), (12, "douze"), (13, "treize"), (14, "quatorze"), (15, "quinze"), (16, "seize"), (17, "dix-sept"), (18, "dix-huit"), (19, "dix-neuf")]:
+        val = 60 + u_val
+        if u_val == 11:
+            res[f"soixante et {u_name}"] = val
+            res[f"soixante-et-{u_name}"] = val
+        res[f"soixante-{u_name}"] = val
+        res[f"soixante {u_name}"] = val
+    for u_val, u_name in units_fr.items():
+        val = 80 + u_val
+        res[f"quatre-vingt-{u_name}"] = val
+        res[f"quatre-vingt {u_name}"] = val
+    for u_val, u_name in [(11, "onze"), (12, "douze"), (13, "treize"), (14, "quatorze"), (15, "quinze"), (16, "seize"), (17, "dix-sept"), (18, "dix-huit"), (19, "dix-neuf")]:
+        val = 80 + u_val
+        res[f"quatre-vingt-dix-{u_name}"] = val
+        res[f"quatre-vingt dix {u_name}"] = val
+        res[f"quatre-vingt-{u_name}"] = val
+    base_en = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+        "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
+        "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40,
+        "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+    }
+    res.update(base_en)
+    units_en = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine"}
+    for t_val, t_name in [(20, "twenty"), (30, "thirty"), (40, "forty"), (50, "fifty"), (60, "sixty"), (70, "seventy"), (80, "eighty"), (90, "ninety")]:
+        for u_val, u_name in units_en.items():
+            val = t_val + u_val
+            res[f"{t_name}-{u_name}"] = val
+            res[f"{t_name} {u_name}"] = val
+    return res
+
+
+TEXT_NUMBERS_MAP = _build_text_numbers_map()
+
+
+def _strip_combining_accents(s: str) -> str:
+    """Supprime les diacritiques combinants pour comparaison insensible aux accents."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c)
+    ).strip().lower()
+
+
+def _extract_profile_full_text(profile: Dict[str, Any]) -> str:
+    """Extrait le texte complet descriptif d'un persona (support Reddit et Twitter)."""
+    parts = [
+        str(profile.get("persona") or ""),
+        str(profile.get("bio") or ""),
+        str(profile.get("description") or ""),
+        str(profile.get("user_char") or ""),
+    ]
+    return " ".join(p.strip() for p in parts if p.strip()).strip()
+
+
+def parse_duration_tokens(num_raw: str, unit_raw: str, has_half: bool) -> Optional[float]:
+    """Parse une quantité de durée en années flottantes."""
+    num_clean = num_raw.lower().strip()
+    val: Optional[float] = None
+    m_num = re.search(r"\b(\d+(?:[.,]\d+)?)\b", num_clean)
+    if m_num:
+        try:
+            val = float(m_num.group(1).replace(",", "."))
+        except ValueError:
+            val = None
+    else:
+        for word, n in sorted(TEXT_NUMBERS_MAP.items(), key=lambda x: -len(x[0])):
+            pattern = r"(?<![\w\-])" + re.escape(word) + r"(?![\w\-])"
+            if re.search(pattern, num_clean):
+                val = float(n)
+                break
+    if val is None:
+        return None
+    if has_half:
+        val += 0.5
+    u = unit_raw.lower()
+    if "mois" in u or "month" in u:
+        return round(val / 12.0, 2)
+    return float(val)
+
+
+def extract_practice_durations(text: str) -> List[PracticeDurationAttribute]:
+    """Extrait déterministement les durées d'exercice ou d'installation professionnelle (Story 015-6, D1, AC1)."""
+    if not text:
+        return []
+
+    durations: List[PracticeDurationAttribute] = []
+
+    # 1. Ancienneté d'installation / exercice actuel
+    pat_current = re.compile(
+        r"(?:\b(?:install[eé]e?s?|exerce|exer[cç]ant|en\s+activit[eé]|en\s+lib[eé]ral|pratique|cabinet\s+ouvert|practicing|installed|in\s+practice|established|operating)\b)"
+        r"(?:[^\n,.;:]*?\s+)?"
+        r"(?:\b(?:depuis|for)\b)\s+"
+        r"(?:un\s+peu\s+plus\s+de\s+|environ\s+|pr[eè]s\s+de\s+|plus\s+de\s+|over\s+|about\s+|nearly\s+)?"
+        r"([a-z0-9\s\-]+?)\s*"
+        r"\b(ans?|ann[eé]es?|mois|years?|months?)\b"
+        r"(?:\s+(?:et\s+demie?|and\s+a\s+half))?",
+        re.IGNORECASE,
+    )
+
+    for m in pat_current.finditer(text):
+        full_match = m.group(0)
+        num_raw = m.group(1)
+        unit_raw = m.group(2)
+        has_half = bool(re.search(r"\b(?:et\s+demie?|and\s+a\s+half)\b", full_match, re.IGNORECASE))
+        years = parse_duration_tokens(num_raw, unit_raw, has_half)
+        if years is not None:
+            durations.append(
+                PracticeDurationAttribute(
+                    years=years,
+                    raw_value=full_match.strip(),
+                    context_kind="current_practice",
+                    snippet=full_match.strip(),
+                )
+            )
+
+    # 2. Carrière antérieure révolue ou durée passée
+    # Exclut les expressions d'installation actuelle (depuis / installed / practicing) pour ne pas doubler en past_career
+    pat_past = re.compile(
+        r"(?:\b(?:pendant|during|durant)\s+(?:environ\s+|pr[eè]s\s+de\s+|plus\s+de\s+|over\s+|about\s+)?([a-z0-9\s\-]+?)\s*\b(ans?|ann[eé]es?|mois|years?|months?)\b(?:\s+(?:et\s+demie?|and\s+a\s+half))?"
+        r"|(?<!\bpracticing\s)(?<!\binstalled\s)\bfor\s+(?:over\s+|about\s+|nearly\s+)?([a-z0-9\s\-]+?)\s*\b(years?|months?)\b(?:\s+and\s+a\s+half)?"
+        r"|\b([a-z0-9\s\-]+?)\s*\b(ans?|ann[eé]es?|mois|years?|months?)\b\s+comme\b"
+        r"|formation\s+de\s+([a-z0-9\s\-]+?)\s*\b(ans?|ann[eé]es?|mois|years?|months?)\b)",
+        re.IGNORECASE,
+    )
+    for m in pat_past.finditer(text):
+        full_match = m.group(0)
+        num_raw = m.group(1) or m.group(3) or m.group(5) or m.group(7)
+        unit_raw = m.group(2) or m.group(4) or m.group(6) or m.group(8)
+        if not num_raw or not unit_raw:
+            continue
+        has_half = bool(re.search(r"\b(?:et\s+demie?|and\s+a\s+half)\b", full_match, re.IGNORECASE))
+        years = parse_duration_tokens(num_raw, unit_raw, has_half)
+        if years is not None:
+            durations.append(
+                PracticeDurationAttribute(
+                    years=years,
+                    raw_value=full_match.strip(),
+                    context_kind="past_career",
+                    snippet=full_match.strip(),
+                )
+            )
+
+    return durations
+
+
+def extract_all_biographical_durations(text: str) -> List[float]:
+    """Extrait l'ensemble des valeurs numériques de durée en années (actuelle, passée, formation) d'un texte."""
+    if not text:
+        return []
+    attrs = extract_practice_durations(text)
+    return [a.years for a in attrs]
+
+
+def check_claim_persona_biography(
+    claim_text: str,
+    agent_name: str,
+    profiles_by_name: Dict[str, Dict[str, Any]],
+    all_profile_episodes: Optional[Dict[str, List[BiographicalEpisode]]] = None,
+) -> Tuple[bool, str]:
+    """Vérifie si une affirmation unitaire contredit factuellement la biographie de son persona (Story 015-6, D2, AC2, AC3).
+
+    Retourne:
+      (is_contradicted, reason)
+    """
+    if not claim_text or not agent_name or not profiles_by_name:
+        return False, ""
+
+    # Pré-calcul automatique d'all_profile_episodes si omis (Patch 1 BMAD)
+    if all_profile_episodes is None and profiles_by_name:
+        all_profile_episodes = {}
+        for p_name, p_data in profiles_by_name.items():
+            p_text = _extract_profile_full_text(p_data)
+            all_profile_episodes[p_name] = extract_episodes(p_text, excluded_keywords={p_name.lower()})
+
+    norm_name = _strip_combining_accents(agent_name)
+    profile = None
+    canonical_name = agent_name
+    for p_name, p_data in profiles_by_name.items():
+        if _strip_combining_accents(p_name) == norm_name:
+            profile = p_data
+            canonical_name = p_name
+            break
+
+    if not profile:
+        return False, ""
+
+    profile_text = _extract_profile_full_text(profile)
+    profile_durations = extract_practice_durations(profile_text)
+    profile_current = [d for d in profile_durations if d.context_kind == "current_practice"]
+    all_profile_duration_values = extract_all_biographical_durations(profile_text)
+
+    # 1. Vérification de l'ancienneté d'installation affirmée dans le claim
+    claim_durations = extract_practice_durations(claim_text)
+    claim_current = [d for d in claim_durations if d.context_kind == "current_practice"]
+
+    if profile_current and claim_current:
+        # Le profil canonique a une ou plusieurs durées d'installation courantes de référence
+        for c_dur in claim_current:
+            matches_current = False
+            for p_dur in profile_current:
+                allowed_rel = max(1.0, 0.35 * p_dur.years)
+                if abs(c_dur.years - p_dur.years) <= allowed_rel:
+                    matches_current = True
+                    break
+            if not matches_current:
+                # Vérifier si c_dur.years correspond à une carrière passée légitime du persona (ex: 22 ans)
+                if any(abs(c_dur.years - val) <= 0.5 for val in all_profile_duration_values):
+                    continue
+                reason = (
+                    f"PERSONA_BIOGRAPHY_CONTRADICTION : L'affirmation attribue à '{canonical_name}' "
+                    f"une ancienneté d'installation de {c_dur.years:g} ans ('{c_dur.raw_value}') "
+                    f"en contradiction avec sa fiche canonique ({profile_current[0].years:g} ans, '{profile_current[0].raw_value}')."
+                )
+                return True, reason
+
+    # 2. Vérification d'attribution croisée d'un épisode monétaire personnel exclusif
+    # On exclut le nom du persona lui-même pour ne pas polluer l'épisode (ex: "1500eur:nom_persona")
+    persona_names_to_exclude = {canonical_name.lower(), agent_name.lower()}
+    for pn in profiles_by_name.keys():
+        persona_names_to_exclude.add(pn.lower())
+    claim_episodes = extract_episodes(claim_text, excluded_keywords=persona_names_to_exclude)
+    if claim_episodes and all_profile_episodes:
+        # Vérifier si un épisode du claim appartient exclusivement à un AUTRE profil
+        my_eps = {e.signature for e in all_profile_episodes.get(canonical_name, [])}
+        for ep in claim_episodes:
+            if ep.signature not in my_eps:
+                # Regarder si un autre profil le possède exclusivement
+                carriers = [
+                    other_name
+                    for other_name, other_eps in all_profile_episodes.items()
+                    if other_name != canonical_name and any(oe.signature == ep.signature for oe in other_eps)
+                ]
+                # Un épisode personnel est exclusif s'il n'appartient qu'à un seul autre persona
+                # S'il appartient à plusieurs profils (offres publiques partagées, tarifs communs), il n'est pas exclusif
+                if len(carriers) == 1:
+                    reason = (
+                        f"PERSONA_BIOGRAPHY_CONTRADICTION : L'affirmation attribue à '{canonical_name}' "
+                        f"l'épisode monétaire personnel '{ep.raw_amount}' ({ep.signature}) "
+                        f"qui appartient à la fiche de '{carriers[0]}'."
+                    )
+                    return True, reason
+
+    return False, ""
+
+
+def audit_prose_persona_consistency(
+    markdown_content: str,
+    profiles: List[Dict[str, Any]],
+    allowed_names: Optional[Set[str]] = None,
+) -> ConsistencyResult:
+    """Audite la cohérence biographique de la prose finale d'un rapport contre les fiches personas (Story 015-6, D2, AC2)."""
+    if not markdown_content or not profiles:
+        return ConsistencyResult(is_consistent=True, contradictions=[], diagnostics={})
+
+    profiles_by_name: Dict[str, Dict[str, Any]] = {}
+    for p in profiles:
+        name = p.get("name") or p.get("realname") or p.get("username")
+        if name:
+            profiles_by_name[name] = p
+
+    # Filtrer si allowed_names est fourni
+    if allowed_names:
+        norm_allowed = {_strip_combining_accents(n) for n in allowed_names if n}
+        profiles_by_name = {
+            k: v for k, v in profiles_by_name.items()
+            if _strip_combining_accents(k) in norm_allowed
+        }
+
+    # Pré-calcul des épisodes monétaires de tous les profils
+    all_profile_episodes: Dict[str, List[BiographicalEpisode]] = {}
+    practice_durations_by_profile: Dict[str, List[Dict[str, Any]]] = {}
+
+    for name, p in profiles_by_name.items():
+        text = _extract_profile_full_text(p)
+        all_profile_episodes[name] = extract_episodes(text, excluded_keywords={name.lower()})
+        durs = extract_practice_durations(text)
+        practice_durations_by_profile[name] = [d.to_dict() for d in durs]
+
+    contradictions: List[PersonaContradiction] = []
+    seen_keys: Set[Tuple[str, str]] = set()
+
+    # Découpage du markdown en segments de paragraphe puis en phrases
+    paragraphs = re.split(r"\n\s*\n", markdown_content)
+    for para in paragraphs:
+        flat_para = re.sub(r"\s*\n\s*", " ", para).strip()
+        if not flat_para:
+            continue
+        sentences = [s.strip() for s in SENTENCE_SPLIT_PATTERN.split(flat_para) if s.strip()]
+        for sentence in sentences:
+            # Identifier si la phrase mentionne un persona admis
+            for name, p in profiles_by_name.items():
+                pattern_name = _make_name_regex(name)
+                if re.search(pattern_name, sentence, re.IGNORECASE):
+                    is_contra, reason = check_claim_persona_biography(
+                        claim_text=sentence,
+                        agent_name=name,
+                        profiles_by_name=profiles_by_name,
+                        all_profile_episodes=all_profile_episodes,
+                    )
+                    if is_contra:
+                        key = (name, reason)
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            contradictions.append(
+                                PersonaContradiction(
+                                    signature="persona_biography_contradiction",
+                                    owner=name,
+                                    carrier=name,
+                                    other_carriers=[],
+                                    reason=reason,
+                                )
+                            )
+
+    is_consistent = len(contradictions) == 0
+    return ConsistencyResult(
+        is_consistent=is_consistent,
+        contradictions=contradictions,
+        diagnostics={
+            "practice_durations_by_profile": practice_durations_by_profile,
+            "profiles_audited": len(profiles_by_name),
+        },
+    )
+
+    is_consistent = len(contradictions) == 0
+    return ConsistencyResult(
+        is_consistent=is_consistent,
+        contradictions=contradictions,
+        diagnostics={
+            "practice_durations_by_profile": practice_durations_by_profile,
+            "profiles_audited": len(profiles_by_name),
+        },
     )
 
 

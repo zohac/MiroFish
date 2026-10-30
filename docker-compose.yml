@@ -49,6 +49,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        GIT_COMMIT: "${GIT_COMMIT:-unknown-git-commit}"
     image: mirofish-backend:local
     container_name: mirofish-backend
     ports:
@@ -60,6 +62,7 @@ services:
       NEO4J_URI: "bolt://neo4j:7687"
       FLASK_PORT: "5001"
       ZEP_BACKEND: "${ZEP_BACKEND:-graphiti}"
+      GIT_COMMIT: "${GIT_COMMIT:-}"
     volumes:
       - ./backend/uploads:/app/backend/uploads
       - ./backend/simulations:/app/backend/simulations

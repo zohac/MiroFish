@@ -38,6 +38,10 @@ COPY backend/ ./backend/
 
 WORKDIR /app/backend
 
+ARG GIT_COMMIT=unknown-git-commit
+ENV GIT_COMMIT=${GIT_COMMIT}
+RUN echo "${GIT_COMMIT}" > /app/backend/GIT_COMMIT
+
 EXPOSE 5001
 
 # Démarrage du serveur backend Flask

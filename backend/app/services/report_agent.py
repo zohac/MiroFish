@@ -11,6 +11,7 @@ Report Agent服务
 
 import os
 import json
+import uuid
 import time
 import re
 import threading
@@ -4231,6 +4232,31 @@ class ReportAgent:
             logger.debug(f"Journal d'entretiens non chargé pour l'audit des claims : {_iv_load_err}")
             report_interviews_payload = None
 
+        # Charger les profils personas pour le contrôle biographique aval (Story 015-6, D3, FR-07, C6)
+        persona_profiles_map: Dict[str, Dict[str, Any]] = {}
+        try:
+            from .simulation_manager import SimulationManager
+            mgr = SimulationManager()
+            raw_profiles = []
+            seen_prof_names = set()
+            for plat in ("reddit", "twitter"):
+                try:
+                    p_list = mgr.get_profiles(self.simulation_id, platform=plat)
+                    for p in (p_list or []):
+                        p_name = p.get("name") or p.get("realname") or p.get("username")
+                        if p_name and p_name not in seen_prof_names:
+                            seen_prof_names.add(p_name)
+                            raw_profiles.append(p)
+                except Exception:
+                    pass
+            for p in raw_profiles:
+                p_name = p.get("name") or p.get("realname") or p.get("username")
+                if p_name:
+                    persona_profiles_map[p_name] = p
+        except Exception as _prof_err:
+            logger.debug(f"Profils personas non chargés pour audit biographique : {_prof_err}")
+            persona_profiles_map = {}
+
         for claim in raw_claims:
             verified = SimulationActionVerifier.verify_report_claim(
                 claim=claim,
@@ -4240,8 +4266,39 @@ class ReportAgent:
                 horizon_hours=horizon_hours,
                 resolver=resolver,
                 report_interviews=report_interviews_payload,
+                persona_profiles=persona_profiles_map,
             )
             registry.add_claim(verified)
+
+        # Audit aval de cohérence biographique fiches ↔ prose et persistance de brief_consistency.json (Story 015-6, D3, AC4)
+        if rep_id and persona_profiles_map:
+            try:
+                from .brief_consistency import audit_prose_persona_consistency
+                allowed_actor_names = set(resolver.name_to_canonical.values()) if resolver else None
+                prose_res = audit_prose_persona_consistency(
+                    markdown_content=markdown_content,
+                    profiles=list(persona_profiles_map.values()),
+                    allowed_names=allowed_actor_names,
+                )
+                rep_bc_path = os.path.join(Config.UPLOAD_FOLDER, "reports", rep_id, "brief_consistency.json")
+                sim_bc_path = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id, "brief_consistency.json")
+                base_bc_data: Dict[str, Any] = {"is_consistent": True, "contradictions": [], "diagnostics": {}}
+                if os.path.exists(sim_bc_path):
+                    with open(sim_bc_path, "r", encoding="utf-8") as f_sbc:
+                        base_bc_data = json.load(f_sbc)
+                base_bc_data["prose_is_consistent"] = prose_res.is_consistent
+                base_bc_data["prose_contradictions"] = [c.to_dict() for c in prose_res.contradictions]
+                base_bc_data["is_consistent"] = bool(base_bc_data.get("is_consistent", True)) and prose_res.is_consistent
+                if "diagnostics" not in base_bc_data:
+                    base_bc_data["diagnostics"] = {}
+                base_bc_data["diagnostics"].update(prose_res.diagnostics)
+                os.makedirs(os.path.dirname(rep_bc_path), exist_ok=True)
+                tmp_rep_bc = f"{rep_bc_path}.tmp.{uuid.uuid4().hex[:8]}"
+                with open(tmp_rep_bc, "w", encoding="utf-8") as f_rbc:
+                    json.dump(base_bc_data, f_rbc, ensure_ascii=False, indent=2)
+                os.replace(tmp_rep_bc, rep_bc_path)
+            except Exception as _bc_err:
+                logger.warning(f"Erreur audit et persistance brief_consistency.json pour rapport {rep_id} : {_bc_err}")
 
         # 1. Sauvegarde prioritaire dans reports/<report_id>/report_claims.json (Story 013-3)
         if rep_id:

@@ -737,7 +737,7 @@ class SimulationActionVerifier:
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         """Vérifie si une allégation d'un agent d'entreprise contredit un fait canonique validé (QA-12, AC5).
 
-        Générique (NFR-1) : Sans terme en dur spécifique à Keova.
+        Générique (NFR-1) : Sans terme en dur spécifique à une simulation d'audit.
         Retourne (is_contradicted, conflict_reason, conflicting_source_filename).
         """
         if not claim_text or not canonical_documents:
@@ -1311,6 +1311,7 @@ class SimulationActionVerifier:
         horizon_hours: Optional[float] = None,
         resolver: Optional[Any] = None,
         report_interviews: Optional[Any] = None,
+        persona_profiles: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> ReportClaim:
         """Vérificateur serveur déterministe d'une affirmation de rapport (AC4, Critères C4, C5, C7, C8).
 
@@ -1409,6 +1410,37 @@ class SimulationActionVerifier:
                         limitations=limitations,
                         asserted_as_action=was_asserted_action,
                     )
+
+        # CONTRÔLE BIOGRAPHIQUE AVAL FICHES PERSONAS ↔ PROSE FINALE (Story 015-6, D2, D3, FR-07, C6, AT-11) :
+        if persona_profiles and claim.agent_name:
+            resolved_agent_name = (
+                resolver.resolve_name(claim.agent_name) if resolver else claim.agent_name
+            ) or claim.agent_name
+            from .brief_consistency import check_claim_persona_biography
+            is_bio_contradicted, bio_reason = check_claim_persona_biography(
+                claim_text=claim.text,
+                agent_name=resolved_agent_name,
+                profiles_by_name=persona_profiles,
+            )
+            if is_bio_contradicted:
+                limitations = list(claim.limitations)
+                limitations.append(bio_reason)
+                # Préserver strictement provenance_regime et ne jamais promouvoir un entretien en OBSERVED_SOCIAL_ACTION
+                forced_kind = (
+                    ClaimKind.REPORTED_INTENTION
+                    if is_interview
+                    else (claim.claim_kind or ClaimKind.REPORTED_INTENTION)
+                )
+                return replace(
+                    claim,
+                    claim_kind=forced_kind,
+                    origin=claim.origin,
+                    evidence_refs=list(claim.evidence_refs),
+                    verification_status=VerificationStatus.CONTRADICTED,
+                    confidence=0.0,
+                    limitations=limitations,
+                    asserted_as_action=was_asserted_action,
+                )
 
         # RÈGLE DU TEMPS SIMULÉ C8 (Story 011-4) :
         if horizon_hours and horizon_hours > 0:

@@ -24,6 +24,7 @@ import io
 import json
 import os
 import subprocess
+import uuid
 import zipfile
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -50,11 +51,23 @@ class SimulationAuditService:
 
     def _get_git_commit(self) -> str:
         """Récupère l'empreinte git commit active ou un repli."""
-        # Priorité aux variables d'environnement (CI/CD, conteneurs Docker sans montage .git)
+        # Priorité aux variables d'environnement explicites (CI/CD, conteneurs Docker sans montage .git)
+        # NFR-5 / AT-15 : ignorer les valeurs vides ou égales à la sentinelle par défaut "unknown-git-commit"
         for env_var in ("GIT_COMMIT", "COMMIT_SHA", "GITHUB_SHA"):
             val = os.environ.get(env_var, "").strip()
-            if val:
+            if val and val.lower() not in ("unknown-git-commit", "unknown"):
                 return val
+
+        # Vérification d'un fichier GIT_COMMIT cuit à la construction Docker
+        for c_file in ("/app/backend/GIT_COMMIT", "/app/GIT_COMMIT", "backend/GIT_COMMIT", "GIT_COMMIT"):
+            if os.path.exists(c_file):
+                try:
+                    with open(c_file, "r", encoding="utf-8") as f_gc:
+                        c_val = f_gc.read().strip()
+                        if c_val and c_val.lower() not in ("unknown-git-commit", "unknown"):
+                            return c_val
+                except Exception:
+                    pass
 
         try:
             res = subprocess.run(
@@ -68,6 +81,129 @@ class SimulationAuditService:
         except Exception:
             pass
         return "unknown-git-commit"
+
+    def _resolve_time_horizon_metadata(self) -> Dict[str, Any]:
+        """Résout de manière déterministe l'horizon temporel en cascade avec traçabilité (Story 015-6, D5, C7, AT-16)."""
+        sim_dir = os.path.join(Config.UPLOAD_FOLDER, "simulations", self.simulation_id)
+        report_dir = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id) if self.report_id else ""
+
+        # 1. simulation_brief.json dans le dossier de la simulation
+        brief_path = os.path.join(sim_dir, "simulation_brief.json")
+        if os.path.exists(brief_path):
+            try:
+                with open(brief_path, "r", encoding="utf-8") as bf:
+                    b_data = json.load(bf)
+                    th = b_data.get("time_horizon")
+                    if th and str(th).strip().lower() not in ("unknown", "inconnu", "none", "null", ""):
+                        is_inf = bool(b_data.get("time_horizon_is_inferred", False))
+                        src = b_data.get("time_horizon_source") or ("inferred_brief" if is_inf else "explicit_brief")
+                        return {
+                            "time_horizon": str(th).strip(),
+                            "time_horizon_is_inferred": is_inf,
+                            "time_horizon_source": src,
+                        }
+                    if b_data.get("goal"):
+                        from ..models.simulation_brief import extract_inferred_horizon
+                        inferred = extract_inferred_horizon(b_data["goal"], "")
+                        if inferred.time_horizon and inferred.time_horizon.lower() != "unknown":
+                            return {
+                                "time_horizon": inferred.time_horizon,
+                                "time_horizon_is_inferred": True,
+                                "time_horizon_source": "inferred_from_goal",
+                            }
+            except Exception as e:
+                logger.debug(f"Erreur lecture simulation_brief.json pour time_horizon: {e}")
+
+        # 2. Brief du projet associé via ProjectManager
+        try:
+            sim_manager = SimulationManager()
+            sim_state = sim_manager.get_simulation(self.simulation_id)
+            project_id = getattr(sim_state, "project_id", "") if sim_state else ""
+            if project_id:
+                proj = ProjectManager().get_project(project_id)
+                if proj and getattr(proj, "simulation_brief", None):
+                    p_brief = proj.simulation_brief
+                    th = p_brief.get("time_horizon") if isinstance(p_brief, dict) else getattr(p_brief, "time_horizon", None)
+                    if th and str(th).strip().lower() not in ("unknown", "inconnu", "none", "null", ""):
+                        return {
+                            "time_horizon": str(th).strip(),
+                            "time_horizon_is_inferred": False,
+                            "time_horizon_source": "explicit_brief",
+                        }
+                    goal = p_brief.get("goal") if isinstance(p_brief, dict) else getattr(p_brief, "goal", "")
+                    if goal:
+                        from ..models.simulation_brief import extract_inferred_horizon
+                        inferred = extract_inferred_horizon(goal, "")
+                        if inferred.time_horizon and inferred.time_horizon.lower() != "unknown":
+                            return {
+                                "time_horizon": inferred.time_horizon,
+                                "time_horizon_is_inferred": True,
+                                "time_horizon_source": "inferred_from_goal",
+                            }
+        except Exception as e:
+            logger.debug(f"Erreur résolution brief projet pour time_horizon: {e}")
+
+        # 3. simulation_requirement ou config_reasoning lu depuis state.json ou simulation_config.json
+        for filename in ("state.json", "simulation_config.json"):
+            file_p = os.path.join(sim_dir, filename)
+            if os.path.exists(file_p):
+                try:
+                    with open(file_p, "r", encoding="utf-8") as f:
+                        cfg_data = json.load(f)
+                        req_text = (
+                            cfg_data.get("simulation_requirement")
+                            or cfg_data.get("config_reasoning")
+                            or cfg_data.get("goal")
+                            or ""
+                        )
+                        if req_text:
+                            from ..models.simulation_brief import extract_inferred_horizon
+                            inferred = extract_inferred_horizon(req_text, "")
+                            if inferred.time_horizon and inferred.time_horizon.lower() != "unknown":
+                                return {
+                                    "time_horizon": inferred.time_horizon,
+                                    "time_horizon_is_inferred": True,
+                                    "time_horizon_source": "inferred_from_simulation_requirement",
+                                }
+                except Exception as e:
+                    logger.debug(f"Erreur lecture {filename} pour time_horizon: {e}")
+
+        # 4. Titre / début de full_report.md ou outline.json
+        if report_dir and os.path.exists(report_dir):
+            for candidate_file in ("full_report.md", "outline.json"):
+                rep_file_p = os.path.join(report_dir, candidate_file)
+                if os.path.exists(rep_file_p):
+                    try:
+                        with open(rep_file_p, "r", encoding="utf-8") as rf:
+                            head_text = ""
+                            if candidate_file.endswith(".json"):
+                                try:
+                                    out_data = json.load(rf)
+                                    head_text = str(out_data.get("title") or "")
+                                    for s in out_data.get("sections", []):
+                                        head_text += " " + str(s.get("title") or "")
+                                except Exception:
+                                    rf.seek(0)
+                                    head_text = rf.read(1500)
+                            else:
+                                head_text = rf.read(1500)
+                            from ..models.simulation_brief import extract_inferred_horizon
+                            inferred = extract_inferred_horizon(head_text, "")
+                            if inferred.time_horizon and inferred.time_horizon.lower() != "unknown":
+                                return {
+                                    "time_horizon": inferred.time_horizon,
+                                    "time_horizon_is_inferred": True,
+                                    "time_horizon_source": "inferred_from_report",
+                                }
+                    except Exception as e:
+                        logger.debug(f"Erreur lecture {candidate_file} pour time_horizon: {e}")
+
+        # 5. Non résolu
+        return {
+            "time_horizon": None,
+            "time_horizon_is_inferred": False,
+            "time_horizon_source": "unresolved",
+        }
 
     def build_run_manifest(self) -> Dict[str, Any]:
         """Génère les métadonnées d'exécution de la simulation et du rapport."""
@@ -99,21 +235,11 @@ class SimulationAuditService:
             if status_val.lower() == "completed" and getattr(sim_state, "updated_at", None):
                 completed_at = getattr(sim_state, "updated_at", None)
 
-        # Récupération de time_horizon et d'informations de scénario depuis simulation_brief
-        time_horizon = None
-        brief_path = os.path.join(sim_dir, "simulation_brief.json")
-        if os.path.exists(brief_path):
-            try:
-                with open(brief_path, "r", encoding="utf-8") as bf:
-                    b_data = json.load(bf)
-                    time_horizon = b_data.get("time_horizon")
-                    if (not time_horizon or str(time_horizon).lower() in ("unknown", "none", "null")) and b_data.get("goal"):
-                        from ..models.simulation_brief import extract_inferred_horizon
-                        inferred = extract_inferred_horizon(b_data["goal"], "")
-                        if inferred.time_horizon and inferred.time_horizon != "unknown":
-                            time_horizon = inferred.time_horizon
-            except Exception:
-                pass
+        # Récupération de time_horizon et traçabilité d'inférence en cascade (Story 015-6, D5, C7, AT-16)
+        horizon_meta = self._resolve_time_horizon_metadata()
+        time_horizon = horizon_meta.get("time_horizon")
+        time_horizon_is_inferred = bool(horizon_meta.get("time_horizon_is_inferred", False))
+        time_horizon_source = str(horizon_meta.get("time_horizon_source", "unresolved"))
 
         # Récupération du nombre d'agents instanciés
         agent_count = 0
@@ -201,6 +327,8 @@ class SimulationAuditService:
                 "completed_at": completed_at,
                 "platform": getattr(sim_state, "platform", "all"),
                 "time_horizon": time_horizon,
+                "time_horizon_is_inferred": time_horizon_is_inferred,
+                "time_horizon_source": time_horizon_source,
                 "agent_count": agent_count,
             },
         }
@@ -260,6 +388,10 @@ class SimulationAuditService:
 
         # 1. run_manifest.json
         run_manifest = self.build_run_manifest()
+        time_horizon = run_manifest.get("simulation", {}).get("time_horizon")
+        time_horizon_is_inferred = bool(run_manifest.get("simulation", {}).get("time_horizon_is_inferred", False))
+        time_horizon_source = str(run_manifest.get("simulation", {}).get("time_horizon_source", "unresolved"))
+
         run_manifest_bytes = json.dumps(run_manifest, ensure_ascii=False, indent=2).encode("utf-8")
         files["run_manifest.json"] = run_manifest_bytes
         if rep_dir:
@@ -283,22 +415,39 @@ class SimulationAuditService:
             except Exception as mf_err:
                 logger.warning(f"Impossible de sauvegarder run_manifest.json dans {rep_dir}: {mf_err}")
 
-        # 2. simulation_brief.json
+        # 2. simulation_brief.json (enrichi de l'horizon inféré si présent, AT-16)
+        brief_dict: Dict[str, Any] = {}
         brief_path = os.path.join(sim_dir, "simulation_brief.json")
         if os.path.exists(brief_path):
-            with open(brief_path, "rb") as f:
-                files["simulation_brief.json"] = f.read()
+            try:
+                with open(brief_path, "r", encoding="utf-8") as f_bf:
+                    brief_dict = json.load(f_bf)
+            except Exception:
+                brief_dict = {}
         else:
             # Essayer de lire depuis project
             sim_manager = SimulationManager()
             sim_state = sim_manager.get_simulation(self.simulation_id)
             project_id = getattr(sim_state, "project_id", "") if sim_state else ""
-            brief_dict = {}
             if project_id:
                 proj = ProjectManager().get_project(project_id)
                 if proj and proj.simulation_brief:
-                    brief_dict = proj.simulation_brief
-            files["simulation_brief.json"] = json.dumps(brief_dict, ensure_ascii=False, indent=2).encode("utf-8")
+                    brief_dict = (
+                        proj.simulation_brief.to_dict()
+                        if hasattr(proj.simulation_brief, "to_dict")
+                        else dict(proj.simulation_brief)
+                    )
+
+        # Si un horizon a été inféré ou résolu par le run_manifest, synchroniser le brief (AT-16)
+        if time_horizon and (
+            not brief_dict.get("time_horizon")
+            or str(brief_dict.get("time_horizon")).strip().lower() in ("unknown", "inconnu", "none", "null", "")
+        ):
+            brief_dict["time_horizon"] = time_horizon
+            brief_dict["time_horizon_is_inferred"] = time_horizon_is_inferred
+            brief_dict["time_horizon_source"] = time_horizon_source
+
+        files["simulation_brief.json"] = json.dumps(brief_dict, ensure_ascii=False, indent=2).encode("utf-8")
 
         # 3. actors.json
         actors_path = os.path.join(sim_dir, "actors.json")
@@ -425,17 +574,77 @@ class SimulationAuditService:
         except Exception:
             files["claims_index.json"] = json.dumps(None, ensure_ascii=False, indent=2).encode("utf-8")
 
-        # 9 bis. brief_consistency.json (Story 014-4, FR-07, AC6)
-        bc_path = os.path.join(sim_dir, "brief_consistency.json")
-        if os.path.exists(bc_path):
-            with open(bc_path, "rb") as f_bc:
-                files["brief_consistency.json"] = f_bc.read()
+        # 9 bis. brief_consistency.json (Story 014-4, FR-07, AC6 ; Story 015-6, D6, AC4)
+        rep_bc_path = os.path.join(rep_dir, "brief_consistency.json") if rep_dir else ""
+        sim_bc_path = os.path.join(sim_dir, "brief_consistency.json")
+        bc_bytes: Optional[bytes] = None
+
+        if rep_bc_path and os.path.exists(rep_bc_path):
+            with open(rep_bc_path, "rb") as f_rbc:
+                bc_bytes = f_rbc.read()
+        elif os.path.exists(sim_bc_path):
+            with open(sim_bc_path, "rb") as f_sbc:
+                bc_bytes = f_sbc.read()
+
+        bc_dict: Dict[str, Any] = {}
+        if bc_bytes:
+            try:
+                bc_dict = json.loads(bc_bytes.decode("utf-8"))
+            except Exception:
+                bc_dict = {"is_consistent": True, "contradictions": [], "diagnostics": {}}
         else:
-            files["brief_consistency.json"] = json.dumps(
-                {"is_consistent": True, "contradictions": [], "diagnostics": {"note": "non_audit_ou_historique"}},
-                ensure_ascii=False,
-                indent=2,
-            ).encode("utf-8")
+            bc_dict = {"is_consistent": True, "contradictions": [], "diagnostics": {"note": "non_audit_ou_historique"}}
+
+        # Si le rapport contient de la prose et que prose_is_consistent n'est pas encore présent, l'évaluer
+        if "prose_is_consistent" not in bc_dict:
+            try:
+                from .brief_consistency import audit_prose_persona_consistency
+                mgr = SimulationManager()
+                profiles: List[Dict[str, Any]] = []
+                seen_prof_names = set()
+                for plat in ("reddit", "twitter"):
+                    try:
+                        p_list = mgr.get_profiles(self.simulation_id, platform=plat)
+                        for p in (p_list or []):
+                            p_name = p.get("name") or p.get("realname") or p.get("username")
+                            if p_name and p_name not in seen_prof_names:
+                                seen_prof_names.add(p_name)
+                                profiles.append(p)
+                    except Exception:
+                        pass
+                markdown_text = ""
+                if "report.md" in files:
+                    markdown_text = files["report.md"].decode("utf-8", errors="replace")
+                if markdown_text and profiles:
+                    prose_res = audit_prose_persona_consistency(
+                        markdown_content=markdown_text,
+                        profiles=profiles,
+                    )
+                    bc_dict["prose_is_consistent"] = prose_res.is_consistent
+                    bc_dict["prose_contradictions"] = [c.to_dict() for c in prose_res.contradictions]
+                    bc_dict["is_consistent"] = bool(bc_dict.get("is_consistent", True)) and prose_res.is_consistent
+                    if "diagnostics" not in bc_dict:
+                        bc_dict["diagnostics"] = {}
+                    bc_dict["diagnostics"].update(prose_res.diagnostics)
+                    # Synchroniser sur disque si rep_bc_path existe
+                    if self.report_id:
+                        rep_bc_p = os.path.join(Config.UPLOAD_FOLDER, "reports", self.report_id, "brief_consistency.json")
+                        try:
+                            os.makedirs(os.path.dirname(rep_bc_p), exist_ok=True)
+                            tmp_p = f"{rep_bc_p}.tmp.{uuid.uuid4().hex[:8]}"
+                            with open(tmp_p, "w", encoding="utf-8") as f_tmp:
+                                json.dump(bc_dict, f_tmp, ensure_ascii=False, indent=2)
+                            os.replace(tmp_p, rep_bc_p)
+                        except Exception as _sync_err:
+                            logger.debug(f"Erreur synchronisation disque brief_consistency.json: {_sync_err}")
+            except Exception as _eval_err:
+                logger.debug(f"Audit automatique prose brief_consistency dans gather_audit_files: {_eval_err}")
+
+        files["brief_consistency.json"] = json.dumps(
+            bc_dict,
+            ensure_ascii=False,
+            indent=2,
+        ).encode("utf-8")
 
         # 10. checksums.sha256
         checksum_lines = []
