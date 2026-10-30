@@ -4,7 +4,7 @@ Constitution du dépôt. Elle vaut pour toute contribution, humaine ou agent.
 En cas de conflit entre ce fichier et une demande ponctuelle : **ce fichier
 gagne**, et on le corrige explicitement dans un commit dédié.
 
-> Révision : 29 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
+> Révision : 30 octobre 2026 · branche `local-first` · fork `zohac/MiroFish`
 
 ---
 
@@ -33,7 +33,7 @@ reproductible.**
 | Fiabilité des acteurs, intégrité des preuves et publication stricte (Fail-Closed, Résolution sans collision) | ✅ fait — Epic 012 clos (1842 tests verts hôte + 9 frontend, Verdict GO) |
 | Benchmark LLM du ReportAgent et régénération non destructive (Replay frozen, profils LLM) | ✅ fait — Epic 013 clos (7/7 stories, 2 067 tests verts) |
 | Intégrité des preuves de rédaction (régime de provenance, provenance honnête, règle de silence, hygiène du brief) | ✅ fait — Epic 014 clos (4/4 stories, 2 099 tests verts) |
-| Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 | 🏗️ en cours — Epic 015 (4/6 stories done : `015-1`, `015-2`, `015-3`, `015-4`, 2 en backlog) |
+| Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 | 🏗️ en cours — Epic 015 (4/6 stories done : `015-1`, `015-2`, `015-3`, `015-4`, 1 in-progress : `015-5`, 1 en backlog) |
 
 - Amont : `666ghj/MiroFish` — AGPL-3.0, ~75 000 ★, très actif
 - Fork de travail : `zohac/MiroFish`, branche `local-first`
@@ -42,9 +42,9 @@ reproductible.**
 
 ### La tâche du moment
 
-> **L'epic 015 (« Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 ») est en cours (`in-progress` — 4 stories `done` : `015-1`, `015-2`, `015-3`, `015-4`, 2 stories en backlog).**
-> Dossier de plan : [`docs/plans/015-contrats-preuve-roles-et-ihm/`](docs/plans/015-contrats-preuve-roles-et-ihm/prd.md) (`prd.md`, `architecture.md`, `epic-015.md`, `story-015-1.md`, `story-015-2.md`, `story-015-3.md`, `story-015-4.md`).
-> Objectif : réparer les coutures de contrat révélées par l'audit R8 (`sim_7a1b02b8c092` / `report_934d3254004b`) et les frictions IHM des étapes 3/5 et 4/5 — préservation de `provenance_regime` de bout en bout, séparation lexicale `\b` action/intention, traçabilité `asserted_as_action` et filtrage strict des événements OASIS (`015-1`, `done` après revue BMAD — 2 109 tests verts), registre `report_interviews.json` v2 structuré par répondant et authentification des citations d'entretien (`015-2`, `done` après revue BMAD — 2 121 tests verts), fermeture de l'angle mort « rapport conceptuel » dans `ReportQualityGate`, rôle structurel `section_role="limitations"` et section « Sources & Provenance » 100 % calculée (`015-3`, `done` après revue BMAD — 2 130 tests verts), politique de participation par rôle, dénominateur d'adoption en inclusion positive et correction chirurgicale du filtre `[persona non admis]` (`015-4`, `done` après revue BMAD — 2 145 tests verts), ergonomie responsive des cartes Step 3 et télémétrie incrémentale/temps réel Step 4 (`015-5`), contrôle biographique aval de la prose, `GIT_COMMIT` Docker et banc de qualification R8 (`015-6`).
+> **L'epic 015 (« Contrats de preuve, gouvernance des rôles et ergonomie IHM Step 3/4 ») est en cours (`in-progress` — 4 stories `done` : `015-1`, `015-2`, `015-3`, `015-4`, 1 `in-progress` : `015-5`, 1 story en backlog : `015-6`).**
+> Dossier de plan : [`docs/plans/015-contrats-preuve-roles-et-ihm/`](docs/plans/015-contrats-preuve-roles-et-ihm/prd.md) (`prd.md`, `architecture.md`, `epic-015.md`, `story-015-1.md`, `story-015-2.md`, `story-015-3.md`, `story-015-4.md`, `story-015-5.md`).
+> Objectif : réparer les coutures de contrat révélées par l'audit R8 (`sim_7a1b02b8c092` / `report_934d3254004b`) et les frictions IHM des étapes 3/5 et 4/5 — préservation de `provenance_regime` de bout en bout, séparation lexicale `\b` action/intention, traçabilité `asserted_as_action` et filtrage strict des événements OASIS (`015-1`, `done` après revue BMAD — 2 109 tests verts), registre `report_interviews.json` v2 structuré par répondant et authentification des citations d'entretien (`015-2`, `done` après revue BMAD — 2 121 tests verts), fermeture de l'angle mort « rapport conceptuel » dans `ReportQualityGate`, rôle structurel `section_role="limitations"` et section « Sources & Provenance » 100 % calculée (`015-3`, `done` après revue BMAD — 2 130 tests verts), politique de participation par rôle, dénominateur d'adoption en inclusion positive et correction chirurgicale du filtre `[persona non admis]` (`015-4`, `done` après revue BMAD — 2 145 tests verts), ergonomie responsive des cartes Step 3 et télémétrie incrémentale/temps réel Step 4 (`015-5`, `in-progress`, rédigée), contrôle biographique aval de la prose, `GIT_COMMIT` Docker et banc de qualification R8 (`015-6`).
 >
 > **L'epic 014 (« Intégrité des preuves de rédaction ») est intégralement clos avec succès (4/4 stories validées : 014-1, 014-2, 014-3, 014-4 done — 2 099 tests verts sur l'hôte + 43 tests Node frontend).**
 > Dossier de plan : [`docs/plans/014-integrite-preuves-redaction/`](docs/plans/014-integrite-preuves-redaction/prd.md) (`prd.md`, `architecture.md`, `epic-014.md`, `story-014-1.md` à `story-014-4.md`).
