@@ -2801,9 +2801,11 @@ class ReportAgent:
             )
             report.outline = outline
             
-            # 记录规划完成日志
-            self.report_logger.log_planning_complete(outline.to_dict())
-            
+            # Persistance incrémentale de la télémétrie post-planification (Story 015-5, AC3)
+            # Doit impérativement être persistée AVANT save_report et AVANT log_planning_complete
+            # afin que usage.json et meta.json soient scellés sur disque dès que le client reçoit le log.
+            self._persist_usage_metrics(report_id, report, final=False)
+
             # 保存大纲到文件
             ReportManager.save_outline(report_id, outline)
             ReportManager.update_progress(
@@ -2812,8 +2814,8 @@ class ReportAgent:
             )
             ReportManager.save_report(report)
 
-            # Persistance incrémentale de la télémétrie post-planification (Story 015-5, AC3)
-            self._persist_usage_metrics(report_id, report, final=False)
+            # 记录规划完成日志
+            self.report_logger.log_planning_complete(outline.to_dict())
             
             logger.info(t('report.outlineSavedToFile', reportId=report_id))
             
@@ -2897,6 +2899,10 @@ class ReportAgent:
                 ReportManager.save_section(report_id, section_num, section)
                 completed_section_titles.append(section.title)
 
+                # Persistance incrémentale de la télémétrie post-section (Story 015-5, AC3)
+                # Doit impérativement précéder log_section_full_complete pour que le rafraîchissement client lise l'état à jour.
+                self._persist_usage_metrics(report_id, report, final=False)
+
                 # 记录章节完成日志
                 full_section_content = f"## {section.title}\n\n{section_content}"
 
@@ -2906,9 +2912,6 @@ class ReportAgent:
                         section_index=section_num,
                         full_content=full_section_content.strip()
                     )
-
-                # Persistance incrémentale de la télémétrie post-section (Story 015-5, AC3)
-                self._persist_usage_metrics(report_id, report, final=False)
 
                 logger.info(t('report.sectionSaved', reportId=report_id, sectionNum=f"{section_num:02d}"))
                 

@@ -2,34 +2,25 @@
 
 Vérifie :
 1. La persistance incrémentale de usage.json (final=False) sans sceller _usage_persisted.
-2. L'actualisation des métriques aux étapes intermédiaires puis le scellement définitif (final=True).
-3. L'ordre strict des opérations de clôture (artefacts sur disque avant log_report_complete et log_error).
-4. La présence des règles CSS anti-débordement dans Step3Simulation.vue et des jalons dans Step4Report.vue.
+2. L'actualisation des métriques aux étapes intermédiaires puis le scellement définitif (final=True)
+   et l'identité octet pour octet avec l'archive d'audit ZIP (AC3).
+3. L'exécution réelle de ReportAgent._generate_report_internal prouvant l'ordre strict des opérations de clôture
+   (persistance des artefacts sur disque avant log_report_complete et log_error, AC4).
+4. La persistance incrémentale déclenchée dans _execute_tool pour les outils d'entretien.
+5. La présence des règles CSS anti-débordement dans Step3Simulation.vue et des jalons dans Step4Report.vue.
 """
 
 from datetime import datetime
 import json
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+import zipfile
 
-from app.models.report_usage import CallUsageRecord, ReportUsageMetrics
+from app.config import Config
+from app.models.report_usage import ReportUsageMetrics
 from app.services.report_agent import Report, ReportAgent, ReportManager, ReportStatus
 from app.services.report_usage_tracker import ReportUsageTracker
-
-
-def _make_sample_call(call_index: int = 0, tokens: int = 100) -> CallUsageRecord:
-    return CallUsageRecord(
-        call_index=call_index,
-        phase="sections",
-        model="deepseek-v4.1-flash",
-        prompt_tokens=tokens,
-        completion_tokens=20,
-        thinking_tokens=10,
-        total_tokens=tokens + 30,
-        duration_seconds=1.2,
-        estimated_cost_usd=0.005,
-    )
+from app.services.simulation_audit_service import SimulationAuditService
 
 
 def test_incremental_usage_metrics_persistence_without_premature_sealing(tmp_path: Path):
@@ -43,6 +34,7 @@ def test_incremental_usage_metrics_persistence_without_premature_sealing(tmp_pat
             graph_id="graph_test",
             simulation_id="sim_test",
             simulation_requirement="Test requirement",
+            zep_tools=MagicMock(),
         )
         agent._current_report_id = report_id
         tracker = ReportUsageTracker(report_id=report_id, simulation_id="sim_test", model="deepseek-v4.1-flash")
@@ -99,85 +91,206 @@ def test_incremental_usage_metrics_persistence_without_premature_sealing(tmp_pat
         assert data4["calls_count"] == 2  # n'a pas été écrasé
 
 
-def test_closure_sequence_persists_artifacts_before_logging_completion():
-    """AC4 : save_report et persist_usage_metrics précèdent log_report_complete."""
+def test_usage_metrics_sealed_matches_zip_audit_archive(tmp_path: Path):
+    """AC3 §3 : L'artefact usage.json scellé sur disque et celui extrait du zip d'audit sont identiques octet pour octet."""
+    sim_id = "sim_audit_015_5"
+    report_id = "rep_audit_015_5"
+    sim_dir = tmp_path / "simulations" / sim_id
+    sim_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = tmp_path / "reports" / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    # Écrire les artefacts minimaux requis pour l'archive d'audit
+    (report_dir / "full_report.md").write_text("# Test report\n", encoding="utf-8")
+    (report_dir / "meta.json").write_text(json.dumps({"report_id": report_id}), encoding="utf-8")
+    (sim_dir / "run_state.json").write_text(json.dumps({"status": "completed"}), encoding="utf-8")
+
+    with patch.object(ReportManager, "_get_report_folder", return_value=str(report_dir)), \
+         patch.object(Config, "UPLOAD_FOLDER", str(tmp_path)):
+
+        agent = ReportAgent(graph_id="g1", simulation_id=sim_id, simulation_requirement="req", zep_tools=MagicMock())
+        tracker = ReportUsageTracker(report_id=report_id, simulation_id=sim_id, model="gemini-3.8-flash")
+        agent.usage_tracker = tracker
+
+        tracker.record_call(
+            usage={"prompt_tokens": 150, "completion_tokens": 50, "thinking_tokens": 0, "total_tokens": 200},
+            model="gemini-3.8-flash",
+            duration_seconds=2.0,
+        )
+        agent._persist_usage_metrics(report_id, final=True)
+
+        usage_file = report_dir / "usage.json"
+        assert usage_file.exists()
+        disk_bytes = usage_file.read_bytes()
+
+        audit_svc = SimulationAuditService(simulation_id=sim_id, report_id=report_id)
+        zip_bytes = audit_svc.build_audit_package()
+        assert isinstance(zip_bytes, bytes) and len(zip_bytes) > 0
+
+        zip_path = report_dir / f"simulation_audit_{report_id}.zip"
+        assert zip_path.exists()
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            assert "usage.json" in zf.namelist()
+            extracted_bytes = zf.read("usage.json")
+
+        assert disk_bytes == extracted_bytes, "usage.json sur disque et celui extrait de l'archive ZIP doivent être strictement identiques octet pour octet"
+
+
+def test_closure_sequence_persists_artifacts_before_logging_completion(tmp_path: Path):
+    """AC4 : _generate_report_internal appelle save_report et persist_usage_metrics AVANT log_report_complete."""
     events = []
+    report_id = "rep_order_complete"
+    report_dir = tmp_path / "reports" / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
 
     mock_logger = MagicMock()
     mock_logger.log_report_complete.side_effect = lambda **kwargs: events.append("log_report_complete")
-
-    def fake_save_report(rep):
-        events.append("save_report")
-
-    def fake_persist(report_id, report=None, final=True):
-        events.append("persist_usage")
-        return ReportUsageMetrics(report_id=report_id)
+    mock_logger.log_planning_complete.side_effect = lambda *args, **kwargs: events.append("log_planning_complete")
+    mock_logger.log_start.side_effect = lambda **kwargs: events.append("log_start")
+    mock_logger.log_planning_start.side_effect = lambda **kwargs: events.append("log_planning_start")
 
     agent = ReportAgent(
         graph_id="graph_order",
         simulation_id="sim_order",
         simulation_requirement="Order requirement",
+        zep_tools=MagicMock(),
     )
-    agent.report_logger = mock_logger
-    agent._persist_usage_metrics = fake_persist
 
-    with patch.object(ReportManager, "save_report", side_effect=fake_save_report), \
-         patch.object(ReportManager, "update_progress", lambda *args, **kwargs: events.append("update_progress")):
+    original_persist = agent._persist_usage_metrics
 
-        # Simuler la section de clôture nominale
-        report = Report(
-            report_id="rep_test_order",
-            simulation_id="sim_order",
-            graph_id="graph_order",
-            simulation_requirement="Order requirement",
-            status=ReportStatus.COMPLETED,
-        )
-        agent._persist_usage_metrics("rep_test_order", report, final=True)
-        ReportManager.save_report(report)
-        ReportManager.update_progress("rep_test_order", "completed", 100, "done")
-        agent.report_logger.log_report_complete(total_sections=3, total_time_seconds=10.0)
+    def tracking_persist(rep_id, report=None, final=True):
+        events.append(f"persist_usage_final_{final}")
+        return original_persist(rep_id, report=report, final=final)
 
-        assert events == ["persist_usage", "save_report", "update_progress", "log_report_complete"]
+    agent._persist_usage_metrics = tracking_persist
+
+    def tracking_save_report(rep):
+        events.append("save_report")
+
+    def tracking_update_progress(rep_id, status, progress, message="", **kwargs):
+        events.append(f"update_progress_{status}")
+
+    fake_outline = MagicMock()
+    fake_outline.title = "Test Outline"
+    fake_outline.summary = "Test summary"
+    fake_outline.sections = []
+    fake_outline.to_dict.return_value = {"title": "Test Outline", "summary": "Test summary", "sections": []}
+
+    fake_quality = MagicMock()
+    fake_quality.is_publishable = True
+    fake_quality.publication_status = MagicMock(value="published")
+    fake_quality.summary = "Quality OK"
+
+    with patch.object(ReportManager, "_get_report_folder", return_value=str(report_dir)), \
+         patch.object(ReportManager, "save_report", side_effect=tracking_save_report), \
+         patch.object(ReportManager, "update_progress", side_effect=tracking_update_progress), \
+         patch.object(ReportManager, "save_outline"), \
+         patch.object(ReportManager, "_append_to_history", lambda *args, **kwargs: events.append("append_history")), \
+         patch("app.services.report_agent.ReportLogger", return_value=mock_logger), \
+         patch("app.services.report_agent.ReportConsoleLogger", return_value=MagicMock()), \
+         patch.object(agent, "plan_outline", return_value=fake_outline), \
+         patch("app.services.report_quality_gate.ReportQualityGate.evaluate_report", return_value=fake_quality), \
+         patch.object(agent, "extract_claims_from_content", return_value=MagicMock(total_claims=0, verified_claims=0, unsupported_claims=0, contradicted_claims=0)), \
+         patch("app.services.simulation_audit_service.SimulationAuditService.build_audit_package", lambda self: events.append("build_audit_package")):
+
+        agent._generate_report_internal(report_id=report_id)
+
+    assert "persist_usage_final_True" in events
+    assert "save_report" in events
+    assert "log_report_complete" in events
+
+    idx_persist_final = events.index("persist_usage_final_True")
+    idx_save = [i for i, e in enumerate(events) if e == "save_report"][-1]
+    idx_complete = events.index("log_report_complete")
+
+    assert idx_persist_final < idx_complete, "persist_usage_metrics(final=True) doit précéder log_report_complete"
+    assert idx_save < idx_complete, "save_report doit précéder log_report_complete"
 
 
-def test_closure_sequence_persists_artifacts_before_logging_error():
-    """AC4 : save_report et persist_usage_metrics précèdent log_error lors d'un échec."""
+def test_closure_sequence_persists_artifacts_before_logging_error(tmp_path: Path):
+    """AC4 : _generate_report_internal appelle save_report et persist_usage_metrics AVANT log_error sur échec."""
     events = []
+    report_id = "rep_order_error"
+    report_dir = tmp_path / "reports" / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
 
     mock_logger = MagicMock()
     mock_logger.log_error.side_effect = lambda *args, **kwargs: events.append("log_error")
-
-    def fake_save_report(rep):
-        events.append("save_report")
-
-    def fake_persist(report_id, report=None, final=True):
-        events.append("persist_usage")
-        return ReportUsageMetrics(report_id=report_id)
+    mock_logger.log_start.side_effect = lambda **kwargs: events.append("log_start")
+    mock_logger.log_planning_start.side_effect = lambda **kwargs: events.append("log_planning_start")
 
     agent = ReportAgent(
         graph_id="graph_err",
         simulation_id="sim_err",
         simulation_requirement="Error requirement",
+        zep_tools=MagicMock(),
     )
-    agent.report_logger = mock_logger
-    agent._persist_usage_metrics = fake_persist
 
-    with patch.object(ReportManager, "save_report", side_effect=fake_save_report), \
-         patch.object(ReportManager, "update_progress", lambda *args, **kwargs: events.append("update_progress")):
+    original_persist = agent._persist_usage_metrics
 
-        report = Report(
-            report_id="rep_test_err",
-            simulation_id="sim_err",
-            graph_id="graph_err",
-            simulation_requirement="Error requirement",
-            status=ReportStatus.FAILED,
-        )
-        agent._persist_usage_metrics("rep_test_err", report, final=True)
-        ReportManager.save_report(report)
-        ReportManager.update_progress("rep_test_err", "failed", -1, "error")
-        agent.report_logger.log_error("Simulated error", "failed")
+    def tracking_persist(rep_id, report=None, final=True):
+        events.append(f"persist_usage_final_{final}")
+        return original_persist(rep_id, report=report, final=final)
 
-        assert events == ["persist_usage", "save_report", "update_progress", "log_error"]
+    agent._persist_usage_metrics = tracking_persist
+
+    def tracking_save_report(rep):
+        events.append("save_report")
+
+    def tracking_update_progress(rep_id, status, progress, message="", **kwargs):
+        events.append(f"update_progress_{status}")
+
+    # Forcer une exception dans plan_outline
+    with patch.object(ReportManager, "_get_report_folder", return_value=str(report_dir)), \
+         patch.object(ReportManager, "save_report", side_effect=tracking_save_report), \
+         patch.object(ReportManager, "update_progress", side_effect=tracking_update_progress), \
+         patch.object(ReportManager, "_append_to_history", lambda *args, **kwargs: events.append("append_history")), \
+         patch("app.services.report_agent.ReportLogger", return_value=mock_logger), \
+         patch("app.services.report_agent.ReportConsoleLogger", return_value=MagicMock()), \
+         patch.object(agent, "plan_outline", side_effect=RuntimeError("Erreur simulée de test")):
+
+        agent._generate_report_internal(report_id=report_id)
+
+    assert "persist_usage_final_True" in events
+    assert "save_report" in events
+    assert "log_error" in events
+
+    idx_persist_final = events.index("persist_usage_final_True")
+    idx_save = [i for i, e in enumerate(events) if e == "save_report"][-1]
+    idx_error = events.index("log_error")
+
+    assert idx_persist_final < idx_error, "persist_usage_metrics(final=True) doit précéder log_error"
+    assert idx_save < idx_error, "save_report doit précéder log_error"
+
+
+def test_execute_tool_persists_incremental_telemetry_on_interview():
+    """Patch 5 : _execute_tool persiste la télémétrie incrémentale sur les outils d'entretien."""
+    agent = ReportAgent(
+        graph_id="graph_ivw",
+        simulation_id="sim_ivw",
+        simulation_requirement="Interview requirement",
+        zep_tools=MagicMock(),
+    )
+    agent._current_report_id = "rep_ivw_test"
+
+    calls = []
+    agent._persist_usage_metrics = MagicMock(side_effect=lambda rep_id, final=True: calls.append((rep_id, final)))
+    agent._execute_tool_impl = MagicMock(return_value="Interview result")
+
+    res1 = agent._execute_tool("interview_agents", {"agent_id": "a1"})
+    assert res1 == "Interview result"
+    assert ("rep_ivw_test", False) in calls
+
+    calls.clear()
+    res2 = agent._execute_tool("interview_agents_batch", {"agent_ids": ["a1", "a2"]})
+    assert res2 == "Interview result"
+    assert ("rep_ivw_test", False) in calls
+
+    # Sur un outil non-interview, _persist_usage_metrics n'est pas appelé
+    calls.clear()
+    res3 = agent._execute_tool("query_simulation_events", {})
+    assert res3 == "Interview result"
+    assert len(calls) == 0
 
 
 def test_step3_control_bar_css_rules_present():

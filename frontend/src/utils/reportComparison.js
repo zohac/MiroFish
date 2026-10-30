@@ -135,11 +135,15 @@ function parseTimestamp(value) {
 }
 
 /**
- * Indique si une entrée d'historique décrit un rapport encore en cours.
+ * Indique si une entrée d'historique (ou une chaîne brute de statut) décrit un rapport encore en cours.
  */
 export function isRunningReport(entry) {
-  if (!entry || typeof entry !== 'object') return false
-  return RUNNING_REPORT_STATUSES.includes(String(entry.status || '').toLowerCase())
+  if (!entry) return false
+  if (typeof entry === 'string') {
+    return RUNNING_REPORT_STATUSES.includes(entry.trim().toLowerCase())
+  }
+  if (typeof entry !== 'object') return false
+  return RUNNING_REPORT_STATUSES.includes(String(entry.status || '').trim().toLowerCase())
 }
 
 /**
@@ -571,7 +575,7 @@ export function resolveLiveTelemetryDisplay({
   const durationSeconds = hasUsage && typeof usage.durationSeconds === 'number' ? usage.durationSeconds : null
   const wallSeconds = hasUsage && typeof usage.wallSeconds === 'number'
     ? usage.wallSeconds
-    : (typeof fallbackElapsedSeconds === 'number' && Number.isFinite(fallbackElapsedSeconds) ? fallbackElapsedSeconds : null)
+    : (isGenerating && typeof fallbackElapsedSeconds === 'number' && Number.isFinite(fallbackElapsedSeconds) ? fallbackElapsedSeconds : null)
 
   // 1. Tokens
   let tokensState = 'unavailable'

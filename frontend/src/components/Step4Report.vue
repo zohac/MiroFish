@@ -652,7 +652,12 @@ const telemetryUnavailable = computed(() => t('step4.metricUnavailable'))
 const isActivelyGenerating = computed(() => {
   if (isComplete.value) return false
   if (isFailed.value) return false
-  if (reportOutline.value && reportOutline.value.status && !isRunningReport(reportOutline.value)) {
+  // Si l'historique serveur connaît déjà le statut terminal de cette version, ne pas supposer qu'elle génère
+  const historyEntry = historyReports.value.find(item => item && item.report_id === props.reportId)
+  if (historyEntry && !isRunningReport(historyEntry)) {
+    return false
+  }
+  if (reportOutline.value && reportOutline.value.status && !isRunningReport(reportOutline.value.status)) {
     return false
   }
   return true
@@ -660,7 +665,10 @@ const isActivelyGenerating = computed(() => {
 
 const liveTelemetry = computed(() => {
   const lastLog = agentLogs.value[agentLogs.value.length - 1]
-  const elapsed = typeof lastLog?.elapsed_seconds === 'number' ? lastLog.elapsed_seconds : null
+  let elapsed = typeof lastLog?.elapsed_seconds === 'number' ? lastLog.elapsed_seconds : null
+  if (elapsed === null && startTime.value instanceof Date && !isNaN(startTime.value.getTime())) {
+    elapsed = Math.max(0, (Date.now() - startTime.value.getTime()) / 1000)
+  }
   return resolveLiveTelemetryDisplay({
     usage: currentUsage.value,
     claims: currentClaims.value,
@@ -808,8 +816,16 @@ const loadCurrentTelemetry = async (reportId) => {
     getReportClaims(requested).catch(() => null),
   ])
   if (requested !== props.reportId) return
-  currentUsage.value = usageRes && usageRes.success ? summarizeUsage(usageRes.data) : null
-  currentClaims.value = claimsRes && claimsRes.success ? claimsRes.data : null
+  if (usageRes && usageRes.success) {
+    currentUsage.value = summarizeUsage(usageRes.data)
+  } else if (!currentUsage.value) {
+    currentUsage.value = null
+  }
+  if (claimsRes && claimsRes.success) {
+    currentClaims.value = claimsRes.data
+  } else if (!currentClaims.value) {
+    currentClaims.value = null
+  }
 }
 
 // La sélection vit dans l'URL : le lien profond, le rechargement et
@@ -2598,10 +2614,10 @@ const fetchAgentLog = async () => {
             // 滚动逻辑统一在循环结束后的 nextTick 中处理
           }
 
-          if (log.action === 'error') {
+          if (log.action === 'error' && !isFailed.value) {
             isFailed.value = true
             currentSectionIndex.value = null
-            if (reportOutline.value && isRunningReport(reportOutline.value)) {
+            if (reportOutline.value) {
               reportOutline.value.status = 'failed'
             }
             emit('update-status', 'error')
@@ -2762,6 +2778,8 @@ watch(() => props.reportId, (newId) => {
     agentLogLine.value = 0
     consoleLogLine.value = 0
     qualityResult.value = null
+    currentUsage.value = null
+    currentClaims.value = null
     fetchQualityResult()
     loadCurrentTelemetry(newId)
     reportOutline.value = null

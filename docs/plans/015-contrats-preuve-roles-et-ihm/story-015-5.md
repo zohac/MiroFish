@@ -2,7 +2,7 @@
 id: "015-5"
 epic: "015"
 titre: "Ergonomie IHM Step 3 (cartes de statut sans débordement) et télémétrie vivante Step 4"
-statut: review
+statut: done
 created: 2026-10-30
 updated: 2026-10-30
 auteur: "Antigravity & Équipe MiroFish"
@@ -162,6 +162,23 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
   - [x] Étendre [`frontend/tests/reportComparison.test.js`](../../../frontend/tests/reportComparison.test.js) pour tester tous les cas de `resolveLiveTelemetryDisplay` (génération active sans usage, génération active avec usage mais sans tarification, génération active avec usage et tarification mais sans claims, rapport terminé avec/sans usage et avec/sans tarification).
   - [x] Exécuter `backend/.venv/bin/pytest backend/tests/ -q`, `pnpm --dir frontend test`, `pnpm --dir frontend build`, `backend/.venv/bin/ruff check` et `backend/.venv/bin/python backend/scripts/validate_plans.py`.
 
+### Review Findings
+
+- [x] [Review][Patch] Ordonnancement réel de ReportAgent._generate_report_internal et intégrité d'archive ZIP [backend/tests/test_story_015_5_live_telemetry.py:102-181]
+- [x] [Review][Patch] Inversion de log_planning_complete et log_section_full_complete avant _persist_usage_metrics et save_report [backend/app/services/report_agent.py:2805-2816, 2904-2911]
+- [x] [Review][Patch] Support des chaînes de statut dans isRunningReport et correction de reportOutline.value.status [frontend/src/utils/reportComparison.js:140-143, frontend/src/components/Step4Report.vue:655, 2604]
+- [x] [Review][Patch] Conditionner le repli fallbackElapsedSeconds à isGenerating===true dans resolveLiveTelemetryDisplay [frontend/src/utils/reportComparison.js:572-574]
+- [x] [Review][Patch] Test unitaire de persistance incrémentale de télémétrie dans _execute_tool [backend/tests/test_story_015_5_live_telemetry.py:183]
+- [x] [Review][Patch] Préservation de la télémétrie sur erreur transitoire, repli startTime et déduplication log error [frontend/src/components/Step4Report.vue:661-670, 811-812, 2601-2612]
+- [x] [Review][Patch] Couverture de test du cas unpriced avec rapport terminé dans reportComparison.test.js [frontend/tests/reportComparison.test.js:1145]
+- [x] [Review][Patch] Nettoyage d'import inutilisé os et helper mort _make_sample_call [backend/tests/test_story_015_5_live_telemetry.py:12, 21-32]
+- [x] [Review][Defer] Tests montés de composants Vue (Step3Simulation / Step4Report) [frontend/tests/] — deferred: infrastructure de tests de composants non configurée dans le dépôt frontend (@vue/test-utils / jsdom absent)
+
+#### Rejected
+
+- **BH-7** (`ReportAgent._execute_tool` persistance incrémentale sur `insight_forge`) : rejeté car `insight_forge` n'est pas un outil d'entretien conversationnel ReACT consommant des tours d'agents, et la télémétrie est déjà scellée en fin de section (décision AC3.2 explicite).
+- **BH-11** (flexibilité proportionnelle des cartes Step 3) : rejeté `false` car la règle CSS et le comportement flex actuel respectent scrupuleusement le design responsive et les critères de la Tâche 1.
+
 ---
 
 ## Notes de développement
@@ -201,13 +218,29 @@ Dans le cadre de l'[Epic 015](epic-015.md) (*Contrats de preuve, gouvernance des
 
 ## Revue
 
-*(Section réservée à la revue contradictoire `/bmad-code-review` après implémentation.)*
+La revue de code contradictoire BMAD à 4 couches a été exécutée le 30 octobre 2026 sur le diff `c67ec0d..f5a45ea` (commit `f5a45ea`) :
+- **Couches mobilisées** : Blind Hunter ($N=10$), Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor.
+- **Bilan du tri** : 0 `decision-needed`, 8 `patch`, 1 `defer`, 2 rejets motivés.
+- **8 patches appliqués et vérifiés** :
+  1. `test_story_015_5_live_telemetry.py` : remplacement des tests tautologiques par l'exécution réelle de `ReportAgent._generate_report_internal`, prouvant l'ordonnancement strict de `save_report` et `persist_usage_metrics` avant `log_report_complete` et `log_error`. Ajout de la preuve d'identité octet pour octet entre `usage.json` scellé sur disque et extrait de `simulation_audit_<report_id>.zip` (AC3 §3).
+  2. `report_agent.py` : inversion de `log_planning_complete` et `log_section_full_complete` pour être émis strictement après `_persist_usage_metrics` (et après `save_report`), éliminant tout risque de 404 ou de données périmées au polling client (AC3, AC4).
+  3. `reportComparison.js` & `Step4Report.vue` : extension de `isRunningReport` pour accepter les chaînes de statut brutes (`string`) ou les objets avec `.status`, et fiabilisation de `reportOutline.value.status = 'failed'` sur événement log `error`.
+  4. `reportComparison.js` : conditionnement du repli `fallbackElapsedSeconds` à `isGenerating === true` dans `resolveLiveTelemetryDisplay`, empêchant la fausse promotion de `wallDuration` en `'ready'` sur un rapport terminé sans métriques.
+  5. `test_story_015_5_live_telemetry.py` : ajout d'un test unitaire hermétique dédié prouvant la persistance incrémentale de la télémétrie dans `_execute_tool` lors des appels `interview_agents` et `interview_agents_batch`.
+  6. `Step4Report.vue` : préservation des métriques affichées lors d'erreurs réseau transitoires, utilisation de `startTime` comme repli client d'horloge vive, et déduplication du traitement des logs d'erreur consécutifs.
+  7. `reportComparison.test.js` : couverture de test du cas `'unpriced'` sur rapport achevé sans tarification, du filtrage strict de `fallbackElapsedSeconds` hors génération, et du support hybride de `isRunningReport`.
+  8. `test_story_015_5_live_telemetry.py` : suppression d'import orphelin `os` et de la fonction utilitaire morte `_make_sample_call`.
+- **1 point différé** :
+  - Tests montés de composants Vue (`Step3Simulation.vue`, `Step4Report.vue`) : consigné dans [`docs/deferred-work.md`](../../../docs/deferred-work.md) (nécessite l'outillage global `@vue/test-utils` / `jsdom`).
+- **2 rejets motivés** :
+  - **BH-7** (`insight_forge`) : `insight_forge` n'est pas un outil d'entretien conversationnel ReACT consommant des tours d'agents, et la télémétrie est déjà scellée en fin de section (décision AC3.2 explicite).
+  - **BH-11** (Flexibilité des cartes Step 3) : Rejeté `false`, le comportement flex actuel respecte scrupuleusement le design responsive et les critères de la Tâche 1.
 
 ---
 
 ## Notes de complétion
 
-La story **015-5** a été entièrement développée, intégrée et vérifiée :
+La story **015-5** a été entièrement développée, intégrée, revue et vérifiée :
 
 1. **Ergonomie responsive de l'étape 3/5 (`Step3Simulation.vue`)** :
    - Mise à jour de `.control-bar` (`min-height: 64px; height: auto; flex-wrap: wrap; gap: 12px 16px;`).
@@ -228,8 +261,9 @@ La story **015-5** a été entièrement développée, intégrée et vérifiée :
 
 4. **Résultats des vérifications** :
    - `backend/.venv/bin/pytest backend/tests/test_i18n_parity.py -v` : 7 passed en 0.02s.
-   - `pnpm --dir frontend test` : 47 tests unitaires passés (dont 4 nouveaux pour `resolveLiveTelemetryDisplay`).
-   - `pnpm --dir frontend build` : build Vite réussi sans erreur en 1.00s.
-   - `backend/.venv/bin/pytest backend/tests/test_story_015_5_live_telemetry.py -v` : 5 tests hermétiques passés en 0.48s.
-   - `backend/.venv/bin/pytest backend/tests/ -q` : **2 150 passed**, 1 warning en 284.75s.
+   - `pnpm --dir frontend test` : **50 tests unitaires passés** (+3 tests issus de la revue BMAD).
+   - `pnpm --dir frontend build` : build Vite réussi sans erreur en 0.97s.
+   - `backend/.venv/bin/pytest backend/tests/test_story_015_5_live_telemetry.py -v` : **7 tests hermétiques passés** (+2 tests issus de la revue BMAD).
+   - `backend/.venv/bin/pytest backend/tests/ -q` : **2 152 passed**, 1 warning.
    - `backend/.venv/bin/ruff check backend/app/services/report_agent.py backend/tests/test_story_015_5_live_telemetry.py` : 0 erreur.
+   - `backend/.venv/bin/python backend/scripts/validate_plans.py` : structure valide (15 epics, 75 fichiers).

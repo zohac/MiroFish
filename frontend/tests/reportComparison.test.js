@@ -479,3 +479,47 @@ test('live telemetry resolves unavailable state when completed without artifacts
   assert.equal(display.cost.state, 'unavailable')
   assert.equal(display.claims.state, 'unavailable')
 })
+
+test('live telemetry resolves unpriced state for completed report with unpriced model', () => {
+  const usage = summarizeUsage({
+    billing_mode: 'metered',
+    usage_available: true,
+    cost_available: false,
+    pricing_available: false,
+    total_tokens: 30000,
+    duration_seconds: 15.0,
+    wall_seconds: 18.0,
+    estimated_cost_usd: null,
+    currency: 'USD',
+  })
+  const display = resolveLiveTelemetryDisplay({
+    usage,
+    claims: null,
+    isGenerating: false,
+  })
+  assert.equal(display.tokens.state, 'ready')
+  assert.equal(display.tokens.value, 30000)
+  assert.equal(display.cost.state, 'unpriced')
+  assert.equal(display.cost.value, null)
+})
+
+test('live telemetry does not leak fallbackElapsedSeconds into wallDuration when completed without usage', () => {
+  const display = resolveLiveTelemetryDisplay({
+    usage: null,
+    claims: null,
+    isGenerating: false,
+    fallbackElapsedSeconds: 42.5,
+  })
+  assert.equal(display.wallDuration.state, 'unavailable')
+  assert.equal(display.wallDuration.value, null)
+})
+
+test('isRunningReport supports status string as well as object', () => {
+  assert.equal(isRunningReport('generating'), true)
+  assert.equal(isRunningReport('PLANNING'), true)
+  assert.equal(isRunningReport('completed'), false)
+  assert.equal(isRunningReport('failed'), false)
+  assert.equal(isRunningReport({ status: 'generating' }), true)
+  assert.equal(isRunningReport({ status: 'completed' }), false)
+  assert.equal(isRunningReport(null), false)
+})

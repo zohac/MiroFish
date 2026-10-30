@@ -573,3 +573,10 @@ Revue contradictoire BMAD 4 couches sur le diff `cce6087..HEAD` (code pertinent)
 Revue BMAD du commit `f7590d4` (« feat(brief): audit de cohérence biographique et filtrage des non-admis (Story 014-4) »).
 
 - **`backend/scripts/verifier_benchmark_epic_013.py:675,734` — absence de filtrage des personas non admis dans le banc de benchmark.** Le script hérité de l'Epic 013 injecte directement le texte brut de `simulation_requirement` dans `generer_variante` sans appliquer `filter_non_admitted_personas_from_text`. Sur un rejeu benchmark ciblant une simulation comme R7, les personas non admis peuvent fuiter dans le prompt de la variante. *Différé : script de banc benchmark issu de l'Epic 013, non modifié par la Story 014-4.*
+
+## Deferred from: code review of story-015-5.md (2026-10-30)
+
+Revue contradictoire BMAD 4 couches sur le diff `c67ec0d..f5a45ea` (commit `f5a45ea`).
+
+- **Absence de banc de test monté pour les composants Vue (`Step3Simulation.vue`, `Step4Report.vue`)** — Les tests actuels vérifient le comportement du front via les helpers purs (`resolveLiveTelemetryDisplay`, `reportComparison.test.js`) et des sondes textuelles ciblées. La simulation dynamique des cycles de polling et du montage complet des composants nécessiterait l'introduction de `@vue/test-utils` et d'un environnement DOM simulé (`jsdom` ou `happy-dom`), ce qui relève d'une amélioration globale d'outillage front hors du périmètre de la story 015-5.
+
