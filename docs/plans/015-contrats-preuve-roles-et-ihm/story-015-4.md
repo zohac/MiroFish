@@ -2,9 +2,9 @@
 id: "015-4"
 epic: "015"
 titre: "Pertinence scénaristique des acteurs, filtre chirurgical [persona non admis] et dénominateur par inclusion positive"
-statut: in-progress
+statut: done
 created: 2026-10-29
-updated: 2026-10-29
+updated: 2026-10-30
 auteur: "Antigravity & Équipe MiroFish"
 format: "2"
 ---
@@ -171,59 +171,111 @@ L'inspection ligne à ligne du code de `backend/app/api/report.py`, `backend/app
 
 ## Définition de fini
 
-- [ ] Décision **D1** implémentée : `ActorItem.is_human_persona_candidate`, `ActorSelection.excluded_persona_names()` et filtre chirurgical dans `_filter_simulation_requirement_for_report` (`backend/app/api/report.py`).
-- [ ] Décisions **D2** et **D3** implémentées : `ScenarioParticipationStatus`, `ScenarioParticipationPolicy`, intégration dans `ActorItem`, `ActorSelection`, `SimulationManager.preview_actors` et `SimulationManager._execute_prepare`.
-- [ ] Décisions **D4**, **D5** et **D6** implémentées : enrichissement déterministe de `ScenarioRole`, `conversion_eligible` et inclusion positive dans `CohortCoverageTable.prospect_members`, `adoption_applicable` dans `to_dict()`, et garde-fou `SOCIAL_FOLLOW_PATTERNS` dans `backend/app/models/cohort_coverage.py`.
-- [ ] Fichier de tests hermétiques `backend/tests/test_story_015_4_actor_roles_and_cohort.py` créé et couvrant `AC1` à `AC9` (`AT-07`, `AT-08`, `AT-09`, `AT-10`, `AT-19`).
-- [ ] Suite complète `pytest` (`> 2 130` tests), tests frontend (`43` tests), `ruff check` et `validate_plans.py` exécutés et 100 % verts (`AC10`).
-- [ ] Artefacts de suivi (`story-015-4.md`, `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`) mis à jour et synchronisés.
+- [x] Décision **D1** implémentée : `ActorItem.is_human_persona_candidate`, `ActorSelection.excluded_persona_names()` et filtre chirurgical dans `_filter_simulation_requirement_for_report` (`backend/app/api/report.py`).
+- [x] Décisions **D2** et **D3** implémentées : `ScenarioParticipationStatus`, `ScenarioParticipationPolicy`, intégration dans `ActorItem`, `ActorSelection`, `SimulationManager.preview_actors` et `SimulationManager._execute_prepare`.
+- [x] Décisions **D4**, **D5** et **D6** implémentées : enrichissement déterministe de `ScenarioRole`, `conversion_eligible` et inclusion positive dans `CohortCoverageTable.prospect_members`, `adoption_applicable` dans `to_dict()`, et garde-fou `SOCIAL_FOLLOW_PATTERNS` dans `backend/app/models/cohort_coverage.py`.
+- [x] Fichier de tests hermétiques `backend/tests/test_story_015_4_actor_roles_and_cohort.py` créé et couvrant `AC1` à `AC9` (`AT-07`, `AT-08`, `AT-09`, `AT-10`, `AT-19`).
+- [x] Suite complète `pytest` (`2 141` tests passants, dont 11 nouveaux), tests frontend (`43` tests Node passants), `ruff check` et `validate_plans.py` exécutés et 100 % verts (`AC10`).
+- [x] Artefacts de suivi (`story-015-4.md`, `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md`, `AGENTS.md`) mis à jour et synchronisés.
 
 ---
 
 ## Tâches
 
-- [ ] **T1 — Implémenter la qualification de candidat persona humain et le filtre chirurgical `[persona non admis]` (`AC1`, `AC9`)**
-  - [ ] Ajouter `HUMAN_PERSONA_ORIGINAL_TYPES` et la propriété `is_human_persona_candidate: bool` sur `ActorItem` dans `backend/app/models/actor_selection.py`.
-  - [ ] Ajouter `excluded_persona_names() -> List[str]` sur `ActorSelection` dans `backend/app/models/actor_selection.py`.
-  - [ ] Mettre à jour `_filter_simulation_requirement_for_report` dans `backend/app/api/report.py` pour utiliser `actor_selection.excluded_persona_names()` au lieu d'inclure toutes les entités `ineligible`.
+- [x] **T1 — Implémenter la qualification de candidat persona humain et le filtre chirurgical `[persona non admis]` (`AC1`, `AC9`)**
+  - [x] Ajouter `HUMAN_PERSONA_ORIGINAL_TYPES` et la propriété `is_human_persona_candidate: bool` sur `ActorItem` dans `backend/app/models/actor_selection.py`.
+  - [x] Ajouter `excluded_persona_names() -> List[str]` sur `ActorSelection` dans `backend/app/models/actor_selection.py`.
+  - [x] Mettre à jour `_filter_simulation_requirement_for_report` dans `backend/app/api/report.py` pour utiliser `actor_selection.excluded_persona_names()` au lieu d'inclure toutes les entités `ineligible`.
 
-- [ ] **T2 — Implémenter `ScenarioParticipationStatus` et `ScenarioParticipationPolicy` (`AC2`, `AC3`, `AC4`, `AC9`)**
-  - [ ] Définir `ScenarioParticipationStatus(str, Enum)` (`active_agent`, `context_only`, `review`, `excluded`) dans `backend/app/models/actor_selection.py` et l'exporter dans `backend/app/models/__init__.py` si pertinent.
-  - [ ] Ajouter `scenario_participation` et `scenario_participation_reason` sur `ActorItem` avec valeur par défaut rétrocompatible dans `__post_init__`, `to_dict()` et `from_dict()`.
-  - [ ] Implémenter `ScenarioParticipationPolicy.evaluate(...)` dans `backend/app/models/actor_selection.py` (détection générique des clauses d'exclusion/non-personnification du brief et des organisations purement logicielles/outils passifs, avec préservation des organisations actives pour `AT-09`).
-  - [ ] Exposer `active_eligible_actors` sur `ActorSelection` et mettre à jour `apply_review` pour gérer `scenario_participation`.
+- [x] **T2 — Implémenter `ScenarioParticipationStatus` et `ScenarioParticipationPolicy` (`AC2`, `AC3`, `AC4`, `AC9`)**
+  - [x] Définir `ScenarioParticipationStatus(str, Enum)` (`active_agent`, `context_only`, `review`, `excluded`) dans `backend/app/models/actor_selection.py` et l'exporter dans `backend/app/models/__init__.py` si pertinent.
+  - [x] Ajouter `scenario_participation` et `scenario_participation_reason` sur `ActorItem` avec valeur par défaut rétrocompatible dans `__post_init__`, `to_dict()` et `from_dict()`.
+  - [x] Implémenter `ScenarioParticipationPolicy.evaluate(...)` dans `backend/app/models/actor_selection.py` (détection générique des clauses d'exclusion/non-personnification du brief et des organisations purement logicielles/outils passifs, avec préservation des organisations actives pour `AT-09`).
+  - [x] Exposer `active_eligible_actors` sur `ActorSelection` et mettre à jour `apply_review` pour gérer `scenario_participation`.
 
-- [ ] **T3 — Câbler `ScenarioParticipationPolicy` dans `SimulationManager` (`AC2`, `AC3`, `AC4`)**
-  - [ ] Dans `SimulationManager.preview_actors` et `SimulationManager._execute_prepare` (`backend/app/services/simulation_manager.py`), invoquer `ScenarioParticipationPolicy.evaluate(...)` à partir des entités du graphe, de `simulation_requirement` et de `simulation_brief`.
-  - [ ] Dans `SimulationManager._execute_prepare`, restreindre l'instanciation des profils OASIS (`filtered_entities` / `qualified_roles`) aux acteurs éligibles dont `scenario_participation == ScenarioParticipationStatus.ACTIVE_AGENT`.
+- [x] **T3 — Câbler `ScenarioParticipationPolicy` dans `SimulationManager` (`AC2`, `AC3`, `AC4`)**
+  - [x] Dans `SimulationManager.preview_actors` et `SimulationManager._execute_prepare` (`backend/app/services/simulation_manager.py`), invoquer `ScenarioParticipationPolicy.evaluate(...)` à partir des entités du graphe, de `simulation_requirement` et de `simulation_brief`.
+  - [x] Dans `SimulationManager._execute_prepare`, restreindre l'instanciation des profils OASIS (`filtered_entities` / `qualified_roles`) aux acteurs éligibles dont `scenario_participation == ScenarioParticipationStatus.ACTIVE_AGENT`.
 
-- [ ] **T4 — Enrichir `ScenarioRole` et basculer `CohortCoverageTable` sur l'inclusion positive (`AC5`, `AC6`, `AC7`, `AC8`, `AC9`)**
-  - [ ] Étendre `ScenarioRole.from_str` dans `backend/app/models/cohort_coverage.py` pour mapper `Trainer` / `Formateur` / `Formatrice` / `Enseignant` / `Mentor` / `Instructeur` vers `ScenarioRole.PRESCRIBER`.
-  - [ ] Dans `CohortCoverageTable.build_from_simulation`, inspecter `item.original_type` en repli de `item.qualified_role`, filtrer les entités `context_only` absentes des comptes actifs, et enrichir l'extraction déterministe des rôles depuis le `brief` (`FOUNDER`, `EXISTING_USER` pilote, `PRESCRIBER` formateur, `PROSPECT` persona cible).
-  - [ ] Ajouter `conversion_eligible: Optional[bool] = None` sur `CohortMemberStatus`, redéfinir `CohortCoverageTable.prospect_members` par inclusion positive (`m.conversion_eligible is True`), et ajouter `adoption_applicable` dans `CohortCoverageTable.to_dict()`.
-  - [ ] Resserrer `ADOPTION_PROOF_PATTERNS` et ajouter `SOCIAL_FOLLOW_PATTERNS` dans `CohortCoverageTable.build_from_simulation` pour empêcher qu'un suivi/abonnement social (`s'abonne au compte`, `suit le fil`) ne produise `DecisionStatus.ADOPTED_VERIFIED` (`AT-07`).
+- [x] **T4 — Enrichir `ScenarioRole` et basculer `CohortCoverageTable` sur l'inclusion positive (`AC5`, `AC6`, `AC7`, `AC8`, `AC9`)**
+  - [x] Étendre `ScenarioRole.from_str` dans `backend/app/models/cohort_coverage.py` pour mapper `Trainer` / `Formateur` / `Formatrice` / `Enseignant` / `Mentor` / `Instructeur` vers `ScenarioRole.PRESCRIBER`.
+  - [x] Dans `CohortCoverageTable.build_from_simulation`, inspecter `item.original_type` en repli de `item.qualified_role`, filtrer les entités `context_only` absentes des comptes actifs, et enrichir l'extraction déterministe des rôles depuis le `brief` (`FOUNDER`, `EXISTING_USER` pilote, `PRESCRIBER` formateur, `PROSPECT` persona cible).
+  - [x] Ajouter `conversion_eligible: Optional[bool] = None` sur `CohortMemberStatus`, redéfinir `CohortCoverageTable.prospect_members` par inclusion positive (`m.conversion_eligible is True`), et ajouter `adoption_applicable` dans `CohortCoverageTable.to_dict()`.
+  - [x] Resserrer `ADOPTION_PROOF_PATTERNS` et ajouter `SOCIAL_FOLLOW_PATTERNS` dans `CohortCoverageTable.build_from_simulation` pour empêcher qu'un suivi/abonnement social (`s'abonne au compte`, `suit le fil`) ne produise `DecisionStatus.ADOPTED_VERIFIED` (`AT-07`).
 
-- [ ] **T5 — Écrire la suite de tests hermétiques `test_story_015_4_actor_roles_and_cohort.py` (`AC1` à `AC9`)**
-  - [ ] Créer `backend/tests/test_story_015_4_actor_roles_and_cohort.py` couvrant `AC1` (filtre chirurgical sur brief R8 et cas synthétiques), `AC2` (`AT-10`), `AC3` (`AT-09`), `AC4` (arbitrage humain et rétrocompatibilité `actors.json`), `AC5` (résolution `ScenarioRole`), `AC6` (`AT-08` et dénominateur R8 = `5`), `AC7` (`AT-19`), `AC8` (`AT-07`) et `AC9` (garde-fou AST de généricité).
+- [x] **T5 — Écrire la suite de tests hermétiques `test_story_015_4_actor_roles_and_cohort.py` (`AC1` à `AC9`)**
+  - [x] Créer `backend/tests/test_story_015_4_actor_roles_and_cohort.py` couvrant `AC1` (filtre chirurgical sur brief R8 et cas synthétiques), `AC2` (`AT-10`), `AC3` (`AT-09`), `AC4` (arbitrage humain et rétrocompatibilité `actors.json`), `AC5` (résolution `ScenarioRole`), `AC6` (`AT-08` et dénominateur R8 = `5`), `AC7` (`AT-19`), `AC8` (`AT-07`) et `AC9` (garde-fou AST de généricité).
 
-- [ ] **T6 — Vérifier la non-régression globale et synchroniser les artefacts (`AC10`)**
-  - [ ] Exécuter `cd backend && uv run pytest tests/ -q`, `cd backend && uv run ruff check`, `pnpm --dir frontend test` et `cd backend && uv run python scripts/validate_plans.py`.
-  - [ ] Mettre à jour `story-015-4.md` (statut `review`), `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md` et `AGENTS.md`.
+- [x] **T6 — Vérifier la non-régression globale et synchroniser les artefacts (`AC10`)**
+  - [x] Exécuter `cd backend && uv run pytest tests/ -q`, `cd backend && uv run ruff check`, `pnpm --dir frontend test` et `cd backend && uv run python scripts/validate_plans.py`.
+  - [x] Mettre à jour `story-015-4.md` (statut `review`), `epic-015.md`, `docs/sprint-status.yaml`, `docs/STATUS.md` et `AGENTS.md`.
 
 ---
 
 ## Notes de développement
 
-*(À remplir lors de l'implémentation de la story `/developper-story`.)*
+- **Implémentation chirurgicale D1 (`backend/app/models/actor_selection.py`, `backend/app/api/report.py`)** :
+  - Définition de `HUMAN_PERSONA_ORIGINAL_TYPES` couvrant les labels de personnes physiques canoniques (`person`, `practitioner`, `trainer`, `client`, `user`, etc.).
+  - Propriété `ActorItem.is_human_persona_candidate` et méthode `ActorSelection.excluded_persona_names()` isolant strictement les personas humains non admis.
+  - Dans `_filter_simulation_requirement_for_report`, utilisation directe de `actor_selection.excluded_persona_names()`, éliminant le caviardage destructeur des produits, logiciels, concepts et domaines (`keova.app`, `WordPress`, `Wix`, etc.).
+- **Gouvernance des rôles et politique de participation D2-D3 (`backend/app/models/actor_selection.py`, `backend/app/services/simulation_manager.py`)** :
+  - Introduction de `ScenarioParticipationStatus` (`ACTIVE_AGENT`, `CONTEXT_ONLY`, `REVIEW`, `EXCLUDED`) et `ScenarioParticipationPolicy.evaluate(...)`.
+  - Conservation absolue des 4 clés de `ActorSelection.counts` et du versionnage `ACTOR_ELIGIBILITY_POLICY_VERSION = "009-1-v1"`.
+  - Maintien automatique en `ACTIVE_AGENT` des organisations actives (ex. syndicats ou régies de transport dans une grève, `AT-09`), et classement en `CONTEXT_ONLY` des organisations passives/outils sans prise de parole (`AT-10`).
+  - Filtrage dans `SimulationManager._execute_prepare` restreint aux seuls `active_eligible_actors`.
+- **Inclusion positive et anti-affabulation D4-D6 (`backend/app/models/cohort_coverage.py`)** :
+  - Définition de `conversion_eligible` sur `CohortMemberStatus`, calculé par inclusion positive (`PROSPECT` sans `NOT_APPLICABLE`).
+  - Redéfinition de `CohortCoverageTable.prospect_members` : seuls les `conversion_eligible is True` forment le dénominateur (passage de 11 à 5 sur les artefacts R8, excluant `UNKNOWN`, `EXISTING_USER`, `PRESCRIBER`, `FOUNDER`, `INSTITUTION`).
+  - Ajout de `adoption_applicable: bool` dans `CohortCoverageTable.to_dict()` garantissant `0.0` sans division par zéro sur les scénarios non commerciaux (`AT-19`).
+  - Renforcement des motifs d'adoption et ajout de `SOCIAL_FOLLOW_PATTERNS` interdisant à un suivi social de produire `ADOPTED_VERIFIED` (`AT-07`).
+- **Preuve par les tests** :
+  - `backend/tests/test_story_015_4_actor_roles_and_cohort.py` (11 tests hermétiques dédiés).
+  - Suite complète backend : 2 141 tests passants (100 %).
+  - Suite frontend : 43 tests passants (100 %).
+  - Linter `ruff` et validateur de plans 100 % conformes.
 
 ---
 
 ## Revue
 
-*(À remplir lors de la revue contradictoire `/bmad-code-review`.)*
+### Review Findings
+
+- [x] [Review][Patch] Ne pas annuler une adoption commerciale avérée par un simple suivi social antérieur [backend/app/models/cohort_coverage.py:896-906]
+- [x] [Review][Patch] Assainir le Markdown et fiabiliser la détection des organisations passives et exclusions dans ScenarioParticipationPolicy [backend/app/models/actor_selection.py:536,583-611,626]
+- [x] [Review][Patch] Restreindre admitted_names aux acteurs non exclus pour garantir le caviardage [backend/app/api/report.py:47-50]
+- [x] [Review][Patch] Fiabiliser le peuplement de non_client_personas et étendre is_non_client_role à l'ensemble des rôles hors prospection [backend/app/models/cohort_coverage.py:660-663,697,875-885]
+- [x] [Review][Patch] Inclure les minuscules accentuées françaises dans les regex de noms propres et sécuriser brief.rules/hypotheses [backend/app/models/cohort_coverage.py:615-616,621,633,648,666]
+- [x] [Review][Patch] Ajouter INSTRUCTRICE dans ScenarioRole.from_str et filtrer les clauses d'exclusion dans les postures du brief [backend/app/models/cohort_coverage.py:246,681-696]
+- [x] [Review][Patch] Encapsuler la désérialisation de scenario_participation dans SelectionValidationError et valider l'invariance rôle/statut [backend/app/models/actor_selection.py:110,137-152,198-200,411-417]
+- [x] [Review][Patch] Enrichir HUMAN_PERSONA_ORIGINAL_TYPES avec les formes plurielles et synonymes d'ontologie [backend/app/models/actor_selection.py:36-62]
+- [x] [Review][Patch] Corriger les défauts et assertions dans les tests R8 et aligner la liste AST FORBIDDEN_TERMS [backend/tests/test_story_015_4_actor_roles_and_cohort.py:349,367-375,444-447]
+- [x] [Review][Patch] Combler les angles morts de tests pour SimulationManager._execute_prepare et CohortCoverageTable avec context_only [backend/tests/test_story_015_4_actor_roles_and_cohort.py]
 
 ---
 
 ## Notes de complétion
 
-*(À remplir lors de la clôture de la story.)*
+La story 015-4 a été complétée et validée le 30 octobre 2026 selon la méthodologie BMAD avec revue à 4 couches indépendantes (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+### Résumé des réalisations :
+1. **Filtre chirurgical `[persona non admis]` (AC1, D1)** :
+   - Isolation stricte des personas humains via `HUMAN_PERSONA_ORIGINAL_TYPES` (enrichi des formes plurielles et ontologiques) et `is_human_persona_candidate`.
+   - `ActorSelection.excluded_persona_names()` ne cible que les personas humains exclus, protégeant ainsi l'intégralité des marques, outils logiciels, concepts et domaines (`keova.app`, `WordPress`, etc.) contre tout caviardage destructeur dans le brief transmis au `ReportAgent`.
+   - Restreint les `admitted_names` dans `_filter_simulation_requirement_for_report` pour éviter de blanchir les acteurs marqués `EXCLUDED`.
+2. **Gouvernance des rôles et participation scénaristique (AC2, AC3, AC4, D2, D3)** :
+   - Définition de `ScenarioParticipationStatus` (`ACTIVE_AGENT`, `CONTEXT_ONLY`, `REVIEW`, `EXCLUDED`) et implémentation de `ScenarioParticipationPolicy.evaluate(...)` avec nettoyage Markdown et analyse des clauses d'exclusion/non-personnification.
+   - Sur les données réelles R8 (`sim_7a1b02b8c092`), rétrograde automatiquement `Stripe`, `Wix`, `CPAM` et `Keova` en `CONTEXT_ONLY` (AT-10), tout en maintenant les syndicats/opérateurs en grève en `ACTIVE_AGENT` (AT-09).
+   - Invariance vérifiée : `ACTIVE_AGENT` n'est autorisé que si `eligibility_status == ELIGIBLE` et `SelectionValidationError` encapsule proprement toute valeur invalide.
+   - Filtrage hermétique dans `SimulationManager._execute_prepare` garantissant que seules les entités `ACTIVE_AGENT` reçoivent des profils OASIS.
+3. **Table de cohorte et inclusion positive (AC5, AC6, AC7, AC8, D4, D5, D6)** :
+   - Extension de `ScenarioRole.from_str` aux formateurs/instructeurs (`PRESCRIBER`) et prise en charge des minuscules accentuées françaises (`[a-zA-ZÀ-ÖØ-öø-ÿ]`).
+   - Dénominateur de conversion `conversion_eligible` calculé par inclusion positive stricte des seuls `PROSPECT` (passage de 11 à 5 sur R8, isolant Sophie, Claire, Thomas, Léa, Marc).
+   - Séparation temporelle stricte : un suivi/abonnement social (`SOCIAL_FOLLOW_PATTERNS`) ne confère jamais le statut d'adoption (AT-07), et un achat/souscription avéré n'est pas révoqué par un simple suivi antérieur.
+   - Préservation des scénarios non commerciaux via `adoption_applicable: false` (AT-19).
+4. **Revue BMAD & Qualité** :
+   - 10 patches de revue appliqués intégralement (10/10).
+   - Suite de tests hermétiques dédiée `test_story_015_4_actor_roles_and_cohort.py` : 15/15 tests passants.
+   - Filet de sécurité global backend : **2 145 tests passants** (0 échec).
+   - Filet frontend : **43 tests Node passants** (0 échec).
+   - Linter `ruff` et validateur de plans 100 % conformes.
+

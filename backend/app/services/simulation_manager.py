@@ -32,6 +32,8 @@ from ..models.actor_selection import (
     ActorItem,
     ActorSelection,
     OptimisticLockError,
+    ScenarioParticipationPolicy,
+    ScenarioParticipationStatus,
     SelectionValidationError,
 )
 from .actor_classifier import (
@@ -456,6 +458,15 @@ class SimulationManager:
             for q in classification.qualifications
         ]
 
+        # Evaluation déterministe de la participation au scénario (Story 015-4, D3)
+        entity_map = {e.uuid: e for e in filtered.entities}
+        ScenarioParticipationPolicy.evaluate(
+            actors=actor_items,
+            entity_map=entity_map,
+            simulation_requirement=simulation_requirement,
+            simulation_brief=brief,
+        )
+
         selection = ActorSelection(
             simulation_id=state.simulation_id,
             project_id=state.project_id,
@@ -681,6 +692,15 @@ class SimulationManager:
                     )
                     for q in classification.qualifications
                 ]
+                # Evaluation déterministe de la participation au scénario (Story 015-4, D3)
+                entity_map = {e.uuid: e for e in filtered.entities}
+                ScenarioParticipationPolicy.evaluate(
+                    actors=actor_items,
+                    entity_map=entity_map,
+                    simulation_requirement=simulation_requirement,
+                    simulation_brief=simulation_brief,
+                )
+
                 selection = ActorSelection(
                     simulation_id=state.simulation_id,
                     project_id=state.project_id,
@@ -720,7 +740,8 @@ class SimulationManager:
                     self._save_simulation_state(state)
                     raise ValueError(error_msg)
 
-            eligible_uuids = {a.entity_uuid for a in selection.eligible_actors}
+            # Seuls les acteurs éligibles actifs (ACTIVE_AGENT) sont instanciés dans OASIS (Story 015-4, D3, AT-10)
+            eligible_uuids = {a.entity_uuid for a in selection.active_eligible_actors}
             eligible_entities = [
                 entity for entity in filtered.entities if entity.uuid in eligible_uuids
             ]

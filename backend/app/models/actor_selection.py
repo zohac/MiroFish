@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
 from .actor_eligibility import (
     ACTOR_ELIGIBILITY_POLICY_VERSION,
@@ -29,6 +32,102 @@ from .actor_eligibility import (
 
 ACTOR_SELECTION_SCHEMA_VERSION = 1
 ACTOR_SELECTION_FILENAME = "actors.json"
+
+HUMAN_PERSONA_ORIGINAL_TYPES = frozenset({
+    "person",
+    "persons",
+    "personne",
+    "personnes",
+    "practitioner",
+    "practitioners",
+    "praticien",
+    "praticiens",
+    "praticienne",
+    "praticiennes",
+    "trainer",
+    "trainers",
+    "formateur",
+    "formateurs",
+    "formatrice",
+    "formatrices",
+    "client",
+    "clients",
+    "cliente",
+    "clientes",
+    "user",
+    "users",
+    "utilisateur",
+    "utilisateurs",
+    "utilisatrice",
+    "utilisatrices",
+    "individual",
+    "individuals",
+    "individu",
+    "individus",
+    "human",
+    "humans",
+    "humain",
+    "humains",
+    "member",
+    "members",
+    "membre",
+    "membres",
+    "speaker",
+    "speakers",
+    "author",
+    "authors",
+    "auteur",
+    "auteurs",
+    "founder",
+    "founders",
+    "fondateur",
+    "fondateurs",
+    "fondatrice",
+    "fondatrices",
+    "citizen",
+    "citizens",
+    "citoyen",
+    "citoyens",
+    "citoyenne",
+    "citoyennes",
+    "expert",
+    "experts",
+    "experte",
+    "expertes",
+    "leader",
+    "leaders",
+    "spokesperson",
+    "spokespersons",
+    "porte-parole",
+    "student",
+    "students",
+    "etudiant",
+    "etudiants",
+    "etudiante",
+    "etudiantes",
+    "professor",
+    "professors",
+    "professeur",
+    "professeurs",
+    "professeure",
+    "professeures",
+    "activist",
+    "activists",
+    "militant",
+    "militants",
+    "militante",
+    "militantes",
+    "publicfigure",
+})
+
+
+class ScenarioParticipationStatus(str, Enum):
+    """Statut de participation d'un acteur au scénario social (Story 015-4, Lot B, FR-05)."""
+
+    ACTIVE_AGENT = "active_agent"  # Prend la parole et est instancié comme compte social OASIS
+    CONTEXT_ONLY = "context_only"  # Élément de contexte/décor/infrastructure technique sans prise de parole
+    REVIEW = "review"              # En attente d'arbitrage
+    EXCLUDED = "excluded"          # Non éligible ou exclu
 
 
 class ActorSelectionError(ValueError):
@@ -62,8 +161,17 @@ class ActorItem:
     is_human_modified: bool = False
     last_modified_at: Optional[str] = None
     justification: Optional[str] = None
+    scenario_participation: Optional[ScenarioParticipationStatus] = None
+    scenario_participation_reason: str = ""
 
     def __post_init__(self) -> None:
+        if self.scenario_participation is None:
+            if self.eligibility_status == EligibilityStatus.ELIGIBLE:
+                self.scenario_participation = ScenarioParticipationStatus.ACTIVE_AGENT
+            elif self.eligibility_status == EligibilityStatus.REVIEW:
+                self.scenario_participation = ScenarioParticipationStatus.REVIEW
+            else:
+                self.scenario_participation = ScenarioParticipationStatus.EXCLUDED
         self.validate()
 
     def validate(self) -> None:
@@ -85,6 +193,13 @@ class ActorItem:
                 raise SelectionValidationError(
                     f"Statut inconnu : {self.eligibility_status}"
                 ) from error
+        if self.scenario_participation is not None and isinstance(self.scenario_participation, str):
+            try:
+                self.scenario_participation = ScenarioParticipationStatus(self.scenario_participation)
+            except ValueError as error:
+                raise SelectionValidationError(
+                    f"Statut de participation inconnu : {self.scenario_participation}"
+                ) from error
 
         if (
             self.eligibility_status == EligibilityStatus.ELIGIBLE
@@ -95,9 +210,28 @@ class ActorItem:
                 f"Seuls {[r.value for r in ACTIVE_ROLES]} sont admissibles."
             )
 
+        if (
+            self.eligibility_status != EligibilityStatus.ELIGIBLE
+            and self.scenario_participation == ScenarioParticipationStatus.ACTIVE_AGENT
+        ):
+            raise SelectionValidationError(
+                f"L'entité '{self.entity_uuid}' de statut '{self.eligibility_status.value}' "
+                "ne peut pas avoir une participation 'active_agent'."
+            )
+
     @property
     def is_eligible(self) -> bool:
         return self.eligibility_status == EligibilityStatus.ELIGIBLE
+
+    @property
+    def is_human_persona_candidate(self) -> bool:
+        """Détermine de façon déterministe si l'acteur représente un candidat persona humain (Story 015-4, D1)."""
+        if self.qualified_role == ActorRole.PERSON:
+            return True
+        if self.qualified_role == ActorRole.UNKNOWN:
+            norm_type = (self.original_type or "").strip().lower()
+            return norm_type in HUMAN_PERSONA_ORIGINAL_TYPES
+        return False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -111,6 +245,8 @@ class ActorItem:
             "is_human_modified": self.is_human_modified,
             "last_modified_at": self.last_modified_at,
             "justification": self.justification,
+            "scenario_participation": self.scenario_participation.value if self.scenario_participation else None,
+            "scenario_participation_reason": self.scenario_participation_reason,
         }
 
     @classmethod
@@ -127,6 +263,15 @@ class ActorItem:
             raw_status = data.get("eligibility_status") or EligibilityStatus.REVIEW.value
         raw_conf = data.get("confidence")
         confidence = float(raw_conf) if raw_conf is not None else 0.0
+        raw_part = data.get("scenario_participation")
+        part_status: Optional[ScenarioParticipationStatus] = None
+        if raw_part:
+            try:
+                part_status = ScenarioParticipationStatus(raw_part)
+            except ValueError as error:
+                raise SelectionValidationError(
+                    f"Statut de participation invalide : {raw_part}"
+                ) from error
         return cls(
             entity_uuid=data.get("entity_uuid", ""),
             entity_name=data.get("entity_name", ""),
@@ -138,6 +283,8 @@ class ActorItem:
             is_human_modified=bool(data.get("is_human_modified", False)),
             last_modified_at=data.get("last_modified_at"),
             justification=data.get("justification"),
+            scenario_participation=part_status,
+            scenario_participation_reason=data.get("scenario_participation_reason", "") or "",
         )
 
 
@@ -210,12 +357,49 @@ class ActorSelection:
         return [a for a in self.actors if a.eligibility_status == EligibilityStatus.ELIGIBLE]
 
     @property
+    def active_eligible_actors(self) -> List[ActorItem]:
+        """Retourne les acteurs éligibles qui participent activement au scénario social (Story 015-4, D2)."""
+        return [
+            a for a in self.actors
+            if a.eligibility_status == EligibilityStatus.ELIGIBLE
+            and a.scenario_participation == ScenarioParticipationStatus.ACTIVE_AGENT
+        ]
+
+    @property
+    def context_only_actors(self) -> List[ActorItem]:
+        """Retourne les acteurs maintenus dans le décor/contexte sans compte actif (Story 015-4, D2)."""
+        return [
+            a for a in self.actors
+            if a.scenario_participation == ScenarioParticipationStatus.CONTEXT_ONLY
+        ]
+
+    @property
     def review_actors(self) -> List[ActorItem]:
         return [a for a in self.actors if a.eligibility_status == EligibilityStatus.REVIEW]
 
     @property
     def ineligible_actors(self) -> List[ActorItem]:
         return [a for a in self.actors if a.eligibility_status == EligibilityStatus.INELIGIBLE]
+
+    def excluded_persona_names(self) -> List[str]:
+        """Retourne les noms des personas humains rejetés pour le filtre chirurgical de rédaction (Story 015-4, D1).
+
+        Ne sélectionne QUE les entités non admises (non-eligible ou exclues) qui sont
+        des candidats personas humains (is_human_persona_candidate is True).
+        Exclut formellement les produits, services, domaines, concepts, lieux, événements
+        et organisations passives de cette liste de censure textuelle.
+        """
+        excluded: List[str] = []
+        for a in self.actors:
+            is_non_admitted = (
+                a.eligibility_status != EligibilityStatus.ELIGIBLE
+                or a.scenario_participation == ScenarioParticipationStatus.EXCLUDED
+            )
+            if is_non_admitted and a.is_human_persona_candidate:
+                name = a.entity_name.strip()
+                if name and name not in excluded:
+                    excluded.append(name)
+        return excluded
 
     def apply_review(
         self,
@@ -290,10 +474,31 @@ class ActorSelection:
                     f"Seuls {[r.value for r in ACTIVE_ROLES]} peuvent être éligibles."
                 )
 
+            raw_part = mod.get("scenario_participation") or mod.get("target_scenario_participation")
+            target_part: Optional[ScenarioParticipationStatus] = None
+            if raw_part:
+                try:
+                    target_part = ScenarioParticipationStatus(raw_part)
+                except ValueError as error:
+                    raise SelectionValidationError(
+                        f"Statut de participation invalide '{raw_part}' pour {entity_uuid}"
+                    ) from error
+            elif target_status == EligibilityStatus.ELIGIBLE:
+                existing_actor = actors_map[entity_uuid]
+                if existing_actor.eligibility_status == target_status and existing_actor.scenario_participation:
+                    target_part = existing_actor.scenario_participation
+                else:
+                    target_part = ScenarioParticipationStatus.ACTIVE_AGENT
+            elif target_status == EligibilityStatus.REVIEW:
+                target_part = ScenarioParticipationStatus.REVIEW
+            else:
+                target_part = ScenarioParticipationStatus.EXCLUDED
+
             validated_modifications.append({
                 "entity_uuid": entity_uuid,
                 "target_role": target_role.value,
                 "target_status": target_status.value,
+                "target_scenario_participation": target_part.value if target_part else None,
                 "justification": justification,
             })
 
@@ -303,6 +508,8 @@ class ActorSelection:
             actor = actors_map[vmod["entity_uuid"]]
             actor.qualified_role = ActorRole(vmod["target_role"])
             actor.eligibility_status = EligibilityStatus(vmod["target_status"])
+            if vmod.get("target_scenario_participation"):
+                actor.scenario_participation = ScenarioParticipationStatus(vmod["target_scenario_participation"])
             actor.is_human_modified = True
             actor.last_modified_at = now_iso
             actor.justification = vmod["justification"]
@@ -389,3 +596,173 @@ class ActorSelection:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.from_dict(data)
+
+
+# Motifs génériques d'organisations passives (outils, logiciels, plateformes, infra) (Story 015-4, D3)
+PASSIVE_ORGANIZATION_MARKERS = [
+    r"\b(?:logiciel|outil|plateforme\s+no-?code|infrastructure\s+de\s+paiement|paiement\s+en\s+ligne)\b",
+    r"\b(?:constructeur\s+de\s+sites?|cms|saas|software|payment\s+gateway|tool|website\s+builder)\b",
+    r"\b(?:solution\s+technique|passerelle\s+de\s+paiement|dispositif\s+technologique)\b",
+]
+
+# Clauses génériques de non-personnification et d'exclusion dans le brief (Story 015-4, D3)
+NON_PERSONIFICATION_PATTERNS = [
+    r"(?i:\b(?:ne\s+doivent\s+jamais\s+être\s+personnifi[ée]s?|ne\s+doit\s+jamais\s+être\s+personnifi[ée]?)\b)",
+    r"(?i:\b(?:ne\s+pas\s+personnifier|ne\s+pas\s+simuler\s+comme|must\s+never\s+be\s+personified|do\s+not\s+personify)\b)",
+    r"(?i:\b(?:interdiction\s+formelle\s+de\s+personnifier|ne\s+doivent\s+pas\s+être\s+des\s+agents)\b)",
+]
+
+EXCLUSION_SECTION_PATTERNS = [
+    r"(?i:\b(?:exclus?|hors\s+(?:du\s+)?p[eé]rim[eè]tre|non\s+retenus?|excluded)\s*[:\-])\s*([^\n\r.]+)",
+    r"(?i:\b(?:exclus?|hors\s+(?:du\s+)?p[eé]rim[eè]tre|non\s+retenus?|excluded)\s*[:\-]\s*\n)((?:\s*[-*]\s*[^\n]+\n?)+)",
+]
+
+
+class ScenarioParticipationPolicy:
+    """Politique déterministe de participation au scénario social (Story 015-4, D3).
+
+    Distingue l'éligibilité ontologique (l'entité est une vraie organisation/personne dans le graphe)
+    de sa participation active comme compte social OASIS (locuteur prenant la parole).
+    Rétrograde en `CONTEXT_ONLY` :
+      1. Les entités explicitement exclues ou interdites de personnification par le brief.
+      2. Les organisations qui sont de simples outils logiciels, CMS ou infrastructures passives
+         lorsqu'elles ne sont pas requises comme acteurs actifs dans le scénario (AT-10 vs AT-09).
+    """
+
+    @classmethod
+    def evaluate(
+        cls,
+        actors: List[ActorItem],
+        entity_map: Optional[Dict[str, Any]] = None,
+        simulation_requirement: str = "",
+        simulation_brief: Any = None,
+    ) -> List[ActorItem]:
+        """Évalue et met à jour le `scenario_participation` des acteurs de manière déterministe."""
+        if not actors:
+            return actors
+
+        req_text = simulation_requirement or ""
+        rules_text = ""
+        brief_excluded: Set[str] = set()
+        brief_targets: Set[str] = set()
+
+        if simulation_brief:
+            if hasattr(simulation_brief, "rules") and simulation_brief.rules:
+                rules_text = " ".join(simulation_brief.rules)
+            if hasattr(simulation_brief, "excluded_actors") and simulation_brief.excluded_actors:
+                brief_excluded = {
+                    unicodedata.normalize("NFC", a.strip().lower())
+                    for a in simulation_brief.excluded_actors if a and a.strip()
+                }
+            if hasattr(simulation_brief, "target_audiences") and simulation_brief.target_audiences:
+                brief_targets = {
+                    unicodedata.normalize("NFC", a.strip().lower())
+                    for a in simulation_brief.target_audiences if a and a.strip()
+                }
+
+        combined_text = f"{req_text}\n{rules_text}"
+        combined_text_nfc = unicodedata.normalize("NFC", combined_text)
+        # Nettoyage du markdown (astérisques, underscores, backticks) pour ne pas briser les regex
+        combined_text_clean = re.sub(r"[*_`]", "", combined_text_nfc)
+
+        # Extraction des noms d'entités cités dans des clauses d'exclusion génériques
+        names_in_exclusion_clauses: Set[str] = set()
+        for pat in EXCLUSION_SECTION_PATTERNS:
+            for match in re.finditer(pat, combined_text_clean):
+                clause_content = match.group(1).lower()
+                for a in actors:
+                    norm_a = unicodedata.normalize("NFC", a.entity_name.strip().lower())
+                    if norm_a and re.search(rf"\b{re.escape(norm_a)}\b", clause_content):
+                        names_in_exclusion_clauses.add(norm_a)
+
+        # Détection des phrases interdisant la personnification
+        sentences = re.split(r"(?<=[.!?\n])\s+", combined_text_clean)
+        for s in sentences:
+            s_clean = s.strip()
+            if any(re.search(np_pat, s_clean) for np_pat in NON_PERSONIFICATION_PATTERNS):
+                s_lower = s_clean.lower()
+                for a in actors:
+                    norm_a = unicodedata.normalize("NFC", a.entity_name.strip().lower())
+                    if norm_a and re.search(rf"\b{re.escape(norm_a)}\b", s_lower):
+                        names_in_exclusion_clauses.add(norm_a)
+
+        has_general_no_personify_orgs = bool(
+            any(re.search(np_pat, combined_text_clean) for np_pat in NON_PERSONIFICATION_PATTERNS)
+            and re.search(r"\b(?:entreprises?|logiciels?|soci[eé]t[eé]s?|softwares?)\b", combined_text_clean, re.IGNORECASE)
+            and not re.search(r"\b(?:comptes?\s+officiels?|organismes?\s+officiels?|official\s+accounts?)\b", combined_text_clean, re.IGNORECASE)
+        )
+
+        for actor in actors:
+            # Respect strict des arbitrages humains existants
+            if actor.is_human_modified:
+                continue
+
+            # Les entités inéligibles restent exclues
+            if actor.eligibility_status != EligibilityStatus.ELIGIBLE:
+                actor.scenario_participation = ScenarioParticipationStatus.EXCLUDED
+                continue
+
+            norm_name = unicodedata.normalize("NFC", actor.entity_name.strip().lower())
+
+            # 1. Règle d'exclusion explicite du brief
+            is_brief_excluded = (
+                norm_name in brief_excluded
+                or any(re.search(rf"\b{re.escape(norm_name)}\b", excl) for excl in brief_excluded)
+            )
+            if is_brief_excluded or norm_name in names_in_exclusion_clauses:
+                if actor.is_human_persona_candidate or actor.qualified_role == ActorRole.PERSON:
+                    actor.scenario_participation = ScenarioParticipationStatus.EXCLUDED
+                    actor.scenario_participation_reason = (
+                        "Persona humain exclu de la simulation active par une clause explicite du brief (statut excluded)."
+                    )
+                else:
+                    actor.scenario_participation = ScenarioParticipationStatus.CONTEXT_ONLY
+                    actor.scenario_participation_reason = (
+                        "Exclu de la simulation active par une clause explicite du brief (maintien context_only)."
+                    )
+                continue
+
+            # 2. Règle d'organisation outil / infrastructure passive (AT-10 vs AT-09)
+            if actor.qualified_role == ActorRole.ORGANIZATION:
+                # Si l'organisation est explicitement ciblée comme audience ou locuteur, elle reste active
+                if norm_name in brief_targets:
+                    actor.scenario_participation = ScenarioParticipationStatus.ACTIVE_AGENT
+                    continue
+
+                # Collecte des métadonnées contextuelles de l'entité
+                entity_meta_text = actor.reasoning or ""
+                if entity_map and actor.entity_uuid in entity_map:
+                    ent_obj = entity_map[actor.entity_uuid]
+                    summary = getattr(ent_obj, "summary", "") or ""
+                    ent_type = getattr(ent_obj, "entity_type", "") or ""
+                    entity_meta_text += f" {summary} {ent_type}"
+
+                entity_meta_lower = entity_meta_text.lower()
+
+                # Une organisation dotée d'une équipe, d'une direction ou d'un compte officiel n'est pas un outil passif
+                has_active_account_or_team = any(
+                    re.search(pat, entity_meta_lower)
+                    for pat in (
+                        r"\b(?:compte\s+officiel|équipe|direction|membres|porte-parole|représentant)\b",
+                        r"\b(?:official\s+account|team|leadership|spokesperson)\b",
+                    )
+                )
+
+                # Détection des marqueurs d'outil/logiciel/paiement passif
+                is_passive_tool = any(
+                    re.search(pat, entity_meta_lower) for pat in PASSIVE_ORGANIZATION_MARKERS
+                ) and not has_active_account_or_team
+
+                if is_passive_tool or has_general_no_personify_orgs:
+                    actor.scenario_participation = ScenarioParticipationStatus.CONTEXT_ONLY
+                    actor.scenario_participation_reason = (
+                        "Organisation qualifiée d'outil technique, logiciel ou infrastructure passive sans rôle d'agent actif (AT-10)."
+                    )
+                else:
+                    # AT-09 : Organisation active (syndicat, opérateur de transport, autorité publique)
+                    actor.scenario_participation = ScenarioParticipationStatus.ACTIVE_AGENT
+            else:
+                # Personnes physiques éligibles -> agents actifs par défaut
+                actor.scenario_participation = ScenarioParticipationStatus.ACTIVE_AGENT
+
+        return actors

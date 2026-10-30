@@ -243,7 +243,7 @@ class ScenarioRole(str, Enum):
             return cls.FOUNDER
         if any(k in val for k in ("TEAM", "COLLABORATEUR", "EMPLOYE", "SALARIE", "DEVELOPPEUR", "INTERNE")):
             return cls.TEAM_MEMBER
-        if any(k in val for k in ("PRESCRIBER", "PRESCRIPTEUR", "EXPERT", "ADVISOR")):
+        if any(k in val for k in ("PRESCRIBER", "PRESCRIPTEUR", "EXPERT", "ADVISOR", "TRAINER", "FORMATEUR", "FORMATRICE", "ENSEIGNANT", "ENSEIGNANTE", "MENTOR", "INSTRUCTEUR", "INSTRUCTRICE", "REFERENT", "REFERENTE")):
             return cls.PRESCRIBER
         if any(k in val for k in ("OBSERVER", "OBSERVATEUR", "TEMOIN")):
             return cls.OBSERVER
@@ -345,6 +345,7 @@ class CohortMemberStatus:
     decision_status: DecisionStatus = DecisionStatus.UNDECIDED
     is_silent: bool = False
     verbatim_citations: List[str] = field(default_factory=list)
+    conversion_eligible: Optional[bool] = None
 
     def __post_init__(self) -> None:
         # Invariant de silence C7 :
@@ -361,6 +362,14 @@ class CohortMemberStatus:
             if self.decision_status == DecisionStatus.PRESENT_NO_ACTION:
                 object.__setattr__(self, "decision_status", DecisionStatus.UNDECIDED)
 
+        # Inclusion positive stricte (Story 015-4, D5) :
+        if self.conversion_eligible is None:
+            is_conv_eligible = (
+                self.scenario_role == ScenarioRole.PROSPECT
+                and self.decision_status != DecisionStatus.NOT_APPLICABLE
+            )
+            object.__setattr__(self, "conversion_eligible", is_conv_eligible)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "persona_name": self.persona_name,
@@ -371,10 +380,13 @@ class CohortMemberStatus:
             "decision_status": self.decision_status.value,
             "is_silent": self.is_silent,
             "verbatim_citations": list(self.verbatim_citations),
+            "conversion_eligible": bool(self.conversion_eligible),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> CohortMemberStatus:
+        raw_conv = data.get("conversion_eligible")
+        conv_eligible = bool(raw_conv) if raw_conv is not None else None
         return cls(
             persona_name=str(data.get("persona_name", "")),
             scenario_role=ScenarioRole.from_str(data.get("scenario_role")),
@@ -384,6 +396,7 @@ class CohortMemberStatus:
             decision_status=DecisionStatus.from_str(data.get("decision_status")),
             is_silent=bool(data.get("is_silent", False)),
             verbatim_citations=[str(v) for v in (data.get("verbatim_citations") or [])],
+            conversion_eligible=conv_eligible,
         )
 
 
@@ -425,12 +438,12 @@ class CohortCoverageTable:
 
     @property
     def prospect_members(self) -> List[CohortMemberStatus]:
-        """Retourne uniquement les membres éligibles à l'adoption (exclut strictement NOT_APPLICABLE, fondateurs, institutions)."""
-        return [
-            m for m in self.members
-            if m.decision_status != DecisionStatus.NOT_APPLICABLE
-            and m.scenario_role not in (ScenarioRole.FOUNDER, ScenarioRole.TEAM_MEMBER, ScenarioRole.INSTITUTION)
-        ]
+        """Retourne uniquement les membres éligibles à l'adoption par inclusion positive stricte (Story 015-4, D5, AT-08).
+
+        Repose sur `m.conversion_eligible is True`, excluant tout membre UNKNOWN, EXISTING_USER, PRESCRIBER,
+        FOUNDER, TEAM_MEMBER, INSTITUTION, OBSERVER, PARTNER, STAKEHOLDER ou NOT_APPLICABLE.
+        """
+        return [m for m in self.members if m.conversion_eligible is True]
 
     @property
     def adopted_prospects(self) -> List[CohortMemberStatus]:
@@ -477,6 +490,7 @@ class CohortCoverageTable:
         return None
 
     def to_dict(self) -> Dict[str, Any]:
+        prospects = self.prospect_members
         return {
             "simulation_id": self.simulation_id,
             "horizon_hours": self.horizon_hours,
@@ -491,7 +505,8 @@ class CohortCoverageTable:
             # qui est un « non applicable » sérialisé en zéro. Sans le
             # dénominateur, un taux de 0 % et un taux indéfini sont
             # indiscernables pour le lecteur (story 013-6, revue BMAD).
-            "adoption_denominator": len(self.prospect_members),
+            "adoption_denominator": len(prospects),
+            "adoption_applicable": len(prospects) > 0,
             "members": [m.to_dict() for m in self.members],
         }
 
@@ -590,31 +605,103 @@ class CohortCoverageTable:
 
         # 2.1 Extraction des rôles explicites issus du brief de simulation (Étape 1)
         brief_roles: Dict[str, ScenarioRole] = {}
+        non_client_personas: Set[str] = set()
+
         if brief:
+            full_brief_text = " ".join([
+                brief.goal or "",
+                brief.initial_state or "",
+                brief.additional_context or "",
+                " ".join(brief.rules or []),
+                " ".join(brief.hypotheses or []),
+            ])
+
             # Recherche de fondateurs dans le texte du brief ou des consignes
             founder_patterns = [
-                r"(?i:\b(?:fondateur|fondatrice|fondateurs|créateur|créatrice|founder|ceo|cofondateur|cofondatrice)\s*(?:est|sont|:|de)?\s*)([A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+)?)",
-                r"([A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-ß][a-zA-ZÀ-ÖØ-ß0-9_\-]+)?)\s*(?:\(|,)\s*(?i:(?:fondateur|fondatrice|founder|ceo|cofondateur|cofondatrice))",
+                r"(?i:\b(?:fondateur|fondatrice|fondateurs|créateur|créatrice|founder|ceo|cofondateur|cofondatrice)\s*(?:est|sont|:|de)?\s*)([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)",
+                r"([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)\s*(?:\(|,)\s*(?i:(?:fondateur|fondatrice|founder|ceo|cofondateur|cofondatrice))",
             ]
-            full_brief_text = " ".join([
-                brief.goal,
-                brief.initial_state,
-                brief.additional_context,
-                " ".join(brief.rules),
-                " ".join(brief.hypotheses),
-            ])
             for pat in founder_patterns:
                 for match in re.finditer(pat, full_brief_text):
                     c_name = match.group(1).strip()
-                    # Ne garder que des noms plausibles (pas des phrases entières)
                     if 2 <= len(c_name) <= 30 and not any(k in c_name.lower() for k in ("le ", "la ", "les ", "un ", "une ")):
                         brief_roles[normalize_agent_name(c_name)] = ScenarioRole.FOUNDER
 
-            # Target audiences -> PROSPECT par défaut si nommés explicitement
+            # Recherche de formateurs / formatrices / prescripteurs (Story 015-4, D4)
+            trainer_patterns = [
+                r"-\s+\*\*([^\*]+)\*\*\s*(?:\([^\)]*\))?\s*(?:et\s+\*\*([^\*]+)\*\*\s*(?:\([^\)]*\))?\s*)?sont\s+(?:deux\s+)?(?:personnalités\s+et\s+)?(?:organismes?\s+de\s+formation|format(?:eurs|rices))",
+                r"([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)\s*(?:\(|,)?\s*(?i:(?:la\s+formatrice|le\s+formateur|formatrice|formateur|prescripteur|prescriptrice|trainer|prescriber))",
+                r"(?i:\b(?:formatrice|formateur|prescripteur|prescriptrice)\s*(?:est|:|de)?\s*)([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)",
+            ]
+            for pat in trainer_patterns:
+                for match in re.finditer(pat, full_brief_text):
+                    for grp_idx in (1, 2):
+                        if grp_idx <= len(match.groups()) and match.group(grp_idx):
+                            c_name = match.group(grp_idx).strip()
+                            if 2 <= len(c_name) <= 30 and not any(k in c_name.lower() for k in ("le ", "la ", "les ", "un ", "une ")):
+                                norm_n = normalize_agent_name(c_name)
+                                if norm_n not in brief_roles:
+                                    brief_roles[norm_n] = ScenarioRole.PRESCRIBER
+
+            # Recherche de clients pilotes existants / déjà installés (Story 015-4, D4)
+            existing_user_patterns = [
+                r"([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)[^\n.!?]*?(?i:(?:praticienne\s+pilote|cliente?\s+pilote|pilote\s+existante?|d[eé]j[aà]\s+install[eé]e?|d[eé]j[aà]\s+client|utilisat(?:eur|rice)\s+actuelle?))",
+            ]
+            for pat in existing_user_patterns:
+                for match in re.finditer(pat, full_brief_text):
+                    c_name = match.group(1).strip()
+                    if 2 <= len(c_name) <= 30 and not any(k in c_name.lower() for k in ("le ", "la ", "les ", "un ", "une ")):
+                        norm_n = normalize_agent_name(c_name)
+                        brief_roles[norm_n] = ScenarioRole.EXISTING_USER
+
+            # Recherche de clauses interdisant de simuler un persona comme nouveau prospect
+            no_prospect_clause_patterns = [
+                r"([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+(?:\s+(?!(?i:et|ou|de|du|le|la|les|un|une|qui|avec)\b)[A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ0-9_\-]+)?)[^\n.!?]*?(?i:(?:ne\s+doit\s+([a-z\s]+)?être\s+simul[eé]e?\s+comme\s+une?\s+nouvelle?\s+prospect|pas\s+une?\s+nouvelle?\s+prospect))",
+            ]
+            for pat in no_prospect_clause_patterns:
+                for match in re.finditer(pat, full_brief_text):
+                    if match.groups() and match.group(1):
+                        c_name = match.group(1).strip()
+                        if 2 <= len(c_name) <= 30 and not any(k in c_name.lower() for k in ("le ", "la ", "les ", "un ", "une ")):
+                            non_client_personas.add(normalize_agent_name(c_name))
+
+            # Extraction de la section "Différenciation nette des postures simulées" ou personas nommés
+            posture_patterns = [
+                r"-\s+\*\*([^\*]+)\*\*\s*\(([^)]+)\)",
+            ]
+            for pat in posture_patterns:
+                for match in re.finditer(pat, full_brief_text):
+                    c_name = match.group(1).strip()
+                    desc = match.group(2).lower()
+                    norm_n = normalize_agent_name(c_name)
+                    if any(k in desc for k in ("formatrice", "formateur", "prescriptrice", "prescripteur", "instructeur", "instructrice")):
+                        brief_roles[norm_n] = ScenarioRole.PRESCRIBER
+                    elif any(k in desc for k in ("pilote", "déjà client", "installée")):
+                        brief_roles[norm_n] = ScenarioRole.EXISTING_USER
+                    elif any(k in desc for k in ("purement historique", "ne participe pas", "hors cohorte", "non simulé", "exclu")):
+                        pass
+                    elif norm_n not in brief_roles:
+                        brief_roles[norm_n] = ScenarioRole.PROSPECT
+
+            # Target audiences -> PROSPECT par défaut si non préalablement qualifiés en rôle non-client
             for aud in brief.target_audiences:
                 norm_aud = normalize_agent_name(aud)
                 if norm_aud and norm_aud not in brief_roles:
                     brief_roles[norm_aud] = ScenarioRole.PROSPECT
+
+            # Clauses d'exclusion des prospects / clauses non-client (Story 015-4, D4)
+            # Tout persona explicitement qualifié de client pilote/existant/fondateur/prescripteur est un non-client
+            for norm_n, b_role in brief_roles.items():
+                if b_role in (
+                    ScenarioRole.EXISTING_USER,
+                    ScenarioRole.FOUNDER,
+                    ScenarioRole.PRESCRIBER,
+                    ScenarioRole.OBSERVER,
+                    ScenarioRole.PARTNER,
+                    ScenarioRole.INSTITUTION,
+                    ScenarioRole.STAKEHOLDER,
+                ):
+                    non_client_personas.add(norm_n)
 
         if actor_selection and actor_selection.actors:
             for item in actor_selection.actors:
@@ -623,22 +710,37 @@ class CohortCoverageTable:
                 status_str = raw_status.value if hasattr(raw_status, "value") else str(raw_status or "")
                 if status_str.lower() in ("ineligible", "review"):
                     continue
+                # Filtrer les entités context_only qui ne sont pas des comptes actifs (Story 015-4, D4)
+                raw_part = getattr(item, "scenario_participation", None)
+                part_val = raw_part.value if hasattr(raw_part, "value") else str(raw_part or "")
+                if part_val.lower() == "context_only":
+                    # Si aucune preuve d'activité n'est dans evidence_pack, on n'ajoute pas le décor au tableau
+                    has_events = (
+                        evidence_pack and evidence_pack.events and
+                        any(normalize_agent_name(resolver.resolve_event_actor(ev) or "") == normalize_agent_name(item.entity_name) for ev in evidence_pack.events)
+                    )
+                    if not has_events:
+                        continue
+
                 name = item.entity_name.strip()
                 if not name:
                     continue
                 norm_key = normalize_agent_name(name)
 
-                # Résolution hiérarchique du rôle (Story 012-2, AC1) :
-                # 1. Brief explicite (fondateur, target audience)
+                # Résolution hiérarchique du rôle (Story 012-2, AC1 + Story 015-4, D4) :
+                # 1. Brief explicite (fondateur, target audience, postures)
                 # 2. Config d'agent OASIS (simulation_config.json)
-                # 3. Qualification d'acteurs (actor_selection)
+                # 3. Qualification d'acteurs (original_type puis qualified_role)
                 # 4. Repli ScenarioRole.UNKNOWN (interdiction de forcer PROSPECT sans preuve)
                 if norm_key in brief_roles:
                     role = brief_roles[norm_key]
                 elif norm_key in resolver.name_to_role:
                     role = resolver.name_to_role[norm_key]
                 else:
-                    role = ScenarioRole.from_actor_role(item.qualified_role)
+                    # Repli enrichi sur original_type (Story 015-4, D4)
+                    role = ScenarioRole.from_str(item.original_type)
+                    if role == ScenarioRole.UNKNOWN:
+                        role = ScenarioRole.from_actor_role(item.qualified_role)
 
                 members_map[norm_key] = {
                     "persona_name": name,
@@ -747,12 +849,17 @@ class CohortCoverageTable:
                             if extracted_obj not in entry["objections"]:
                                 entry["objections"].append(extracted_obj)
 
-        # 4. Construction des CohortMemberStatus avec qualification honnête (Story 012-2, AC2-AC4)
+        # 4. Construction des CohortMemberStatus avec qualification honnête (Story 012-2, AC2-AC4 + Story 015-4, D5-D6)
         # Motifs probants d'adoption vérifiée (souscription formelle, achat, contrat signé, passage à l'acte)
         ADOPTION_PROOF_PATTERNS = [
-            r"\b(?:souscri\w+|souscription|ach[eè]t\w+|achat|abonn\w+|abonnement|sign[ée]\w*\s+le\s+contrat|valid[ée]\w*\s+la\s+commande|pass(?:é|er?|e)\s+commande)\b",
-            r"\b(?:subscrib\w+|purchas\w+|bought|signed\s+the\s+contract|order\s+confirmed|placed\s+an?\s+order)\b",
+            r"\b(?:souscri\w+|souscription|ach[eè]t\w+|achat|abonn\w+\s+(?:au\s+plan|à\s+l['’]offre|au\s+service|au\s+forfait|à\s+la\s+formule)|sign[ée]\w*\s+le\s+contrat|valid[ée]\w*\s+la\s+commande|pass(?:é|er?|e)\s+commande)\b",
+            r"\b(?:subscrib\w+\s+(?:to\s+the\s+plan|to\s+the\s+service|to\s+the\s+offer)|purchas\w+|bought|signed\s+the\s+contract|order\s+confirmed|placed\s+an?\s+order)\b",
             r"\b(?:pass[ée]\s+au\s+plan|migr[ée]\s+sur|adopt[ée]\s+définitivement|converted\s+to\s+paid)\b",
+        ]
+        # Motifs négatifs : simple suivi social ne devant JAMAIS être qualifié d'adoption commerciale (Story 015-4, D6, AT-07)
+        SOCIAL_FOLLOW_PATTERNS = [
+            r"(?i:\b(?:s['’]abonn\w+|abonn\w+|suit|suivre|follow\w*)\s+(?:au\s+compte|à\s+la\s+page|au\s+fil|à\s+@|le\s+compte|le\s+profil|sur\s+twitter|sur\s+reddit)\b)",
+            r"(?i:\b(?:follow(?:ed|ing|s)?\s+(?:the\s+account|the\s+page|the\s+feed|@|on\s+twitter|on\s+reddit))\b)",
         ]
         # Motifs de demande de démo ou contact commercial
         DEMO_REQUEST_PATTERNS = [
@@ -771,9 +878,22 @@ class CohortCoverageTable:
             action_count = len(actions)
             ev_ids = [a.event_id for a in actions if a.event_id]
             role = entry["scenario_role"]
+            norm_key_entry = normalize_agent_name(entry["persona_name"])
 
-            # Règle AC2 : les fondateurs, membres internes et institutions sont NOT_APPLICABLE
-            if role in (ScenarioRole.FOUNDER, ScenarioRole.TEAM_MEMBER, ScenarioRole.INSTITUTION):
+            # Règle AC2 / D4-D5 : les rôles non-clients et clients existants exclus de la prospection sont NOT_APPLICABLE
+            is_non_client_role = role in (
+                ScenarioRole.FOUNDER,
+                ScenarioRole.TEAM_MEMBER,
+                ScenarioRole.INSTITUTION,
+                ScenarioRole.PRESCRIBER,
+                ScenarioRole.EXISTING_USER,
+                ScenarioRole.OBSERVER,
+                ScenarioRole.PARTNER,
+                ScenarioRole.STAKEHOLDER,
+            )
+            is_explicit_non_prospect = norm_key_entry in non_client_personas
+
+            if is_non_client_role or is_explicit_non_prospect:
                 decision = DecisionStatus.NOT_APPLICABLE
             elif action_count == 0:
                 decision = DecisionStatus.PRESENT_NO_ACTION
@@ -782,8 +902,9 @@ class CohortCoverageTable:
             elif entry["objections"]:
                 decision = DecisionStatus.HESITANT
             else:
-                # Analyse probante des textes d'actions (Anti-Affabulation AC3, AC4)
+                # Analyse probante des textes d'actions (Anti-Affabulation AC3, AC4, AT-07)
                 full_text = " ".join(entry.get("full_texts") or entry["citations"]).lower()
+                is_social_follow = any(re.search(pat, full_text) for pat in SOCIAL_FOLLOW_PATTERNS)
                 is_adopted = any(re.search(pat, full_text) for pat in ADOPTION_PROOF_PATTERNS)
                 is_demo = any(re.search(pat, full_text) for pat in DEMO_REQUEST_PATTERNS)
                 is_interested = any(re.search(pat, full_text) for pat in INTEREST_PATTERNS)
@@ -792,7 +913,7 @@ class CohortCoverageTable:
                     decision = DecisionStatus.ADOPTED_VERIFIED
                 elif is_demo:
                     decision = DecisionStatus.DEMO_REQUESTED
-                elif is_interested:
+                elif is_interested or is_social_follow:
                     decision = DecisionStatus.INTERESTED
                 else:
                     # Règle anti-affabulation absolue C3 : activité sans objection = NO_DECISION, JAMAIS ADOPTED

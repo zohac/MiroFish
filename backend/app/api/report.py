@@ -47,11 +47,11 @@ def _filter_simulation_requirement_for_report(
         admitted_names = [
             a.entity_name for a in actor_selection.actors
             if getattr(a.eligibility_status, "value", str(a.eligibility_status)).lower() == "eligible"
+            and getattr(a.scenario_participation, "value", str(a.scenario_participation or "")).lower() != "excluded"
         ]
-        excluded_names = [
-            a.entity_name for a in actor_selection.actors
-            if getattr(a.eligibility_status, "value", str(a.eligibility_status)).lower() != "eligible"
-        ]
+        # Story 015-4 (Lot B, D1, AC1) : filtre chirurgical restreint aux candidats personas humains
+        # Ne caviarde JAMAIS les produits, offres, noms de domaine, logiciels ou concepts.
+        excluded_names = actor_selection.excluded_persona_names()
         return filter_non_admitted_personas_from_text(
             simulation_requirement,
             admitted_names=admitted_names,
